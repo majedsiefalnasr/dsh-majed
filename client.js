@@ -15,6 +15,7 @@
  *  3. Settings > General > "App font"           (dropdown: DSH default / System font)
  *  4. Settings > General > "System notifications" (+ on completion / when action needed)
  *     Native desktop notifications driven by DSH's session status; click opens the session.
+ *  5. Account menu grouping: sidebar footer buttons (Remote access, ...) move into the account menu.
  */
 window.__ModuleLoader__.load({
   id: 'dsh-majed',
@@ -28,7 +29,7 @@ window.__ModuleLoader__.load({
     const STORE_KEY = 'dsh-majed:settings:v1';
     // App UI font size is a px number like the chat font size (DSH chrome is designed at 14px).
     const UI_BASE_PX = 14, UI_MIN_PX = 11, UI_MAX_PX = 20;
-    const DEFAULTS = { bidi: true, uiFontSize: UI_BASE_PX, fontSource: 'dsh', notifyMode: 'background', notifyDone: true, notifyAction: true };
+    const DEFAULTS = { bidi: true, uiFontSize: UI_BASE_PX, fontSource: 'dsh', notifyMode: 'background', notifyDone: true, notifyAction: true, accountMenu: true };
     const NOTIFY_MODES = ['off', 'background', 'always'];
     const FONT_SOURCES = ['dsh', 'system'];
     const listeners = new Set();
@@ -82,6 +83,8 @@ window.__ModuleLoader__.load({
       'notify.msg.question': 'Waiting for your answer',
       'notify.msg.plan': 'Plan ready for your review',
       'notify.session': 'Session',
+      'account.title': 'Group sidebar actions in account menu',
+      'account.description': 'Moves extra sidebar buttons (such as Remote access) into the account menu instead of showing them beside it.',
     };
     const zh = {
       'bidi.title': '双向文本（RTL）',
@@ -112,6 +115,8 @@ window.__ModuleLoader__.load({
       'notify.msg.question': '等待你的回答',
       'notify.msg.plan': '计划待审阅',
       'notify.session': '会话',
+      'account.title': '将侧边栏操作收进账户菜单',
+      'account.description': '把额外的侧边栏按钮（如远程访问）移入账户菜单，而不是显示在旁边。',
     };
 
     // ───────────────────────── settings rows ─────────────────────────
@@ -135,6 +140,7 @@ window.__ModuleLoader__.load({
 .majed-test{height:36px;padding:0 12px;border:none;border-radius:var(--dsw-radius-md);background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:13px;cursor:pointer}
 .majed-test:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
 .majed-test:disabled{opacity:.4;cursor:default}
+[data-majed-menu-trigger]{width:0!important;height:0!important;min-width:0!important;min-height:0!important;margin:0!important;padding:0!important;border:0!important;overflow:hidden!important;opacity:0!important;pointer-events:none!important;flex:none!important}
 `;
 
     function BidiRow({ t }) {
@@ -314,6 +320,110 @@ window.__ModuleLoader__.load({
     function NotifyActionRow({ t }) {
       const on = useSetting('notifyAction');
       return h(ToggleRow, { title: t('notify.action.title'), description: t('notify.action.description'), checked: on, onChange: (v) => store.set({ notifyAction: v }) });
+    }
+
+    // ───────────────────────── account menu: extra actions live inside it ─────────────────────────
+    // DSH builds the account menu (Settings / Feedback / Sign out) from fixed props, and plugins such as
+    // Remote access add their button to the `sidebar.footer.action` slot instead. We (1) hide those footer
+    // triggers (zero-size, still mounted, so their panels and state keep working) and (2) add an equivalent
+    // item to the account menu whenever it opens; selecting it clicks the hidden trigger.
+    const ACCOUNT_TRIGGER = 'button[data-signed-out]';
+    const FOOTER_SLOT = '[data-slot="sidebar.footer.action"]';
+    const accountItems = new Map();   // id -> { id, label, icon?: svg markup, order?, onSelect }
+
+    function footerTriggers() {
+      const out = [];
+      document.querySelectorAll(FOOTER_SLOT).forEach((slot) => {
+        Array.from(slot.children).forEach((child) => {
+          const trigger = child.matches('button') ? child : child.querySelector('button');
+          if (trigger) out.push(trigger);
+        });
+      });
+      return out;
+    }
+    function markFooterTriggers(on) {
+      for (const t of footerTriggers()) {
+        if (on) t.setAttribute('data-majed-menu-trigger', '');
+        else t.removeAttribute('data-majed-menu-trigger');
+      }
+    }
+    function footerMenuItems() {
+      const out = [];
+      for (const trigger of footerTriggers()) {
+        const label = (trigger.getAttribute('aria-label') || trigger.getAttribute('title') || trigger.textContent || '').trim();
+        if (!label) continue;
+        out.push({ id: 'footer:' + label, label, order: 1000 + out.length, svg: trigger.querySelector('svg'), onSelect: () => trigger.click() });
+      }
+      return out;
+    }
+    function removeInjectedItems() {
+      document.querySelectorAll('[data-majed-item]').forEach((b) => { const w = b.parentElement; if (w) w.remove(); });
+    }
+    function injectAccountItems(menu, trigger) {
+      const buttons = Array.from(menu.querySelectorAll('[role="menuitem"]')).filter((b) => !b.hasAttribute('data-majed-item'));
+      if (!buttons.length) return;
+      const template = buttons.find((b) => !b.querySelector('[aria-hidden="true"]')) || buttons[0];
+      const anchorWrap = buttons[buttons.length - 1].parentElement;   // before Sign out / Sign in
+      const have = new Set(Array.from(menu.querySelectorAll('[data-majed-item]')).map((n) => n.getAttribute('data-majed-item')));
+      const items = [...footerMenuItems(), ...accountItems.values()].sort((a, b) => (a.order || 0) - (b.order || 0));
+      for (const item of items) {
+        if (have.has(item.id)) continue;
+        const wrap = template.parentElement.cloneNode(true);
+        wrap.querySelectorAll('[role="separator"]').forEach((n) => n.remove());
+        const btn = wrap.querySelector('[role="menuitem"]');
+        btn.setAttribute('data-majed-item', item.id);
+        btn.removeAttribute('disabled'); btn.removeAttribute('aria-keyshortcuts');
+        const spans = Array.from(btn.children).filter((n) => n.tagName === 'SPAN');
+        const iconSpan = spans.length >= 2 ? spans[0] : null;
+        const labelSpan = spans.length >= 2 ? spans[1] : spans[0];
+        spans.slice(2).forEach((n) => n.remove());
+        if (labelSpan) labelSpan.textContent = item.label;
+        if (iconSpan) {
+          iconSpan.textContent = '';
+          if (item.svg) { const c = item.svg.cloneNode(true); c.setAttribute('width', '16'); c.setAttribute('height', '16'); iconSpan.appendChild(c); }
+          else if (item.icon) iconSpan.innerHTML = item.icon;
+        }
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          try { item.onSelect(); } finally {
+            if (trigger.getAttribute('aria-expanded') === 'true') trigger.click();   // close the account menu
+          }
+        });
+        anchorWrap.parentElement.insertBefore(wrap, anchorWrap);
+      }
+    }
+    function syncAccountMenu() {
+      const on = store.get().accountMenu;
+      markFooterTriggers(on);
+      if (!on) { removeInjectedItems(); return; }
+      const trigger = document.querySelector(ACCOUNT_TRIGGER);
+      if (!trigger || trigger.getAttribute('aria-expanded') !== 'true') return;
+      const menus = document.querySelectorAll('[role="menu"]');
+      const menu = menus[menus.length - 1];
+      if (menu) injectAccountItems(menu, trigger);
+    }
+    function startAccountMenu() {
+      let raf = null;
+      const schedule = () => { if (raf === null) raf = requestAnimationFrame(() => { raf = null; syncAccountMenu(); }); };
+      const observer = new MutationObserver(schedule);
+      observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-expanded'] });
+      const unsub = store.subscribe(schedule);
+      // Public hook so later features of this plugin (or others) can add items to the same menu.
+      const api = {
+        register(item) { accountItems.set(item.id, item); schedule(); return () => { accountItems.delete(item.id); removeInjectedItems(); schedule(); }; },
+      };
+      window.__dshMajed = Object.assign(window.__dshMajed || {}, { accountMenu: api });
+      schedule();
+      return () => {
+        observer.disconnect(); unsub();
+        if (raf !== null) cancelAnimationFrame(raf);
+        markFooterTriggers(false); removeInjectedItems(); accountItems.clear();
+        if (window.__dshMajed) delete window.__dshMajed.accountMenu;
+      };
+    }
+    function AccountMenuRow({ t }) {
+      const on = useSetting('accountMenu');
+      return h(ToggleRow, { title: t('account.title'), description: t('account.description'), checked: on, onChange: (v) => store.set({ accountMenu: v }) });
     }
 
     // ───────────────────────── app-UI font size + font source ─────────────────────────
@@ -843,6 +953,8 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
         ctx.slots.inject('settings.general.item', () => ctx.slots.register({ name: 'settings.general.item', id: 'majed-notify-mode', order: 13.1, locale: NS }, NotifyModeRow));
         ctx.slots.inject('settings.general.item', () => ctx.slots.register({ name: 'settings.general.item', id: 'majed-notify-done', order: 13.2, locale: NS }, NotifyDoneRow));
         ctx.slots.inject('settings.general.item', () => ctx.slots.register({ name: 'settings.general.item', id: 'majed-notify-action', order: 13.3, locale: NS }, NotifyActionRow));
+        ctx.slots.inject('settings.general.item', () => ctx.slots.register({ name: 'settings.general.item', id: 'majed-account-menu', order: 13.4, locale: NS }, AccountMenuRow));
+        ctx.effect(() => startAccountMenu(), 'dsh-majed: account menu grouping');
         // Invisible watcher on the frame-wide overlay layer: reads session status via the standard hook.
         ctx.slots.inject('shell.overlay', () => ctx.slots.register({ name: 'shell.overlay', id: 'majed-notifications', locale: NS }, NotificationWatcher));
 
