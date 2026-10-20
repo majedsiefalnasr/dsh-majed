@@ -15,6 +15,7 @@
  *  3. Settings > General > "App font"           (dropdown: DSH default / System font)
  *  4. Settings > General > "System notifications" (+ on completion / when action needed)
  *     Native desktop notifications driven by DSH's session status; click opens the session.
+ *  6. Settings > General > "Copy on select" (toggle, off by default)
  *  5. Account menu grouping: sidebar footer buttons (Remote access, ...) move into the account menu.
  */
 window.__ModuleLoader__.load({
@@ -29,7 +30,7 @@ window.__ModuleLoader__.load({
     const STORE_KEY = 'dsh-majed:settings:v1';
     // App UI font size is a px number like the chat font size (DSH chrome is designed at 14px).
     const UI_BASE_PX = 14, UI_MIN_PX = 11, UI_MAX_PX = 20;
-    const DEFAULTS = { bidi: true, uiFontSize: UI_BASE_PX, fontSource: 'dsh', notifyMode: 'background', notifyDone: true, notifyAction: true, accountMenu: true };
+    const DEFAULTS = { bidi: true, uiFontSize: UI_BASE_PX, fontSource: 'dsh', notifyMode: 'background', notifyDone: true, notifyAction: true, accountMenu: true, autoCopy: false };
     const NOTIFY_MODES = ['off', 'background', 'always'];
     const FONT_SOURCES = ['dsh', 'system'];
     const listeners = new Set();
@@ -85,6 +86,8 @@ window.__ModuleLoader__.load({
       'notify.session': 'Session',
       'account.title': 'Group sidebar actions in account menu',
       'account.description': 'Moves extra sidebar buttons (such as Remote access) into the account menu instead of showing them beside it.',
+      'copy.title': 'Copy on select',
+      'copy.description': 'Automatically copy any text you select in the app to the clipboard. Text inside input fields is not copied.',
     };
     const zh = {
       'bidi.title': '双向文本（RTL）',
@@ -117,6 +120,8 @@ window.__ModuleLoader__.load({
       'notify.session': '会话',
       'account.title': '将侧边栏操作收进账户菜单',
       'account.description': '把额外的侧边栏按钮（如远程访问）移入账户菜单，而不是显示在旁边。',
+      'copy.title': '选中即复制',
+      'copy.description': '在应用中选中的文字会自动复制到剪贴板。输入框内的文字不会被复制。',
     };
 
     // ───────────────────────── settings rows ─────────────────────────
@@ -424,6 +429,50 @@ window.__ModuleLoader__.load({
     function AccountMenuRow({ t }) {
       const on = useSetting('accountMenu');
       return h(ToggleRow, { title: t('account.title'), description: t('account.description'), checked: on, onChange: (v) => store.set({ accountMenu: v }) });
+    }
+
+    // ───────────────────────── copy on select ─────────────────────────
+    // Copies the current text selection when the user finishes selecting (mouse up / keyboard selection
+    // keys), never mid-drag. Selections inside editable fields are ignored so typing is never disturbed.
+    function isEditable(el) {
+      if (!el) return false;
+      if (el.isContentEditable) return true;
+      const tag = el.tagName;
+      return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+    }
+    function startAutoCopy() {
+      let last = '';
+      const copy = (text) => {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).catch(() => { try { document.execCommand('copy'); } catch (_) {} });
+        } else { try { document.execCommand('copy'); } catch (_) {} }
+      };
+      const run = () => {
+        const sel = window.getSelection && window.getSelection();
+        if (!sel || sel.isCollapsed) { last = ''; return; }
+        const text = sel.toString();
+        if (!text || !text.trim() || text === last) return;
+        const anchor = sel.anchorNode && (sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement);
+        if (isEditable(document.activeElement) || isEditable(anchor) || (anchor && anchor.closest && anchor.closest('[contenteditable="true"], .xterm'))) return;
+        last = text;
+        copy(text);
+      };
+      let timer = null;
+      const later = () => { clearTimeout(timer); timer = setTimeout(run, 30); };
+      const onKey = (e) => { if (e.shiftKey || e.key === 'a' || e.key === 'A') later(); };
+      document.addEventListener('mouseup', later, true);
+      document.addEventListener('dblclick', later, true);
+      document.addEventListener('keyup', onKey, true);
+      return () => {
+        clearTimeout(timer);
+        document.removeEventListener('mouseup', later, true);
+        document.removeEventListener('dblclick', later, true);
+        document.removeEventListener('keyup', onKey, true);
+      };
+    }
+    function AutoCopyRow({ t }) {
+      const on = useSetting('autoCopy');
+      return h(ToggleRow, { title: t('copy.title'), description: t('copy.description'), checked: on, onChange: (v) => store.set({ autoCopy: v }) });
     }
 
     // ───────────────────────── app-UI font size + font source ─────────────────────────
@@ -954,7 +1003,15 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
         ctx.slots.inject('settings.general.item', () => ctx.slots.register({ name: 'settings.general.item', id: 'majed-notify-done', order: 13.2, locale: NS }, NotifyDoneRow));
         ctx.slots.inject('settings.general.item', () => ctx.slots.register({ name: 'settings.general.item', id: 'majed-notify-action', order: 13.3, locale: NS }, NotifyActionRow));
         ctx.slots.inject('settings.general.item', () => ctx.slots.register({ name: 'settings.general.item', id: 'majed-account-menu', order: 13.4, locale: NS }, AccountMenuRow));
+        ctx.slots.inject('settings.general.item', () => ctx.slots.register({ name: 'settings.general.item', id: 'majed-auto-copy', order: 13.5, locale: NS }, AutoCopyRow));
         ctx.effect(() => startAccountMenu(), 'dsh-majed: account menu grouping');
+        ctx.effect(() => {
+          let stop = null;
+          const sync = (st) => { if (st.autoCopy && !stop) stop = startAutoCopy(); else if (!st.autoCopy && stop) { stop(); stop = null; } };
+          sync(store.get());
+          const unsub = store.subscribe(sync);
+          return () => { unsub(); if (stop) stop(); };
+        }, 'dsh-majed: copy on select');
         // Invisible watcher on the frame-wide overlay layer: reads session status via the standard hook.
         ctx.slots.inject('shell.overlay', () => ctx.slots.register({ name: 'shell.overlay', id: 'majed-notifications', locale: NS }, NotificationWatcher));
 
