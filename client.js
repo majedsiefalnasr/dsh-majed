@@ -660,20 +660,57 @@ window.__ModuleLoader__.load({
     // Chat-transcript sheets are skipped (the built-in chat font size drives them).
     // Plugin sheets are <style data-plugin-css>; the app shell and shared primitives (Menu, popovers,
     // account menu...) live in <link rel=stylesheet> bundles, so those are scanned too.
-    function isOwnStyle(el) { return el.hasAttribute('data-majed-appearance') || el.hasAttribute('data-majed-ui-font') || el.hasAttribute('data-majed-bidi') || el.hasAttribute('data-majed-settings'); }
+    // Generated sheets of ours must never be re-scanned (it would compound the scale).
+    const OWN_GENERATED = ['data-majed-appearance', 'data-majed-ui-font', 'data-majed-bidi'];
+    function isOwnGenerated(el) { return OWN_GENERATED.some((a) => el.hasAttribute(a)); }
+    // Skin/theme/chat-reading sheets that should keep their own sizes.
+    const SKIP_TAGS = /\[data-genui|genui-dom-fence/;
     function sheetEligible(el) {
-      if (!el.sheet || isOwnStyle(el)) return false;
+      if (!el.sheet || isOwnGenerated(el)) return false;
       if (el.tagName === 'STYLE' && el.hasAttribute('data-plugin-css')) return !SKIP_SHEETS.test(el.dataset.pluginCss || '');
-      if (el.tagName === 'LINK') return true;
-      return false;
+      // Everything else: plugin-authored <style> blocks (skills-manager, vision toolkit, better-sidebar,
+      // permission-rules...), our own settings rows, and <link> bundles. GenUI's block sheet is skipped:
+      // generated UI inside answers is chat content and follows the chat font size.
+      if (el.tagName === 'STYLE' && /V1MMBW|_block\{|data-genui/.test((el.textContent || '').slice(0, 4000))) return false;
+      return el.tagName === 'STYLE' || el.tagName === 'LINK';
+    }
+    // `font: var(--dsw-font-xs-13)` shorthands carry their size inside DSH's design tokens, which a
+    // per-rule override can't see. Re-declare the non-markdown tokens on <body> with the factor applied;
+    // every rule that references them (57 in DSH itself) then scales with no per-rule override.
+    const TOKEN_RE = /(--dsw-font-(?!markdown|family)[\w-]+)\s*:\s*([^;}]+)/g;
+    function collectFontTokens() {
+      const found = new Map();
+      for (const el of document.querySelectorAll('style, link[rel~="stylesheet"]')) {
+        if (!el.sheet || isOwnGenerated(el)) continue;
+        let text = '';
+        try { for (const r of el.sheet.cssRules) if (r.type === 1 && /(^|,)\s*(:root|body|html)\b/.test(r.selectorText || '')) text += r.cssText + '\n'; } catch (_) { continue; }
+        for (const m of text.matchAll(TOKEN_RE)) found.set(m[1], m[2].trim());
+      }
+      return found;
+    }
+    function buildTokenOverrides() {
+      const lines = [];
+      for (const [name, value] of collectFontTokens()) {
+        const sized = name.endsWith('-font-size') || name.endsWith('-line-height');
+        if (sized) {
+          const v = scaled(value);
+          if (v) lines.push(`${name}:${v};`);
+          continue;
+        }
+        // composite token `weight size/line family` -> rebuild with scaled size (and line-height when px)
+        const m = /^(.*?)(?:^|\s)(-?\d*\.?\d+px)(?:\s*\/\s*(-?\d*\.?\d+px))?\s+(\S.*)$/.exec(value);
+        if (m) lines.push(`${name}:${m[1] ? m[1] + ' ' : ''}${scaled(m[2])}${m[3] ? '/' + scaled(m[3]) : ''} ${m[4]};`);
+      }
+      return lines.length ? `body{${lines.join('')}}` : '';
     }
     function buildFontSizeOverrides() {
       const out = [];
-      document.querySelectorAll('style[data-plugin-css], link[rel~="stylesheet"]').forEach((el) => {
+      document.querySelectorAll('style, link[rel~="stylesheet"]').forEach((el) => {
         if (!sheetEligible(el)) return;
         try { overridesFromRules(el.sheet.cssRules, (t) => t, out); } catch (_) { /* cross-origin sheet */ }
       });
-      return out.join('\n');
+      const tok = buildTokenOverrides();
+      return out.join('\n') + (tok ? '\n' + tok : '');
     }
 
     const SYSTEM_FONT_STACK = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
@@ -1184,12 +1221,17 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
           // DSH loads component stylesheets lazily: re-scan whenever a new one appears.
           let timer = null;
           const rescan = () => { clearTimeout(timer); timer = setTimeout(regenerate, 120); };
+          const isSheet = (n) => n.nodeType === 1 && (n.tagName === 'STYLE' || (n.tagName === 'LINK' && /stylesheet/.test(n.rel)));
           const headObserver = new MutationObserver((records) => {
             for (const r of records) for (const n of r.addedNodes) {
-              if (n.nodeType === 1 && ((n.tagName === 'STYLE' && n.hasAttribute('data-plugin-css')) || (n.tagName === 'LINK' && /stylesheet/.test(n.rel)))) { rescan(); if (n.tagName === 'LINK') n.addEventListener('load', rescan, { once: true }); return; }
+              if (!isSheet(n) || isOwnGenerated(n)) continue;
+              rescan();
+              if (n.tagName === 'LINK') n.addEventListener('load', rescan, { once: true });
+              return;
             }
           });
           headObserver.observe(document.head, { childList: true });
+          headObserver.observe(document.body, { childList: true });
           const bodyObserver = new MutationObserver(() => applyFontFamily(store.get()));
           bodyObserver.observe(document.body, { attributes: true, attributeFilter: ['style', 'data-dsh-claude-typeface', 'data-dsh-skin'] });
 
