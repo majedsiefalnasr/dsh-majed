@@ -352,12 +352,26 @@ window.__ModuleLoader__.load({
     }
 
     const SYSTEM_FONT_STACK = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
-    function fontFamilyCss(s) {
-      // DSH reads --dsh-font-family-text (its own font setting) with the built-in stack as fallback;
-      // forcing the default-stack variables only when "System font" is chosen.
-      return s.fontSource === 'system'
-        ? `:root, body { --dsh-font-family-text-default: ${SYSTEM_FONT_STACK}; --dsw-font-family: ${SYSTEM_FONT_STACK}; --dsw-font-family-brand: ${SYSTEM_FONT_STACK}; }\n`
-        : '';
+    // Variables that carry the UI typeface. DSH defines --dsw-font-family on <body> itself, and skins
+    // such as dsh-claude-style redefine it (and their own --dsh-claude-font-*) with higher specificity,
+    // so a stylesheet rule can lose. Inline `!important` on <body> beats every stylesheet rule, and
+    // because the markdown/typography tokens are also defined on <body>, they pick the value up too.
+    const FONT_VARS = [
+      '--dsw-font-family', '--dsw-font-family-brand', '--dsh-font-family-text-default',
+      '--dsh-claude-font-serif', '--dsh-claude-font-prose', '--dsh-claude-font-brand',
+    ];
+    function applyFontFamily(s) {
+      const style = document.body && document.body.style;
+      if (!style) return;
+      for (const name of FONT_VARS) {
+        if (s.fontSource === 'system') {
+          if (style.getPropertyValue(name) !== SYSTEM_FONT_STACK || style.getPropertyPriority(name) !== 'important') {
+            style.setProperty(name, SYSTEM_FONT_STACK, 'important');
+          }
+        } else if (style.getPropertyPriority(name) === 'important' && style.getPropertyValue(name) === SYSTEM_FONT_STACK) {
+          style.removeProperty(name);
+        }
+      }
     }
 
     // ───────────────────────── RTL: persian-rtl chat CSS + genui mirroring ───
@@ -824,7 +838,8 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
           const apply = (s) => {
             if (s.bidi && !stopBidi) stopBidi = startBidi();
             else if (!s.bidi && stopBidi) { stopBidi(); stopBidi = null; }
-            varStyle.textContent = `:root{--majed-ui-k:${(s.uiFontSize / UI_BASE_PX).toFixed(4)};}\n` + fontFamilyCss(s);
+            varStyle.textContent = `:root{--majed-ui-k:${(s.uiFontSize / UI_BASE_PX).toFixed(4)};}\n`;
+            applyFontFamily(s);
             regenerate();
           };
 
@@ -837,11 +852,14 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
             }
           });
           headObserver.observe(document.head, { childList: true });
+          const bodyObserver = new MutationObserver(() => applyFontFamily(store.get()));
+          bodyObserver.observe(document.body, { attributes: true, attributeFilter: ['style', 'data-dsh-claude-typeface', 'data-dsh-skin'] });
 
           apply(store.get());
           const unsub = store.subscribe(apply);
           return () => {
-            unsub(); headObserver.disconnect(); clearTimeout(timer);
+            unsub(); headObserver.disconnect(); bodyObserver.disconnect(); clearTimeout(timer);
+            applyFontFamily({ ...store.get(), fontSource: 'dsh' });
             if (stopBidi) stopBidi();
             varStyle.remove(); sizeStyle.remove();
           };
