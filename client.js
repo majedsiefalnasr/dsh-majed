@@ -15,6 +15,7 @@
  *  3. Settings > General > "App font"           (dropdown: DSH default / System font)
  *  4. Settings > General > "System notifications" (+ on completion / when action needed)
  *     Native desktop notifications driven by DSH's session status; click opens the session.
+ *  7. Composer bar > "Approvals" dropdown: Ask me / Auto (safe) / Auto (aggressive), per session.
  *  6. Settings > General > "Copy on select" (toggle, off by default)
  *  5. Account menu grouping: sidebar footer buttons (Remote access, ...) move into the account menu.
  */
@@ -30,7 +31,7 @@ window.__ModuleLoader__.load({
     const STORE_KEY = 'dsh-majed:settings:v1';
     // App UI font size is a px number like the chat font size (DSH chrome is designed at 14px).
     const UI_BASE_PX = 14, UI_MIN_PX = 11, UI_MAX_PX = 20;
-    const DEFAULTS = { bidi: true, uiFontSize: UI_BASE_PX, fontSource: 'dsh', notifyMode: 'background', notifyDone: true, notifyAction: true, accountMenu: true, autoCopy: false };
+    const DEFAULTS = { bidi: true, uiFontSize: UI_BASE_PX, fontSource: 'dsh', notifyMode: 'background', notifyDone: true, notifyAction: true, accountMenu: true, autoCopy: false, autoApprove: {} };
     const NOTIFY_MODES = ['off', 'background', 'always'];
     const FONT_SOURCES = ['dsh', 'system'];
     const listeners = new Set();
@@ -42,12 +43,15 @@ window.__ModuleLoader__.load({
     state.uiFontSize = clampPx(state.uiFontSize);
     if (!FONT_SOURCES.includes(state.fontSource)) state.fontSource = 'dsh';
     if (!NOTIFY_MODES.includes(state.notifyMode)) state.notifyMode = 'background';
+    // Per-session auto-approve modes. 'aggressive' lives in memory only: it resets to 'ask' on restart.
+    const AP_MODES = ['ask', 'safe', 'aggressive'];
+    state.autoApprove = Object.fromEntries(Object.entries(state.autoApprove && typeof state.autoApprove === 'object' ? state.autoApprove : {}).filter(([, v]) => v === 'safe'));
     const store = {
       get: () => state,
       subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
       set(patch) {
         state = { ...state, ...patch };
-        try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (_) {}
+        try { localStorage.setItem(STORE_KEY, JSON.stringify({ ...state, autoApprove: Object.fromEntries(Object.entries(state.autoApprove || {}).filter(([, v]) => v === 'safe')) })); } catch (_) {}
         listeners.forEach((fn) => fn(state));
       },
     };
@@ -89,6 +93,13 @@ window.__ModuleLoader__.load({
       'copy.title': 'Copy on select',
       'copy.description': 'Automatically copy any text you select in the app to the clipboard. Text inside input fields is not copied.',
       'copy.toast': 'Copied to clipboard',
+      'ap.label': 'Approvals',
+      'ap.ask': 'Ask me',
+      'ap.safe': 'Auto (safe)',
+      'ap.aggressive': 'Auto (aggressive)',
+      'ap.aria': 'Automatic approval for this session',
+      'ap.confirm': 'Aggressive mode approves EVERY request automatically in this session — including full-access escalations, network access and unknown tools. It resets when the app restarts. Enable it?',
+      'ap.toast': 'Auto-approved: {tool}',
     };
     const zh = {
       'bidi.title': '双向文本（RTL）',
@@ -124,6 +135,13 @@ window.__ModuleLoader__.load({
       'copy.title': '选中即复制',
       'copy.description': '在应用中选中的文字会自动复制到剪贴板。输入框内的文字不会被复制。',
       'copy.toast': '已复制到剪贴板',
+      'ap.label': '审批',
+      'ap.ask': '手动确认',
+      'ap.safe': '自动（安全）',
+      'ap.aggressive': '自动（激进）',
+      'ap.aria': '本会话的自动审批',
+      'ap.confirm': '激进模式会在本会话中自动批准所有请求，包括完全访问提权、网络访问和未知工具；应用重启后会重置。确定开启吗？',
+      'ap.toast': '已自动批准：{tool}',
     };
 
     // ───────────────────────── settings rows ─────────────────────────
@@ -147,6 +165,14 @@ window.__ModuleLoader__.load({
 .majed-test{height:36px;padding:0 12px;border:none;border-radius:var(--dsw-radius-md);background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:13px;cursor:pointer}
 .majed-test:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
 .majed-test:disabled{opacity:.4;cursor:default}
+.majed-ap-trigger{display:inline-flex;align-items:center;gap:6px;min-width:0;max-width:200px;height:28px;padding:0 6px 0 8px;border:none;border-radius:var(--dsw-radius-sm);background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:13px;font-weight:500;line-height:20px;cursor:pointer}
+.majed-ap-trigger:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}
+.majed-ap-trigger:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}
+.majed-ap-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.majed-ap-dot{flex:none;width:7px;height:7px;border-radius:50%;background:var(--dsw-alias-label-caption)}
+.majed-ap-trigger[data-mode=safe] .majed-ap-dot{background:var(--dsw-alias-state-success-primary,#3ecf8e)}
+.majed-ap-trigger[data-mode=aggressive] .majed-ap-dot{background:var(--dsw-alias-state-error-primary,#ff6b6b)}
+.majed-ap-trigger[data-mode=aggressive]{color:var(--dsw-alias-state-error-primary,#ff6b6b)}
 [data-majed-menu-trigger]{width:0!important;height:0!important;min-width:0!important;min-height:0!important;margin:0!important;padding:0!important;border:0!important;overflow:hidden!important;opacity:0!important;pointer-events:none!important;flex:none!important}
 `;
 
@@ -507,6 +533,86 @@ window.__ModuleLoader__.load({
     function AutoCopyRow({ t }) {
       const on = useSetting('autoCopy');
       return h(ToggleRow, { title: t('copy.title'), description: t('copy.description'), checked: on, onChange: (v) => store.set({ autoCopy: v }) });
+    }
+
+    // ───────────────────────── auto-approve (composer dropdown) ─────────────────────────
+    // Approval requests reach the client as `PendingApproval` objects ({ kind:'approval', toolName, reason,
+    // answerable, answer(outcome) }) and are exposed through useSessionStatus().pendingInteraction.
+    // 'safe' approves only requests we can positively classify as low-risk; 'aggressive' approves all.
+    const SAFE_TOOLS = new Set([
+      'read', 'read_image', 'glob', 'grep', 'lsp', 'todo_write', 'skill', 'web_search',
+      'session_search', 'session_trace', 'session_event_read', 'session_event_search', 'session_event_trace',
+      'list_agents', 'list_subagent_models', 'job_list', 'job_output', 'schedule_list', 'terminal_list', 'terminal_read',
+      'get_goal', 'cordis_inspect_list', 'cordis_inspect_query', 'cordis_inspect_self', 'team_task_list', 'team_task_get',
+    ]);
+    const RISKY = /danger-full-access|full[- ]access|\bsudo\b|rm\s+-[a-z]*r[a-z]*f|\bmkfs\b|\bdd\s+if=|chmod\s+-R|curl[^|]*\|\s*(?:ba)?sh|git\s+push\s+(?:-f|--force)|--no-verify|DROP\s+TABLE|\.ssh|\.env\b|id_rsa/i;
+    /** @returns {boolean} whether a pending approval is low-risk enough for 'safe' mode. */
+    function isSafeApproval(p) {
+      const tool = String(p.toolName || '');
+      const reason = String(p.reason || '');
+      if (RISKY.test(reason) || RISKY.test(tool)) return false;
+      if (/network|approval required/i.test(reason)) return false;           // network access is never "safe"
+      const esc = /escalate sandbox to ([\w-]+)/i.exec(reason);
+      if (esc) return esc[1] === 'workspace-write';                          // read-only -> workspace-write only
+      return SAFE_TOOLS.has(tool);
+    }
+    function modeFor(sessionId) { return (store.get().autoApprove || {})[sessionId] || 'ask'; }
+    function setModeFor(sessionId, mode) {
+      const next = { ...(store.get().autoApprove || {}) };
+      if (mode === 'ask') delete next[sessionId]; else next[sessionId] = mode;
+      store.set({ autoApprove: next });
+    }
+
+    /** Invisible overlay component: answers pending approvals according to each session's mode. */
+    function AutoApprover({ useSessionStatus, t }) {
+      const status = useSessionStatus((m) => m);
+      const modes = useSetting('autoApprove');
+      const handled = React.useRef(new Set());
+      React.useEffect(() => {
+        for (const [id, st] of status) {
+          const p = st.pendingInteraction;
+          if (!p || p.kind !== 'approval' || !p.answerable || typeof p.answer !== 'function') continue;
+          if (handled.current.has(p.key)) continue;
+          const mode = modes[id] || 'ask';
+          if (mode === 'ask') continue;
+          if (mode === 'safe' && !isSafeApproval(p)) continue;
+          handled.current.add(p.key);
+          setTimeout(() => {
+            Promise.resolve(p.answer('allowed-once')).then(
+              () => showToast(fmt(t('ap.toast'), { tool: p.toolName || '' })),
+              () => handled.current.delete(p.key));
+          }, 0);
+        }
+        if (handled.current.size > 500) handled.current.clear();
+      }, [status, modes, t]);
+      return null;
+    }
+
+    /** Composer-bar dropdown (same look as the permission control next to it). */
+    function AutoApproveSelect({ sessionId, locked, t }) {
+      const modes = useSetting('autoApprove');
+      const mode = modes[sessionId] || 'ask';
+      const [open, setOpen] = React.useState(false);
+      const ref = React.useRef(null);
+      const Menu = primitives.Menu, Chevron = primitives.IconChevronDownOutlineRegular;
+      if (!sessionId) return null;
+      const items = AP_MODES.map((id) => ({ id, label: t('ap.' + id) }));
+      const choose = (id) => {
+        setOpen(false);
+        if (id === mode) return;
+        if (id === 'aggressive' && !window.confirm(t('ap.confirm'))) return;
+        setModeFor(sessionId, id);
+      };
+      const trigger = h('button', {
+        ref, type: 'button', disabled: !!locked, className: 'majed-ap-trigger', 'data-mode': mode,
+        'aria-haspopup': 'menu', 'aria-expanded': open, 'aria-label': t('ap.aria'), title: t('ap.aria'),
+        onClick: () => setOpen((v) => !v),
+      },
+        h('span', { className: 'majed-ap-dot', 'aria-hidden': 'true' }),
+        h('span', { className: 'majed-ap-label' }, t('ap.' + mode)),
+        Chevron ? h(Chevron, { size: 12 }) : '▾');
+      if (!Menu) return trigger;
+      return h(Menu, { open, onClose: () => setOpen(false), items, selectedId: mode, onSelect: choose, side: 'top', align: 'start', portal: true, anchor: trigger });
     }
 
     // ───────────────────────── app-UI font size + font source ─────────────────────────
@@ -1037,6 +1143,8 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
         ctx.slots.inject('settings.general.item', () => ctx.slots.register({ name: 'settings.general.item', id: 'majed-notify-done', order: 13.2, locale: NS }, NotifyDoneRow));
         ctx.slots.inject('settings.general.item', () => ctx.slots.register({ name: 'settings.general.item', id: 'majed-notify-action', order: 13.3, locale: NS }, NotifyActionRow));
         ctx.slots.inject('settings.general.item', () => ctx.slots.register({ name: 'settings.general.item', id: 'majed-account-menu', order: 13.4, locale: NS }, AccountMenuRow));
+        ctx.slots.inject('conversation.input.left', () => ctx.slots.register({ name: 'conversation.input.left', id: 'majed-auto-approve', order: 50, locale: NS }, AutoApproveSelect));
+        ctx.slots.inject('shell.overlay', () => ctx.slots.register({ name: 'shell.overlay', id: 'majed-auto-approver', locale: NS }, AutoApprover));
         ctx.slots.inject('settings.general.item', () => ctx.slots.register({ name: 'settings.general.item', id: 'majed-auto-copy', order: 13.5, locale: NS }, AutoCopyRow));
         ctx.effect(() => startAccountMenu(), 'dsh-majed: account menu grouping');
         ctx.effect(() => {
