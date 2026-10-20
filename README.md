@@ -14,6 +14,9 @@ Majed's toolkit plugin for **DeepSeek Harness (DSH)**. It never patches DSH itse
 | Settings ▸ General ▸ **Copy on select** (toggle, off by default) | Text you select in the app is copied to the clipboard automatically when you release the mouse or finish a keyboard selection. A "Copied to clipboard" toast confirms each copy. Selections inside input fields, the composer and the terminal are ignored. |
 | Composer bar ▸ **Approvals** dropdown (next to the permission control) | Per-session auto-approval: **Ask me** (default), **Auto (safe)**, **Auto (aggressive)**. *Safe* approves only read-only/inspection tools and sandbox escalations to `workspace-write`; it still asks for full-access escalations, network access, destructive commands (`rm -rf`, `sudo`, force-push, `curl | sh`, secrets) and unknown tools. *Aggressive* approves **every** request for that session (confirmation required, never persisted — resets on restart). A toast shows each auto-approval. |
 
+### Styling note
+All text in this plugin's own UI (settings rows, dropdowns, toast, Approvals control) uses DSH's design tokens (`font: var(--dsw-font-s-14)` etc.), never hard-coded px, so it follows the **App UI font size** exactly like built-in rows.
+
 ### For plugin authors
 `window.__dshMajed.accountMenu.register({ id, label, icon /* svg markup */, order, onSelect })` adds an item to the account menu and returns an unregister function.
 

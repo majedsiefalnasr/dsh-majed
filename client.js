@@ -148,24 +148,24 @@ window.__ModuleLoader__.load({
     const ROW_CSS = `
 .majed-row{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:16px 0;border-bottom:.5px solid var(--dsw-alias-border-l2)}
 .majed-text{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
-.majed-title{color:var(--dsw-alias-label-primary);font-size:14px;line-height:22px}
-.majed-desc{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}
+.majed-title{color:var(--dsw-alias-label-primary);font:var(--dsw-font-s-14)}
+.majed-desc{color:var(--dsw-alias-label-tertiary);font:var(--dsw-font-xxs-12)}
 .majed-control{display:inline-flex;align-items:center;gap:8px}
 .majed-stepper{display:inline-flex;align-items:center;justify-content:center;min-width:72px;height:36px;border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-module-platform);position:relative}
-.majed-value{min-width:30px;text-align:center;font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-primary);font-size:14px;line-height:22px}
+.majed-value{min-width:30px;text-align:center;font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-primary);font:var(--dsw-font-s-14)}
 .majed-arrows{position:absolute;right:6px;display:flex;flex-direction:column;gap:2px;opacity:0}
 .majed-stepper:hover .majed-arrows,.majed-stepper:focus-within .majed-arrows{opacity:1}
-.majed-arrow{width:17px;height:12px;display:inline-flex;align-items:center;justify-content:center;border:none;padding:0;border-radius:var(--dsw-radius-xs);background:color-mix(in srgb,var(--dsw-alias-bg-layer-1) 75%,transparent);color:var(--dsw-alias-label-primary);cursor:pointer;font-size:8px;line-height:1}
+.majed-arrow{width:17px;height:12px;display:inline-flex;align-items:center;justify-content:center;border:none;padding:0;border-radius:var(--dsw-radius-xs);background:color-mix(in srgb,var(--dsw-alias-bg-layer-1) 75%,transparent);color:var(--dsw-alias-label-primary);cursor:pointer;font-size:calc(8px + var(--majed-ui-d,0px));line-height:1}
 .majed-arrow:hover:not(:disabled){background:var(--dsw-alias-bg-layer-1)}
 .majed-arrow:disabled{color:var(--dsw-alias-label-caption);cursor:default}
-.majed-unit{color:var(--dsw-alias-label-secondary);font-size:14px}
-.majed-selector{display:inline-flex;align-items:center;gap:12px;height:36px;padding:0 14px;border:none;border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);font:inherit;font-size:14px;line-height:22px;cursor:pointer}
+.majed-unit{color:var(--dsw-alias-label-secondary);font:var(--dsw-font-s-14)}
+.majed-selector{display:inline-flex;align-items:center;gap:12px;height:36px;padding:0 14px;border:none;border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);font:var(--dsw-font-s-14);cursor:pointer}
 .majed-selector:hover{background:var(--dsw-alias-interactive-bg-hover)}
 .majed-chevron{flex:none}
-.majed-test{height:36px;padding:0 12px;border:none;border-radius:var(--dsw-radius-md);background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:13px;cursor:pointer}
+.majed-test{height:36px;padding:0 12px;border:none;border-radius:var(--dsw-radius-md);background:transparent;color:var(--dsw-alias-label-secondary);font:var(--dsw-font-xs-13);cursor:pointer}
 .majed-test:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
 .majed-test:disabled{opacity:.4;cursor:default}
-.majed-ap-trigger{display:inline-flex;align-items:center;gap:6px;min-width:0;max-width:200px;height:28px;padding:0 6px 0 8px;border:none;border-radius:var(--dsw-radius-sm);background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:13px;font-weight:500;line-height:20px;cursor:pointer}
+.majed-ap-trigger{display:inline-flex;align-items:center;gap:6px;min-width:0;max-width:200px;height:28px;padding:0 6px 0 8px;border:none;border-radius:var(--dsw-radius-sm);background:transparent;color:var(--dsw-alias-label-secondary);font:var(--dsw-font-xs-strong-13);cursor:pointer}
 .majed-ap-trigger:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}
 .majed-ap-trigger:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}
 .majed-ap-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -473,7 +473,7 @@ window.__ModuleLoader__.load({
     // Lightweight toast that matches DSH's own (same tokens, top-centre, ~2s). It lives in <body>, outside
     // React, so it works from plain DOM listeners; one element is reused so rapid copies don't stack.
     const TOAST_CSS = `
-.majed-toast{position:fixed;top:40px;left:50%;z-index:2147483000;transform:translate(-50%,-6px);display:flex;align-items:center;gap:10px;width:max-content;max-width:min(640px,calc(100vw - 48px));padding:12px 16px;border-radius:var(--dsw-radius-lg,16px);background:var(--dsw-alias-toast-bg,#2b2b2e);color:var(--dsw-alias-toast-label,#fff);font:inherit;font-size:14px;line-height:22px;box-shadow:var(--dsw-shadow-lv3,0 8px 24px rgba(0,0,0,.28));pointer-events:none;opacity:0;transition:opacity .16s ease,transform .16s ease}
+.majed-toast{position:fixed;top:40px;left:50%;z-index:2147483000;transform:translate(-50%,-6px);display:flex;align-items:center;gap:10px;width:max-content;max-width:min(640px,calc(100vw - 48px));padding:12px 16px;border-radius:var(--dsw-radius-lg,16px);background:var(--dsw-alias-toast-bg,#2b2b2e);color:var(--dsw-alias-toast-label,#fff);font:var(--dsw-font-s-14);box-shadow:var(--dsw-shadow-lv3,0 8px 24px rgba(0,0,0,.28));pointer-events:none;opacity:0;transition:opacity .16s ease,transform .16s ease}
 .majed-toast[data-show]{opacity:1;transform:translate(-50%,0)}
 .majed-toast svg{flex:none;width:16px;height:16px;color:var(--dsw-alias-state-success-primary,#3ecf8e)}
 `;
@@ -669,7 +669,7 @@ window.__ModuleLoader__.load({
     // Plugin sheets are <style data-plugin-css>; the app shell and shared primitives (Menu, popovers,
     // account menu...) live in <link rel=stylesheet> bundles, so those are scanned too.
     // Generated sheets of ours must never be re-scanned (it would compound the scale).
-    const OWN_GENERATED = ['data-majed-appearance', 'data-majed-ui-font', 'data-majed-bidi'];
+    const OWN_GENERATED = ['data-majed-appearance', 'data-majed-ui-font', 'data-majed-bidi', 'data-majed-settings', 'data-majed-toast-style'];
     function isOwnGenerated(el) { return OWN_GENERATED.some((a) => el.hasAttribute(a)); }
     // Skin/theme/chat-reading sheets that should keep their own sizes.
     const SKIP_TAGS = /\[data-genui|genui-dom-fence/;
