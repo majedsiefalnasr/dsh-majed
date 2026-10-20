@@ -14,6 +14,15 @@ Majed's toolkit plugin for **DeepSeek Harness (DSH)**. It never patches DSH itse
 | Settings ▸ General ▸ **Copy on select** (toggle, off by default) | Text you select in the app is copied to the clipboard automatically when you release the mouse or finish a keyboard selection. A "Copied to clipboard" toast confirms each copy. Selections inside input fields, the composer and the terminal are ignored. |
 | Composer bar ▸ **Approvals** dropdown (next to the permission control) | Per-session auto-approval: **Ask me** (default), **Auto (safe)**, **Auto (aggressive)**. *Safe* approves only read-only/inspection tools and sandbox escalations to `workspace-write`; it still asks for full-access escalations, network access, destructive commands (`rm -rf`, `sudo`, force-push, `curl | sh`, secrets) and unknown tools. *Aggressive* approves **every** request for that session (confirmation required, never persisted — resets on restart). A toast shows each auto-approval. |
 
+### Notifications on phones (remote web access)
+Mobile browsers are stricter than desktop:
+- **HTTPS is required.** Plain `http://192.168.x.x` links are not a secure context, so browsers expose no notification API at all. Use the tunnel (`https://…trycloudflare.com`) link from the Remote access panel.
+- **Allow once, from a tap.** Open *Settings ▸ General ▸ System notifications* and tap **Send test**; browsers only show the permission prompt from a user gesture. The row shows the current state (allowed / blocked / unsupported).
+- **Android Chrome** only accepts notifications through a service worker; the plugin uses the one Remote access registers and falls back to the classic API on desktop.
+- **iPhone/iPad** needs the web app added to the Home Screen first (iOS 16.4+).
+- If a system notification isn't possible, you still get an **in-app banner** (and a vibration when the page is in the background).
+- Limits: a page that is closed or frozen in the background cannot be woken without a push server, so notifications are delivered while the page is open or recently backgrounded.
+
 ### Styling note
 All text in this plugin's own UI (settings rows, dropdowns, toast, Approvals control) uses DSH's design tokens (`font: var(--dsw-font-s-14)` etc.), never hard-coded px, so it follows the **App UI font size** exactly like built-in rows.
 

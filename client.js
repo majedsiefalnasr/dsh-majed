@@ -78,6 +78,11 @@ window.__ModuleLoader__.load({
       'notify.always': 'Always (silent while app is focused)',
       'notify.test': 'Send test',
       'notify.testBody': 'Notifications are working.',
+      'notify.status.granted': 'Allowed on this device.',
+      'notify.status.default': 'Not allowed yet — tap “Send test” to allow notifications.',
+      'notify.status.denied': 'Blocked — allow notifications for this site in the browser settings.',
+      'notify.status.insecure': 'Unavailable: this page is not served over HTTPS. Use the tunnel (https) link. In-app alerts still appear.',
+      'notify.status.unsupported': 'Unsupported here. On iPhone, add the app to the Home Screen first. In-app alerts still appear.',
       'notify.done.title': 'Notify on completion',
       'notify.done.description': 'When a session finishes its work.',
       'notify.action.title': 'Notify when action is needed',
@@ -120,6 +125,11 @@ window.__ModuleLoader__.load({
       'notify.always': '始终（应用在前台时静音）',
       'notify.test': '发送测试',
       'notify.testBody': '通知正常工作。',
+      'notify.status.granted': '已在此设备上允许。',
+      'notify.status.default': '尚未允许：点击“发送测试”以允许通知。',
+      'notify.status.denied': '已被阻止：请在浏览器设置中允许此网站发送通知。',
+      'notify.status.insecure': '不可用：当前页面不是 HTTPS。请使用隧道（https）链接；应用内提醒仍会显示。',
+      'notify.status.unsupported': '此处不支持。iPhone 请先将应用添加到主屏幕；应用内提醒仍会显示。',
       'notify.done.title': '完成时通知',
       'notify.done.description': '会话完成工作时。',
       'notify.action.title': '需要操作时通知',
@@ -165,6 +175,9 @@ window.__ModuleLoader__.load({
 .majed-test{height:36px;padding:0 12px;border:none;border-radius:var(--dsw-radius-md);background:transparent;color:var(--dsw-alias-label-secondary);font:var(--dsw-font-xs-13);cursor:pointer}
 .majed-test:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
 .majed-test:disabled{opacity:.4;cursor:default}
+.majed-status{display:inline-block;margin-top:2px}
+.majed-status[data-state=granted]{color:var(--dsw-alias-state-success-primary,#3ecf8e)}
+.majed-status[data-state=denied],.majed-status[data-state=unsupported]{color:var(--dsw-alias-state-error-primary,#ff6b6b)}
 .majed-ap-trigger{display:inline-flex;align-items:center;gap:6px;min-width:0;max-width:200px;height:28px;padding:0 6px 0 8px;border:none;border-radius:var(--dsw-radius-sm);background:transparent;color:var(--dsw-alias-label-secondary);font:var(--dsw-font-xs-strong-13);cursor:pointer}
 .majed-ap-trigger:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}
 .majed-ap-trigger:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}
@@ -269,11 +282,31 @@ window.__ModuleLoader__.load({
     let appCtx = null;
     const fmt = (str, vars) => String(str).replace(/\{(\w+)\}/g, (_, k) => (vars && vars[k] != null ? vars[k] : ''));
 
-    async function ensurePermission() {
-      if (typeof Notification === 'undefined') return false;
-      if (Notification.permission === 'granted') return true;
-      if (Notification.permission === 'denied') return false;
+    /** Capabilities of THIS browser/webview, used both to pick a delivery path and to explain failures. */
+    function notifyCaps() {
+      const hasApi = typeof Notification !== 'undefined';
+      return {
+        api: hasApi,
+        secure: window.isSecureContext !== false,
+        sw: 'serviceWorker' in navigator,
+        permission: hasApi ? Notification.permission : 'unsupported',
+      };
+    }
+    // requestPermission() must run inside a user gesture on mobile browsers; callers pass `fromGesture`
+    // only from click handlers. Without a gesture we never prompt (it would be silently ignored).
+    async function ensurePermission(fromGesture) {
+      const caps = notifyCaps();
+      if (!caps.api) return false;
+      if (caps.permission === 'granted') return true;
+      if (caps.permission === 'denied' || !fromGesture) return false;
       try { return (await Notification.requestPermission()) === 'granted'; } catch (_) { return false; }
+    }
+    async function swRegistration() {
+      try {
+        if (!('serviceWorker' in navigator)) return null;
+        const reg = await navigator.serviceWorker.getRegistration();
+        return reg && typeof reg.showNotification === 'function' ? reg : null;
+      } catch (_) { return null; }
     }
     const appFocused = () => !document.hidden && document.hasFocus();
     function shouldNotify() {
@@ -283,19 +316,29 @@ window.__ModuleLoader__.load({
       return !appFocused();
     }
     const live = new Set();
-    async function notify({ title, body, sessionId, tag }) {
-      if (!(await ensurePermission())) return;
-      try {
-        // Mute the sound while the app is focused (the user is already looking at it); audible otherwise.
-        const n = new Notification(title, { body, tag, renotify: true, silent: appFocused() });
-        live.add(n);
-        n.onclose = () => live.delete(n);
-        n.onclick = () => {
-          try { window.focus(); } catch (_) {}
-          try { if (sessionId && appCtx && appCtx.uiWorkspace) appCtx.uiWorkspace.openSession(sessionId); } catch (_) {}
-          n.close();
-        };
-      } catch (_) { /* notifications unavailable in this shell */ }
+    async function notify({ title, body, sessionId, tag, fromGesture }) {
+      const options = { body, tag, renotify: true, silent: appFocused(), data: { sessionId } };
+      if (await ensurePermission(!!fromGesture)) {
+        // 1) Service-worker registration: the only API Chrome on Android allows, and it also works on
+        //    desktop and in installed iOS web apps. The remote-access plugin already registers one.
+        const reg = await swRegistration();
+        if (reg) { try { await reg.showNotification(title, options); return; } catch (_) { /* fall through */ } }
+        // 2) Classic constructor (desktop browsers, Electron). Mute the sound while the app is focused.
+        try {
+          const n = new Notification(title, options);
+          live.add(n);
+          n.onclose = () => live.delete(n);
+          n.onclick = () => {
+            try { window.focus(); } catch (_) {}
+            try { if (sessionId && appCtx && appCtx.uiWorkspace) appCtx.uiWorkspace.openSession(sessionId); } catch (_) {}
+            n.close();
+          };
+          return;
+        } catch (_) { /* e.g. "Illegal constructor" on Android: fall through */ }
+      }
+      // 3) Last resort so the event is never lost: in-app banner + haptic buzz.
+      try { showToast(title + ' — ' + body); } catch (_) {}
+      try { if (!appFocused() && navigator.vibrate) navigator.vibrate([120, 60, 120]); } catch (_) {}
     }
 
     function describePending(p, t) {
@@ -338,14 +381,21 @@ window.__ModuleLoader__.load({
 
     function NotifyModeRow({ t }) {
       const mode = useSetting('notifyMode');
+      const [, setTick] = React.useState(0);
+      const caps = notifyCaps();
+      const statusKey = !caps.api ? (caps.secure ? 'notify.status.unsupported' : 'notify.status.insecure')
+        : caps.permission === 'granted' ? 'notify.status.granted'
+        : caps.permission === 'denied' ? 'notify.status.denied' : 'notify.status.default';
       const options = NOTIFY_MODES.map((id) => ({ id, label: t('notify.' + id) }));
       const test = h('button', {
         type: 'button', className: 'majed-test', disabled: mode === 'off',
-        onClick: () => notify({ title: 'DeepSeek Harness', body: t('notify.testBody'), tag: 'majed:test' }),
+        onClick: async () => { await notify({ title: 'DeepSeek Harness', body: t('notify.testBody'), tag: 'majed:test', fromGesture: true }); setTick((n) => n + 1); },
       }, t('notify.test'));
       return h(SelectRow, {
-        title: t('notify.title'), description: t('notify.description'), value: mode, options, extra: test,
-        onSelect: (id) => { store.set({ notifyMode: id }); if (id !== 'off') ensurePermission(); },
+        title: t('notify.title'),
+        description: h('span', null, t('notify.description'), h('br'), h('span', { className: 'majed-status', 'data-state': caps.permission }, t(statusKey))),
+        value: mode, options, extra: test,
+        onSelect: (id) => { store.set({ notifyMode: id }); if (id !== 'off') ensurePermission(true).then(() => setTick((n) => n + 1)); },
       });
     }
     function NotifyDoneRow({ t }) {
