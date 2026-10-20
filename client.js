@@ -71,7 +71,7 @@ window.__ModuleLoader__.load({
       'notify.description': 'Send a desktop notification when a session finishes or needs your attention.',
       'notify.off': 'Off',
       'notify.background': 'Only when app is in background',
-      'notify.always': 'Always',
+      'notify.always': 'Always (silent while app is focused)',
       'notify.test': 'Send test',
       'notify.testBody': 'Notifications are working.',
       'notify.done.title': 'Notify on completion',
@@ -106,7 +106,7 @@ window.__ModuleLoader__.load({
       'notify.description': '会话完成或需要你处理时发送桌面通知。',
       'notify.off': '关闭',
       'notify.background': '仅应用在后台时',
-      'notify.always': '始终',
+      'notify.always': '始终（应用在前台时静音）',
       'notify.test': '发送测试',
       'notify.testBody': '通知正常工作。',
       'notify.done.title': '完成时通知',
@@ -249,17 +249,19 @@ window.__ModuleLoader__.load({
       if (Notification.permission === 'denied') return false;
       try { return (await Notification.requestPermission()) === 'granted'; } catch (_) { return false; }
     }
+    const appFocused = () => !document.hidden && document.hasFocus();
     function shouldNotify() {
       const mode = store.get().notifyMode;
       if (mode === 'off') return false;
       if (mode === 'always') return true;
-      return document.hidden || !document.hasFocus();
+      return !appFocused();
     }
     const live = new Set();
     async function notify({ title, body, sessionId, tag }) {
       if (!(await ensurePermission())) return;
       try {
-        const n = new Notification(title, { body, tag, renotify: true, silent: false });
+        // Mute the sound while the app is focused (the user is already looking at it); audible otherwise.
+        const n = new Notification(title, { body, tag, renotify: true, silent: appFocused() });
         live.add(n);
         n.onclose = () => live.delete(n);
         n.onclick = () => {
