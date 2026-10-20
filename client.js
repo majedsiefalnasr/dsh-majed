@@ -151,23 +151,47 @@ window.__ModuleLoader__.load({
     }
 
     // ───────────────────────── app-UI font size + font source ─────────────────────────
-    // The chrome is designed at 14px, so a px value N becomes `zoom: N/14` on the app
-    // chrome only; the chat transcript keeps following DSH's own chat font size.
-    // Class names are CSS-module hashes, so we match their stable suffix.
-    const UI_SCALE_TARGETS = [
-      '[class$="_sidebarCol"]', '[class*="_sidebarCol "]',
-      '[class$="_rightbarCol"]', '[class*="_rightbarCol "]',
-      '[data-conversation-tabs]', '[data-conversation-header-leading]', '[data-conversation-header-corner]',
-      '[data-composer-card]', '[data-composer-dock]', '[data-queue-dock]',
-    ];
+    // Only TEXT grows: we read DSH's own stylesheets (<style data-plugin-css>) and, for every
+    // rule that sets a px font-size / line-height, emit an override
+    //   calc(<original px> * var(--majed-ui-k))      (k = chosen size / 14)
+    // so spacing, icons and borders are untouched. Chat transcript sheets are skipped because
+    // the built-in "chat font size" already drives them.
+    const SKIP_SHEETS = /(AssistantMarkdown|MessageItem|ChatView|ToolDetails|ToolRow|bash-sample|FileDiff|TextPreview|TrajectoryTable|stat-dialog)\.module\.css$/;
+    const PX = /^(-?\d*\.?\d+)px$/;
+    const scaled = (v) => { const m = PX.exec(String(v).trim()); return m ? `calc(${m[1]}px * var(--majed-ui-k))` : null; };
+
+    function overridesFromRules(rules, wrap, out) {
+      for (const rule of rules) {
+        if (rule.type === 1 /* STYLE */) {
+          const fs = scaled(rule.style.getPropertyValue('font-size'));
+          const lh = scaled(rule.style.getPropertyValue('line-height'));
+          if (!fs && !lh) continue;
+          const decl = (fs ? `font-size:${fs}!important;` : '') + (lh ? `line-height:${lh}!important;` : '');
+          out.push(wrap(`${rule.selectorText}{${decl}}`));
+        } else if (rule.type === 4 /* MEDIA */) {
+          const cond = rule.conditionText || rule.media.mediaText;
+          overridesFromRules(rule.cssRules, (t) => wrap(`@media ${cond}{${t}}`), out);
+        } else if (rule.type === 12 /* SUPPORTS */) {
+          overridesFromRules(rule.cssRules, (t) => wrap(`@supports ${rule.conditionText}{${t}}`), out);
+        }
+      }
+    }
+    function buildFontSizeOverrides() {
+      const out = [];
+      document.querySelectorAll('style[data-plugin-css]').forEach((el) => {
+        if (SKIP_SHEETS.test(el.dataset.pluginCss || '') || !el.sheet) return;
+        try { overridesFromRules(el.sheet.cssRules, (t) => t, out); } catch (_) {}
+      });
+      return out.join('\n');
+    }
+
     const SYSTEM_FONT_STACK = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
-    function appearanceCss(s) {
-      let css = '';
-      if (s.uiFontSize !== UI_BASE_PX) css += `${UI_SCALE_TARGETS.join(',\n')} { zoom: ${(s.uiFontSize / UI_BASE_PX).toFixed(4)}; }\n`;
-      // DSH reads --dsh-font-family-text (set from its own font setting) with the built-in stack as fallback;
-      // forcing the default-stack variable keeps a user's explicit DSH font untouched unless "System font" is chosen.
-      if (s.fontSource === 'system') css += `:root, body { --dsh-font-family-text-default: ${SYSTEM_FONT_STACK}; --dsw-font-family: ${SYSTEM_FONT_STACK}; --dsw-font-family-brand: ${SYSTEM_FONT_STACK}; }\n`;
-      return css;
+    function fontFamilyCss(s) {
+      // DSH reads --dsh-font-family-text (its own font setting) with the built-in stack as fallback;
+      // forcing the default-stack variables only when "System font" is chosen.
+      return s.fontSource === 'system'
+        ? `:root, body { --dsh-font-family-text-default: ${SYSTEM_FONT_STACK}; --dsw-font-family: ${SYSTEM_FONT_STACK}; --dsw-font-family-brand: ${SYSTEM_FONT_STACK}; }\n`
+        : '';
     }
 
     // ───────────────────────── RTL: persian-rtl chat CSS + genui mirroring ───
@@ -611,17 +635,42 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
         // Apply settings live.
         ctx.effect(() => {
           let stopBidi = null;
-          const scaleStyle = document.createElement('style');
-          scaleStyle.setAttribute('data-majed-appearance', '');
-          document.head.appendChild(scaleStyle);
+          const varStyle = document.createElement('style');   // k + font family
+          varStyle.setAttribute('data-majed-appearance', '');
+          const sizeStyle = document.createElement('style');  // generated overrides
+          sizeStyle.setAttribute('data-majed-ui-font', '');
+          document.head.append(varStyle, sizeStyle);
+
+          let lastOverrides = null;
+          const regenerate = () => {
+            const s = store.get();
+            const css = s.uiFontSize === UI_BASE_PX ? '' : buildFontSizeOverrides();
+            if (css !== lastOverrides) { sizeStyle.textContent = css; lastOverrides = css; }
+          };
           const apply = (s) => {
             if (s.bidi && !stopBidi) stopBidi = startBidi();
             else if (!s.bidi && stopBidi) { stopBidi(); stopBidi = null; }
-            scaleStyle.textContent = appearanceCss(s);
+            varStyle.textContent = `:root{--majed-ui-k:${(s.uiFontSize / UI_BASE_PX).toFixed(4)};}\n` + fontFamilyCss(s);
+            regenerate();
           };
+
+          // DSH loads component stylesheets lazily: re-scan whenever a new one appears.
+          let timer = null;
+          const rescan = () => { clearTimeout(timer); timer = setTimeout(regenerate, 120); };
+          const headObserver = new MutationObserver((records) => {
+            for (const r of records) for (const n of r.addedNodes) {
+              if (n.nodeType === 1 && n.tagName === 'STYLE' && n.hasAttribute('data-plugin-css')) { rescan(); return; }
+            }
+          });
+          headObserver.observe(document.head, { childList: true });
+
           apply(store.get());
           const unsub = store.subscribe(apply);
-          return () => { unsub(); if (stopBidi) stopBidi(); scaleStyle.remove(); };
+          return () => {
+            unsub(); headObserver.disconnect(); clearTimeout(timer);
+            if (stopBidi) stopBidi();
+            varStyle.remove(); sizeStyle.remove();
+          };
         }, 'dsh-majed: apply settings');
       },
     };
