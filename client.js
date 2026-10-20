@@ -618,24 +618,32 @@ window.__ModuleLoader__.load({
     // ───────────────────────── app-UI font size + font source ─────────────────────────
     // Only TEXT grows: we read DSH's own stylesheets (<style data-plugin-css>) and, for every
     // rule that sets a px font-size / line-height, emit an override
-    //   calc(<original px> * var(--majed-ui-k))      (k = chosen size / 14)
+    //   calc(<original px> + var(--majed-ui-d))      (d = chosen size - 14, in px)
     // so spacing, icons and borders are untouched. Chat transcript sheets are skipped because
     // the built-in "chat font size" already drives them.
     const SKIP_SHEETS = /(AssistantMarkdown|MessageItem|ChatView|ToolDetails|ToolRow|bash-sample|FileDiff|TextPreview|TrajectoryTable|stat-dialog)\.module\.css$/;
     const PX = /^(-?\d*\.?\d+)px$/;
-    // Sizes tied to DSH's chat-size variables (e.g. the shared Menu item) scale as well: calc((expr) * k).
-    const CONTENT_VAR = /^(?:var|calc)\(.*--dsh-content-font-size.*\)$/;
-    const scaled = (v) => {
+    // Additive, like DSH's own chat font size: size' = size + (chosen - 14)px, so the chrome's 14px body text
+    // becomes exactly the chosen number. `--majed-ui-d` carries that difference.
+    // Sizes bound to DSH's chat-size variables follow the CHAT font size; they are only re-based onto the
+    // UI size in shell sheets (<link> bundles), where they style app chrome such as menus.
+    const CONTENT_VAR = /^(?:var|calc|min|max)\(.*--dsh-content-font-size.*\)$/;
+    const scaled = (v, shell) => {
       const t = String(v).trim().replace(/\s*!important$/, '');
       const m = PX.exec(t);
-      if (m) return `calc(${m[1]}px * var(--majed-ui-k))`;
-      return CONTENT_VAR.test(t) ? `calc((${t}) * var(--majed-ui-k))` : null;
+      if (m) return `calc(${m[1]}px + var(--majed-ui-d))`;
+      if (shell && CONTENT_VAR.test(t)) {
+        // evaluate the chat variables at their 14px defaults, then add the UI delta
+        const base = t.replace(/var\(--dsh-content-font-size-secondary\s*,\s*([\d.]+px)\)/g, '$1').replace(/var\(--dsh-content-font-size\s*,\s*([\d.]+px)\)/g, '$1');
+        return `calc((${base}) + var(--majed-ui-d))`;
+      }
+      return null;
     };
     // `font: [style] [weight] <size>[/<line-height>] <family>` — pull out a px size / px line-height.
     const FONT_SHORTHAND = /^(.*?)(?:^|\s)(-?\d*\.?\d+px)(?:\s*\/\s*(-?\d*\.?\d+px|[\d.]+|normal))?\s+(\S.*)$/;
 
-    function declFor(style) {
-      let fs = scaled(style.getPropertyValue('font-size'));
+    function declFor(style, shell) {
+      let fs = scaled(style.getPropertyValue('font-size'), shell);
       let lh = scaled(style.getPropertyValue('line-height'));
       const sh = style.getPropertyValue('font');
       if (sh && !fs) {                       // shorthand carries size (+ optional line-height)
@@ -644,16 +652,16 @@ window.__ModuleLoader__.load({
       }
       return (fs ? `font-size:${fs}!important;` : '') + (lh ? `line-height:${lh}!important;` : '');
     }
-    function overridesFromRules(rules, wrap, out) {
+    function overridesFromRules(rules, wrap, out, shell) {
       for (const rule of rules) {
         if (rule.type === 1 /* STYLE */) {
-          const decl = declFor(rule.style);
+          const decl = declFor(rule.style, shell);
           if (decl) out.push(wrap(`${rule.selectorText}{${decl}}`));
         } else if (rule.type === 4 /* MEDIA */) {
           const cond = rule.conditionText || rule.media.mediaText;
-          overridesFromRules(rule.cssRules, (t) => wrap(`@media ${cond}{${t}}`), out);
+          overridesFromRules(rule.cssRules, (t) => wrap(`@media ${cond}{${t}}`), out, shell);
         } else if (rule.type === 12 /* SUPPORTS */) {
-          overridesFromRules(rule.cssRules, (t) => wrap(`@supports ${rule.conditionText}{${t}}`), out);
+          overridesFromRules(rule.cssRules, (t) => wrap(`@supports ${rule.conditionText}{${t}}`), out, shell);
         }
       }
     }
@@ -707,7 +715,7 @@ window.__ModuleLoader__.load({
       const out = [];
       document.querySelectorAll('style, link[rel~="stylesheet"]').forEach((el) => {
         if (!sheetEligible(el)) return;
-        try { overridesFromRules(el.sheet.cssRules, (t) => t, out); } catch (_) { /* cross-origin sheet */ }
+        try { overridesFromRules(el.sheet.cssRules, (t) => t, out, el.tagName === 'LINK'); } catch (_) { /* cross-origin sheet */ }
       });
       const tok = buildTokenOverrides();
       return out.join('\n') + (tok ? '\n' + tok : '');
@@ -1213,7 +1221,7 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
           const apply = (s) => {
             if (s.bidi && !stopBidi) stopBidi = startBidi();
             else if (!s.bidi && stopBidi) { stopBidi(); stopBidi = null; }
-            varStyle.textContent = `:root{--majed-ui-k:${(s.uiFontSize / UI_BASE_PX).toFixed(4)};}\n`;
+            varStyle.textContent = `:root{--majed-ui-d:${s.uiFontSize - UI_BASE_PX}px;}\n`;
             applyFontFamily(s);
             regenerate();
           };
