@@ -13,6 +13,8 @@
  *       - mirroring of @changfenhuang/dsh-genui components
  *  2. Settings > General > "App UI font size"   (px stepper, right after the chat font size)
  *  3. Settings > General > "App font"           (dropdown: DSH default / System font)
+ *  4. Settings > General > "System notifications" (+ on completion / when action needed)
+ *     Native desktop notifications driven by DSH's session status; click opens the session.
  */
 window.__ModuleLoader__.load({
   id: 'dsh-majed',
@@ -26,7 +28,8 @@ window.__ModuleLoader__.load({
     const STORE_KEY = 'dsh-majed:settings:v1';
     // App UI font size is a px number like the chat font size (DSH chrome is designed at 14px).
     const UI_BASE_PX = 14, UI_MIN_PX = 11, UI_MAX_PX = 20;
-    const DEFAULTS = { bidi: true, uiFontSize: UI_BASE_PX, fontSource: 'dsh' };
+    const DEFAULTS = { bidi: true, uiFontSize: UI_BASE_PX, fontSource: 'dsh', notifyMode: 'background', notifyDone: true, notifyAction: true };
+    const NOTIFY_MODES = ['off', 'background', 'always'];
     const FONT_SOURCES = ['dsh', 'system'];
     const listeners = new Set();
     let state = (() => {
@@ -36,6 +39,7 @@ window.__ModuleLoader__.load({
     const clampPx = (v) => Math.min(UI_MAX_PX, Math.max(UI_MIN_PX, Math.round(Number(v)) || UI_BASE_PX));
     state.uiFontSize = clampPx(state.uiFontSize);
     if (!FONT_SOURCES.includes(state.fontSource)) state.fontSource = 'dsh';
+    if (!NOTIFY_MODES.includes(state.notifyMode)) state.notifyMode = 'background';
     const store = {
       get: () => state,
       subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
@@ -61,6 +65,23 @@ window.__ModuleLoader__.load({
       'font.description': 'Choose the typeface used by the app interface and chat text.',
       'font.dsh': 'DSH default',
       'font.system': 'System font',
+      'notify.title': 'System notifications',
+      'notify.description': 'Send a desktop notification when a session finishes or needs your attention.',
+      'notify.off': 'Off',
+      'notify.background': 'Only when app is in background',
+      'notify.always': 'Always',
+      'notify.test': 'Send test',
+      'notify.testBody': 'Notifications are working.',
+      'notify.done.title': 'Notify on completion',
+      'notify.done.description': 'When a session finishes its work.',
+      'notify.action.title': 'Notify when action is needed',
+      'notify.action.description': 'When a session waits for an approval, a question, or a plan review.',
+      'notify.msg.done': 'Finished — ready for review',
+      'notify.msg.approval': 'Approval needed: {tool}',
+      'notify.msg.approvalPlain': 'Approval needed',
+      'notify.msg.question': 'Waiting for your answer',
+      'notify.msg.plan': 'Plan ready for your review',
+      'notify.session': 'Session',
     };
     const zh = {
       'bidi.title': '双向文本（RTL）',
@@ -74,6 +95,23 @@ window.__ModuleLoader__.load({
       'font.description': '选择应用界面与对话文字使用的字体。',
       'font.dsh': 'DSH 默认',
       'font.system': '系统字体',
+      'notify.title': '系统通知',
+      'notify.description': '会话完成或需要你处理时发送桌面通知。',
+      'notify.off': '关闭',
+      'notify.background': '仅应用在后台时',
+      'notify.always': '始终',
+      'notify.test': '发送测试',
+      'notify.testBody': '通知正常工作。',
+      'notify.done.title': '完成时通知',
+      'notify.done.description': '会话完成工作时。',
+      'notify.action.title': '需要操作时通知',
+      'notify.action.description': '会话等待审批、提问或计划审阅时。',
+      'notify.msg.done': '已完成，等待查看',
+      'notify.msg.approval': '需要审批：{tool}',
+      'notify.msg.approvalPlain': '需要审批',
+      'notify.msg.question': '等待你的回答',
+      'notify.msg.plan': '计划待审阅',
+      'notify.session': '会话',
     };
 
     // ───────────────────────── settings rows ─────────────────────────
@@ -94,6 +132,9 @@ window.__ModuleLoader__.load({
 .majed-selector{display:inline-flex;align-items:center;gap:12px;height:36px;padding:0 14px;border:none;border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);font:inherit;font-size:14px;line-height:22px;cursor:pointer}
 .majed-selector:hover{background:var(--dsw-alias-interactive-bg-hover)}
 .majed-chevron{flex:none}
+.majed-test{height:36px;padding:0 12px;border:none;border-radius:var(--dsw-radius-md);background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:13px;cursor:pointer}
+.majed-test:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
+.majed-test:disabled{opacity:.4;cursor:default}
 `;
 
     function BidiRow({ t }) {
@@ -148,6 +189,131 @@ window.__ModuleLoader__.load({
             })
           : h('select', { value, onChange: (e) => store.set({ fontSource: e.target.value }) },
               FONT_SOURCES.map((id) => h('option', { key: id, value: id }, t('font.' + id)))));
+    }
+
+    // ───────────────────────── generic rows (same look as built-in ones) ─────────────────────────
+    function SelectRow({ title, description, value, options, onSelect, extra }) {
+      const [open, setOpen] = React.useState(false);
+      const ref = React.useRef(null);
+      const Menu = primitives.Menu, Chevron = primitives.IconChevronDownOutlineRegular;
+      const close = () => setOpen(false);
+      const current = options.find((o) => o.id === value);
+      const selector = h('button', {
+        ref, type: 'button', className: 'majed-selector', 'aria-haspopup': 'menu', 'aria-expanded': open,
+        onClick: () => setOpen((v) => !v),
+      }, current ? current.label : value, Chevron ? h(Chevron, { className: 'majed-chevron' }) : '▾');
+      return h('div', { className: 'majed-row' },
+        h('div', { className: 'majed-text' },
+          h('div', { className: 'majed-title' }, title),
+          h('div', { className: 'majed-desc' }, description)),
+        h('div', { className: 'majed-control' }, extra || null,
+          Menu
+            ? h(Menu, {
+                open, onClose: close, selectedId: value, align: 'end', portal: true, anchor: selector, items: options,
+                onSelect: (id) => { ref.current && ref.current.focus({ preventScroll: true }); close(); onSelect(id); },
+              })
+            : h('select', { value, onChange: (e) => onSelect(e.target.value) },
+                options.map((o) => h('option', { key: o.id, value: o.id }, o.label)))));
+    }
+    function ToggleRow({ title, description, checked, onChange }) {
+      const Switch = primitives.Switch;
+      return h('div', { className: 'majed-row' },
+        h('div', { className: 'majed-text' },
+          h('div', { className: 'majed-title' }, title),
+          h('div', { className: 'majed-desc' }, description)),
+        Switch
+          ? h(Switch, { checked, label: title, onChange: (n) => onChange(!!n) })
+          : h('input', { type: 'checkbox', checked, 'aria-label': title, onChange: (e) => onChange(e.target.checked) }));
+    }
+
+    // ───────────────────────── system notifications ─────────────────────────
+    let appCtx = null;
+    const fmt = (str, vars) => String(str).replace(/\{(\w+)\}/g, (_, k) => (vars && vars[k] != null ? vars[k] : ''));
+
+    async function ensurePermission() {
+      if (typeof Notification === 'undefined') return false;
+      if (Notification.permission === 'granted') return true;
+      if (Notification.permission === 'denied') return false;
+      try { return (await Notification.requestPermission()) === 'granted'; } catch (_) { return false; }
+    }
+    function shouldNotify() {
+      const mode = store.get().notifyMode;
+      if (mode === 'off') return false;
+      if (mode === 'always') return true;
+      return document.hidden || !document.hasFocus();
+    }
+    const live = new Set();
+    async function notify({ title, body, sessionId, tag }) {
+      if (!(await ensurePermission())) return;
+      try {
+        const n = new Notification(title, { body, tag, renotify: true, silent: false });
+        live.add(n);
+        n.onclose = () => live.delete(n);
+        n.onclick = () => {
+          try { window.focus(); } catch (_) {}
+          try { if (sessionId && appCtx && appCtx.uiWorkspace) appCtx.uiWorkspace.openSession(sessionId); } catch (_) {}
+          n.close();
+        };
+      } catch (_) { /* notifications unavailable in this shell */ }
+    }
+
+    function describePending(p, t) {
+      if (!p) return null;
+      if (p.kind === 'plan-review') return { key: p.key, text: t('notify.msg.plan'), type: 'action' };
+      if (p.questions) return { key: p.key, text: t('notify.msg.question'), type: 'action' };
+      return { key: p.key || p.callId, type: 'action',
+        text: p.toolName ? fmt(t('notify.msg.approval'), { tool: p.toolName }) : t('notify.msg.approvalPlain') };
+    }
+
+    /** Invisible root component: watches session status through the standard `useSessionStatus` hook. */
+    function NotificationWatcher({ useSessionStatus, useSessions, t }) {
+      const status = useSessionStatus((m) => m);
+      const list = useSessions((l) => l);
+      const prev = React.useRef(null);        // Map(sessionId -> { running, pendingKey })
+      const t0 = React.useRef(new Map());     // sessionId -> run start
+      React.useEffect(() => {
+        const next = new Map();
+        const titleOf = (id) => {
+          const row = list && list.byId && list.byId[id];
+          return (row && (row.title || row.name)) || t('notify.session');
+        };
+        for (const [id, st] of status) {
+          const pending = describePending(st.pendingInteraction, t);
+          next.set(id, { running: st.running === true, pendingKey: pending ? String(pending.key) : null });
+          const before = prev.current && prev.current.get(id);
+          if (!prev.current) continue;                                   // first snapshot = baseline
+          const cfg = store.get();
+          if (st.running === true && !(before && before.running)) t0.current.set(id, Date.now());
+          if (pending && cfg.notifyAction && (!before || before.pendingKey !== String(pending.key)) && shouldNotify()) {
+            notify({ title: titleOf(id), body: pending.text, sessionId: id, tag: `${id}:action` });
+          } else if (before && before.running && st.running === false && !pending && cfg.notifyDone && shouldNotify()) {
+            notify({ title: titleOf(id), body: t('notify.msg.done'), sessionId: id, tag: `${id}:done` });
+          }
+        }
+        prev.current = next;
+      }, [status, list, t]);
+      return null;
+    }
+
+    function NotifyModeRow({ t }) {
+      const mode = useSetting('notifyMode');
+      const options = NOTIFY_MODES.map((id) => ({ id, label: t('notify.' + id) }));
+      const test = h('button', {
+        type: 'button', className: 'majed-test', disabled: mode === 'off',
+        onClick: () => notify({ title: 'DeepSeek Harness', body: t('notify.testBody'), tag: 'majed:test' }),
+      }, t('notify.test'));
+      return h(SelectRow, {
+        title: t('notify.title'), description: t('notify.description'), value: mode, options, extra: test,
+        onSelect: (id) => { store.set({ notifyMode: id }); if (id !== 'off') ensurePermission(); },
+      });
+    }
+    function NotifyDoneRow({ t }) {
+      const on = useSetting('notifyDone');
+      return h(ToggleRow, { title: t('notify.done.title'), description: t('notify.done.description'), checked: on, onChange: (v) => store.set({ notifyDone: v }) });
+    }
+    function NotifyActionRow({ t }) {
+      const on = useSetting('notifyAction');
+      return h(ToggleRow, { title: t('notify.action.title'), description: t('notify.action.description'), checked: on, onChange: (v) => store.set({ notifyAction: v }) });
     }
 
     // ───────────────────────── app-UI font size + font source ─────────────────────────
@@ -609,8 +775,10 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
 
     // ───────────────────────── plugin entry ─────────────────────────
     return {
-      inject: ['slots', 'locale'],
+      inject: ['slots', 'locale', 'uiWorkspace'],
       apply(ctx) {
+        appCtx = ctx;
+        ctx.effect(() => () => { appCtx = null; live.forEach((n) => { try { n.close(); } catch (_) {} }); live.clear(); }, 'dsh-majed: notification cleanup');
         ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsh-majed: dictionaries');
 
         ctx.effect(() => {
@@ -631,6 +799,12 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
         ctx.slots.inject('settings.general.item', () => ctx.slots.register({
           name: 'settings.general.item', id: 'majed-bidi', order: 13, locale: NS,
         }, BidiRow));
+
+        ctx.slots.inject('settings.general.item', () => ctx.slots.register({ name: 'settings.general.item', id: 'majed-notify-mode', order: 13.1, locale: NS }, NotifyModeRow));
+        ctx.slots.inject('settings.general.item', () => ctx.slots.register({ name: 'settings.general.item', id: 'majed-notify-done', order: 13.2, locale: NS }, NotifyDoneRow));
+        ctx.slots.inject('settings.general.item', () => ctx.slots.register({ name: 'settings.general.item', id: 'majed-notify-action', order: 13.3, locale: NS }, NotifyActionRow));
+        // Invisible watcher on the frame-wide overlay layer: reads session status via the standard hook.
+        ctx.slots.inject('shell.overlay', () => ctx.slots.register({ name: 'shell.overlay', id: 'majed-notifications', locale: NS }, NotificationWatcher));
 
         // Apply settings live.
         ctx.effect(() => {
