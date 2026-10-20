@@ -7,7 +7,8 @@ Majed's toolkit plugin for **DeepSeek Harness (DSH)**. It never patches DSH itse
 | Where | Feature |
 |---|---|
 | Settings ▸ General ▸ **Bidirectional text** (toggle) | Per-paragraph RTL/LTR for Arabic, Persian and Hebrew in chat answers, reasoning, tool cells, question boxes and user bubbles; mirrors [`@changfenhuang/dsh-genui`](https://www.npmjs.com/package/@changfenhuang/dsh-genui) components (lists, steps, tables, timelines, switches, chevrons, progress markers…). Replaces `dsh-persian-rtl`. |
-| Settings ▸ General ▸ **App UI font size** (stepper, 80–150 %) | Scales the app interface (sidebar, headers, composer, side panels). The built-in *chat* font size is untouched. |
+| Settings ▸ General ▸ **App UI font size** (px stepper, 11–20, default 14) | Font size of the app interface (sidebar, headers, composer, side panels). The built-in *chat* font size is untouched. |
+| Settings ▸ General ▸ **App font** (dropdown) | `DSH default` or `System font` (`system-ui`) for the whole app interface and chat text. |
 
 Settings are stored per-browser/desktop profile in `localStorage` (`dsh-majed:settings:v1`).
 

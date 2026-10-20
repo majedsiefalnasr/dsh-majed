@@ -11,7 +11,8 @@
  *         reasoning, tool cells, question boxes, user bubbles
  *         (replaces dsh-persian-rtl; CSS/logic adapted from it, MIT)
  *       - mirroring of @changfenhuang/dsh-genui components
- *  2. Settings > General > "App UI font size"   (stepper, right after the chat font size)
+ *  2. Settings > General > "App UI font size"   (px stepper, right after the chat font size)
+ *  3. Settings > General > "App font"           (dropdown: DSH default / System font)
  */
 window.__ModuleLoader__.load({
   id: 'dsh-majed',
@@ -23,15 +24,18 @@ window.__ModuleLoader__.load({
 
     // ───────────────────────── own settings store (localStorage) ─────────────
     const STORE_KEY = 'dsh-majed:settings:v1';
-    const DEFAULTS = { bidi: true, uiFontScale: 100 };
-    const SCALE_MIN = 80, SCALE_MAX = 150, SCALE_STEP = 5;
+    // App UI font size is a px number like the chat font size (DSH chrome is designed at 14px).
+    const UI_BASE_PX = 14, UI_MIN_PX = 11, UI_MAX_PX = 20;
+    const DEFAULTS = { bidi: true, uiFontSize: UI_BASE_PX, fontSource: 'dsh' };
+    const FONT_SOURCES = ['dsh', 'system'];
     const listeners = new Set();
     let state = (() => {
       try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(STORE_KEY) || '{}') }; }
       catch (_) { return { ...DEFAULTS }; }
     })();
-    const clampScale = (v) => Math.min(SCALE_MAX, Math.max(SCALE_MIN, Math.round(Number(v) / SCALE_STEP) * SCALE_STEP || 100));
-    state.uiFontScale = clampScale(state.uiFontScale);
+    const clampPx = (v) => Math.min(UI_MAX_PX, Math.max(UI_MIN_PX, Math.round(Number(v)) || UI_BASE_PX));
+    state.uiFontSize = clampPx(state.uiFontSize);
+    if (!FONT_SOURCES.includes(state.fontSource)) state.fontSource = 'dsh';
     const store = {
       get: () => state,
       subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
@@ -48,22 +52,28 @@ window.__ModuleLoader__.load({
     const en = {
       'bidi.title': 'Bidirectional text',
       'bidi.description': 'Detects Arabic, Persian and Hebrew per paragraph and lays it out right-to-left (chat, reasoning, tools, GenUI components).',
-      'scale.title': 'App UI font size',
-      'scale.description': 'Scales the app interface (sidebar, headers, composer, panels). The chat font size above is unchanged.',
-      'scale.reset': 'Reset',
-      'scale.unit': '%',
-      'scale.increase': 'Increase app UI font size',
-      'scale.decrease': 'Decrease app UI font size',
+      'size.title': 'App UI font size',
+      'size.description': 'Font size of the app interface (sidebar, headers, composer, panels). The chat font size above is unchanged.',
+      'size.increase': 'Increase app UI font size',
+      'size.decrease': 'Decrease app UI font size',
+      'size.unit': 'px',
+      'font.title': 'App font',
+      'font.description': 'Choose the typeface used by the app interface and chat text.',
+      'font.dsh': 'DSH default',
+      'font.system': 'System font',
     };
     const zh = {
       'bidi.title': '双向文本（RTL）',
       'bidi.description': '按段落识别阿拉伯语、波斯语、希伯来语并从右到左排版（对话、思考、工具、GenUI 组件）。',
-      'scale.title': '应用界面字号',
-      'scale.description': '缩放应用界面（侧边栏、标题栏、输入框、面板），不影响上方的对话字号。',
-      'scale.reset': '重置',
-      'scale.unit': '%',
-      'scale.increase': '增大应用界面字号',
-      'scale.decrease': '减小应用界面字号',
+      'size.title': '应用界面字号',
+      'size.description': '应用界面（侧边栏、标题栏、输入框、面板）的字号，不影响上方的对话字号。',
+      'size.increase': '增大应用界面字号',
+      'size.decrease': '减小应用界面字号',
+      'size.unit': 'px',
+      'font.title': '应用字体',
+      'font.description': '选择应用界面与对话文字使用的字体。',
+      'font.dsh': 'DSH 默认',
+      'font.system': '系统字体',
     };
 
     // ───────────────────────── settings rows ─────────────────────────
@@ -81,9 +91,9 @@ window.__ModuleLoader__.load({
 .majed-arrow:hover:not(:disabled){background:var(--dsw-alias-bg-layer-1)}
 .majed-arrow:disabled{color:var(--dsw-alias-label-caption);cursor:default}
 .majed-unit{color:var(--dsw-alias-label-secondary);font-size:14px}
-.majed-reset{border:none;background:transparent;color:var(--dsw-alias-label-tertiary);font:inherit;font-size:12px;cursor:pointer;padding:4px 6px;border-radius:var(--dsw-radius-xs)}
-.majed-reset:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
-.majed-reset:disabled{opacity:.4;cursor:default}
+.majed-selector{display:inline-flex;align-items:center;gap:12px;height:36px;padding:0 14px;border:none;border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);font:inherit;font-size:14px;line-height:22px;cursor:pointer}
+.majed-selector:hover{background:var(--dsw-alias-interactive-bg-hover)}
+.majed-chevron{flex:none}
 `;
 
     function BidiRow({ t }) {
@@ -99,34 +109,66 @@ window.__ModuleLoader__.load({
     }
 
     function UiFontSizeRow({ t }) {
-      const scale = useSetting('uiFontScale');
+      const size = useSetting('uiFontSize');
       const Up = primitives.IconChevronUpOutlineRegular, Down = primitives.IconChevronDownOutlineRegular;
-      const set = (v) => store.set({ uiFontScale: clampScale(v) });
+      const set = (v) => store.set({ uiFontSize: clampPx(v) });
       return h('div', { className: 'majed-row' },
         h('div', { className: 'majed-text' },
-          h('div', { className: 'majed-title' }, t('scale.title')),
-          h('div', { className: 'majed-desc' }, t('scale.description'))),
+          h('div', { className: 'majed-title' }, t('size.title')),
+          h('div', { className: 'majed-desc' }, t('size.description'))),
         h('div', { className: 'majed-control' },
-          h('button', { type: 'button', className: 'majed-reset', disabled: scale === 100, onClick: () => set(100) }, t('scale.reset')),
           h('div', { className: 'majed-stepper' },
-            h('span', { className: 'majed-value' }, scale),
+            h('span', { className: 'majed-value' }, size),
             h('span', { className: 'majed-arrows' },
-              h('button', { type: 'button', className: 'majed-arrow', 'aria-label': t('scale.increase'), disabled: scale >= SCALE_MAX, onClick: () => set(scale + SCALE_STEP) }, Up ? h(Up, { size: 9 }) : '▲'),
-              h('button', { type: 'button', className: 'majed-arrow', 'aria-label': t('scale.decrease'), disabled: scale <= SCALE_MIN, onClick: () => set(scale - SCALE_STEP) }, Down ? h(Down, { size: 9 }) : '▼'))),
-          h('span', { className: 'majed-unit' }, t('scale.unit'))));
+              h('button', { type: 'button', className: 'majed-arrow', 'aria-label': t('size.increase'), disabled: size >= UI_MAX_PX, onClick: () => set(size + 1) }, Up ? h(Up, { size: 9 }) : '▲'),
+              h('button', { type: 'button', className: 'majed-arrow', 'aria-label': t('size.decrease'), disabled: size <= UI_MIN_PX, onClick: () => set(size - 1) }, Down ? h(Down, { size: 9 }) : '▼'))),
+          h('span', { className: 'majed-unit' }, t('size.unit'))));
     }
 
-    // ───────────────────────── app-UI font scale ─────────────────────────
-    // Chromium `zoom` on the app chrome only; the conversation transcript keeps
-    // following DSH's own chat font size. Class names are CSS-module hashes, so we
-    // match their stable suffix.
+    /** Same look as the built-in "Open chat links in" row: title/description + dropdown button. */
+    function FontSourceRow({ t }) {
+      const value = useSetting('fontSource');
+      const [open, setOpen] = React.useState(false);
+      const ref = React.useRef(null);
+      const Menu = primitives.Menu, Chevron = primitives.IconChevronDownOutlineRegular;
+      const close = () => setOpen(false);
+      const selector = h('button', {
+        ref, type: 'button', className: 'majed-selector', 'aria-haspopup': 'menu', 'aria-expanded': open,
+        onClick: () => setOpen((v) => !v),
+      }, t('font.' + value), Chevron ? h(Chevron, { className: 'majed-chevron' }) : '▾');
+      return h('div', { className: 'majed-row' },
+        h('div', { className: 'majed-text' },
+          h('div', { className: 'majed-title' }, t('font.title')),
+          h('div', { className: 'majed-desc' }, t('font.description'))),
+        Menu
+          ? h(Menu, {
+              open, onClose: close, selectedId: value, align: 'end', portal: true, anchor: selector,
+              items: FONT_SOURCES.map((id) => ({ id, label: t('font.' + id) })),
+              onSelect: (id) => { ref.current && ref.current.focus({ preventScroll: true }); close(); store.set({ fontSource: id }); },
+            })
+          : h('select', { value, onChange: (e) => store.set({ fontSource: e.target.value }) },
+              FONT_SOURCES.map((id) => h('option', { key: id, value: id }, t('font.' + id)))));
+    }
+
+    // ───────────────────────── app-UI font size + font source ─────────────────────────
+    // The chrome is designed at 14px, so a px value N becomes `zoom: N/14` on the app
+    // chrome only; the chat transcript keeps following DSH's own chat font size.
+    // Class names are CSS-module hashes, so we match their stable suffix.
     const UI_SCALE_TARGETS = [
       '[class$="_sidebarCol"]', '[class*="_sidebarCol "]',
       '[class$="_rightbarCol"]', '[class*="_rightbarCol "]',
       '[data-conversation-tabs]', '[data-conversation-header-leading]', '[data-conversation-header-corner]',
       '[data-composer-card]', '[data-composer-dock]', '[data-queue-dock]',
     ];
-    const uiScaleCss = (pct) => pct === 100 ? '' : `${UI_SCALE_TARGETS.join(',\n')} { zoom: ${pct / 100}; }`;
+    const SYSTEM_FONT_STACK = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+    function appearanceCss(s) {
+      let css = '';
+      if (s.uiFontSize !== UI_BASE_PX) css += `${UI_SCALE_TARGETS.join(',\n')} { zoom: ${(s.uiFontSize / UI_BASE_PX).toFixed(4)}; }\n`;
+      // DSH reads --dsh-font-family-text (set from its own font setting) with the built-in stack as fallback;
+      // forcing the default-stack variable keeps a user's explicit DSH font untouched unless "System font" is chosen.
+      if (s.fontSource === 'system') css += `:root, body { --dsh-font-family-text-default: ${SYSTEM_FONT_STACK}; --dsw-font-family: ${SYSTEM_FONT_STACK}; --dsw-font-family-brand: ${SYSTEM_FONT_STACK}; }\n`;
+      return css;
+    }
 
     // ───────────────────────── RTL: persian-rtl chat CSS + genui mirroring ───
     const CHAT_CSS = `
@@ -560,6 +602,9 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
           name: 'settings.general.item', id: 'majed-ui-font-size', order: 11.5, locale: NS,
         }, UiFontSizeRow));
         ctx.slots.inject('settings.general.item', () => ctx.slots.register({
+          name: 'settings.general.item', id: 'majed-font-source', order: 11.6, locale: NS,
+        }, FontSourceRow));
+        ctx.slots.inject('settings.general.item', () => ctx.slots.register({
           name: 'settings.general.item', id: 'majed-bidi', order: 13, locale: NS,
         }, BidiRow));
 
@@ -567,12 +612,12 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
         ctx.effect(() => {
           let stopBidi = null;
           const scaleStyle = document.createElement('style');
-          scaleStyle.setAttribute('data-majed-ui-scale', '');
+          scaleStyle.setAttribute('data-majed-appearance', '');
           document.head.appendChild(scaleStyle);
           const apply = (s) => {
             if (s.bidi && !stopBidi) stopBidi = startBidi();
             else if (!s.bidi && stopBidi) { stopBidi(); stopBidi = null; }
-            scaleStyle.textContent = uiScaleCss(s.uiFontScale);
+            scaleStyle.textContent = appearanceCss(s);
           };
           apply(store.get());
           const unsub = store.subscribe(apply);
