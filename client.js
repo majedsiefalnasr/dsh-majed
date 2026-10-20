@@ -324,16 +324,32 @@ window.__ModuleLoader__.load({
     // the built-in "chat font size" already drives them.
     const SKIP_SHEETS = /(AssistantMarkdown|MessageItem|ChatView|ToolDetails|ToolRow|bash-sample|FileDiff|TextPreview|TrajectoryTable|stat-dialog)\.module\.css$/;
     const PX = /^(-?\d*\.?\d+)px$/;
-    const scaled = (v) => { const m = PX.exec(String(v).trim()); return m ? `calc(${m[1]}px * var(--majed-ui-k))` : null; };
+    // Sizes tied to DSH's chat-size variables (e.g. the shared Menu item) scale as well: calc((expr) * k).
+    const CONTENT_VAR = /^(?:var|calc)\(.*--dsh-content-font-size.*\)$/;
+    const scaled = (v) => {
+      const t = String(v).trim().replace(/\s*!important$/, '');
+      const m = PX.exec(t);
+      if (m) return `calc(${m[1]}px * var(--majed-ui-k))`;
+      return CONTENT_VAR.test(t) ? `calc((${t}) * var(--majed-ui-k))` : null;
+    };
+    // `font: [style] [weight] <size>[/<line-height>] <family>` — pull out a px size / px line-height.
+    const FONT_SHORTHAND = /^(.*?)(?:^|\s)(-?\d*\.?\d+px)(?:\s*\/\s*(-?\d*\.?\d+px|[\d.]+|normal))?\s+(\S.*)$/;
 
+    function declFor(style) {
+      let fs = scaled(style.getPropertyValue('font-size'));
+      let lh = scaled(style.getPropertyValue('line-height'));
+      const sh = style.getPropertyValue('font');
+      if (sh && !fs) {                       // shorthand carries size (+ optional line-height)
+        const m = FONT_SHORTHAND.exec(sh.trim());
+        if (m) { fs = scaled(m[2]); if (m[3] && PX.test(m[3])) lh = lh || scaled(m[3]); }
+      }
+      return (fs ? `font-size:${fs}!important;` : '') + (lh ? `line-height:${lh}!important;` : '');
+    }
     function overridesFromRules(rules, wrap, out) {
       for (const rule of rules) {
         if (rule.type === 1 /* STYLE */) {
-          const fs = scaled(rule.style.getPropertyValue('font-size'));
-          const lh = scaled(rule.style.getPropertyValue('line-height'));
-          if (!fs && !lh) continue;
-          const decl = (fs ? `font-size:${fs}!important;` : '') + (lh ? `line-height:${lh}!important;` : '');
-          out.push(wrap(`${rule.selectorText}{${decl}}`));
+          const decl = declFor(rule.style);
+          if (decl) out.push(wrap(`${rule.selectorText}{${decl}}`));
         } else if (rule.type === 4 /* MEDIA */) {
           const cond = rule.conditionText || rule.media.mediaText;
           overridesFromRules(rule.cssRules, (t) => wrap(`@media ${cond}{${t}}`), out);
@@ -342,11 +358,21 @@ window.__ModuleLoader__.load({
         }
       }
     }
+    // Chat-transcript sheets are skipped (the built-in chat font size drives them).
+    // Plugin sheets are <style data-plugin-css>; the app shell and shared primitives (Menu, popovers,
+    // account menu...) live in <link rel=stylesheet> bundles, so those are scanned too.
+    function isOwnStyle(el) { return el.hasAttribute('data-majed-appearance') || el.hasAttribute('data-majed-ui-font') || el.hasAttribute('data-majed-bidi') || el.hasAttribute('data-majed-settings'); }
+    function sheetEligible(el) {
+      if (!el.sheet || isOwnStyle(el)) return false;
+      if (el.tagName === 'STYLE' && el.hasAttribute('data-plugin-css')) return !SKIP_SHEETS.test(el.dataset.pluginCss || '');
+      if (el.tagName === 'LINK') return true;
+      return false;
+    }
     function buildFontSizeOverrides() {
       const out = [];
-      document.querySelectorAll('style[data-plugin-css]').forEach((el) => {
-        if (SKIP_SHEETS.test(el.dataset.pluginCss || '') || !el.sheet) return;
-        try { overridesFromRules(el.sheet.cssRules, (t) => t, out); } catch (_) {}
+      document.querySelectorAll('style[data-plugin-css], link[rel~="stylesheet"]').forEach((el) => {
+        if (!sheetEligible(el)) return;
+        try { overridesFromRules(el.sheet.cssRules, (t) => t, out); } catch (_) { /* cross-origin sheet */ }
       });
       return out.join('\n');
     }
@@ -848,7 +874,7 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
           const rescan = () => { clearTimeout(timer); timer = setTimeout(regenerate, 120); };
           const headObserver = new MutationObserver((records) => {
             for (const r of records) for (const n of r.addedNodes) {
-              if (n.nodeType === 1 && n.tagName === 'STYLE' && n.hasAttribute('data-plugin-css')) { rescan(); return; }
+              if (n.nodeType === 1 && ((n.tagName === 'STYLE' && n.hasAttribute('data-plugin-css')) || (n.tagName === 'LINK' && /stylesheet/.test(n.rel)))) { rescan(); if (n.tagName === 'LINK') n.addEventListener('load', rescan, { once: true }); return; }
             }
           });
           headObserver.observe(document.head, { childList: true });
