@@ -88,6 +88,7 @@ window.__ModuleLoader__.load({
       'account.description': 'Moves extra sidebar buttons (such as Remote access) into the account menu instead of showing them beside it.',
       'copy.title': 'Copy on select',
       'copy.description': 'Automatically copy any text you select in the app to the clipboard. Text inside input fields is not copied.',
+      'copy.toast': 'Copied to clipboard',
     };
     const zh = {
       'bidi.title': '双向文本（RTL）',
@@ -122,6 +123,7 @@ window.__ModuleLoader__.load({
       'account.description': '把额外的侧边栏按钮（如远程访问）移入账户菜单，而不是显示在旁边。',
       'copy.title': '选中即复制',
       'copy.description': '在应用中选中的文字会自动复制到剪贴板。输入框内的文字不会被复制。',
+      'copy.toast': '已复制到剪贴板',
     };
 
     // ───────────────────────── settings rows ─────────────────────────
@@ -440,12 +442,42 @@ window.__ModuleLoader__.load({
       const tag = el.tagName;
       return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
     }
-    function startAutoCopy() {
+    // Lightweight toast that matches DSH's own (same tokens, top-centre, ~2s). It lives in <body>, outside
+    // React, so it works from plain DOM listeners; one element is reused so rapid copies don't stack.
+    const TOAST_CSS = `
+.majed-toast{position:fixed;top:40px;left:50%;z-index:2147483000;transform:translate(-50%,-6px);display:flex;align-items:center;gap:10px;width:max-content;max-width:min(640px,calc(100vw - 48px));padding:12px 16px;border-radius:var(--dsw-radius-lg,16px);background:var(--dsw-alias-toast-bg,#2b2b2e);color:var(--dsw-alias-toast-label,#fff);font:inherit;font-size:14px;line-height:22px;box-shadow:var(--dsw-shadow-lv3,0 8px 24px rgba(0,0,0,.28));pointer-events:none;opacity:0;transition:opacity .16s ease,transform .16s ease}
+.majed-toast[data-show]{opacity:1;transform:translate(-50%,0)}
+.majed-toast svg{flex:none;width:16px;height:16px;color:var(--dsw-alias-state-success-primary,#3ecf8e)}
+`;
+    let toastEl = null, toastTimer = null, toastStyle = null;
+    function showToast(text) {
+      if (!document.body) return;
+      if (!toastStyle) { toastStyle = document.createElement('style'); toastStyle.setAttribute('data-majed-toast-style', ''); toastStyle.textContent = TOAST_CSS; document.head.appendChild(toastStyle); }
+      if (!toastEl) {
+        toastEl = document.createElement('div');
+        toastEl.className = 'majed-toast'; toastEl.setAttribute('role', 'status'); toastEl.setAttribute('aria-live', 'polite');
+        toastEl.innerHTML = '<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 4.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span></span>';
+        document.body.appendChild(toastEl);
+      }
+      toastEl.lastElementChild.textContent = text;
+      // restart the transition when a toast is already visible
+      toastEl.removeAttribute('data-show'); void toastEl.offsetWidth; toastEl.setAttribute('data-show', '');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { if (toastEl) toastEl.removeAttribute('data-show'); }, 2000);
+    }
+    function disposeToast() {
+      clearTimeout(toastTimer);
+      if (toastEl) { toastEl.remove(); toastEl = null; }
+      if (toastStyle) { toastStyle.remove(); toastStyle = null; }
+    }
+
+    function startAutoCopy(onCopied) {
       let last = '';
+      const done = () => { if (onCopied) onCopied(); };
       const copy = (text) => {
         if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(text).catch(() => { try { document.execCommand('copy'); } catch (_) {} });
-        } else { try { document.execCommand('copy'); } catch (_) {} }
+          navigator.clipboard.writeText(text).then(done, () => { try { if (document.execCommand('copy')) done(); } catch (_) {} });
+        } else { try { if (document.execCommand('copy')) done(); } catch (_) {} }
       };
       const run = () => {
         const sel = window.getSelection && window.getSelection();
@@ -1007,10 +1039,11 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
         ctx.effect(() => startAccountMenu(), 'dsh-majed: account menu grouping');
         ctx.effect(() => {
           let stop = null;
-          const sync = (st) => { if (st.autoCopy && !stop) stop = startAutoCopy(); else if (!st.autoCopy && stop) { stop(); stop = null; } };
+          const t = ctx.locale.bind(NS);
+          const sync = (st) => { if (st.autoCopy && !stop) stop = startAutoCopy(() => showToast(t('copy.toast'))); else if (!st.autoCopy && stop) { stop(); stop = null; } };
           sync(store.get());
           const unsub = store.subscribe(sync);
-          return () => { unsub(); if (stop) stop(); };
+          return () => { unsub(); if (stop) stop(); disposeToast(); };
         }, 'dsh-majed: copy on select');
         // Invisible watcher on the frame-wide overlay layer: reads session status via the standard hook.
         ctx.slots.inject('shell.overlay', () => ctx.slots.register({ name: 'shell.overlay', id: 'majed-notifications', locale: NS }, NotificationWatcher));
