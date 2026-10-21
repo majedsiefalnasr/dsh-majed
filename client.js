@@ -771,7 +771,8 @@ window.__ModuleLoader__.load({
       return out.join('\n') + (tok ? '\n' + tok : '');
     }
 
-    const SYSTEM_FONT_STACK = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+    // The OS UI font, with emoji/symbol fonts so emoji render natively (same stack as the system font in browsers).
+    const SYSTEM_FONT_STACK = '-apple-system-body, ui-sans-serif, -apple-system, system-ui, "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol"';
     // Variables that carry the UI typeface. DSH defines --dsw-font-family on <body> itself, and skins
     // such as dsh-claude-style redefine it (and their own --dsh-claude-font-*) with higher specificity,
     // so a stylesheet rule can lose. Inline `!important` on <body> beats every stylesheet rule, and
