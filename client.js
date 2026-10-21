@@ -33,7 +33,11 @@ window.__ModuleLoader__.load({
     const UI_BASE_PX = 14, UI_MIN_PX = 11, UI_MAX_PX = 20;
     const DEFAULTS = { bidi: true, uiFontSize: UI_BASE_PX, fontSource: 'dsh', notifyMode: 'background', notifyDone: true, notifyAction: true, accountMenu: true, autoCopy: false, autoApprove: {} };
     const NOTIFY_MODES = ['off', 'background', 'always'];
-    const FONT_SOURCES = ['dsh', 'system'];
+    // Bundled UI fonts (OFL-1.1, served by this plugin's host half from fonts/*.woff2).
+    const FONT_ROUTE = '/plugins/dsh-majed/fonts/';
+    const BUNDLED_FONTS = {"inter": {"label": "Inter", "family": "Inter Majed"}, "roboto": {"label": "Roboto", "family": "Roboto Majed"}, "open-sans": {"label": "Open Sans", "family": "Open Sans Majed"}, "noto-sans": {"label": "Noto Sans", "family": "Noto Sans Majed"}, "ibm-plex-sans": {"label": "IBM Plex Sans", "family": "IBM Plex Sans Majed"}};
+    const FONT_FACES = [{"f": "Inter Majed", "u": "inter-latin-wght-normal.woff2", "w": "100 900", "r": "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD", "k": "inter"}, {"f": "Inter Majed", "u": "inter-latin-ext-wght-normal.woff2", "w": "100 900", "r": "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF", "k": "inter"}, {"f": "Roboto Majed", "u": "roboto-latin-wght-normal.woff2", "w": "100 900", "r": "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD", "k": "roboto"}, {"f": "Roboto Majed", "u": "roboto-latin-ext-wght-normal.woff2", "w": "100 900", "r": "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF", "k": "roboto"}, {"f": "Open Sans Majed", "u": "open-sans-latin-wght-normal.woff2", "w": "100 900", "r": "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD", "k": "open-sans"}, {"f": "Open Sans Majed", "u": "open-sans-latin-ext-wght-normal.woff2", "w": "100 900", "r": "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF", "k": "open-sans"}, {"f": "Open Sans Majed", "u": "open-sans-hebrew-wght-normal.woff2", "w": "100 900", "r": "U+0307-0308,U+0590-05FF,U+200C-2010,U+20AA,U+25CC,U+FB1D-FB4F", "k": "open-sans"}, {"f": "Noto Sans Majed", "u": "noto-sans-latin-wght-normal.woff2", "w": "100 900", "r": "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD", "k": "noto-sans"}, {"f": "Noto Sans Majed", "u": "noto-sans-latin-ext-wght-normal.woff2", "w": "100 900", "r": "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF", "k": "noto-sans"}, {"f": "Noto Sans Majed", "u": "noto-sans-arabic-arabic-wght-normal.woff2", "w": "100 900", "r": "U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0897-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FE74,U+FE76-FEFC,U+102E0-102FB,U+10E60-10E7E,U+10EC2-10EC4,U+10EFC-10EFF,U+1EE00-1EE03,U+1EE05-1EE1F,U+1EE21-1EE22,U+1EE24,U+1EE27,U+1EE29-1EE32,U+1EE34-1EE37,U+1EE39,U+1EE3B,U+1EE42,U+1EE47,U+1EE49,U+1EE4B,U+1EE4D-1EE4F,U+1EE51-1EE52,U+1EE54,U+1EE57,U+1EE59,U+1EE5B,U+1EE5D,U+1EE5F,U+1EE61-1EE62,U+1EE64,U+1EE67-1EE6A,U+1EE6C-1EE72,U+1EE74-1EE77,U+1EE79-1EE7C,U+1EE7E,U+1EE80-1EE89,U+1EE8B-1EE9B,U+1EEA1-1EEA3,U+1EEA5-1EEA9,U+1EEAB-1EEBB,U+1EEF0-1EEF1", "k": "noto-sans-arabic"}, {"f": "IBM Plex Sans Majed", "u": "ibm-plex-sans-latin-400-normal.woff2", "w": "400", "r": "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD", "k": "ibm-plex-sans"}, {"f": "IBM Plex Sans Majed", "u": "ibm-plex-sans-latin-ext-400-normal.woff2", "w": "400", "r": "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF", "k": "ibm-plex-sans"}, {"f": "IBM Plex Sans Majed", "u": "ibm-plex-sans-latin-500-normal.woff2", "w": "500", "r": "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD", "k": "ibm-plex-sans"}, {"f": "IBM Plex Sans Majed", "u": "ibm-plex-sans-latin-ext-500-normal.woff2", "w": "500", "r": "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF", "k": "ibm-plex-sans"}, {"f": "IBM Plex Sans Majed", "u": "ibm-plex-sans-latin-600-normal.woff2", "w": "600", "r": "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD", "k": "ibm-plex-sans"}, {"f": "IBM Plex Sans Majed", "u": "ibm-plex-sans-latin-ext-600-normal.woff2", "w": "600", "r": "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF", "k": "ibm-plex-sans"}, {"f": "IBM Plex Sans Majed", "u": "ibm-plex-sans-latin-700-normal.woff2", "w": "700", "r": "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD", "k": "ibm-plex-sans"}, {"f": "IBM Plex Sans Majed", "u": "ibm-plex-sans-latin-ext-700-normal.woff2", "w": "700", "r": "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF", "k": "ibm-plex-sans"}, {"f": "IBM Plex Sans Majed", "u": "ibm-plex-sans-arabic-arabic-400-normal.woff2", "w": "400", "r": "U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0897-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FE74,U+FE76-FEFC,U+102E0-102FB,U+10E60-10E7E,U+10EC2-10EC4,U+10EFC-10EFF,U+1EE00-1EE03,U+1EE05-1EE1F,U+1EE21-1EE22,U+1EE24,U+1EE27,U+1EE29-1EE32,U+1EE34-1EE37,U+1EE39,U+1EE3B,U+1EE42,U+1EE47,U+1EE49,U+1EE4B,U+1EE4D-1EE4F,U+1EE51-1EE52,U+1EE54,U+1EE57,U+1EE59,U+1EE5B,U+1EE5D,U+1EE5F,U+1EE61-1EE62,U+1EE64,U+1EE67-1EE6A,U+1EE6C-1EE72,U+1EE74-1EE77,U+1EE79-1EE7C,U+1EE7E,U+1EE80-1EE89,U+1EE8B-1EE9B,U+1EEA1-1EEA3,U+1EEA5-1EEA9,U+1EEAB-1EEBB,U+1EEF0-1EEF1", "k": "ibm-plex-sans-arabic"}, {"f": "IBM Plex Sans Majed", "u": "ibm-plex-sans-arabic-arabic-500-normal.woff2", "w": "500", "r": "U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0897-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FE74,U+FE76-FEFC,U+102E0-102FB,U+10E60-10E7E,U+10EC2-10EC4,U+10EFC-10EFF,U+1EE00-1EE03,U+1EE05-1EE1F,U+1EE21-1EE22,U+1EE24,U+1EE27,U+1EE29-1EE32,U+1EE34-1EE37,U+1EE39,U+1EE3B,U+1EE42,U+1EE47,U+1EE49,U+1EE4B,U+1EE4D-1EE4F,U+1EE51-1EE52,U+1EE54,U+1EE57,U+1EE59,U+1EE5B,U+1EE5D,U+1EE5F,U+1EE61-1EE62,U+1EE64,U+1EE67-1EE6A,U+1EE6C-1EE72,U+1EE74-1EE77,U+1EE79-1EE7C,U+1EE7E,U+1EE80-1EE89,U+1EE8B-1EE9B,U+1EEA1-1EEA3,U+1EEA5-1EEA9,U+1EEAB-1EEBB,U+1EEF0-1EEF1", "k": "ibm-plex-sans-arabic"}, {"f": "IBM Plex Sans Majed", "u": "ibm-plex-sans-arabic-arabic-600-normal.woff2", "w": "600", "r": "U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0897-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FE74,U+FE76-FEFC,U+102E0-102FB,U+10E60-10E7E,U+10EC2-10EC4,U+10EFC-10EFF,U+1EE00-1EE03,U+1EE05-1EE1F,U+1EE21-1EE22,U+1EE24,U+1EE27,U+1EE29-1EE32,U+1EE34-1EE37,U+1EE39,U+1EE3B,U+1EE42,U+1EE47,U+1EE49,U+1EE4B,U+1EE4D-1EE4F,U+1EE51-1EE52,U+1EE54,U+1EE57,U+1EE59,U+1EE5B,U+1EE5D,U+1EE5F,U+1EE61-1EE62,U+1EE64,U+1EE67-1EE6A,U+1EE6C-1EE72,U+1EE74-1EE77,U+1EE79-1EE7C,U+1EE7E,U+1EE80-1EE89,U+1EE8B-1EE9B,U+1EEA1-1EEA3,U+1EEA5-1EEA9,U+1EEAB-1EEBB,U+1EEF0-1EEF1", "k": "ibm-plex-sans-arabic"}, {"f": "IBM Plex Sans Majed", "u": "ibm-plex-sans-arabic-arabic-700-normal.woff2", "w": "700", "r": "U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0897-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FE74,U+FE76-FEFC,U+102E0-102FB,U+10E60-10E7E,U+10EC2-10EC4,U+10EFC-10EFF,U+1EE00-1EE03,U+1EE05-1EE1F,U+1EE21-1EE22,U+1EE24,U+1EE27,U+1EE29-1EE32,U+1EE34-1EE37,U+1EE39,U+1EE3B,U+1EE42,U+1EE47,U+1EE49,U+1EE4B,U+1EE4D-1EE4F,U+1EE51-1EE52,U+1EE54,U+1EE57,U+1EE59,U+1EE5B,U+1EE5D,U+1EE5F,U+1EE61-1EE62,U+1EE64,U+1EE67-1EE6A,U+1EE6C-1EE72,U+1EE74-1EE77,U+1EE79-1EE7C,U+1EE7E,U+1EE80-1EE89,U+1EE8B-1EE9B,U+1EEA1-1EEA3,U+1EEA5-1EEA9,U+1EEAB-1EEBB,U+1EEF0-1EEF1", "k": "ibm-plex-sans-arabic"}];
+    const FONT_SOURCES = ['dsh', 'system', ...Object.keys(BUNDLED_FONTS)];
     const listeners = new Set();
     let state = (() => {
       try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(STORE_KEY) || '{}') }; }
@@ -71,6 +75,11 @@ window.__ModuleLoader__.load({
       'font.description': 'Choose the typeface used by the app interface and chat text.',
       'font.dsh': 'DSH default',
       'font.system': 'System font',
+      'font.inter': 'Inter',
+      'font.roboto': 'Roboto',
+      'font.open-sans': 'Open Sans',
+      'font.noto-sans': 'Noto Sans',
+      'font.ibm-plex-sans': 'IBM Plex Sans',
       'notify.title': 'System notifications',
       'notify.description': 'Send a desktop notification when a session finishes or needs your attention.',
       'notify.off': 'Off',
@@ -118,6 +127,11 @@ window.__ModuleLoader__.load({
       'font.description': '选择应用界面与对话文字使用的字体。',
       'font.dsh': 'DSH 默认',
       'font.system': '系统字体',
+      'font.inter': 'Inter',
+      'font.roboto': 'Roboto',
+      'font.open-sans': 'Open Sans',
+      'font.noto-sans': 'Noto Sans',
+      'font.ibm-plex-sans': 'IBM Plex Sans',
       'notify.title': '系统通知',
       'notify.description': '会话完成或需要你处理时发送桌面通知。',
       'notify.off': '关闭',
@@ -773,6 +787,33 @@ window.__ModuleLoader__.load({
 
     // The OS UI font, with emoji/symbol fonts so emoji render natively (same stack as the system font in browsers).
     const SYSTEM_FONT_STACK = '-apple-system-body, ui-sans-serif, -apple-system, system-ui, "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol"';
+    const NATIVE_FALLBACK = SYSTEM_FONT_STACK;
+    let fontFaceStyle = null, loadedFont = null;
+    /** Inject @font-face rules for one bundled font (all its subsets; the browser downloads only what is used). */
+    function ensureFontFaces(key) {
+      if (loadedFont === key) return;
+      removeFontFaces();
+      const family = BUNDLED_FONTS[key] && BUNDLED_FONTS[key].family;
+      if (!family) return;
+      const rules = FONT_FACES.filter((f) => f.f === family).map((f) =>
+        `@font-face{font-family:"${f.f}";font-style:normal;font-display:swap;font-weight:${f.w};` +
+        `src:url("${FONT_ROUTE}${f.u}") format("woff2");unicode-range:${f.r}}`);
+      fontFaceStyle = document.createElement('style');
+      fontFaceStyle.setAttribute('data-majed-fontfaces', '');
+      fontFaceStyle.textContent = rules.join('\n');
+      document.head.appendChild(fontFaceStyle);
+      loadedFont = key;
+    }
+    function removeFontFaces() {
+      if (fontFaceStyle) { fontFaceStyle.remove(); fontFaceStyle = null; }
+      loadedFont = null;
+    }
+    /** Font-family value for the current setting, or null for "DSH default" (leave DSH untouched). */
+    function fontStackFor(source) {
+      if (source === 'system') return SYSTEM_FONT_STACK;
+      if (BUNDLED_FONTS[source]) return `"${BUNDLED_FONTS[source].family}", ${NATIVE_FALLBACK}`;
+      return null;
+    }
     // Variables that carry the UI typeface. DSH defines --dsw-font-family on <body> itself, and skins
     // such as dsh-claude-style redefine it (and their own --dsh-claude-font-*) with higher specificity,
     // so a stylesheet rule can lose. Inline `!important` on <body> beats every stylesheet rule, and
@@ -784,15 +825,23 @@ window.__ModuleLoader__.load({
     function applyFontFamily(s) {
       const style = document.body && document.body.style;
       if (!style) return;
+      const stack = fontStackFor(s.fontSource);
+      if (BUNDLED_FONTS[s.fontSource]) ensureFontFaces(s.fontSource); else removeFontFaces();
       for (const name of FONT_VARS) {
-        if (s.fontSource === 'system') {
-          if (style.getPropertyValue(name) !== SYSTEM_FONT_STACK || style.getPropertyPriority(name) !== 'important') {
-            style.setProperty(name, SYSTEM_FONT_STACK, 'important');
+        if (stack !== null) {
+          if (style.getPropertyValue(name) !== stack || style.getPropertyPriority(name) !== 'important') {
+            style.setProperty(name, stack, 'important');
           }
-        } else if (style.getPropertyPriority(name) === 'important' && style.getPropertyValue(name) === SYSTEM_FONT_STACK) {
+        } else if (style.getPropertyPriority(name) === 'important' && ownedValues().has(style.getPropertyValue(name))) {
           style.removeProperty(name);
         }
       }
+    }
+    /** Every value this plugin may have written, so "DSH default" removes only our own overrides. */
+    function ownedValues() {
+      const set = new Set([SYSTEM_FONT_STACK]);
+      for (const k of Object.keys(BUNDLED_FONTS)) set.add(fontStackFor(k));
+      return set;
     }
 
     // ───────────────────────── RTL: persian-rtl chat CSS + genui mirroring ───
