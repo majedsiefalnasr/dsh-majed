@@ -54,10 +54,12 @@ account access, provider/judge call, reference activation/removal or release was
 T04 must not be closed merely because source hashes or baseline regressions pass. Its granular Parity
 list must map every reference surface to an execution ticket or an **explicit Owner-reviewed** deferral.
 The [Parity ledger](<../PARITY.md>) contains 159 stable acceptance rows: 104 subscriptions, 18 Skills,
-10 MCP, 17 Hooks and 10 deferred-register rows. All implementation/live results remain pending. Three
-rows have unresolved Owner scope/disposition: OPS-03 (process-global connection timing), SK-17 (local
-directory import/browse) and HK-04 (profile-only Hook definitions). **T04 remains partial and open**
-until its mapping criterion is resolved; no dependent gate is bypassed. Unresolved scope decisions
-also block affected Cutover/removal. No reference capability is claimed implemented by a source citation. Original local/remote Command-hook Approval provenance
+10 MCP, 17 Hooks and 10 deferred-register rows. All implementation/live results remain pending.
+On 2026-10-22 the Owner resolved the three mapping gaps: OPS-03 excludes process-global network
+mutation (T17 scoped alternative/deviation); SK-17 explicitly defers local-directory import/browse
+to D02; HK-04 accepts manual re-addition under T09/T28M with fresh Approval, not automatic profile
+import or transferred trust. T04's inactive source/license/mapping criterion is therefore satisfied;
+this is not Manager/subscription implementation, Cutover or live acceptance. No dependent gate is
+bypassed and no reference capability is claimed implemented by a source citation. Original local/remote Command-hook Approval provenance
 remains a separate [unsupported public-seam gate](<management-approval-provenance.md#L58-L66>), not a
 reason to silently relabel requests or to stop independent source review.

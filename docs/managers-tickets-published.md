@@ -78,8 +78,11 @@ No installation, live verification or release is implied by T01 closure.
 T04 / #9 now has an inactive [pinned reference baseline](<reference-artifacts.json>),
 [source/license review](<research/reference-source-provenance.md>),
 [granular Parity ledger](<PARITY.md>) and [validation record](<research/reference-baseline-validation.md>).
-T04 remains open: OPS-03, SK-17 and HK-04 need explicit Owner scope/disposition before its mapping
-criterion is complete. No dependent implementation gate is bypassed by committing partial evidence.
+Owner dispositions accepted on 2026-10-22 resolve T04's mapping gap: OPS-03 excludes process-global
+network timing changes (T17 owns a supported scoped alternative/deviation); SK-17 local-directory
+import/browse is explicitly deferred to D02; HK-04 uses manual project/user re-addition with fresh
+Approval under T09/T28M. T04's inactive evidence acceptance can now be finalized independently of
+runtime/live parity. T02A's unsupported provenance gate and all other dependent gates remain intact.
 
 T01 is the only execution record with no blockers. After T01 completes, T02A–T02D and T04
 can proceed independently; T03 depends only on T02A. A `ready-for-agent` label is not proof

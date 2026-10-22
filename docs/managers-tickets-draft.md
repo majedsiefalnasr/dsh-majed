@@ -485,7 +485,7 @@ The Owner approved publishing these IDs as deferred follow-ups, not first-releas
 
 ### D02 — Skills uploads, categories and extended source surfaces
 
-**What it delivers:** Later proposals for upload/archive validation, category management, extended agent/workspace sources and any optional sidebar entry, each separable from basic Skills.
+**What it delivers:** Later proposals for upload/archive validation, category management, extended agent/workspace sources and any optional sidebar entry, each separable from basic Skills. Owner scope clarification (2026-10-22): SK-17 local-directory import (skip/overwrite/dry-run) and arbitrary-directory browse are explicitly deferred here; basic project/user inventory and creation remain first-release requirements.
 
 **Blocked by:** T04, T06.
 

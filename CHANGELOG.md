@@ -21,6 +21,9 @@ All notable changes to `dsh-majed` are documented here. The format follows
   remain pending, and source/artifact comparisons do not imply verified provenance signatures.
 
 ### Changed
+- Owner-approved scope clarifications: no process-global subscription networking mutation; local-directory
+  Skill import/browse explicitly deferred; legacy profile Hooks manually re-added with fresh Approval.
+  These are planning decisions, not implemented or live-verified behavior.
 - Development candidate `0.3.0-rc.1`: isolated the accepted host module and baseline-only client build from
   historical Manager prototypes. No Manager/provider runtime is enabled. Approved suites under `test/accepted/`
   run automatically alongside existing regressions; packaging excludes prototype runtimes.
