@@ -60,7 +60,9 @@ baseline-only; these research scripts are not shipped or activated.
    Auto eligibility. Future routing must reject an incompatible/unknown candidate before dispatch,
    without silently deleting or degrading the Owner's image/history/explicit effort requirements.
    The exercised metadata has no generic tools-supported flag; `toolUpdate` is not one. Tool support
-   requires additional explicit eligibility evidence.
+   requires additional explicit eligibility evidence. Fixture intersections and first-member dispatch
+   are characterization, not an implementation proof of request-aware candidate eligibility, context/
+   output budgeting, or image/tools routing. Those approved requirements remain open.
 3. **The client and host proofs are not end-to-end.** The picker receives a literal synthetic catalog
    and synthetic session projection; host `listModels`/exact metadata are exercised separately.
    The public `buildModelCatalog(ctx, explicitDefault)` is now exercised separately: it enriches the
@@ -85,6 +87,9 @@ are absent; signatures here are verified from executable JS, not invented declar
   native composer derives model/effort rows from the catalog and submits complete selection identities.
 - `node_modules/@deepseek-ai/dsh-client-ui-model-selection/lib/client.js:1796-1930`: native `/model`
   contribution, composer slot registration and exported `ModelDirectory`, `ModelDirectoryResolver`.
+- `node_modules/@deepseek-ai/dsh-api-session-controller/lib/index.js:563-611`: exported
+  `async buildModelCatalog(ctx, defaultSelection)` projects live adapter models and enriches reasoning;
+  this proof supplies an explicit synthetic default and mounts no SessionController/settings service.
 - `node_modules/@deepseek-ai/dsh-agent/lib/index.js:148-210`: public
   `installModelSelection(agentCtx, selection)` snapshots selection before downstream assembly and
   applies it to the request, including clearing inherited effort. It captures an object reference;
@@ -98,6 +103,9 @@ are absent; signatures here are verified from executable JS, not invented declar
 Exact-host suite: client 5/5 and host 11/11 checks passed. Negative controls: missing runner configuration
 fails explicitly; host `--red-control` disables fixture generation capture and fails its expected-generation
 assertion. These show the checks are sensitive to a broken fixture, not production TDD completion.
-Portable regression results and independent review are recorded with the evidence commit/issue update.
+Portable `npm test` passed 45/45 baseline tests plus 166/166 classifier cases; `git diff --check`
+and probe syntax checks passed. Independent fixed-diff Standards review found no findings. Spec review
+confirmed the three acknowledged partial areas above and no false-completion or scope-creep finding.
+The evidence commit and issue update record the review boundary; this is not an acceptance waiver.
 There is no project TypeScript typecheck script; syntax/runtime execution and existing regressions are
 used instead. No production implementation or claim of live Auto functionality accompanies this report.
