@@ -1,0 +1,3 @@
+# Separate Auto execution from optional judgment
+
+Expose one native Auto model entry with deterministic priority routing and an optional Smart strategy that chooses only locally eligible model/effort candidates; preserve explicit manual choices and session stickiness. Judgment owns neither cooldowns nor permissions: one bounded decision request falls back to priority on failure, while finite execution attempts and provider reset signals remain deterministic, so a judge outage cannot become a new availability dependency. Majed owns separate protocol-explicit judgment settings rather than accessing the existing Jev plugin's private credentials; this costs configuration duplication but avoids secret/ownership coupling and preserves that plugin's tools.

@@ -13,6 +13,9 @@ All notable changes to `dsh-majed` are documented here. The format follows
 - **Native `read_page`**: authorized `read_page` calls are delegated to the registered `web_fetch` tool through
   the tool registry. No fallback routes; denial and cancellation fail closed.
 - `CHANGELOG.md`, `THIRD_PARTY_NOTICES.md`, `AGENTS.md` and `docs/` project documentation.
+- Owner-approved expanded specification and tracked execution/deferred plan for native Managers, integrated
+  subscriptions and Auto routing. This is planning documentation only; implementation and local/remote
+  verification remain pending, and account access or operational Cutover require separate approval.
 
 ### Changed
 - `package.json`: added `homepage`, `bugs`, `dsh.engines` and `icon`, and the missing `lib/read-page-native.js` and
