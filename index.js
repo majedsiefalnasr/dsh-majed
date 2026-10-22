@@ -1,11 +1,13 @@
 /**
  * Host half of dsh-majed. Serves the bundled, OFL-licensed UI fonts (fonts/*.woff2) to the browser through
  * the host web server, so the font picker works offline, on the desktop app and on paired phones alike.
- * Everything else lives in the Client module (client.js).
+ * Also routes read_page through the native tool registry while enabled.
  */
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
+
+import { registerNativeReadPage } from './lib/read-page-native.js';
 
 const FONT_ROUTE = '/plugins/dsh-majed/fonts';
 /** Flat file names only: no slashes or traversal, woff2 + the manifest. */
@@ -34,6 +36,9 @@ async function serveFont(req, res) {
 }
 
 export function apply(ctx) {
+  ctx.inject(['tools'], (toolsCtx) => {
+    registerNativeReadPage(toolsCtx);
+  });
   ctx.inject(['webServer'], (webCtx) => {
     const webServer = webCtx.reflect.get('webServer');
     webCtx.effect(() => webServer.register({ kind: 'prefix', path: FONT_ROUTE, handler: serveFont }), 'dsh-majed: font route');

@@ -1,2 +1,7 @@
 node_modules/
 .DS_Store
+.npm-pack-cache/
+deployment-backups/
+# Keep the host routing module despite global /lib ignore rules.
+!/lib/
+!/lib/read-page-native.js
