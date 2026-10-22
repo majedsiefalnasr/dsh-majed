@@ -68,7 +68,8 @@
     "build": "node scripts/build-baseline.mjs",
     "prepack": "npm run build",
     "prepare": "npm run build",
-    "test": "npm run build && node scripts/test-baseline.mjs"
+    "test": "npm run build && node scripts/test-baseline.mjs",
+    "test:host-auto": "node scripts/test-auto-seams.mjs"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.5"

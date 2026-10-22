@@ -75,6 +75,9 @@ T02A / #4 has [preparatory admission evidence](<research/management-approval-pro
 trusted original local/remote Approval provenance is unsupported at the inspected exact Fetch seam, and the
 dependent Approval path remains paused. T02B–T02D and T04 retain their own independent acceptance gates.
 No installation, live verification or release is implied by T01 closure.
+T02B / #5 has [partial native Auto seam evidence](<research/auto-native-seams.md>): synthetic exact-host
+LLM/Agent/catalog checks and the unmodified native picker bundle pass, but alias-vs-concrete prompt
+identity and mounted client/RPC acceptance are unresolved. It stays open; no dependent gate is waived.
 T04 / #9 now has an inactive [pinned reference baseline](<reference-artifacts.json>),
 [source/license review](<research/reference-source-provenance.md>),
 [granular Parity ledger](<PARITY.md>) and [validation record](<research/reference-baseline-validation.md>).

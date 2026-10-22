@@ -37,6 +37,9 @@ All notable changes to `dsh-majed` are documented here. The format follows
   delivery before permission/registration completes. Package lifecycle builds remain executable from the tarball.
 
 ### Known issues / unverified
+- T02B now has opt-in exact-host synthetic Auto seam probes (native picker bundle, LLM/Agent loop and
+  browser catalog builder), not an enabled Auto feature. Concrete served-model prompt/header identity
+  and mounted client/RPC acceptance remain unresolved; the feasibility gate stays open.
 - The prefactored candidate and disposal fixes have automated fixture/Cordis coverage only. They have not
   been installed or verified after a desktop restart or through the remote GUI; no release is published.
 
