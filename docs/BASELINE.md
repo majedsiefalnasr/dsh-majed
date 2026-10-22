@@ -55,7 +55,16 @@ Automated seams exercised:
 
 Characterization exposed existing disposal leaks: a previous account-menu API was deleted rather than
 restored, an empty global extension namespace remained, and pending stylesheet load listeners survived.
-Minimal cleanup fixes restore owned state and remove pending callbacks; they do not change enabled behavior.
+Review also exposed loss of preexisting inline font overrides and notification delivery resuming after teardown.
+Minimal cleanup fixes restore owned values/priorities, invalidate pending deliveries and remove pending
+callbacks; they do not change enabled behavior. Notifications already submitted to the service worker are
+outside the pending-delivery cancellation guarantee.
+
+Latest automated evidence: `npm test` passes 45 Node tests (including 166 classifier cases), zero skips;
+syntax checks and `git diff --check` pass. Real `npm pack --json` is parsed, the extracted package's
+`prepare` rebuilds byte-identical client output, and package inventory excludes all prototype runtimes.
+An additional temporary tarball probe applied/disposed the extracted host with Cordis and served a bundled
+font successfully (45 packaged files). No installed copy was used or changed.
 
 Not performed: installation, DSH restart, desktop/remote live checks, provider requests, account reads,
 Manager activation or reference-plugin Cutover. All require their own operation-specific authority and

@@ -35,6 +35,7 @@
     "lib/baseline/host.js",
     "client.js",
     "dist/client.js",
+    "scripts/build-baseline.mjs",
     "cordis.patch.yml",
     "locale/*.json",
     "icon.svg",

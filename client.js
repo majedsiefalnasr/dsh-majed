@@ -296,6 +296,7 @@ window.__ModuleLoader__.load({
 
     // ───────────────────────── system notifications ─────────────────────────
     let appCtx = null;
+    let notificationGeneration = 0;
     const fmt = (str, vars) => String(str).replace(/\{(\w+)\}/g, (_, k) => (vars && vars[k] != null ? vars[k] : ''));
 
     /** Capabilities of THIS browser/webview, used both to pick a delivery path and to explain failures. */
@@ -333,12 +334,19 @@ window.__ModuleLoader__.load({
     }
     const live = new Set();
     async function notify({ title, body, sessionId, tag, fromGesture }) {
+      const generation = notificationGeneration;
+      const active = () => appCtx !== null && generation === notificationGeneration;
+      if (!active()) return;
       const options = { body, tag, renotify: true, silent: appFocused(), data: { sessionId } };
-      if (await ensurePermission(!!fromGesture)) {
+      const permitted = await ensurePermission(!!fromGesture);
+      if (!active()) return;
+      if (permitted) {
         // 1) Service-worker registration: the only API Chrome on Android allows, and it also works on
         //    desktop and in installed iOS web apps. The remote-access plugin already registers one.
         const reg = await swRegistration();
+        if (!active()) return;
         if (reg) { try { await reg.showNotification(title, options); return; } catch (_) { /* fall through */ } }
+        if (!active()) return;
         // 2) Classic constructor (desktop browsers, Electron). Mute the sound while the app is focused.
         try {
           const n = new Notification(title, options);
@@ -1342,6 +1350,7 @@ window.__ModuleLoader__.load({
       '--dsw-font-family', '--dsw-font-family-brand', '--dsh-font-family-text-default',
       '--dsh-claude-font-serif', '--dsh-claude-font-prose', '--dsh-claude-font-brand',
     ];
+    const priorFontValues = new Map();
     function applyFontFamily(s) {
       const style = document.body && document.body.style;
       if (!style) return;
@@ -1350,10 +1359,18 @@ window.__ModuleLoader__.load({
       for (const name of FONT_VARS) {
         if (stack !== null) {
           if (style.getPropertyValue(name) !== stack || style.getPropertyPriority(name) !== 'important') {
+            if (!priorFontValues.has(name)) priorFontValues.set(name, {
+              value: style.getPropertyValue(name), priority: style.getPropertyPriority(name),
+            });
             style.setProperty(name, stack, 'important');
           }
-        } else if (style.getPropertyPriority(name) === 'important' && ownedValues().has(style.getPropertyValue(name))) {
-          style.removeProperty(name);
+        } else {
+          const prior = priorFontValues.get(name);
+          if (prior && style.getPropertyPriority(name) === 'important' && ownedValues().has(style.getPropertyValue(name))) {
+            if (prior.value) style.setProperty(name, prior.value, prior.priority);
+            else style.removeProperty(name);
+          }
+          priorFontValues.delete(name);
         }
       }
     }
@@ -1782,7 +1799,7 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
       inject: ['slots', 'locale', 'uiWorkspace'],
       apply(ctx) {
         appCtx = ctx;
-        ctx.effect(() => () => { appCtx = null; live.forEach((n) => { try { n.close(); } catch (_) {} }); live.clear(); }, 'dsh-majed: notification cleanup');
+        ctx.effect(() => () => { notificationGeneration++; appCtx = null; live.forEach((n) => { try { n.close(); } catch (_) {} }); live.clear(); }, 'dsh-majed: notification cleanup');
         ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsh-majed: dictionaries');
 
         ctx.effect(() => {

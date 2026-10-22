@@ -57,7 +57,7 @@ test('baseline ModuleLoader registers only dsh-majed and apply exposes existing 
   assert.ok([...harness.registrations.values()].every(({ metadata, Component }) => metadata.locale === 'majed' && typeof Component === 'function'));
   assert.deepEqual([...harness.dictionaries.keys()], ['majed']);
   assert.equal(harness.dictionaries.get('majed').en['bidi.title'], 'Bidirectional text');
-  assert.equal(harness.dictionaries.get('majed').zh['bidi.title'], '双向文本（RTL）');
+  assert.equal(harness.dictionaries.get('majed').zh['bidi.title'], '\u53cc\u5411\u6587\u672c\uff08RTL\uff09');
   assert.deepEqual(harness.storageReads, [SETTINGS_KEY]);
   assert.equal(harness.storage.size, 0, 'defaults are not eagerly persisted');
   assert.ok(style(harness, 'data-majed-settings'));
@@ -257,7 +257,7 @@ test('disposal removes applied styles, RTL markers, observers, listeners, slots,
   const harness = createBaselineHarness(source, { stored: { autoCopy: true, fontSource: 'inter' }, extension: existingExtension });
   t.after(() => harness.dispose());
   const paragraph = harness.element('p');
-  paragraph.textContent = 'مرحبا بالعالم';
+  paragraph.textContent = '\u0645\u0631\u062d\u0628\u0627 \u0628\u0627\u0644\u0639\u0627\u0644\u0645';
   harness.document.body.appendChild(paragraph);
   const footer = harness.element('div', { 'data-slot': 'sidebar.footer.action' });
   const trigger = harness.element('button', { 'aria-label': 'Remote access' });
@@ -321,6 +321,31 @@ test('disposal preserves unrelated extensions registered after baseline apply', 
   harness.dispose();
   assert.equal(harness.window.__dshMajed.unrelated, later);
   assert.equal(Object.hasOwn(harness.window.__dshMajed, 'accountMenu'), false);
+});
+
+test('disposal restores the host inline font value and priority', (t) => {
+  const harness = createBaselineHarness(source, { stored: { fontSource: 'inter' } });
+  t.after(() => harness.dispose());
+  harness.document.body.style.setProperty('--dsw-font-family', 'HostExistingFont', 'important');
+  harness.apply();
+  assert.match(harness.document.body.style.getPropertyValue('--dsw-font-family'), /Inter Majed/);
+  harness.dispose();
+  assert.equal(harness.document.body.style.getPropertyValue('--dsw-font-family'), 'HostExistingFont');
+  assert.equal(harness.document.body.style.getPropertyPriority('--dsw-font-family'), 'important');
+});
+
+test('disposal invalidates notification delivery still awaiting permission or registration', async (t) => {
+  const harness = setup(t, { stored: { notifyMode: 'always' } });
+  let status = new Map([['session-a', { running: true }]]);
+  const view = harness.render('majed-notifications', {
+    useSessionStatus: selector => selector(status),
+    useSessions: selector => selector({ byId: { 'session-a': { title: 'Fixture session' } } }),
+  });
+  status = new Map([['session-a', { running: false }]]);
+  view.render();
+  harness.dispose();
+  await tick();
+  assert.equal(harness.notifications.length, 0, 'pending delivery must not create a notification after teardown');
 });
 
 test('lazy stylesheet rescan scales text and disposal removes pending load listeners', (t) => {

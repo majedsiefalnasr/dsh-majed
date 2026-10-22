@@ -27,6 +27,8 @@ All notable changes to `dsh-majed` are documented here. The format follows
 ### Fixed
 - Baseline disposal restores a previous account-menu extension and removes its own empty namespace and
   pending stylesheet load listeners instead of retaining callbacks or deleting another owner's API.
+- Baseline disposal restores preexisting inline font values/priorities and invalidates pending notification
+  delivery before permission/registration completes. Package lifecycle builds remain executable from the tarball.
 
 ### Known issues / unverified
 - The prefactored candidate and disposal fixes have automated fixture/Cordis coverage only. They have not
