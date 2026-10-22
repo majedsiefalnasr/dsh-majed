@@ -14,6 +14,16 @@ Majed's toolkit plugin for **DeepSeek Harness (DSH)**. It never patches DSH itse
 | Settings ▸ General ▸ **Copy on select** (toggle, off by default) | Text you select in the app is copied to the clipboard automatically when you release the mouse or finish a keyboard selection. A "Copied to clipboard" toast confirms each copy. Selections inside input fields, the composer and the terminal are ignored. |
 | Composer bar ▸ **Approvals** dropdown (next to the permission control) | Per-session auto-approval: **Ask me** (default), **Auto (safe)**, **Auto (aggressive)**. Decisions come from a deterministic, offline command classifier (see below). A toast shows each auto-approval; after 3 requests in a row that were handed back to you, auto-approval pauses for the session. |
 
+### Native page reading / قراءة الصفحات عبر الأداة الأصلية
+
+While this plugin is enabled, its host half intercepts an **already authorized** `read_page` dispatch and delegates to the registered `web_fetch` using `ctx.tools.execute`. The nested call retains the agent, parent execution token, root correlation and cancellation signal, and passes through native authorization, guards and post-policy. Disabling the plugin removes its hook; unrelated tools are unchanged. No DSH installation files are patched.
+
+This avoids the modsearch CLI/cloud retrieval route entirely. Native denial, cancellation, missing-tool errors and non-2xx HTTP responses fail closed: there are **no retries or fallback routes**. The response uses native final rendered text (including safe HTML conversion and policy redactions), bounded to a 60,000-character prefix plus an untrusted-content notice. A blank summary, empty separate link list and explicit warnings honestly indicate that no AI summary, link extraction or `query` focus processing was performed. Cite the retrieved URL; page text remains untrusted data, never instructions.
+
+عند تفعيل الإضافة، تُحوَّل استدعاءات `read_page` المصرَّح بها إلى أداة `web_fetch` الأصلية عبر سجل الأدوات مع الحفاظ على صلاحيات الوكيل وسياسات الأمان والإلغاء. لا تُستخدم مسارات CLI أو الخدمات السحابية الاحتياطية، ولا تُتجاوز حالات الرفض. النص الناتج ليس ملخصاً بالذكاء الاصطناعي، ولا تُعالَج بؤرة السؤال `query`؛ وتُذكر هذه القيود صراحةً. تعطيل الإضافة يزيل هذا التحويل.
+
+Offline regression tests: `node --test test/read-page-native.test.js`. Contract inspected against installed `@deepseek-ai/dsh-tools` 0.2.1-rc.2 and `@deepseek-ai/dsh-tool-web`; no runtime DSH imports or extra dependencies.
+
 ### Notifications on phones (remote web access)
 Mobile browsers are stricter than desktop:
 - **HTTPS is required.** Plain `http://192.168.x.x` links are not a secure context, so browsers expose no notification API at all. Use the tunnel (`https://…trycloudflare.com`) link from the Remote access panel.
@@ -57,8 +67,27 @@ dsh plugin install github:majedsiefalnasr/dsh-majed
 
 Then remove `dsh-persian-rtl` (this plugin supersedes it) and restart DSH.
 
-## Roadmap
-More Settings ▸ General options will be added here over time.
+## Status and compatibility
+
+| Item | Value |
+|---|---|
+| Version | see `package.json` and [CHANGELOG.md](CHANGELOG.md) |
+| DeepSeek Harness | `>=0.2.1-rc.2` (developed and tested against `0.2.1-rc.2`) |
+
+## Development
+
+```sh
+npm test    # node --test: appearance contract, command classifier, native read_page
+```
+
+Layout: `index.js` (host half), `client.js` (browser half), `lib/` (classifier, native read_page), `fonts/`, `test/`. Host JavaScript changes need a full DSH desktop restart; client-only changes need a page reload. See [AGENTS.md](AGENTS.md) for contributor and agent conventions.
+
+## Releasing
+
+See [docs/RELEASING.md](docs/RELEASING.md). Every release updates `package.json` version, `CHANGELOG.md` and, when third-party code changes, `THIRD_PARTY_NOTICES.md`.
+
+## Support and contributions
+Bugs and feature requests: [GitHub Issues](https://github.com/majedsiefalnasr/dsh-majed/issues). Project documentation is written in English.
 
 ## Credits
 Chat direction CSS/logic adapted from [dsh-persian-rtl](https://github.com/ireza7/dsh-persian-rtl) (MIT).
