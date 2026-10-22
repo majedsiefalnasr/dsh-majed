@@ -513,13 +513,24 @@ window.__ModuleLoader__.load({
       const api = {
         register(item) { accountItems.set(item.id, item); schedule(); return () => { accountItems.delete(item.id); removeInjectedItems(); schedule(); }; },
       };
-      window.__dshMajed = Object.assign(window.__dshMajed || {}, { accountMenu: api });
+      const hadNamespace = Object.hasOwn(window, '__dshMajed');
+      const previousNamespace = window.__dshMajed;
+      const namespace = previousNamespace || {};
+      const previousMenu = Object.getOwnPropertyDescriptor(namespace, 'accountMenu');
+      window.__dshMajed = Object.assign(namespace, { accountMenu: api });
       schedule();
       return () => {
         observer.disconnect(); unsub();
         if (raf !== null) cancelAnimationFrame(raf);
         markFooterTriggers(false); removeInjectedItems(); accountItems.clear();
-        if (window.__dshMajed) delete window.__dshMajed.accountMenu;
+        if (namespace.accountMenu === api) {
+          if (previousMenu) Object.defineProperty(namespace, 'accountMenu', previousMenu);
+          else delete namespace.accountMenu;
+        }
+        if (window.__dshMajed === namespace && !Reflect.ownKeys(namespace).length) {
+          if (!hadNamespace) delete window.__dshMajed;
+          else window.__dshMajed = previousNamespace;
+        }
       };
     }
     function AccountMenuRow({ t }) {
@@ -1837,13 +1848,19 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
 
           // DSH loads component stylesheets lazily: re-scan whenever a new one appears.
           let timer = null;
-          const rescan = () => { clearTimeout(timer); timer = setTimeout(regenerate, 120); };
+          let disposed = false;
+          const pendingSheets = new Set();
+          const rescan = () => { if (!disposed) { clearTimeout(timer); timer = setTimeout(regenerate, 120); } };
+          const sheetLoaded = (event) => { pendingSheets.delete(event.currentTarget); rescan(); };
           const isSheet = (n) => n.nodeType === 1 && (n.tagName === 'STYLE' || (n.tagName === 'LINK' && /stylesheet/.test(n.rel)));
           const headObserver = new MutationObserver((records) => {
             for (const r of records) for (const n of r.addedNodes) {
               if (!isSheet(n) || isOwnGenerated(n)) continue;
               rescan();
-              if (n.tagName === 'LINK') n.addEventListener('load', rescan, { once: true });
+              if (n.tagName === 'LINK') {
+                pendingSheets.add(n);
+                n.addEventListener('load', sheetLoaded, { once: true });
+              }
               return;
             }
           });
@@ -1855,7 +1872,10 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
           apply(store.get());
           const unsub = store.subscribe(apply);
           return () => {
+            disposed = true;
             unsub(); headObserver.disconnect(); bodyObserver.disconnect(); clearTimeout(timer);
+            for (const sheet of pendingSheets) sheet.removeEventListener('load', sheetLoaded);
+            pendingSheets.clear();
             applyFontFamily({ ...store.get(), fontSource: 'dsh' });
             if (stopBidi) stopBidi();
             varStyle.remove(); sizeStyle.remove();

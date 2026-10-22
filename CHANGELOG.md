@@ -18,8 +18,19 @@ All notable changes to `dsh-majed` are documented here. The format follows
   verification remain pending, and account access or operational Cutover require separate approval.
 
 ### Changed
+- Development candidate `0.3.0-rc.1`: isolated the accepted host module and baseline-only client build from
+  historical Manager prototypes. No Manager/provider runtime is enabled. Approved suites under `test/accepted/`
+  run automatically alongside existing regressions; packaging excludes prototype runtimes.
 - `package.json`: added `homepage`, `bugs`, `dsh.engines` and `icon`, and the missing `lib/read-page-native.js` and
   release documents in the published `files` list.
+
+### Fixed
+- Baseline disposal restores a previous account-menu extension and removes its own empty namespace and
+  pending stylesheet load listeners instead of retaining callbacks or deleting another owner's API.
+
+### Known issues / unverified
+- The prefactored candidate and disposal fixes have automated fixture/Cordis coverage only. They have not
+  been installed or verified after a desktop restart or through the remote GUI; no release is published.
 
 ## [0.2.0] - 2026-10-21
 

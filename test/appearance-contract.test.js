@@ -20,6 +20,7 @@ test('token scaling stays additive and separate from chat typography', () => {
 
 test('appearance reacts to lazily loaded manager styles and cleans up', () => {
   assert.ok(source.includes('headObserver.observe(document.head, { childList: true })'));
-  assert.ok(source.includes("n.addEventListener('load', rescan, { once: true })"));
+  assert.ok(source.includes("n.addEventListener('load', sheetLoaded, { once: true })"));
+  assert.ok(source.includes("sheet.removeEventListener('load', sheetLoaded)"));
   assert.ok(source.includes('headObserver.disconnect(); bodyObserver.disconnect()'));
 });

@@ -5,3 +5,6 @@ deployment-backups/
 # Keep the host routing module despite global /lib ignore rules.
 !/lib/
 !/lib/read-page-native.js
+!/lib/baseline/
+!/lib/baseline/host.js
+dist/

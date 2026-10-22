@@ -1,6 +1,6 @@
 {
   "name": "dsh-majed",
-  "version": "0.2.0",
+  "version": "0.3.0-rc.1",
   "description": "Majed's toolkit plugin for DeepSeek Harness (DSH): bidirectional (RTL/LTR) text, app UI font and size controls, notifications, and per-session command auto-approval.",
   "keywords": [
     "deepseek-harness",
@@ -25,14 +25,16 @@
   },
   "exports": {
     ".": "./index.js",
-    "./client": "./client.js",
+    "./client": "./dist/client.js",
     "./locale/*.json": "./locale/*.json",
     "./icon": "./icon.svg"
   },
   "files": [
     "index.js",
     "lib/read-page-native.js",
+    "lib/baseline/host.js",
     "client.js",
+    "dist/client.js",
     "cordis.patch.yml",
     "locale/*.json",
     "icon.svg",
@@ -62,7 +64,13 @@
     }
   },
   "scripts": {
-    "test": "node --test test/appearance-contract.test.js test/classify.test.cjs test/read-page-native.test.js"
+    "build": "node scripts/build-baseline.mjs",
+    "prepack": "npm run build",
+    "prepare": "npm run build",
+    "test": "npm run build && node scripts/test-baseline.mjs"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "4.0.5"
   },
   "icon": "icon.svg"
 }

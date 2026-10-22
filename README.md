@@ -77,10 +77,12 @@ Then remove `dsh-persian-rtl` (this plugin supersedes it) and restart DSH.
 ## Development
 
 ```sh
-npm test    # node --test: appearance contract, command classifier, native read_page
+npm install --package-lock=false # accepted dev dependency; preserve historical prototype lock
+npm run build                   # baseline-only dist/client.js
+npm test                        # build + baseline regressions + all test/accepted suites
 ```
 
-Layout: `index.js` (host half), `client.js` (browser half), `lib/` (classifier, native read_page), `fonts/`, `test/`. Host JavaScript changes need a full DSH desktop restart; client-only changes need a page reload. See [AGENTS.md](AGENTS.md) for contributor and agent conventions.
+Layout: `index.js` (public host entry), `lib/baseline/host.js` (accepted host behavior), `client.js` (browser source), `dist/client.js` (generated public client), `lib/` (classifier, native read_page), `fonts/`, `test/accepted/` (automatically discovered approved suites). See [docs/BASELINE.md](docs/BASELINE.md) for the explicit prototype disposition and test-evidence limits. Historical untracked modules are not activated or packaged. Host JavaScript changes need a full DSH desktop restart; client-only changes need a page reload. See [AGENTS.md](AGENTS.md) for contributor and agent conventions.
 
 ## Releasing
 

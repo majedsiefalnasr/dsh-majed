@@ -11,7 +11,8 @@ live verification in the DSH desktop app (see checklist).
    (Keep a Changelog format) and fix the compare links at the bottom.
 5. If vendored or bundled third-party material changed, update `THIRD_PARTY_NOTICES.md`.
 6. `npm pack --dry-run --cache .npm-pack-cache --logs-dir .npm-pack-cache/_logs`;
-   confirm the tarball contains `index.js`, `client.js`, `lib/read-page-native.js`, `fonts/`, `LICENSE`,
+   the prepack hook builds the public client; confirm the tarball contains `index.js`, `lib/baseline/host.js`,
+   `client.js`, `dist/client.js`, `lib/read-page-native.js`, `fonts/`, `LICENSE`,
    `CHANGELOG.md`, `THIRD_PARTY_NOTICES.md`.
 7. Live check in the desktop app after a full restart: Settings ▸ General options render and the Approvals dropdown works.
 8. Commit (`chore(release): vX.Y.Z`), tag (`git tag -a vX.Y.Z -m "vX.Y.Z"`), push the commit and tag.
