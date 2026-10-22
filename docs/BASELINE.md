@@ -42,6 +42,12 @@ uses the unchanged public entry behavior as its oracle and tests loading/disposa
 
 ## Evidence and limitations
 
+T01 is complete at its local automated baseline boundary. Independent Standards and Spec reviews of
+`820accb` and `2b65f91` found no remaining substantive T01 requirement. Branch publication, installation
+and live verification are not prerequisites of this prefactor; they remain separate later operations.
+The earlier issue comment kept T01 open for those operations unnecessarily. This disposition does not
+claim desktop/remote feature parity or approve a release, installation or Cutover.
+
 Automated seams exercised:
 
 - Public host module applied/disposed with real `@deepseek-ai/cordis@4.0.5`; font route method/path/content
