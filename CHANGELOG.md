@@ -16,6 +16,9 @@ All notable changes to `dsh-majed` are documented here. The format follows
 - Owner-approved expanded specification and tracked execution/deferred plan for native Managers, integrated
   subscriptions and Auto routing. This is planning documentation only; implementation and local/remote
   verification remain pending, and account access or operational Cutover require separate approval.
+- Inactive reference-source provenance, granular Parity list and upstream review process for the planned
+  Manager/subscription integration. Reference runtimes are not included or enabled; parity and live acceptance
+  remain pending, and source/artifact comparisons do not imply verified provenance signatures.
 
 ### Changed
 - Development candidate `0.3.0-rc.1`: isolated the accepted host module and baseline-only client build from

@@ -75,6 +75,11 @@ T02A / #4 has [preparatory admission evidence](<research/management-approval-pro
 trusted original local/remote Approval provenance is unsupported at the inspected exact Fetch seam, and the
 dependent Approval path remains paused. T02B–T02D and T04 retain their own independent acceptance gates.
 No installation, live verification or release is implied by T01 closure.
+T04 / #9 now has an inactive [pinned reference baseline](<reference-artifacts.json>),
+[source/license review](<research/reference-source-provenance.md>),
+[granular Parity ledger](<PARITY.md>) and [validation record](<research/reference-baseline-validation.md>).
+T04 remains open: OPS-03, SK-17 and HK-04 need explicit Owner scope/disposition before its mapping
+criterion is complete. No dependent implementation gate is bypassed by committing partial evidence.
 
 T01 is the only execution record with no blockers. After T01 completes, T02A–T02D and T04
 can proceed independently; T03 depends only on T02A. A `ready-for-agent` label is not proof
