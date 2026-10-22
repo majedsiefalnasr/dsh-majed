@@ -69,6 +69,13 @@ No implementation, host/account operation or runtime/live test was performed dur
 
 ## Execution frontier and gate interpretation
 
+Status update, 2026-10-22: T01 / #3 is closed at its [local automated baseline boundary](<BASELINE.md#L43-L49>).
+The preceding publication ledger remains a record of publication, not a claim that every issue is still open.
+T02A / #4 has [preparatory admission evidence](<research/management-approval-provenance.md>) but is not complete;
+trusted original local/remote Approval provenance is unsupported at the inspected exact Fetch seam, and the
+dependent Approval path remains paused. T02B–T02D and T04 retain their own independent acceptance gates.
+No installation, live verification or release is implied by T01 closure.
+
 T01 is the only execution record with no blockers. After T01 completes, T02A–T02D and T04
 can proceed independently; T03 depends only on T02A. A `ready-for-agent` label is not proof
 that prerequisites are closed or a separate operational action is authorized.
@@ -91,5 +98,5 @@ edges capture the fixed graph, not permission to waive this gate.
 - [Release process](./RELEASING.md).
 
 No issue was closed, no execution was started, and no release/tag/commit/push was created
-by this publication step. Existing untracked prototype work and installed Reference packages
+by the original publication step. Subsequent execution status is recorded above. Existing untracked prototype work and installed Reference packages
 remain untouched.
