@@ -149,6 +149,7 @@ async function main() {
     const workspace = await ctx.workspaceRegistry.create(project);
     ctx.sessions.create('live', { meta: { cwd: project } });
     await workspace.attachSession('live');
+    let filesystem; // Undefined uses the resolver's real-fs default; never patch host/runtime APIs.
     let resolutions = 0;
     const operations = [];
     const path = '/api/dsh-majed/composition-probe';
@@ -159,7 +160,7 @@ async function main() {
           try {
             const selectors = await request.json();
             resolutions++;
-            const scope = await resolveManagementScope(ctx, selectors, request.signal);
+            const scope = await resolveManagementScope(ctx, selectors, request.signal, filesystem);
             if (!scope) return new Response(null, { status: 404 });
             request.signal.throwIfAborted();
             operations.push(scope);
@@ -258,6 +259,50 @@ async function main() {
     await rejected(cold);
     onStat = undefined;
 
+    checkpoint = 'live-publication-during-filesystem-await';
+    const realFilesystem = require('node:fs/promises');
+    for (const boundary of ['realpath', 'stat']) {
+      const id = `published-during-${boundary}`;
+      records.set(id, header(id));
+      await workspace.attachSession(id);
+      let observations = 0;
+      filesystem = { realpath: realFilesystem.realpath, stat: realFilesystem.stat,
+        async [boundary](path) {
+          const observed = await realFilesystem[boundary](path);
+          assert.equal(ctx.sessions.get(id), undefined);
+          ctx.sessions.create(id, { meta: { cwd: foreign } });
+          observations++;
+          return observed;
+        },
+      };
+      await rejected({ ...selectors, sessionId: id });
+      assert.equal(observations, 1, 'Publication must occur inside the awaited filesystem observation');
+    }
+    checkpoint = 'live-disappearance-during-filesystem-await';
+    for (const boundary of ['realpath', 'stat']) {
+      const id = `disappeared-during-${boundary}`;
+      const session = ctx.sessions.prepare(id, { meta: { cwd: project } });
+      const detach = ctx.sessions.enter(session);
+      records.set(id, header(id)); // A matching cold record must not rescue vanished live authority.
+      await workspace.attachSession(id);
+      let observations = 0;
+      filesystem = { realpath: realFilesystem.realpath, stat: realFilesystem.stat,
+        async [boundary](path) {
+          const observed = await realFilesystem[boundary](path);
+          assert.equal(ctx.sessions.get(id), session);
+          detach();
+          observations++;
+          return observed;
+        },
+      };
+      try {
+        await rejected({ ...selectors, sessionId: id });
+        assert.equal(observations, 1);
+        assert.equal(ctx.sessions.get(id), undefined);
+      } finally { detach(); }
+    }
+    filesystem = undefined;
+
     checkpoint = 'canonical-path-substitution';
     const { symlinkSync, unlinkSync, lstatSync } = require('node:fs');
     const { dirname } = require('node:path');
@@ -281,7 +326,9 @@ async function main() {
     console.log(JSON.stringify({ runtime: require(join(base, 'package.json')).version, node: process.versions.node,
       checkpoint, checks: ['native admission before scope and operation', 'exact Fetch method/path',
         'live/cold membership and canonical scope', 'untrusted path selectors ignored',
-        'close cancellation and cold/live race fail closed', 'fresh symlink substitution and removal rejected',
+        'close cancellation and cold/live race fail closed',
+        'conflicting live publication during realpath/stat awaits rejected',
+        'live disappearance during realpath/stat awaits rejected', 'fresh symlink substitution and removal rejected',
         'rejections perform no operation or storage writes'],
       limitations: ['Synthetic memory credentials, persistence and KV; no operational state or providers.',
         'In-memory HTTP streams and WebServer registration; no listener, browser or paired remote service.',
