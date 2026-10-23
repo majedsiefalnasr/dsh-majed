@@ -8,6 +8,9 @@ All notable changes to `dsh-majed` are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Bounded mounted Settings/native Connection RPC proof: real clicks use unchanged native serialization,
+  response correlation and BrowserAuth/exactFetch admission through an explicit memory carrier.
+  Result/correlation controls reject; no actual paired carrier, production Manager or live claim is added.
 - Bounded remote/native/scoped request proof: actual remote proxy and native admission now precede
   real session/workspace resolution in one inert request, with denied-authority and cancellation controls.
   Memory carriers and synthetic credentials remain explicit; no Manager CRUD or live acceptance is enabled.
