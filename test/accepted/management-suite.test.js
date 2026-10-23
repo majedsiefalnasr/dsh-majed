@@ -47,16 +47,23 @@ test('explicit suite runs all six existing runners serially and limits its accep
 });
 
 test('any failed runner stops the suite and reports remaining runners as not run', () => {
+  const names = ['admission', 'skills', 'settings', 'mcp', 'composition', 'remote'];
   for (let failure = 0; failure < 6; failure++) {
-    let count = 0;
-    const result = fixture({ spawn: () => ({
-      status: count++ === failure ? 7 : 0, signal: null, stdout: 'proof output\n', stderr: 'child diagnostic\n',
-    }) });
+    const spawned = [];
+    const result = fixture({ spawn: (executable, args) => {
+      spawned.push(args);
+      return {
+        status: spawned.length - 1 === failure ? 7 : 0,
+        signal: null, stdout: 'proof output\n', stderr: 'child diagnostic\n',
+      };
+    } });
     assert.equal(result.exitCode, 1);
-    assert.equal(count, failure + 1);
+    assert.deepEqual(spawned, names.slice(0, failure + 1).map(name => [
+      fileURLToPath(new URL(`../../scripts/test-management-${name}.mjs`, import.meta.url)),
+    ]));
     assert.match(result.stdout, /Management suite: FAIL/);
-    assert.equal((result.stdout.match(/: FAIL/g) || []).length, 2);
-    assert.equal((result.stdout.match(/: NOT RUN/g) || []).length, 5 - failure);
+    assert.deepEqual(result.stdout.split('\n').filter(line => /^(admission|skills|settings|mcp|composition|remote): /.test(line)),
+      names.map((name, index) => `${name}: ${index < failure ? 'PASS' : index === failure ? 'FAIL' : 'NOT RUN'}`));
     assert.match(result.stderr, /child diagnostic/);
     assert.match(result.stderr, /exit 7/);
     assert.match(result.stdout, /not full T02A acceptance/);
