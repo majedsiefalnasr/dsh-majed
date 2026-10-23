@@ -413,6 +413,78 @@ async function main() {
       assert.equal(handle.agent.session.requestContext().contextWindow, undefined);
       assert.equal(assemblyCount, 2);
     });
+    await check('provider evaluation precedes scoped waterfalls and does not await inbox notifications', async () => {
+      const trace = [];
+      const releaseNotification = deferred();
+      const notificationDone = deferred();
+      const selection = { current: { ...controls } };
+      let handle;
+      try {
+        handle = await ctx.agents.create({
+          sessionId: 't02b-provider-order', agentOptions: controls,
+          setup(agentCtx) {
+            installModelSelection(agentCtx, selection);
+            agentCtx.on('agent/inbox/claimed', async () => {
+              trace.push('notification:start');
+              await releaseNotification.promise;
+              trace.push('notification:end');
+              notificationDone.resolve();
+            });
+            agentCtx.systemPrompt.variable('t02b_probe', () => {
+              trace.push('variable');
+              return 'fixture';
+            });
+            agentCtx.systemPrompt.tools(() => {
+              trace.push('tools');
+              return { schemas: [] };
+            });
+            agentCtx.systemPrompt.section({ name: 't02b:order', order: 900, text: () => {
+              trace.push('section');
+              return `Early selection ${selection.current.model}`;
+            } });
+            agentCtx.systemPrompt.context({ name: 't02b:order', order: 900, text: () => {
+              trace.push('context');
+              return 'ordering fixture';
+            } });
+            agentCtx.on('system-prompt/assemble', async (_assembly, _context, next) => {
+              trace.push('assembly');
+              return next();
+            }, { prepend: true });
+            agentCtx.on('agent/pre-step', async (_payload, next) => {
+              trace.push('pre-step');
+              return next();
+            }, { prepend: true });
+            agentCtx.on('agent/request', async (_payload, next) => {
+              trace.push('request');
+              return next();
+            }, { prepend: true });
+          },
+        });
+        handles.push(handle);
+        const before = adapter.dispatches.length;
+        handle.agent.followup({ content: [{ type: 'text', text: 'trace public lifecycle ordering' }], source: { kind: 'user' } });
+        await handle.agent.whenIdle();
+        assert.equal(adapter.dispatches.length, before + 1, 'native request completes while notification is pending');
+        assert.equal(trace[0], 'notification:start');
+        assert(!trace.includes('notification:end'), 'inbox notifications are not an awaited admission boundary');
+        for (const provider of ['variable', 'tools', 'section', 'context']) {
+          assert(trace.indexOf(provider) > 0 && trace.indexOf(provider) < trace.indexOf('assembly'), `${provider} runs before even prepended assembly middleware`);
+        }
+        assert(trace.indexOf('assembly') < trace.indexOf('pre-step'));
+        assert(trace.indexOf('pre-step') < trace.indexOf('request'));
+        const sent = adapter.dispatches.at(-1).options;
+        assert(sent.messages.some(message => message.role === 'system' && message.content.some(block => block.text === 'Early selection auto')));
+        // Explicit unsupported-requirement probe, not a production routing mode.
+        // It must fail on this host: prepending cannot move assembly ahead of providers.
+        if (process.argv.includes('--require-pre-provider')) {
+          assert(trace.indexOf('assembly') < trace.indexOf('variable'), 'required pre-provider assembly boundary is unavailable');
+        }
+      } finally {
+        releaseNotification.resolve();
+        if (trace.includes('notification:start')) await notificationDone.promise;
+      }
+      assert.equal(trace.at(-1), 'notification:end');
+    });
     await check('fixture attempted zero network calls and mounted no persistence', async () => {
       assert.equal(forbiddenNetworkCalls, 0);
       assert.equal(ctx.get('sessionPersistence'), undefined);

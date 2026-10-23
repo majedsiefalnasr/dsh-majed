@@ -31,7 +31,7 @@ baseline-only; these research scripts are not shipped or activated.
 - The client environment supplies explicit store, React, slots and remote-service boundary fixtures.
   The component function is evaluated, not mounted by a real React reconciler or browser. This is
   more than a bundle-import assertion but not browser, RPC or visual acceptance.
-- `scripts/probe-auto-host.cjs`: thirteen checks passed with actual Cordis/LLM/Agent/Session/SystemPrompt/
+- `scripts/probe-auto-host.cjs`: fourteen checks passed with actual Cordis/LLM/Agent/Session/SystemPrompt/
   ToolRuntime/AgentLoop services and synthetic adapters. Exact metadata uses fixture-owned
   conservative intersections; unsupported explicit effort rejects before dispatch. A prepared stream
   retains its captured generation and old adapter after policy and registration replacement, is
@@ -112,11 +112,25 @@ are absent; signatures here are verified from executable JS, not invented declar
   `async prepareCall(config, signal, configure)`, immutable metadata, route identity preservation,
   one-shot registration-bound dispatch and config validation.
 
+## Pre-provider investigation follow-up
+
+A further real-service characterization on 2026-10-23 records variable, tool, section and context
+provider evaluation before even a prepended scoped assembly listener, followed by pre-step and request
+middleware. A deliberately suspended `agent/inbox/claimed` listener remains pending while the native
+request completes; notification dispatch is not an awaited admission barrier. The fixture drains that
+listener explicitly during cleanup. This rules out those specific lifecycle workarounds, not every
+possible future host extension. The source audit and Owner decision options are recorded in
+[the pre-provider seam investigation](auto-pre-provider-seam.md). No requirement is reduced.
+
+With the same isolated runner environment, `npm run test:host-auto -- --require-pre-provider` fails
+intentionally with `required pre-provider assembly boundary is unavailable`. It asks for the missing
+ordering guarantee and is not a passing acceptance test, a new routing implementation or a fix.
+
 ## Verification status
 
-Exact-host suite: client 5/5 and host 13/13 checks passed. Negative controls: missing runner configuration
+Exact-host suite after the ordering characterization: client 5/5 and host 14/14 checks passed. Negative controls: missing runner configuration
 fails explicitly; host `--red-control` disables fixture generation capture and fails its expected-generation
-assertion. The runner now forwards only named negative-control flags. `npm run test:host-auto --
+assertion. The runner forwards only the named negative-control and required-order probe flags. `npm run test:host-auto --
 --red-concrete-route` (with the same environment) bypasses concrete request routing and fails with
 `native request must dispatch the concrete target` (`0 !== 1`). These show assertion sensitivity, not
 production TDD completion. The follow-up also corrected malformed synthetic stream chunks to the real
@@ -129,5 +143,10 @@ or scope-creep finding. Separate Standards and Spec reviews of the five-file 13-
 slice; contributor coherence/native selection ownership, request-aware eligibility and end-to-end mounted
 picker integration remain open. Reviewers inspected the diff without rerunning tests or accessing
 operational state. The evidence commit/issue record the boundary, not an acceptance waiver.
+Separate Standards and Spec reviews of the six-file pre-provider evidence slice against
+`f5779f249c12e061042fdcab3f5677e961c67212` found no new actionable findings; neither review reran
+probes or treated the existing acceptance gaps as resolved. The ordering fixture covers a claimed-input
+step only; the source audit's proposed tool-driven continuation, retry and resume extensions are not
+fresh runtime evidence.
 There is no project TypeScript typecheck script; syntax/runtime execution and existing regressions are
 used instead. No production implementation or claim of live Auto functionality accompanies this report.

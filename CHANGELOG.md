@@ -41,6 +41,9 @@ All notable changes to `dsh-majed` are documented here. The format follows
   browser catalog builder), not an enabled Auto feature. Scoped middleware now demonstrates concrete
   interpolated identity/header/assistant attribution, including concurrent manual intent, but evaluated
   prompt-provider coherence and mounted client/RPC acceptance remain unresolved; the gate stays open.
+  A further ordering characterization confirms providers precede prepended assembly middleware and inbox
+  notifications are not awaited. The explicit pre-provider requirement probe fails on the inspected host;
+  this records an unsupported boundary, not a fix or an approved reduction of scope.
 - The prefactored candidate and disposal fixes have automated fixture/Cordis coverage only. They have not
   been installed or verified after a desktop restart or through the remote GUI; no release is published.
 

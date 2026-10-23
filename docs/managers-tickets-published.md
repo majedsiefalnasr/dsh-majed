@@ -79,7 +79,10 @@ T02B / #5 has [partial native Auto seam evidence](<research/auto-native-seams.md
 LLM/Agent/catalog checks and the unmodified native picker bundle pass. Scoped middleware also proves
 concrete interpolation/header/assistant attribution, but already evaluated prompt providers can retain
 Auto; full contributor coherence and mounted client/RPC acceptance remain unresolved. It stays open;
-no dependent gate is waived.
+no dependent gate is waived. A [pre-provider investigation](research/auto-pre-provider-seam.md) and
+real-service ordering characterization rule out prepended assembly and awaited inbox notifications as
+solutions on this host. The explicit required-order probe fails; the unsupported seam needs Owner review
+before any scope change, and no operational or host-patching permission is implied.
 T04 / #9 now has an inactive [pinned reference baseline](<reference-artifacts.json>),
 [source/license review](<research/reference-source-provenance.md>),
 [granular Parity ledger](<PARITY.md>) and [validation record](<research/reference-baseline-validation.md>).

@@ -15,7 +15,7 @@ const scripts = ['probe-auto-client.cjs', 'probe-auto-host.cjs'];
 try {
   for (const script of scripts) {
     const flags = script === 'probe-auto-host.cjs' ? process.argv.slice(2) : [];
-    assert.ok(flags.every(flag => ['--red-control', '--red-concrete-route'].includes(flag)), 'Only named negative controls are accepted');
+    assert.ok(flags.every(flag => ['--red-control', '--red-concrete-route', '--require-pre-provider'].includes(flag)), 'Only named negative controls and requirement probes are accepted');
     const result = spawnSync(executable, [join(root, 'scripts', script), runtime, ...flags], {
       cwd: temporary,
       // Do not pass operational provider tokens, auth stores or DSH service origins.
