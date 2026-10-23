@@ -80,7 +80,7 @@ The original publication totals above are historical; the following table is the
 
 Status update, 2026-10-22: T01 / #3 is closed at its [local automated baseline boundary](<BASELINE.md#L43-L49>).
 The preceding publication ledger remains a record of publication, not a claim that every issue is still open.
-T02A / #4 has [partial native signed-cookie admission evidence](<research/management-approval-provenance.md#native-signed-cookie-admission-characterization--2026-10-23>), in addition to the older preparatory dispatch/registry probe, but is not complete. The actual native authentication algorithm passes isolated memory-credential/HTTP-stream fixtures; Settings, authenticated Manager scope, Skills watcher, official MCP lifecycle and real local/paired-remote acceptance remain unproved.
+T02A / #4 has [partial native signed-cookie admission evidence](<research/management-approval-provenance.md#native-signed-cookie-admission-characterization--2026-10-23>), in addition to the older preparatory dispatch/registry probe, but is not complete. The actual native authentication algorithm passes isolated memory-credential/HTTP-stream fixtures. Commit `a1c372b` adds [native filesystem Skills watcher evidence](research/management-approval-provenance.md#native-filesystem-skills-watcher-characterization--2026-10-23), with complete snapshots and independent invocation-policy transitions. Settings, authenticated Manager scope, official MCP lifecycle and real local/paired-remote acceptance remain unproved. Neither fixture closes T02A.
 Under ADR 0008, trusted original local/remote Approval provenance now belongs to T02E / #47;
 it remains unsupported at the inspected exact Fetch seam and pauses command Approval/execution only.
 T03 still waits for completed T02A management proof. T02B–T02D and T04 retain their own gates.
@@ -106,11 +106,17 @@ The T02B [upstream capability request](<research/auto-upstream-request-draft.md>
 T04 / #9 now has an inactive [pinned reference baseline](<reference-artifacts.json>),
 [source/license review](<research/reference-source-provenance.md>),
 [granular Parity ledger](<PARITY.md>) and [validation record](<research/reference-baseline-validation.md>).
-Owner dispositions accepted on 2026-10-22 resolve T04's mapping gap: OPS-03 excludes process-global
+T04 / #9 is closed (live GitHub state rechecked on 2026-10-23); this is inactive source/mapping acceptance, not runtime parity. Owner dispositions accepted on 2026-10-22 resolve T04's mapping gap: OPS-03 excludes process-global
 network timing changes (T17 owns a supported scoped alternative/deviation); SK-17 local-directory
 import/browse is explicitly deferred to D02; HK-04 uses manual project/user re-addition with fresh
 Approval under T09/T28M. T04's inactive evidence acceptance can now be finalized independently of
 runtime/live parity. T02E's unsupported provenance gate and all other dependent gates remain intact.
+
+### Integration execution snapshot — 2026-10-23
+
+The `implement-spec` integration branch is `feat/managers`, baseline `a1c372b`. Remaining independent T02A acceptance slices run in separate worktrees/branches: `feat/t02a-scope` (read-only native session/workspace relationship), `feat/t02a-mcp` (official MCP client lifecycle), and `feat/t02a-settings` (actual Settings client contract). Each must return committed evidence and explicit gaps before merge/review; none is a completed ticket on dispatch. Implementers use the Owner-approved `codex/gpt-6-astra` model through workflow; that tool exposes no reasoning-effort override, so effort is the adapter/model default, not an asserted custom setting.
+
+Direct dependency records for T02A–T02E each reference closed T01 / #3. The GitHub aggregate open-blocker count for #4–#7 still reported one on this read; readiness is verified from the actual dependency issue states rather than treating that stale aggregate as a new blocker or deleting approved edges. T03 / #8 still has the genuinely open T02A blocker. Unsupported T02B/T02E findings are not silently waived. Existing historical untracked prototypes remain untouched.
 
 T01 is the only execution record with no blockers. After T01 completes, T02A–T02E and T04
 can proceed independently; T03 depends only on T02A. A `ready-for-agent` label is not proof
