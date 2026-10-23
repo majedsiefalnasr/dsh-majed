@@ -184,10 +184,12 @@ async function main() {
   const physical = [], statuses = [];
   const endpoint = '/api/fixture/read';
   try {
-    for (const attempt of [() => http.request('http://example.invalid/'), () => global.fetch('http://127.0.0.1/'),
-      () => net.createServer(), () => new net.Socket().connect(1, '127.0.0.1'),
-      () => require('node:https').request('https://example.invalid/'), () => require('node:dns').resolve('example.invalid'),
-      () => require('node:child_process').spawn('forbidden')]) assert.throws(attempt);
+    assert.throws(() => http.request('http://example.invalid/'), /AssertionError/);
+    assert.throws(() => new net.Socket().connect(1, '127.0.0.1'), /Only checked HTTP internals may connect/);
+    for (const attempt of [() => global.fetch('http://127.0.0.1/'), () => net.createServer(),
+      () => require('node:https').request('https://example.invalid/'),
+      () => require('node:dns').resolve('example.invalid', () => {}),
+      () => require('node:child_process').spawn('forbidden')]) assert.throws(attempt, /Physical carrier forbids unowned I\/O/);
     const inner = await mountServer(host), outer = await mountServer(outerHost);
     await mount({ apply(owner) { new MemoryCredentials(owner); new MemoryStorage(owner); new MemoryPersistence(owner); } });
     await mount(SessionStore);
