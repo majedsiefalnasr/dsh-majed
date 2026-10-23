@@ -18,15 +18,24 @@ change installed plugins, restart the host, consume provider/judgment capacity, 
 remove Reference plugins or publish releases. Those retain their separate approval gates.
 No implementation, host/account operation or runtime/live test was performed during publication.
 
+## Owner-approved admission/provenance amendment — 2026-10-23
+
+The Owner approved [ADR 0008](./adr/0008-separate-management-admission-from-command-approval-provenance.md): narrow T02A / #4 to its original management proof obligations and move trusted Command hook Approval provenance to required T02E / [#47](https://github.com/majedsiefalnasr/dsh-majed/issues/47). Native publication was read back and verified: 45 sub-issues (35 execution, 10 deferred), 92 blocker edges. The only new edges are T02E blocked by T01 / #3 and T10 / #15 blocked by T02E / #47; its existing T09 / #14 blocker remains. All original 90 edges are unchanged. Parent #1/#2 bodies, titles and states are unchanged; no issue was closed by the amendment.
+
+T03/T08/D03 retain their existing T02A dependencies. T02A remains open and must pass actual client/Settings, local/remote Owner admission, authenticated session/project scope, Skills invalidation and official MCP lifecycle requirements. T02E remains open with the unsupported provenance result; challenge issuance, Approval persistence and command run/test/event paths remain unavailable server-side. Editing compatible Hook stores still requires separate single-owner operational Cutover permission. T28M/T29 retain T10 and final local/remote command evidence. No runtime, live capability, authentication waiver or installed-state authorization is implied.
+
+The original publication totals above are historical; the following table is the amended current graph.
+
 ## Published records
 
 | Plan ID | GitHub issue | Triage label | Native blocked by |
 | --- | --- | --- | --- |
 | T01 | [#3](https://github.com/majedsiefalnasr/dsh-majed/issues/3) — Isolate the accepted baseline from the prototype | `ready-for-agent` | None |
-| T02A | [#4](https://github.com/majedsiefalnasr/dsh-majed/issues/4) — Prove management admission and trusted Approval provenance | `ready-for-agent` | [#3](https://github.com/majedsiefalnasr/dsh-majed/issues/3) |
+| T02A | [#4](https://github.com/majedsiefalnasr/dsh-majed/issues/4) — Prove authenticated management admission | `ready-for-agent` | [#3](https://github.com/majedsiefalnasr/dsh-majed/issues/3) |
 | T02B | [#5](https://github.com/majedsiefalnasr/dsh-majed/issues/5) — Prove native Auto metadata and coherent preparation | `ready-for-agent` | [#3](https://github.com/majedsiefalnasr/dsh-majed/issues/3) |
 | T02C | [#6](https://github.com/majedsiefalnasr/dsh-majed/issues/6) — Prove one cross-layer retry budget | `ready-for-agent` | [#3](https://github.com/majedsiefalnasr/dsh-majed/issues/3) |
 | T02D | [#7](https://github.com/majedsiefalnasr/dsh-majed/issues/7) — Prove supported child pre-start selection | `ready-for-agent` | [#3](https://github.com/majedsiefalnasr/dsh-majed/issues/3) |
+| T02E | [#47](https://github.com/majedsiefalnasr/dsh-majed/issues/47) — Prove trusted Command hook Approval provenance | `ready-for-agent` | [#3](https://github.com/majedsiefalnasr/dsh-majed/issues/3) |
 | T03 | [#8](https://github.com/majedsiefalnasr/dsh-majed/issues/8) — Establish the authenticated Settings slice and visual contract | `ready-for-agent` | [#4](https://github.com/majedsiefalnasr/dsh-majed/issues/4) |
 | T04 | [#9](https://github.com/majedsiefalnasr/dsh-majed/issues/9) — Pin source, licenses and the granular Parity list | `ready-for-agent` | [#3](https://github.com/majedsiefalnasr/dsh-majed/issues/3) |
 | T05 | [#10](https://github.com/majedsiefalnasr/dsh-majed/issues/10) — Resolve and control native Skills effectively | `ready-for-agent` | [#8](https://github.com/majedsiefalnasr/dsh-majed/issues/8), [#9](https://github.com/majedsiefalnasr/dsh-majed/issues/9) |
@@ -34,7 +43,7 @@ No implementation, host/account operation or runtime/live test was performed dur
 | T07 | [#12](https://github.com/majedsiefalnasr/dsh-majed/issues/12) — Save private MCP definitions safely | `ready-for-agent` | [#8](https://github.com/majedsiefalnasr/dsh-majed/issues/8), [#9](https://github.com/majedsiefalnasr/dsh-majed/issues/9) |
 | T08 | [#13](https://github.com/majedsiefalnasr/dsh-majed/issues/13) — Run and observe isolated MCP connections | `ready-for-agent` | [#4](https://github.com/majedsiefalnasr/dsh-majed/issues/4), [#12](https://github.com/majedsiefalnasr/dsh-majed/issues/12) |
 | T09 | [#14](https://github.com/majedsiefalnasr/dsh-majed/issues/14) — Edit compatible Command hook definitions inertly | `ready-for-agent` | [#8](https://github.com/majedsiefalnasr/dsh-majed/issues/8), [#9](https://github.com/majedsiefalnasr/dsh-majed/issues/9) |
-| T10 | [#15](https://github.com/majedsiefalnasr/dsh-majed/issues/15) — Approve and execute exact Command hooks locally and remotely | `ready-for-agent` | [#14](https://github.com/majedsiefalnasr/dsh-majed/issues/14) |
+| T10 | [#15](https://github.com/majedsiefalnasr/dsh-majed/issues/15) — Approve and execute exact Command hooks locally and remotely | `ready-for-agent` | [#14](https://github.com/majedsiefalnasr/dsh-majed/issues/14), [#47](https://github.com/majedsiefalnasr/dsh-majed/issues/47) |
 | T11 | [#16](https://github.com/majedsiefalnasr/dsh-majed/issues/16) — Apply Tool rules without bypassing native guards | `ready-for-agent` | [#8](https://github.com/majedsiefalnasr/dsh-majed/issues/8), [#9](https://github.com/majedsiefalnasr/dsh-majed/issues/9) |
 | T12 | [#17](https://github.com/majedsiefalnasr/dsh-majed/issues/17) — Preserve direct subscription routing and stream behavior | `ready-for-agent` | [#8](https://github.com/majedsiefalnasr/dsh-majed/issues/8), [#9](https://github.com/majedsiefalnasr/dsh-majed/issues/9) |
 | T13 | [#18](https://github.com/majedsiefalnasr/dsh-majed/issues/18) — Integrate Codex and Claude account authentication | `ready-for-agent` | [#17](https://github.com/majedsiefalnasr/dsh-majed/issues/17) |
@@ -71,9 +80,10 @@ No implementation, host/account operation or runtime/live test was performed dur
 
 Status update, 2026-10-22: T01 / #3 is closed at its [local automated baseline boundary](<BASELINE.md#L43-L49>).
 The preceding publication ledger remains a record of publication, not a claim that every issue is still open.
-T02A / #4 has [preparatory admission evidence](<research/management-approval-provenance.md>) but is not complete;
-trusted original local/remote Approval provenance is unsupported at the inspected exact Fetch seam, and the
-dependent Approval path remains paused. T02B–T02D and T04 retain their own independent acceptance gates.
+T02A / #4 has [preparatory admission evidence](<research/management-approval-provenance.md>) but is not complete.
+Under ADR 0008, trusted original local/remote Approval provenance now belongs to T02E / #47;
+it remains unsupported at the inspected exact Fetch seam and pauses command Approval/execution only.
+T03 still waits for completed T02A management proof. T02B–T02D and T04 retain their own gates.
 No installation, live verification or release is implied by T01 closure.
 T02B / #5 has [partial native Auto seam evidence](<research/auto-native-seams.md>): synthetic exact-host
 LLM/Agent/catalog checks and the unmodified native picker bundle pass. Scoped middleware also proves
@@ -100,9 +110,9 @@ Owner dispositions accepted on 2026-10-22 resolve T04's mapping gap: OPS-03 excl
 network timing changes (T17 owns a supported scoped alternative/deviation); SK-17 local-directory
 import/browse is explicitly deferred to D02; HK-04 uses manual project/user re-addition with fresh
 Approval under T09/T28M. T04's inactive evidence acceptance can now be finalized independently of
-runtime/live parity. T02A's unsupported provenance gate and all other dependent gates remain intact.
+runtime/live parity. T02E's unsupported provenance gate and all other dependent gates remain intact.
 
-T01 is the only execution record with no blockers. After T01 completes, T02A–T02D and T04
+T01 is the only execution record with no blockers. After T01 completes, T02A–T02E and T04
 can proceed independently; T03 depends only on T02A. A `ready-for-agent` label is not proof
 that prerequisites are closed or a separate operational action is authorized.
 

@@ -4,13 +4,15 @@
 
 On 2026-10-22, the Owner approved **34 execution slices**, **10 deferred follow-ups**, their blocking edges, the expanded first-release/deferred scope and testing seams, and publication of the expanded specification and tickets to GitHub. Independent feasibility and rollback-readiness slices avoid false dependencies. T/D IDs remain stable planning references, not GitHub issue numbers; the publication ledger maps them to actual issues. This approval authorizes documentation and issue publication only, not implementation, operational account access, installed-state changes or Cutover.
 
+On 2026-10-23 the Owner approved the narrow ADR 0008 amendment: retain T02A as the management admission proof, add independent required T02E for trusted Command hook Approval provenance, and make T10 wait for T09 plus T02E. The amended plan has 35 execution slices and 10 deferred records. All other dependencies, operational consent and final acceptance requirements remain unchanged; no issue is complete merely because its scope was separated.
+
 ## Authority, evidence and release boundaries
 
 Read together: [AGENTS.md](../AGENTS.md), [GLOSSARY.md](../GLOSSARY.md), [manager specification](./managers-spec.md), [ADRs 0001–0007](./adr/), and [accepted Auto decisions Q1–Q19](./research/auto-mode-proposal.md). Research inputs are [Pouch](./research/dsh-pouch-plugins.md), [Skills upstream](./research/dsh-skills-manager-upstream.md), [subscription parity and routing](./research/subscriptions-auto-routing.md), and [Jev feasibility](./research/jev-routing-feasibility.md). [Release instructions](./RELEASING.md) remain applicable, with the stronger local-and-remote evidence gate in ADR 0005.
 
 Accepted ADRs/specification and Q1–Q19 take precedence over earlier research recommendations. In particular: private MCP persistence rather than config-editor ownership/profile YAML; native Owner admission rather than an origin-only gate; native basic Skills rather than shipping the stale vendored runtime; deterministic priority Auto rather than quota-driven exclusion or judge-owned retries. This draft does not silently amend the manager specification into an approved expanded implementation specification.
 
-Research identifies source-level extension candidates, **not proven exact-host runtime/API feasibility**. Tickets T02A–T02D are independent stop-and-report gates. Unsupported native Auto capability/effort semantics, child admission, or bounded host retry must be surfaced to the Owner before changing the agreed behavior. No host patches, private-method interception or replacement GUI server are acceptable fallbacks.
+Research identifies source-level extension candidates, **not proven exact-host runtime/API feasibility**. Tickets T02A–T02E are independent stop-and-report gates. Unsupported native Auto capability/effort semantics, child admission, or bounded host retry must be surfaced to the Owner before changing the agreed behavior. No host patches, private-method interception or replacement GUI server are acceptable fallbacks.
 
 ### First-release scope versus permission to operate
 
@@ -20,7 +22,7 @@ Operational account-store access, credential import/login, protected backups, ho
 
 ### Slice discipline and common acceptance contract
 
-Each ticket should fit one fresh agent context, loading only its cited authority, immediate blockers and scoped tests. T01 is the explicit behavior-preserving prefactor exception; T02A–T02D/T04 are bounded proof/provenance slices; T28M/T28S/T29/T30 are evidence/operational gates, not catch-all implementation tickets. Feature slices include their own UI, API/service, runtime and tests where applicable. Do not postpone basic error, permission, redaction or RTL work to a final horizontal cleanup ticket. If source pinning exposes a materially larger surface than the stated slice, stop and propose a split before publication/execution rather than hiding work inside parity.
+Each ticket should fit one fresh agent context, loading only its cited authority, immediate blockers and scoped tests. T01 is the explicit behavior-preserving prefactor exception; T02A–T02E/T04 are bounded proof/provenance slices; T28M/T28S/T29/T30 are evidence/operational gates, not catch-all implementation tickets. Feature slices include their own UI, API/service, runtime and tests where applicable. Do not postpone basic error, permission, redaction or RTL work to a final horizontal cleanup ticket. If source pinning exposes a materially larger surface than the stated slice, stop and propose a split before publication/execution rather than hiding work inside parity.
 
 For every implemented slice:
 
@@ -67,7 +69,7 @@ T04 produces the versioned, row-level Parity list. The following allocation is i
 - Record an explicit disposition for uncommitted prototype files/tests: retain useful behavior assertions selectively, not ownership-based config-editor persistence, stale vendored Skills runtime, or their automatic wiring. Do not delete/overwrite the Owner's untracked work without approval.
 - Establish isolated module/client build/test loading without enabling replacement runtimes; prove plugin disposal restores registered effects. Existing regressions stay green and packaging changes are limited to the behavior-preserving extraction. Do not mix feature implementation into this prefactor.
 
-### T02A — Prove management admission and trusted Approval provenance
+### T02A — Prove authenticated management admission
 
 **What it delivers:** An independently verifiable exact-host management seam proof in a temporary composition, without waiting for Auto or child routing.
 
@@ -76,8 +78,20 @@ T04 produces the versioned, row-level Parity list. The following allocation is i
 **Acceptance criteria:**
 
 - Prove Settings registration, native Owner-authenticated Fetch admission locally/remotely, authenticated project/session scoping, native Skills policy/catalog invalidation and official MCP-client lifecycle using the actual client bundle and controlled fixtures, without root ownership or host patches.
-- Demonstrate a trusted server-side local/remote Approval provenance signal. If the public connection contract cannot establish it, stop the dependent Approval path rather than accepting a client label or inferring trust from Origin.
+- Keep management admission distinct from Command hook Approval provenance (T02E). Passing this gate does not issue an Approval challenge, approve a hook or authorize execution; server-side command Approval/execution remain unavailable until T02E and T10 pass.
 - Record public seams, exact host version, positive/negative tests and unsupported results. Failure pauses only the affected path for Owner review; no operational state or real service call is authorized.
+
+### T02E — Prove trusted Command hook Approval provenance
+
+**What it delivers:** An independently reproducible trusted server-side local/remote source contract for exact Command hook Approval, or an explicit unsupported result that keeps command Approval/execution unavailable. Owner-approved split on 2026-10-23; see ADR 0008. This is required first-release scope, not a deferral or a local-only policy.
+
+**Blocked by:** T01.
+
+**Acceptance criteria:**
+
+- Prove original local/remote provenance through supported public admission/transport contracts for both paths, bound to the admitted Owner request and reviewed content/canonical scope. A client label, Origin, shared Owner Peer or loopback proxy hop is not evidence of original locality.
+- Test forged labels, missing/invalid/stale attestation, replay, scope substitution and paired-proxy rewriting with actual supported services and controlled fixtures; distinguish isolated automated results from live evidence. Preserve server time, nonce, typed confirmation, content fingerprint and native guard requirements in T10.
+- If unsupported, stop and report. Command Approval and execution must fail closed server-side (including challenge/approve/run/test/event paths); no imported Approval or fallback runner. Settings, basic Skills, MCP and inert Hook editing may proceed only after their own gates, with no implied approval or live shared-store edit authorization. No host patch, operational state access, command execution or service consumption is authorized by this proof ticket.
 
 ### T02B — Prove native Auto metadata and coherent preparation
 
@@ -204,7 +218,7 @@ T04 produces the versioned, row-level Parity list. The following allocation is i
 
 **What it delivers:** The authenticated Owner reviews an exact hook, types RUN AS DSH USER and authorizes that version to run boundedly on the DSH host, with auditable results.
 
-**Blocked by:** T09.
+**Blocked by:** T09, T02E.
 
 **Acceptance criteria:**
 
@@ -560,7 +574,7 @@ The Owner approved publishing these IDs as deferred follow-ups, not first-releas
 On 2026-10-22, the Owner approved:
 
 1. The 34-slice granularity, including independently verifiable feasibility/readiness gates, two retained-source authentication groups, the search/attachment boundary and evidence-only live sessions.
-2. The explicit blocking edges. T04 and T02A–T02D can proceed independently after T01; T03 waits only for T02A; auth groups, catalogs, proxy and media slices need not form a serial chain. T26 waits for the shared Smart contract, not Smart activation. T29 and T30 have independent prepared cutover gates and separate operational approvals.
+2. The original explicit blocking edges. T04 and T02A–T02D can proceed independently after T01; T03 waits only for T02A; auth groups, catalogs, proxy and media slices need not form a serial chain. T26 waits for the shared Smart contract, not Smart activation. T29 and T30 have independent prepared cutover gates and separate operational approvals.
 3. The first-release/deferred boundary, expanded specification and testing seams, and publication of the specification and tickets on GitHub. Required missing Parity rows still prevent Reference removal unless explicitly waived.
 
 Publication preserves the original Manager specification issue without closing or editing it. The expanded specification is a separate issue, with execution and deferred records linked beneath it. A separate publication ledger records real issue identifiers and verified native dependency edges.

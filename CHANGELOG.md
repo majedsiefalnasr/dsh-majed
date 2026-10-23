@@ -21,6 +21,9 @@ All notable changes to `dsh-majed` are documented here. The format follows
   remain pending, and source/artifact comparisons do not imply verified provenance signatures.
 
 ### Changed
+- Owner-approved planning split: management admission remains T02A; trusted local/remote Command hook
+  Approval provenance is independently gated by T02E and blocks T10 approval/execution, not ordinary
+  Settings/Skills/MCP/inert Hook editing. Neither gate is complete and no runtime is enabled by this change.
 - Owner-approved scope clarifications: no process-global subscription networking mutation; local-directory
   Skill import/browse explicitly deferred; legacy profile Hooks manually re-added with fresh Approval.
   These are planning decisions, not implemented or live-verified behavior.
