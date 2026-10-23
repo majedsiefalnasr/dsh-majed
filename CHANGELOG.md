@@ -40,6 +40,9 @@ All notable changes to `dsh-majed` are documented here. The format follows
   delivery before permission/registration completes. Package lifecycle builds remain executable from the tarball.
 
 ### Known issues / unverified
+- T02A has a bounded official MCP client/ToolRuntime stdio lifecycle proof over a disposable fixture:
+  handshake, actual call/error, deadline/cancellation and awaited tool/process teardown pass with a
+  result-corruption negative control. This is not production Manager, namespace isolation or remote acceptance.
 - Recovered partial T02A Settings and session/workspace fixtures now run against the actual installed
   client bundles and exported services. Settings uses synthetic element trees, and scope uses a
   probe-local resolver with memory storage; neither establishes authenticated Manager operations,
