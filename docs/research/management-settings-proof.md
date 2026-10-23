@@ -19,6 +19,14 @@ SHA256 bundle identities:
 
 The preserved worker draft initially failed because the store double lacked `update`; the double was corrected against native `ConfigFormController.derive`. General form content is deliberately omitted from the element evaluator, because its separately injected editors are outside the contributed-section seam. General navigation and fallback selection remain asserted; General editors are not tested.
 
+## Native mount follow-up (2026-10-24)
+
+The installed runtime does not expose React, the client store or SlotCore as independently resolvable packages. They are singleton seeds compiled into the web shell; extracting its private minified seed factory is not an accepted extension seam. The installed renderer client does export `apply`, which installs the real SlotRegistry and exposes `ctx.uiRenderer.mount(container)` through its public service. Matching public test dependencies are therefore the next isolated mounting path, rather than expanding the existing doubles.
+
+Public registry metadata confirms `@deepseek-ai/dsh-client-test-runtime@0.2.1-rc.2` and `@deepseek-ai/dsh-client-ui-slots@0.2.1-rc.2` exist. This is dependency availability, not mounted proof. Dependency retrieval is confined to workspace-owned test scratch with lifecycle scripts disabled; no installed DSH package or profile is changed. An isolated worktree is implementing a separate mounted fixture and report. No success is claimed before that fixture executes and is reviewed.
+
+SSR is not a supported shortcut for this unchanged renderer: its external-store hooks omit server snapshots. Replacing those hooks or extracting private shell locals would conceal the remaining mounting obligation rather than satisfy it.
+
 ## Explicit non-claims
 
 This is synthetic element-tree evaluation, not mounted React, browser rendering, SSR, visual compatibility, focus behavior, CSS or real network admission. Slot ledger, stores, Cordis service binding, hooks, portals and primitives are explicit doubles. No native SlotCore lifecycle, host persistence, authenticated project scope, paired remote carrier or actual Manager implementation is established. Production Settings acceptance remains open and must be tested together with real Manager operations and the supported client carrier.
