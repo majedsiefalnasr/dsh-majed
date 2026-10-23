@@ -8,6 +8,9 @@ All notable changes to `dsh-majed` are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Bounded remote/native/scoped request proof: actual remote proxy and native admission now precede
+  real session/workspace resolution in one inert request, with denied-authority and cancellation controls.
+  Memory carriers and synthetic credentials remain explicit; no Manager CRUD or live acceptance is enabled.
 - Isolated native Settings mount proof using unchanged installed client bundles, public SlotCore,
   real ReactDOM/stores/Cordis and jsdom, with selection/withdrawal controls. Presentation primitives
   remain adapters; this is not browser/visual, production Manager or live acceptance.

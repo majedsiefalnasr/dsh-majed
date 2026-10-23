@@ -11,6 +11,7 @@ This is execution tracking against existing acceptance, not a new specification 
 | Authenticated session/project scope | Earlier `4848585` [service composition](management-scope-proof.md) now complemented by `54856b1` + `6c587d0` [native admission/resolver composition](management-composition-proof.md): actual signed synthetic Owner admission precedes public session/workspace scope observation. Nine groups pass, including live publication/disappearance during both filesystem awaits; membership-fact negative fails. Reviewed P2 authority race fixed and rereviewed. | Memory credentials/storage and in-memory HTTP are not operational login, browser or actual paired-remote acceptance. Resolver remains outside package/registration; no production write operation is enabled. Canonical path is an observation, not a filesystem lease; client identifiers remain selectors, not authentication. |
 | Native Skills policy/catalog invalidation | `a1c372b`: actual filesystem provider/watch and registry over disposable roots; complete snapshots, independent invocation flags, external edit/rename/delete and awaited disposal/catalog removal. | Integrate with actual Manager operations and applicable client/transport proof; no installed Skill store or watcher-handle instrumentation claim. |
 | Official MCP lifecycle | `1d2979e` with report correction `e28fe6a`: [bounded official client/ToolRuntime lifecycle](management-mcp-proof.md), real stdio handshake, call/error/deadline/cancellation and awaited tool removal/owned child closure. Green and result-corruption negative independently reproduced; model-selected Standards/Spec review completed. | Production Manager composition, authenticated carrier, per-agent namespace isolation, reconnect/HMR and actual remote acceptance remain unproved. Caller cancellation does not prove server-side work rollback. Merged as `19277ef`; exact-host green lifecycle and baseline regressions (45/45 plus classifier 166/166) pass after merge. Worktree-only regression failure was a missing local Cordis dependency, not reproduced in integration. |
+| Scoped paired-remote request | `0b058c3` merged as `260b52e`: [one remote/native/scoped request](management-scoped-remote-proof.md) composes the installed gate/rewrite/proxy, native BrowserAuth/exact Fetch and real resolver before an inert operation. Parent reproduced five groups and the missing-membership control; static Standards/Spec review found no actionable defects within this bounded slice. Missing/revoked pairing and invalid inner cookies deny before scope/operation; wrong membership/canonical paths deny without operation. | Explicit memory HTTP, synthetic credentials/pairing/storage and disposable projects are not mounted browser/service acceptance. Inner response-close cancellation is not outer disconnect propagation. No production Manager CRUD, operational InnerAuth or Approval provenance is enabled. |
 | Paired-remote carrier composition | `1329bd1` + reviewed correction `0581062`: [actual remote gate/rewrite/proxy and native BrowserAuth/exact Fetch](management-remote-proof.md) pass six groups using an explicit in-memory HTTP carrier. Counts remain 6 proxy calls / 6 inner calls / 2 inert operations / 1 invalidation. Pairing-fact and forwarded-Content-Type negatives fail at intended checkpoints; outer-only header defaults no longer mask forwarding loss. | Actual mounted remote service, pairing persistence, operational inner-auth resolver, socket/TLS/browser path and production Manager operations remain unproved. No trustworthy original local/remote Command Approval provenance is inferred. |
 | Exact host and negative evidence | Existing admission and Skills probes target installed 0.2.1-rc.2 via ASAR-aware Electron Node 24.21.0; opt-in missing runtime fails, never skips. | Collect remaining implementer outputs; review against the fixed integration baseline, rerun after merge, preserve regression suite. |
 | Command Approval remains separate | ADR 0008; T02E / #47 remains unsupported at the inspected provenance seam. | Never issue Approval challenges, persist Approval or enable command run/test/event paths by passing ordinary management tests. |
@@ -25,6 +26,20 @@ its outcomes, including exact per-runner failure labels and launched prefixes. I
 all six on installed DSH 0.2.1-rc.2 / Electron Node 24.21.0; portable regression passed 51/51 plus
 classifier 166/166. The constituent reports above retain their limitations. This command does not add
 production operations, mount the live service, waive the Settings obligation or close T02A.
+
+## Next client composition boundary
+
+The mounted fixture currently provides a synthetic connection/remote-description boundary; it does not
+send a real authenticated client request. Bounded source inspection found public
+`installConnection(ctx, options = {})` in installed `dsh-client-connection/lib/client.browser.js`,
+whose `options.transport.fetch` feeds the actual RPC implementation. Its
+`rpc.call(channel, endpoint, payload, signal)` sends relative `api/<endpoint>` and a
+`client-request` envelope, then requires a correlated `server-response` envelope. Exact source:
+`createWebConnectionRpc` at lines 1209–1231, installation at 1382–1387, public handle at 1443.
+This is not a generic Fetch helper: ordinary Manager JSON cannot be passed off as that protocol.
+A subsequent fixture can connect a mounted click through that real client parser to an admitted
+inert endpoint with explicit envelope handling and a memory physical carrier. It must still disclose
+that adapter and cannot claim live supported-carrier or T03 product acceptance. T03 remains blocked.
 
 ## Integration rules
 
