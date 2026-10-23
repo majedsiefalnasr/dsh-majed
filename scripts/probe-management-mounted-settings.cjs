@@ -96,13 +96,14 @@ async function main() {
   await act(async () => { unmount = ctx.uiRenderer.mount(document.getElementById('mount')); });
   const buttons = () => [...document.querySelectorAll('button')];
   const manager = () => buttons().find(b => b.textContent === 'Fixture Manager');
+  assert.equal(document.querySelector('[role=dialog]'), null);
+  await act(async () => document.querySelector('[aria-haspopup=dialog]').click());
+  assert.ok(document.querySelector('[role=dialog]'), 'native click opens mounted dialog');
+  assert.ok(buttons().some(b => b.textContent === 'General'), 'unserved assertion observes an open populated navigation');
   assert.equal(manager(), undefined, 'unserved namespace must not register');
   await act(async () => {
     namespaces = [{ ns: 'fixture-manager' }]; events.get('settings/document-updated')(); await ctx.configForms.describe().ensure();
   });
-  assert.equal(document.querySelector('[role=dialog]'), null);
-  await act(async () => document.querySelector('[aria-haspopup=dialog]').click());
-  assert.ok(document.querySelector('[role=dialog]'), 'native click opens mounted dialog');
   assert.ok(manager(), 'native navigation projects served section');
   await act(async () => { if (!flags.includes('--red-selection')) manager().click(); });
   assert.ok(document.querySelector('[data-fixture-manager]'), 'native-section-selection');

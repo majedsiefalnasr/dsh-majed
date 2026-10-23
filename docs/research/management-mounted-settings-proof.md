@@ -35,7 +35,7 @@ Tooltip, icons, ConnectionIndicator, Switch and modal-layer integration are expl
 
 ## Observed behavior
 
-- Initially unserved fixture namespace produces no navigation entry.
+- Native Settings trigger opens the dialog before serving the fixture namespace. General navigation is visibly present while Fixture Manager is absent, making the initial unserved check observable rather than vacuously checking a closed dialog. Serving the namespace then adds its navigation entry to that same open dialog.
 - Native Settings trigger DOM `.click()` opens its actual portal dialog; native navigation DOM `.click()` selects contributed fixture content, with one real component effect mount and `aria-current` selection.
 - Remote namespace withdrawal removes navigation/content and runs the component effect cleanup; native fallback marks General current.
 - Restoring served facts restores the entry; explicitly stopping the native watcher then reloading description does not re-register it.
