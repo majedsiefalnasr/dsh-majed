@@ -40,6 +40,9 @@ All notable changes to `dsh-majed` are documented here. The format follows
   delivery before permission/registration completes. Package lifecycle builds remain executable from the tarball.
 
 ### Known issues / unverified
+- T02A now composes native signed Owner admission with read-only session/project scope resolution over
+  disposable services and directories. A reviewed live-session publication race is fixed and tested during
+  filesystem awaits. The resolver remains unshipped/unregistered; real writes, browser and remote acceptance remain pending.
 - T02A has a bounded official MCP client/ToolRuntime stdio lifecycle proof over a disposable fixture:
   handshake, actual call/error, deadline/cancellation and awaited tool/process teardown pass with a
   result-corruption negative control. This is not production Manager, namespace isolation or remote acceptance.
