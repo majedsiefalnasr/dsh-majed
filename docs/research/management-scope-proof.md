@@ -4,7 +4,7 @@ T02A / #4 evidence, not production authorization or complete acceptance.
 
 ## Reproduction and result
 
-Set `DSH_PROBE_NODE` to the installed ASAR-capable Electron executable and `DSH_PROBE_RUNTIME` to its DSH runtime root; run `node scripts/test-management-scope.mjs`. Verified 2026-10-23: exit 0 on runtime 0.2.1-rc.2 / Electron Node 24.21.0. `--red-membership` exits 1 at `membership-and-cold-fallback`. Missing runtime is a failure rather than a skip.
+Set `DSH_PROBE_NODE` to the installed ASAR-capable Electron executable and `DSH_PROBE_RUNTIME` to its DSH runtime root; run `node scripts/test-management-scope-recovered.mjs`. Verified 2026-10-23: exit 0 on runtime 0.2.1-rc.2 / Electron Node 24.21.0. `--red-membership` exits 1 at `membership-and-cold-fallback`. Missing runtime is a failure rather than a skip.
 
 The runner creates and verifies a disposable canonical HOME, clears operational environment variables, bounds execution time and verifies its cleanup target before recursive removal. The probe blocks HTTP/fetch, socket/listener, DNS including promise/Resolver APIs, datagrams and child processes.
 

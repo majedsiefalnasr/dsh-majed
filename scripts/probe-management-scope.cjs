@@ -1,5 +1,5 @@
 // Synthetic-only exported-plugin proof, not live management acceptance.
-// Invoke through test-management-scope.mjs: it sanitizes env and creates disposable HOME.
+// Invoke through test-management-scope-recovered.mjs: it sanitizes env and creates disposable HOME.
 const assert = require('node:assert/strict');
 const { realpathSync } = require('node:fs');
 const { basename, join } = require('node:path');
