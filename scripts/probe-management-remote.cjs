@@ -8,7 +8,7 @@ const { once } = require('node:events');
 const { syncBuiltinESMExports } = require('node:module');
 const [base, remoteFile, ...flags] = process.argv.slice(2);
 assert.ok(base && remoteFile);
-assert.ok(flags.every(flag => flag === '--red-pairing'));
+assert.ok(flags.every(flag => ['--red-pairing', '--red-content-type'].includes(flag)));
 assert.equal(process.env.DSH_MANAGEMENT_REMOTE_PROBE, '1', 'Use the isolated runner.');
 const home = realpathSync(process.env.HOME);
 assert.ok(basename(home).startsWith('dsh-management-remote-'));
@@ -57,7 +57,11 @@ function memoryHttpRequest(options, callback) {
   return new Writable({
     write(chunk, encoding, done) { chunks.push(Buffer.from(chunk)); done(); },
     final(done) {
-      const req = incoming(options.path, options.headers, options.method, Buffer.concat(chunks));
+      // Preserve forwarded headers exactly; never repair the inner carrier.
+      const forwardedHeaders = { ...options.headers };
+      if (flags.includes('--red-content-type')) delete forwardedHeaders['content-type'];
+      assert.equal(forwardedHeaders['content-type'], 'application/json');
+      const req = incoming(options.path, forwardedHeaders, options.method, Buffer.concat(chunks));
       const response = new MemoryResponse();
       innerCalls++;
       Promise.resolve(innerHandler(req, response)).then(async () => {
@@ -87,7 +91,7 @@ function incoming(path, headers = {}, method = 'POST', body = '{}') {
   const req = Readable.from(method === 'POST' ? [Buffer.from(body)] : []);
   req.url = path;
   req.method = method;
-  req.headers = { host: `127.0.0.1:${port}`, 'content-type': 'application/json', ...headers };
+  req.headers = { ...headers };
   req.socket = { remoteAddress: '127.0.0.1' };
   return req;
 }
@@ -153,7 +157,7 @@ async function main() {
     innerHandler = ctx.get('webServer').routes.find(route => route.path === '/api').handler;
     const launch = new URL(connection.authenticatedUrl(`http://127.0.0.1:${port}/`));
     const redemption = new MemoryResponse();
-    assert.equal(connection.authorizeIndex(incoming(launch.pathname + launch.search, {}, 'GET'), redemption), false);
+    assert.equal(connection.authorizeIndex(incoming(launch.pathname + launch.search, { host: `127.0.0.1:${port}` }, 'GET'), redemption), false);
     assert.equal(redemption.status, 303);
     signedCookie = redemption.headers['set-cookie'].split(';', 1)[0];
     let operations = 0;
@@ -196,7 +200,8 @@ async function main() {
       'content-length': String(Buffer.byteLength(body)), accept: 'application/json' };
     const send = async (headers = {}, route = target, method = 'POST') => {
       const response = new MemoryResponse();
-      outer.handler(incoming(route, headers, method, body), response);
+      outer.handler(incoming(route, { host: `127.0.0.1:${port}`,
+        'content-type': 'application/json', ...headers }, method, body), response);
       if (!response.writableFinished) await once(response, 'finish');
       return response;
     };

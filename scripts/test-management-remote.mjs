@@ -11,7 +11,8 @@ const runtime = process.env.DSH_PROBE_RUNTIME;
 const remote = process.env.DSH_PROBE_REMOTE;
 assert.ok(executable && runtime && remote, 'Set DSH_PROBE_NODE, DSH_PROBE_RUNTIME and DSH_PROBE_REMOTE (remote-api.js).');
 const flags = process.argv.slice(2);
-assert.ok(flags.every(flag => flag === '--red-pairing'), 'Only the fixture pairing-fact negative control is accepted.');
+assert.ok(flags.every(flag => ['--red-pairing', '--red-content-type'].includes(flag)),
+  'Only fixture pairing-fact and forwarded-header negative controls are accepted.');
 const root = fileURLToPath(new URL('../', import.meta.url));
 const temporaryParent = realpathSync(tmpdir());
 const temporary = realpathSync(mkdtempSync(join(temporaryParent, 'dsh-management-remote-')));

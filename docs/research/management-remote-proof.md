@@ -41,6 +41,12 @@ TDD record: initial runner failed `MODULE_NOT_FOUND` for the not-yet-created pro
 
 Existing `test-management-admission.mjs` independently passed all seven assertion groups on the same host. Direct baseline runner initially failed because the fresh worktree lacked built `dist/client.js` and local `@deepseek-ai/cordis`; its classifier still passed 166/166. This is not a passing baseline regression claim; no dependencies were fetched or linked and no shared files were changed to hide the limitation.
 
+## Header-carrier review correction (2026-10-24)
+
+A static review found that the common incoming-request helper supplied JSON Content-Type even on the inner leg, masking a missing forwarded header. The helper now copies only supplied headers; defaults belong solely to the outer fixture (and the launch request supplies its required Host explicitly). The inner carrier asserts the actual forwarded Content-Type before delivery and never synthesizes it. The unchanged exact Fetch assertion remains in place.
+
+After correction, the explicit command above passes all six groups with unchanged counts. The unchanged `--red-pairing` control fails at `missing-and-revoked-pairing: ERR_ASSERTION`. New `--red-content-type` drops only the forwarded fixture header, without changing expected assertions, and fails at `paired-native-exact-fetch: ERR_ASSERTION`; both child and runner exit 1. These controls mutate only the explicit carrier/pairing doubles, not installed code. This corrects proof sensitivity, not production behavior or mounted acceptance.
+
 ## Remaining acceptance
 
 Actual remote plugin mounting, real paired service and revocation persistence, operational inner credential resolver, HTTP socket/TLS/browser path, Settings rendering, production management operation composition and authenticated session/project resolution remain unproved. Native code does not preserve trustworthy original local/remote provenance at exact Fetch, so none of this grants Command hook Approval or execution authority. No shared ledger, changelog, GitHub or installed state is changed by this bounded probe.
