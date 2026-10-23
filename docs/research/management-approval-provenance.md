@@ -59,6 +59,28 @@ The assertions exercise actual exported `HostConnectionService` and `SkillRegist
 - **Catalog seam:** provider invalidation updates model invocation while preserving user invocation; different cwd values produce different cache lookups; a scope-only registration is hidden globally, visible in its scope and removed after disposal. Provider disposal aborts its lifecycle signal and removes cached entries: [probe assertions](<../../scripts/probe-management-seams.cjs#L73-L119>).
 - **Limits:** these are in-process exported-service checks. The script explicitly does not prove actual browser/HTTP authentication, remote tunnel behavior, Settings rendering, filesystem watcher propagation, MCP lifecycle or authenticated session-to-project authorization: [probe limitations](<../../scripts/probe-management-seams.cjs#L120-L127>). It does not execute the remote plugin's inner-auth redemption. The client-label assertion illustrates untrusted labels, not a remote transport integration test.
 
+## Native signed-cookie admission characterization — 2026-10-23
+
+[probe-management-admission.cjs](../../scripts/probe-management-admission.cjs) now exercises the exported native plugin `apply`, not the older probe's synthetic authenticator. Public native apply internally constructs its actual unmodified `BrowserAuth` against a memory-only synthetic `CredentialProvider`. An inert WebServer registration fixture captures its real `/api` handler; Node readable/response fixtures exercise its admission, bridge and exact callback without a listener, browser, operational credential provider or private BrowserAuth import.
+
+The isolated [runner](../../scripts/test-management-admission.mjs) supplies a disposable HOME/DSH_HOME/cwd and sanitized environment, blocks network/listener/child-process operations in the probe and checks its generated temporary root before cleanup. Run explicitly from the repository root:
+
+```sh
+DSH_PROBE_NODE='/Applications/DeepSeek Harness.app/Contents/MacOS/DeepSeek Harness' DSH_PROBE_RUNTIME='/Applications/DeepSeek Harness.app/Contents/Resources/app.asar/dsh' node scripts/test-management-admission.mjs
+```
+
+Observed independently by the implementing and parent agents on 2026-10-23: **PASS**, installed runtime **0.2.1-rc.2**, Electron Node **24.21.0**, exit **0**, seven bounded assertion groups:
+
+- Native launch-token exchange returns 303 and a signed synthetic cookie; that cookie reaches the actual exact Fetch callback with only one `Request` argument.
+- Missing, tampered-signature, tampered-payload, malformed, unrelated and wrong-authority cookies reject before delivery; query/bearer tokens and forged client Owner/source labels grant no admission.
+- Host/Origin/cross-site fences reject misuse. A synthetic clock proves future-issued and exact-expiry rejection and admission one millisecond before expiry.
+- Direct and explicitly proxy-shaped inner fixtures share the Owner Peer; a native `/remote` prefix is not an exact route. This is **not execution of the paired remote service** and supplies no original-provenance attestation.
+- Non-Owner requests, method mismatch, route disposal and native plugin disposal prevent further delivery; plugin disposal aborts its Peer and unregisters carrier routes.
+
+Sensitivity checks append `--red-auth` or `--red-dispatch`. Both deliberately invert one assertion and exit **1**, respectively at `missing-authentication-rejection` and `signed-cookie-exact-dispatch`; they do not mutate native code. Syntax checks and full `npm test` pass: **45 tests**, classifier **166/166**. Opt-in exact-host proof remains separate from portable default tests; absence of its required runtime fails rather than becoming a passing skip.
+
+**Limits remain explicit:** native authentication algorithm with synthetic memory signing state is not real Owner login, browser/socket/TLS admission or paired-remote acceptance. This does not prove actual Settings rendering, authenticated Manager session/project resolution, native Skills watcher propagation or official MCP lifecycle. It does not issue/persist an Approval or execute a hook. T02A and T02E remain open; no operational account/store/API access, installation, host patch, live capability or scope waiver is claimed.
+
 ## Disposition and recommendation
 
 **Supported by installed source, with a limited synthetic dispatch check:** public exact Fetch registration and native Owner-only dispatch, pre-authentication request fencing, cancellation/body bridge, fiber cleanup and isolated Skills registry invalidation/scoping behavior. These are candidate seams, not a complete live Management proof.

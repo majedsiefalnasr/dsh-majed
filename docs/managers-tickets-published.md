@@ -80,7 +80,7 @@ The original publication totals above are historical; the following table is the
 
 Status update, 2026-10-22: T01 / #3 is closed at its [local automated baseline boundary](<BASELINE.md#L43-L49>).
 The preceding publication ledger remains a record of publication, not a claim that every issue is still open.
-T02A / #4 has [preparatory admission evidence](<research/management-approval-provenance.md>) but is not complete.
+T02A / #4 has [partial native signed-cookie admission evidence](<research/management-approval-provenance.md#native-signed-cookie-admission-characterization--2026-10-23>), in addition to the older preparatory dispatch/registry probe, but is not complete. The actual native authentication algorithm passes isolated memory-credential/HTTP-stream fixtures; Settings, authenticated Manager scope, Skills watcher, official MCP lifecycle and real local/paired-remote acceptance remain unproved.
 Under ADR 0008, trusted original local/remote Approval provenance now belongs to T02E / #47;
 it remains unsupported at the inspected exact Fetch seam and pauses command Approval/execution only.
 T03 still waits for completed T02A management proof. T02B–T02D and T04 retain their own gates.

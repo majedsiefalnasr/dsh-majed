@@ -40,6 +40,10 @@ All notable changes to `dsh-majed` are documented here. The format follows
   delivery before permission/registration completes. Package lifecycle builds remain executable from the tarball.
 
 ### Known issues / unverified
+- T02A has an opt-in native signed-cookie admission characterization using actual native plugin apply,
+  memory-only credentials and in-memory HTTP streams. Signature, authority, expiry, exact dispatch and
+  disposal checks pass; this is not browser/paired-remote, Settings, scope, Skills watcher or MCP proof.
+  Management and trusted Command hook provenance gates remain open; no runtime is activated.
 - T02D has an opt-in exact-host synthetic local child characterization: explicit spawn route,
   inherited-option helpers, depth/preset rejection, native capacity and lifecycle settlement.
   Native tool policy/preflight, successful preset composition, real permission enforcement and
