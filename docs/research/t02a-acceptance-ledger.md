@@ -4,6 +4,16 @@ Parent: [T02A / #4](https://github.com/majedsiefalnasr/dsh-majed/issues/4), part
 
 This is execution tracking against existing acceptance, not a new specification or a dependency waiver. The ticket is OPEN. A partial proof does not close the combined acceptance criterion.
 
+**Gate scope:** T02A is the temporary exact-host, actual-client/public-service feasibility composition in
+[the approved ticket](../managers-tickets-draft.md#t02a--prove-authenticated-management-admission)
+and [ADR 0008](../adr/0008-separate-management-admission-from-command-approval-provenance.md).
+It does not require production Manager CRUD, completed T03 product status/visual controls, operational
+login/state, Cutover or final T29 live acceptance before T03 can start. Requiring those would create a
+circular dependency. The table's outstanding column records both missing feasibility evidence and later
+non-claims; it does not promote later work into prerequisite scope. The retained actual local/paired-remote
+carrier and client joins must still be proved under controlled fixtures or reported unsupported; memory
+adapters alone do not establish an unexercised supported carrier. No gate is waived by this clarification.
+
 | Existing requirement | Evidence and status | Outstanding acceptance |
 | --- | --- | --- |
 | Native Owner-authenticated Fetch | `3b192eb`: actual native plugin apply and BrowserAuth algorithm with synthetic memory credentials, in-memory HTTP streams and rejection/lifecycle controls. | Actual local/paired-remote supported carrier admission and resulting Manager operations; no operational login implied. |
@@ -27,19 +37,26 @@ all six on installed DSH 0.2.1-rc.2 / Electron Node 24.21.0; portable regression
 classifier 166/166. The constituent reports above retain their limitations. This command does not add
 production operations, mount the live service, waive the Settings obligation or close T02A.
 
-## Next client composition boundary
+## Native client composition increment and next boundary
 
-The mounted fixture currently provides a synthetic connection/remote-description boundary; it does not
-send a real authenticated client request. Bounded source inspection found public
-`installConnection(ctx, options = {})` in installed `dsh-client-connection/lib/client.browser.js`,
-whose `options.transport.fetch` feeds the actual RPC implementation. Its
-`rpc.call(channel, endpoint, payload, signal)` sends relative `api/<endpoint>` and a
-`client-request` envelope, then requires a correlated `server-response` envelope. Exact source:
-`createWebConnectionRpc` at lines 1209–1231, installation at 1382–1387, public handle at 1443.
-This is not a generic Fetch helper: ordinary Manager JSON cannot be passed off as that protocol.
-A subsequent fixture can connect a mounted click through that real client parser to an admitted
-inert endpoint with explicit envelope handling and a memory physical carrier. It must still disclose
-that adapter and cannot claim live supported-carrier or T03 product acceptance. T03 remains blocked.
+`fc96830`: [mounted native Connection proof](management-mounted-transport-proof.md) now connects
+actual Settings/ReactDOM clicks through unchanged public `installConnection(ctx, options)` and its
+native RPC serializer/correlation parser to actual BrowserAuth/exactFetch admission. Only the physical
+`options.transport.fetch` is a memory carrier; no `transport.rpc` replacement is supplied. The fixture
+endpoint explicitly validates and returns RPC envelopes, rather than pretending ordinary Manager JSON
+is the native protocol. It is not the native host genericFetch dispatcher.
+
+Parent reproduced the positive five groups on installed 0.2.1-rc.2 / Electron Node 24.21.0: two inert
+operations, four requests, statuses `[200, 401, 401, 200]`. Missing/tampered cookies render failure and
+perform no extra operation. Both unchanged DOM expectations reject result corruption (`Count: 99`)
+and wrong response correlation (`Operation failed`). The final runner also requires completed JSON,
+counts, statuses and native client fingerprint after UI and host disposal.
+
+The remaining feasibility join is a controlled temporary composition through the actual supported
+local/paired-remote physical carrier, authenticated scope and applicable Skills/MCP effects. The
+memory fixture does not prove that carrier or waive T02A. Production CRUD, T03 product visuals and
+final live rollout remain later acceptance, not circular prerequisites. T03 remains blocked pending
+the retained feasibility evidence or an explicit Owner decision on a concrete unsupported seam.
 
 ## Integration rules
 
