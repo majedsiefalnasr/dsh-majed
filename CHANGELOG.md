@@ -37,6 +37,10 @@ All notable changes to `dsh-majed` are documented here. The format follows
   delivery before permission/registration completes. Package lifecycle builds remain executable from the tarball.
 
 ### Known issues / unverified
+- T02D has an opt-in exact-host synthetic local child characterization: explicit spawn route,
+  inherited-option helpers, depth/preset rejection, native capacity and lifecycle settlement.
+  Native tool policy/preflight, successful preset composition, real permission enforcement and
+  external backends remain unproved; the issue stays open and child Auto routing is not enabled.
 - T02C has an opt-in exact-host synthetic retry/budget characterization and public cancellation proof.
   Cooperative fixture sends share a ledger across retry and preparation; partial outputs stop without
   automatic replay. Actual provider refresh/endpoint/compaction accounting remains unproved, so the

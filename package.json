@@ -70,7 +70,8 @@
     "prepare": "npm run build",
     "test": "npm run build && node scripts/test-baseline.mjs",
     "test:host-auto": "node scripts/test-auto-seams.mjs",
-    "test:host-retry": "node scripts/test-retry-seams.mjs"
+    "test:host-retry": "node scripts/test-retry-seams.mjs",
+    "test:host-child": "node scripts/test-child-seams.mjs"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.5"

@@ -87,6 +87,10 @@ T02C / #6 has [partial retry-budget evidence](<research/retry-budget-seams.md>):
 synthetic ledger survives native retry/re-preparation, and public cancellation prevents replay after
 partial output. Actual provider-internal sends, refresh cancellation and real recovery accounting
 remain unproved. The issue stays open and failover activation is paused; this does not waive its gate.
+T02D / #7 has [partial local child evidence](<research/child-routing-seams.md>): actual native
+spawn/fork services with a synthetic adapter preserve admission, depth, capacity and settlement.
+Direct caller route inputs do not prove model-facing tool policy/preflight, preset composition,
+real permission enforcement or universal interception. It stays open; no dependent gate is waived.
 The T02B [upstream capability request](<research/auto-upstream-request-draft.md>) is prepared but
 **unpublished**; Owner authorization is required before posting.
 T04 / #9 now has an inactive [pinned reference baseline](<reference-artifacts.json>),
