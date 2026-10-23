@@ -40,6 +40,9 @@ All notable changes to `dsh-majed` are documented here. The format follows
   delivery before permission/registration completes. Package lifecycle builds remain executable from the tarball.
 
 ### Known issues / unverified
+- Bounded paired-remote carrier evidence composes the actual remote pairing gate/rewrite/proxy with native
+  Owner admission through explicit in-memory HTTP. Reviewed header synthesis was removed; pairing and header-loss
+  controls fail as intended. This is not mounted/live remote acceptance or production Manager activation.
 - T02A now composes native signed Owner admission with read-only session/project scope resolution over
   disposable services and directories. A reviewed live-session publication race is fixed and tested during
   filesystem awaits. The resolver remains unshipped/unregistered; real writes, browser and remote acceptance remain pending.
