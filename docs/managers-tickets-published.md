@@ -83,6 +83,12 @@ no dependent gate is waived. A [pre-provider investigation](research/auto-pre-pr
 real-service ordering characterization rule out prepended assembly and awaited inbox notifications as
 solutions on this host. The explicit required-order probe fails; the unsupported seam needs Owner review
 before any scope change, and no operational or host-patching permission is implied.
+T02C / #6 has [partial retry-budget evidence](<research/retry-budget-seams.md>): a cooperative
+synthetic ledger survives native retry/re-preparation, and public cancellation prevents replay after
+partial output. Actual provider-internal sends, refresh cancellation and real recovery accounting
+remain unproved. The issue stays open and failover activation is paused; this does not waive its gate.
+The T02B [upstream capability request](<research/auto-upstream-request-draft.md>) is prepared but
+**unpublished**; Owner authorization is required before posting.
 T04 / #9 now has an inactive [pinned reference baseline](<reference-artifacts.json>),
 [source/license review](<research/reference-source-provenance.md>),
 [granular Parity ledger](<PARITY.md>) and [validation record](<research/reference-baseline-validation.md>).

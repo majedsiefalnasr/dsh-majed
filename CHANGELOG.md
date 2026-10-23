@@ -37,6 +37,11 @@ All notable changes to `dsh-majed` are documented here. The format follows
   delivery before permission/registration completes. Package lifecycle builds remain executable from the tarball.
 
 ### Known issues / unverified
+- T02C has an opt-in exact-host synthetic retry/budget characterization and public cancellation proof.
+  Cooperative fixture sends share a ledger across retry and preparation; partial outputs stop without
+  automatic replay. Actual provider refresh/endpoint/compaction accounting remains unproved, so the
+  gate stays open and failover is not activated. The T02B upstream capability request is a local,
+  unpublished draft only.
 - T02B now has opt-in exact-host synthetic Auto seam probes (native picker bundle, LLM/Agent loop and
   browser catalog builder), not an enabled Auto feature. Scoped middleware now demonstrates concrete
   interpolated identity/header/assistant attribution, including concurrent manual intent, but evaluated
