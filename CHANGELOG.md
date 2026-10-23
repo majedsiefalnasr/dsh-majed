@@ -8,6 +8,9 @@ All notable changes to `dsh-majed` are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Isolated native Settings mount proof using unchanged installed client bundles, public SlotCore,
+  real ReactDOM/stores/Cordis and jsdom, with selection/withdrawal controls. Presentation primitives
+  remain adapters; this is not browser/visual, production Manager or live acceptance.
 - Explicit opt-in serial management proof suite with upfront runtime pointers, bounded execution/output,
   fail-fast per-runner summaries and portable orchestration tests. This consolidates existing isolated
   evidence; it does not enable Managers or satisfy full T02A/live acceptance.
