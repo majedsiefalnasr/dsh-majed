@@ -40,6 +40,9 @@ All notable changes to `dsh-majed` are documented here. The format follows
   delivery before permission/registration completes. Package lifecycle builds remain executable from the tarball.
 
 ### Known issues / unverified
+- T02A now also has an isolated real filesystem Skills watcher/registry characterization: external edits,
+  renames and deletion refresh warm catalogs with native invocation policies and user-root fallback.
+  Disposable synthetic roots are not installed Skills, Manager CRUD or local/remote live acceptance.
 - T02A has an opt-in native signed-cookie admission characterization using actual native plugin apply,
   memory-only credentials and in-memory HTTP streams. Signature, authority, expiry, exact dispatch and
   disposal checks pass; this is not browser/paired-remote, Settings, scope, Skills watcher or MCP proof.
