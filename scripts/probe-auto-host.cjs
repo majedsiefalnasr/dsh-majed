@@ -85,9 +85,9 @@ class SyntheticAuto extends LlmAdapter {
   }
   async *serve(options, snapshot) {
     this.dispatches.push({ options, generation: snapshot.id, member: snapshot.members[0].id });
-    yield { type: 'block-start', index: 0, block: { type: 'text', text: '' } };
+    yield { type: 'block-start', index: 0, blockType: 'text' };
     yield { type: 'text-delta', index: 0, text: `synthetic generation ${snapshot.id}` };
-    yield { type: 'block-end', index: 0 };
+    yield { type: 'block-end', index: 0, block: { type: 'text', text: `synthetic generation ${snapshot.id}` } };
     yield { type: 'finish', reason: { kind: 'stop' } };
   }
   stream(options) { return this.serve(options, this.current); }
@@ -98,9 +98,9 @@ class SyntheticManual extends LlmAdapter {
   async resolveModel(provider, model) { return minimalInfo(provider, model); }
   async *stream(options) {
     this.dispatches.push(options);
-    yield { type: 'block-start', index: 0, block: { type: 'text', text: '' } };
+    yield { type: 'block-start', index: 0, blockType: 'text' };
     yield { type: 'text-delta', index: 0, text: 'synthetic manual' };
-    yield { type: 'block-end', index: 0 };
+    yield { type: 'block-end', index: 0, block: { type: 'text', text: 'synthetic manual' } };
     yield { type: 'finish', reason: { kind: 'stop' } };
   }
 }
@@ -298,6 +298,7 @@ async function main() {
       assert(Object.isFrozen(request.messages));
       assert.equal(handle.agent.session.requestContext().contextWindow, 4096);
       assert.equal(handle.agent.session.requestHeader().config.model, 'auto');
+      assert.equal(handle.agent.session.deriveMessages().filter(message => message.role === 'assistant').at(-1).source.model, 'auto');
       const autoAfter = adapter.dispatches.length;
       handle.agent.followup({ content: [{ type: 'text', text: 'manual next step' }], source: { kind: 'user' } });
       await handle.agent.whenIdle();
@@ -310,6 +311,108 @@ async function main() {
       assert(manualRequest.messages.some(message => message.source?.kind === 'model-selection' && message.content.some(block => block.text.includes('[model changed:'))));
       assert.equal(handle.agent.session.requestHeader().config.model, 'manual');
     });
+    await check('preparation-only redirect cannot repair an already rendered alias prompt', async () => {
+      const selection = { current: { ...controls, reasoningEffort: 'low' } };
+      const handle = await ctx.agents.create({
+        sessionId: 't02b-late-redirect', agentOptions: controls,
+        setup(agentCtx) {
+          installModelSelection(agentCtx, selection);
+          agentCtx.systemPrompt.section({ name: 't02b:late-route', order: 900, text: 'Selected {{provider}}/{{model}}' });
+          agentCtx.on('agent/request', async (_payload, next) => {
+            const { reasoningEffort, ...config } = await next();
+            return { ...config, provider: 't02b-manual', model: 'manual' };
+          }, { prepend: true });
+        },
+      });
+      handles.push(handle);
+      handle.agent.followup({ content: [{ type: 'text', text: 'late redirect characterization' }], source: { kind: 'user' } });
+      await handle.agent.whenIdle();
+      const sent = manual.dispatches.at(-1);
+      assert.equal(sent.provider, 't02b-manual');
+      assert(sent.messages.some(message => message.role === 'system' && message.content.some(block => block.text === 'Selected t02b-auto/auto')));
+      assert.equal(handle.agent.session.requestHeader().config.model, 'manual');
+    });
+    await check('scoped assembly and request wrappers bind a concrete route while preserving Auto selection', async () => {
+      class Concrete extends SyntheticManual {
+        async resolveModel(provider, model) {
+          return { provider, id: model, name: 'Synthetic concrete target',
+            context: { contextWindow: 6144 }, inputModalities: ['text', 'image'],
+            reasoning: { efforts: [{ id: 'low', name: 'low' }], defaultEffort: 'low' } };
+        }
+      }
+      const concrete = new Concrete();
+      ctx.llm.registerAdapter(['t02b-concrete'], concrete);
+      const selection = { current: { ...controls, reasoningEffort: 'low' } };
+      let policy = { id: 'C1', route: { provider: 't02b-concrete', model: 'alpha', reasoningEffort: 'low' } };
+      const reached = deferred();
+      const release = deferred();
+      let blockOnce = true;
+      let captured;
+      let assemblyCount = 0;
+      const handle = await ctx.agents.create({
+        sessionId: 't02b-concrete-wrappers', agentOptions: controls,
+        setup(agentCtx) {
+          installModelSelection(agentCtx, selection);
+          agentCtx.systemPrompt.section({ name: 't02b:concrete-route', order: 900, text: 'Selected {{provider}}/{{model}}' });
+          agentCtx.systemPrompt.section({ name: 't02b:evaluated-early', order: 901,
+            text: () => `Provider read before waterfall: ${selection.current.model}` });
+          // These are cooperative public scoped waterfalls, not a host patch.
+          // Capture Owner intent and the fixture policy before asynchronous work.
+          agentCtx.on('system-prompt/assemble', async (_assembly, _context, next) => {
+            assemblyCount++;
+            const intent = selection.current;
+            const snapshot = policy;
+            const route = intent.provider === controls.provider && intent.model === controls.model ? snapshot.route : intent;
+            captured = { generation: snapshot.id, route: { ...route } };
+            const assembled = await next();
+            if (blockOnce) { blockOnce = false; reached.resolve(); await release.promise; }
+            return { ...assembled, variables: { ...assembled.variables, provider: route.provider, model: route.model } };
+          }, { prepend: true });
+          agentCtx.on('agent/request', async (_payload, next) => {
+            const { reasoningEffort, ...config } = await next();
+            if (process.argv.includes('--red-concrete-route')) return { ...config, ...(reasoningEffort === undefined ? {} : { reasoningEffort }) };
+            return { ...config, ...captured.route };
+          }, { prepend: true });
+        },
+      });
+      handles.push(handle);
+      const autoDispatches = adapter.dispatches.length;
+      handle.agent.followup({ content: [{ type: 'text', text: 'concrete route with Auto intent' }], source: { kind: 'user' } });
+      await reached.promise;
+      assert.equal(selection.current.model, 'auto', 'routing must not overwrite Owner intent');
+      policy = { id: 'C2', route: { provider: 't02b-concrete', model: 'beta', reasoningEffort: 'low' } };
+      selection.current = { provider: 't02b-manual', model: 'manual' };
+      release.resolve();
+      await handle.agent.whenIdle();
+      assert.equal(concrete.dispatches.length, 1, 'native request must dispatch the concrete target');
+      const sent = concrete.dispatches[0];
+      assert.equal(sent.provider, 't02b-concrete');
+      assert.equal(sent.model, 'alpha');
+      assert.equal(sent.reasoningEffort, 'low');
+      const systemText = sent.messages.filter(message => message.role === 'system').flatMap(message => message.content).map(block => block.text).join('\n');
+      assert(systemText.includes('Selected t02b-concrete/alpha'));
+      assert(systemText.includes('Provider read before waterfall: auto'), 'post-assembly variables cannot rerun already evaluated providers');
+      assert.equal(handle.agent.session.requestHeader().config.model, 'alpha');
+      assert.equal(handle.agent.session.requestContext().contextWindow, 6144);
+      const answer = handle.agent.session.deriveMessages().filter(message => message.role === 'assistant').at(-1);
+      assert(answer, JSON.stringify(handle.agent.session.snapshotEvents().filter(event => ['assistant/attempt', 'turn/end', 'step/end'].includes(event.type))));
+      assert.equal(answer.source.provider, 't02b-concrete');
+      assert.equal(answer.source.model, 'alpha');
+      assert.equal(captured.generation, 'C1');
+      assert.equal(selection.current.model, 'manual', 'new Owner intent must survive old prepared work');
+      assert.equal(adapter.dispatches.length, autoDispatches, 'no recursive alias dispatch');
+      // A concurrent/new manual intent must bypass Auto on the next step.
+      selection.current = { provider: 't02b-manual', model: 'manual' };
+      handle.agent.followup({ content: [{ type: 'text', text: 'manual after concrete Auto' }], source: { kind: 'user' } });
+      await handle.agent.whenIdle();
+      assert.equal(concrete.dispatches.length, 1);
+      const sentManual = manual.dispatches.at(-1);
+      assert.equal(sentManual.reasoningEffort, undefined);
+      assert(sentManual.messages.some(message => message.role === 'system' && message.content.some(block => block.text.includes('Selected t02b-manual/manual'))));
+      assert.equal(handle.agent.session.requestHeader().config.model, 'manual');
+      assert.equal(handle.agent.session.requestContext().contextWindow, undefined);
+      assert.equal(assemblyCount, 2);
+    });
     await check('fixture attempted zero network calls and mounted no persistence', async () => {
       assert.equal(forbiddenNetworkCalls, 0);
       assert.equal(ctx.get('sessionPersistence'), undefined);
@@ -319,7 +422,8 @@ async function main() {
     console.log(JSON.stringify({ kind: 't02b-host-proof', runtime, version, redControl, passed: results.length, forbiddenNetworkCalls, results, limitations: [
       'Fixture policy intersections are not host policy APIs; absence is unknown and host does not prove compatibility.',
       'No provider wire, actual image bytes, attachment normalization, account state, persistence, HTTP/remote authority, retry or real client picker exercised.',
-      'Public alias identity remains Auto in prompt/header/assistant source; concrete served-by provenance needs a separate supported plugin record and Owner scope decision if concrete prompt identity is required.',
+      'Alias-only adapter preparation retains Auto identity. Scoped assembly/request middleware proves concrete identity with a fixture selection holder, not the real Session-controller selection store or mounted picker.',
+      'Assembly registry providers run before the waterfall; post-assembly variables do not rerun route-sensitive section/tool providers. Full real-contributor coherence, retries/revocation, resume and middleware coexistence remain unproved.',
       'No generic tools-supported capability field exists in the exercised metadata; toolUpdate is a declaration-update protocol, not proof of tool execution support.',
       'Unknown modalities and empty modality intersections are not rejected by host preparation; future Auto eligibility policy must fail closed rather than claim compatibility.',
       'installModelSelection captures a selected object reference, so fixture replaces selection.current rather than mutating the selected value.',

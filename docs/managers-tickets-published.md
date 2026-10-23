@@ -76,8 +76,10 @@ trusted original local/remote Approval provenance is unsupported at the inspecte
 dependent Approval path remains paused. T02B–T02D and T04 retain their own independent acceptance gates.
 No installation, live verification or release is implied by T01 closure.
 T02B / #5 has [partial native Auto seam evidence](<research/auto-native-seams.md>): synthetic exact-host
-LLM/Agent/catalog checks and the unmodified native picker bundle pass, but alias-vs-concrete prompt
-identity and mounted client/RPC acceptance are unresolved. It stays open; no dependent gate is waived.
+LLM/Agent/catalog checks and the unmodified native picker bundle pass. Scoped middleware also proves
+concrete interpolation/header/assistant attribution, but already evaluated prompt providers can retain
+Auto; full contributor coherence and mounted client/RPC acceptance remain unresolved. It stays open;
+no dependent gate is waived.
 T04 / #9 now has an inactive [pinned reference baseline](<reference-artifacts.json>),
 [source/license review](<research/reference-source-provenance.md>),
 [granular Parity ledger](<PARITY.md>) and [validation record](<research/reference-baseline-validation.md>).

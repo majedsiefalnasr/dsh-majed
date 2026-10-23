@@ -38,8 +38,9 @@ All notable changes to `dsh-majed` are documented here. The format follows
 
 ### Known issues / unverified
 - T02B now has opt-in exact-host synthetic Auto seam probes (native picker bundle, LLM/Agent loop and
-  browser catalog builder), not an enabled Auto feature. Concrete served-model prompt/header identity
-  and mounted client/RPC acceptance remain unresolved; the feasibility gate stays open.
+  browser catalog builder), not an enabled Auto feature. Scoped middleware now demonstrates concrete
+  interpolated identity/header/assistant attribution, including concurrent manual intent, but evaluated
+  prompt-provider coherence and mounted client/RPC acceptance remain unresolved; the gate stays open.
 - The prefactored candidate and disposal fixes have automated fixture/Cordis coverage only. They have not
   been installed or verified after a desktop restart or through the remote GUI; no release is published.
 

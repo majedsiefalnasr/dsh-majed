@@ -2,7 +2,7 @@
 
 Issue: [T02B / #5](https://github.com/majedsiefalnasr/dsh-majed/issues/5).
 Inspected/tested host: DSH `0.2.1-rc.2`, installed Electron Node `24.21.0`.
-Date: 2026-10-22. **Partial feasibility evidence; T02B remains open. No Auto runtime is enabled.**
+Date: 2026-10-22; scoped concrete-routing follow-up: 2026-10-23. **Partial feasibility evidence; T02B remains open. No Auto runtime is enabled.**
 
 ## Approved boundaries and reproduction
 
@@ -31,7 +31,7 @@ baseline-only; these research scripts are not shipped or activated.
 - The client environment supplies explicit store, React, slots and remote-service boundary fixtures.
   The component function is evaluated, not mounted by a real React reconciler or browser. This is
   more than a bundle-import assertion but not browser, RPC or visual acceptance.
-- `scripts/probe-auto-host.cjs`: eleven checks passed with actual Cordis/LLM/Agent/Session/SystemPrompt/
+- `scripts/probe-auto-host.cjs`: thirteen checks passed with actual Cordis/LLM/Agent/Session/SystemPrompt/
   ToolRuntime/AgentLoop services and synthetic adapters. Exact metadata uses fixture-owned
   conservative intersections; unsupported explicit effort rejects before dispatch. A prepared stream
   retains its captured generation and old adapter after policy and registration replacement, is
@@ -47,14 +47,21 @@ baseline-only; these research scripts are not shipped or activated.
 
 ## Findings that prevent a completion claim
 
-1. **Alias identity is preserved, not rewritten to the concrete serving member.** Native
-   `LlmRuntime.prepareCall` binds a requested provider/model pair; its configure callback may select
-   controls but cannot redirect that pair. A custom adapter can capture a concrete candidate inside
-   its stream closure, but the native prompt/header/source still describes Auto. The fixture proves
-   alias coherence, not concrete model-specific prompt identity or durable served-by presentation.
-   A supported Majed-owned serving record and concrete-target prompt metadata still need proof.
-   Do not silently reinterpret the approved requirement: if only alias prompt identity is possible,
-   request an Owner decision or supported upstream extension before narrowing behavior.
+1. **Concrete interpolation and dispatch are feasible, but full prompt-provider coherence is not proven.**
+   Native `LlmRuntime.prepareCall` cannot redirect provider/model, and a request-only redirect leaves
+   the already rendered prompt naming Auto. A second fixture wraps the public scoped
+   `system-prompt/assemble` and `agent/request` waterfalls: it captures a candidate before awaiting,
+   replaces returned interpolation variables, and routes the matching request to that concrete model.
+   Its rendered identity, effort, context, request header and settled assistant source agree on
+   `t02b-concrete/alpha`. Concurrent policy replacement and manual selection leave that accepted step
+   unchanged; manual intent survives and bypasses Auto on the next step. This uses a fixture selection
+   holder, not the real Session-controller selection store, and is not a production routing module.
+   Crucially, registered section/tool/variable providers run **before** the assembly waterfall. The
+   fixture explicitly demonstrates that an already evaluated section still reads Auto even when later
+   interpolation says alpha. This is not a solution for arbitrary model-sensitive contributors.
+   Supported pre-provider selection, coexistence with native selection ownership, retries/resume and
+   request-aware eligibility still require proof. Do not narrow the approved coherence requirement
+   or patch/re-render host internals to conceal this gap; bring an unsupported seam to the Owner.
 2. **Unknown is not compatible.** Native preparation passes images through when modalities are
    absent; known text-only models project them to text. That host behavior must not be mistaken for
    Auto eligibility. Future routing must reject an incompatible/unknown candidate before dispatch,
@@ -94,18 +101,33 @@ are absent; signatures here are verified from executable JS, not invented declar
   `installModelSelection(agentCtx, selection)` snapshots selection before downstream assembly and
   applies it to the request, including clearing inherited effort. It captures an object reference;
   this proof replaces `selection.current` values instead of mutating an already captured object.
+- `node_modules/@deepseek-ai/dsh-system-prompt/lib/index.js:356-405`: registered variables,
+  sections and tool providers resolve before the authoritative scoped assembly waterfall.
+- `node_modules/@deepseek-ai/dsh-agent-loop/lib/index.js:902-927,1043-1088,1174-1210`: assembly
+  precedes pre-step; prompt rendering precedes request preparation; concrete preparation then supplies
+  request metadata and dispatch. A late request-only redirect does not reassemble prompt text.
+- `node_modules/@deepseek-ai/dsh-llm/lib/index.js:964-1003`: synthetic chunks must use `blockType`
+  at block start and a complete `block` at block end for successful assistant settlement.
 - `node_modules/@deepseek-ai/dsh-llm/lib/index.js:2182-2260`: call-control validation,
   `async prepareCall(config, signal, configure)`, immutable metadata, route identity preservation,
   one-shot registration-bound dispatch and config validation.
 
 ## Verification status
 
-Exact-host suite: client 5/5 and host 11/11 checks passed. Negative controls: missing runner configuration
+Exact-host suite: client 5/5 and host 13/13 checks passed. Negative controls: missing runner configuration
 fails explicitly; host `--red-control` disables fixture generation capture and fails its expected-generation
-assertion. These show the checks are sensitive to a broken fixture, not production TDD completion.
+assertion. The runner now forwards only named negative-control flags. `npm run test:host-auto --
+--red-concrete-route` (with the same environment) bypasses concrete request routing and fails with
+`native request must dispatch the concrete target` (`0 !== 1`). These show assertion sensitivity, not
+production TDD completion. The follow-up also corrected malformed synthetic stream chunks to the real
+`blockType`/terminal `block` contract and now checks successful assistant settlement, not dispatch alone.
 Portable `npm test` passed 45/45 baseline tests plus 166/166 classifier cases; `git diff --check`
 and probe syntax checks passed. Independent fixed-diff Standards review found no findings. Spec review
-confirmed the three acknowledged partial areas above and no false-completion or scope-creep finding.
-The evidence commit and issue update record the review boundary; this is not an acceptance waiver.
+confirmed the three acknowledged partial areas in the earlier 11-check evidence and no false-completion
+or scope-creep finding. Separate Standards and Spec reviews of the five-file 13-check follow-up against
+`e28f0c7efa665f7a8f25af863c53f693f4b1d258` found no new actionable findings within this explicitly partial
+slice; contributor coherence/native selection ownership, request-aware eligibility and end-to-end mounted
+picker integration remain open. Reviewers inspected the diff without rerunning tests or accessing
+operational state. The evidence commit/issue record the boundary, not an acceptance waiver.
 There is no project TypeScript typecheck script; syntax/runtime execution and existing regressions are
 used instead. No production implementation or claim of live Auto functionality accompanies this report.
