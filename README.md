@@ -84,6 +84,17 @@ npm test                        # build + baseline regressions + all test/accept
 
 Layout: `index.js` (public host entry), `lib/baseline/host.js` (accepted host behavior), `client.js` (browser source), `dist/client.js` (generated public client), `lib/` (classifier, native read_page), `fonts/`, `test/accepted/` (automatically discovered approved suites). See [docs/BASELINE.md](docs/BASELINE.md) for the explicit prototype disposition and test-evidence limits. Historical untracked modules are not activated or packaged. Host JavaScript changes need a full DSH desktop restart; client-only changes need a page reload. See [AGENTS.md](AGENTS.md) for contributor and agent conventions.
 
+### Opt-in native management proofs
+
+`node scripts/test-management-suite.mjs` serially runs the admission, Skills, Settings, official MCP,
+scope-composition and remote-carrier probes. Set all three explicit pointers first: `DSH_PROBE_NODE`
+(the ASAR-aware Electron executable), `DSH_PROBE_RUNTIME` (the installed DSH runtime root) and
+`DSH_PROBE_REMOTE` (the remote plugin's `lib/types/remote-api.js` entry). Missing pointers or unknown
+arguments fail before any probe starts. Each child is bounded and any failure stops subsequent probes.
+The suite reports partial isolated evidence only, not full T02A acceptance, live Manager functionality
+or permission to access operational state. Individual reports and remaining obligations are tracked in
+[the T02A acceptance ledger](docs/research/t02a-acceptance-ledger.md).
+
 ## Releasing
 
 See [docs/RELEASING.md](docs/RELEASING.md). Every release updates `package.json` version, `CHANGELOG.md` and, when third-party code changes, `THIRD_PARTY_NOTICES.md`.

@@ -15,6 +15,17 @@ This is execution tracking against existing acceptance, not a new specification 
 | Exact host and negative evidence | Existing admission and Skills probes target installed 0.2.1-rc.2 via ASAR-aware Electron Node 24.21.0; opt-in missing runtime fails, never skips. | Collect remaining implementer outputs; review against the fixed integration baseline, rerun after merge, preserve regression suite. |
 | Command Approval remains separate | ADR 0008; T02E / #47 remains unsupported at the inspected provenance seam. | Never issue Approval challenges, persist Approval or enable command run/test/event paths by passing ordinary management tests. |
 
+## Repeatable bounded suite
+
+`node scripts/test-management-suite.mjs` requires explicit `DSH_PROBE_NODE`, `DSH_PROBE_RUNTIME`
+and `DSH_PROBE_REMOTE` pointers and runs the existing six admission/Skills/Settings/MCP/composition/remote
+runners serially. Missing pointers, unknown flags and child failure are failures, never skips. The
+orchestrator bounds child time/output and marks unstarted runners `NOT RUN`; six portable tests cover
+its outcomes, including exact per-runner failure labels and launched prefixes. Integrated rerun passed
+all six on installed DSH 0.2.1-rc.2 / Electron Node 24.21.0; portable regression passed 51/51 plus
+classifier 166/166. The constituent reports above retain their limitations. This command does not add
+production operations, mount the live service, waive the Settings obligation or close T02A.
+
 ## Integration rules
 
 - Implementers use separate branches/worktrees and commit owned files before reporting. Shared specification, dependency map and CHANGELOG are integration-owned.

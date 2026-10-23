@@ -8,6 +8,9 @@ All notable changes to `dsh-majed` are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Explicit opt-in serial management proof suite with upfront runtime pointers, bounded execution/output,
+  fail-fast per-runner summaries and portable orchestration tests. This consolidates existing isolated
+  evidence; it does not enable Managers or satisfy full T02A/live acceptance.
 - **Deterministic command classifier** (`lib/classify.cjs`, 166 test cases) decides **Auto (safe)** and
   **Auto (aggressive)** approvals with allow/ask/deny tiers, chain-aware (committed after 0.2.0).
 - **Native `read_page`**: authorized `read_page` calls are delegated to the registered `web_fetch` tool through
