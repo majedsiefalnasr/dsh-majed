@@ -12,4 +12,14 @@ Selecting MCP Manager showed the explicit readiness-only description, a disabled
 
 Source diagnosis: `client.js` declared `slots`, `locale`, `uiWorkspace` dependencies but its readiness component accessed `ctx.connection`. Native Cordis dependency enforcement throws on undeclared service access; optional chaining does not suppress the getter exception. The catch maps this to the observed generic alert before RPC dispatch. The native RPC signature itself matches the client call. A focused isolated-worktree fix and dependency-aware regression are in progress; source diagnosis is not yet a live-verified fix.
 
-Remaining: corrected client deployment/reload, remote request/status verification, authenticated local page, and the complete theme/locale/font/keyboard/viewport matrix in [the acceptance procedure](t03-browser-acceptance.md). T03 remains open. No feature runtime, account operation, command hook, reference removal or profile modification was performed.
+## Corrected client, remote functional check
+
+Focused fix author `396e08e` merged as `6a4d8ad48cbfb6fcc9d6306c18923d7c2c077ed5`. Independent bounded Standards/Spec review found no concrete issue. Real Cordis sibling-service regression reproduced zero initial RPC calls before the declaration fix and initial/Refresh dispatch afterward. Integrated portable tests passed 57/57 plus classifier 166/166; build and whitespace checks passed.
+
+Only installed `client.js` and `dist/client.js` were updated under approved deployment authority, with rollback copies at `deployment-backups/before-t03-client-6a4d8ad/`. Both deployed SHA-256 digests were `23d3576cc2be411f41eeaed5867436d8245dd86d2a60bf0e21559449cb97ba12`. A workspace-sandbox denial preceded the exact approved wider-access retry. No host file or configuration changed.
+
+After page reload, the actual paired-remote Settings MCP Manager showed an enabled interactive Switch and `Readiness checks are disabled.` instead of the prior error. Turning readiness on returned `Service ready for readiness checks only. Feature operations are not implemented here.` Refresh preserved that ready response. Turning readiness off returned the original disabled status. This verifies the corrected remote readiness interaction only; no MCP server or other operational feature was activated.
+
+A second local-authentication help request again resulted in an authenticated remote page, not a local-origin page. Local browser evidence therefore remains unavailable. Existing System appearance, English, App UI size 14 and chat size 18 were unchanged.
+
+Remaining: authenticated local page and complete theme/locale/font/keyboard/viewport matrix in [the acceptance procedure](t03-browser-acceptance.md). T03 remains open. No feature runtime, account operation, command hook, reference removal or profile modification was performed.
