@@ -4,7 +4,7 @@
 
 **Partial characterization only; T02D / #7 remains open.** This is an exact installed-host
 proof of caller-supplied local routes, not global interception or enabled Smart Auto.
-The approved [acceptance criteria](<../managers-tickets-draft.md#L106-L116>) are unchanged.
+The approved [acceptance criteria](<../managers-tickets-draft.md#L120-L130>) are unchanged.
 No private manager method is intercepted and DSH is not patched. No installed plugin,
 operational account, permission setting or model-facing tool exposure is changed.
 
