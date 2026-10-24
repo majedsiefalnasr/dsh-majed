@@ -23,12 +23,34 @@ matrix below is an acceptance plan, not evidence that every combination passes.
 
 ## Required matrix
 
-Exercise the actual native Settings dialog in both local desktop and paired remote
-contexts, with English and Arabic, light and dark appearance, and UI font sizes 14
-and 18. Include a narrow remote viewport in addition to normal desktop width.
-Record each combination explicitly; one screenshot does not cover the matrix.
+Owner-approved amendment on 2026-10-24: use risk-based representative coverage,
+not the previously written exhaustive Cartesian product. The Owner explicitly
+retained authenticated local verification and all security boundaries. Issue #8's
+required dimensions remain; only redundant multiplication of every dimension across
+every section is removed. No operational or reference-removal gate changes.
 
-For every combination:
+Exercise the actual native Settings dialog in both authenticated local desktop and
+paired remote contexts. Across the recorded cases cover all five sections, English
+and Arabic RTL, light and dark appearance, UI font sizes 14 and 18, and a narrow
+remote viewport. Record the exact dimensions and section(s) of each case; never
+attribute one screenshot to unobserved combinations. Prior valid evidence remains
+usable. Batch remaining cases in one session per context rather than repeatedly
+checking the same working sequence.
+
+Required representative batches:
+- Authenticated local: visit all five sections; exercise readiness, Refresh and
+  keyboard focus with initial states preserved; include close/reopen and opener
+  focus return. This batch cannot be substituted by remote or jsdom evidence.
+- Remote: preserve already recorded English/Arabic, light/dark and UI14/UI18 cases;
+  complete Arabic UI18 at narrow width across all five section presentations,
+  checking RTL, wrapping, control access and keyboard on a representative section.
+- Lifecycle: exercise semantic modal close and focus return plus close/reopen;
+  attempt section navigation during a pending check. If latency is too short to
+  observe pending behavior safely, record that limit rather than claim a pass.
+  Isolated lifecycle tests remain separate supporting evidence.
+
+For each executed case, apply the relevant checks below and disclose any unexecuted
+behavior. Not every behavior must be multiplied across every presentation case:
 
 1. Open Settings and select each of the five Majed readiness sections. Check that
    translated navigation labels and descriptions appear without raw locale keys.
