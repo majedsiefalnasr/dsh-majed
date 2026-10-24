@@ -110,8 +110,12 @@ additional child lifecycle. The suite passes 15 checks with zero network attempt
 parent-delivery tool admission is now established by a separate
 [public JSONL persistence increment](research/child-parent-delivery.md), including stored native
 descriptor and paired lifecycle cleanup. The historical no-persistence fixture remains unchanged.
-Preset composition, actual permission enforcement, cold resume and universal interception remain
-unproved. It stays open; no dependent gate is waived.
+The [registered advisory inventory increment](research/child-advisory-inventory.md) additionally
+proves filtered advertised inventory versus allowed exact unlisted resolution and subsequent admission,
+without inference during discovery. Parent reproduced green plus the inventory sensitivity failure;
+bounded independent review found no actionable defect. Positive preset composition and actual
+permission enforcement remain substantive ownership gaps. Cold resume and universal interception
+remain non-claims, not newly added standalone prerequisites. It stays open; no dependent gate is waived.
 The T02B [upstream capability request](<research/auto-upstream-request-draft.md>) is prepared but
 **unpublished**; Owner authorization is required before posting.
 T04 / #9 now has an inactive [pinned reference baseline](<reference-artifacts.json>),

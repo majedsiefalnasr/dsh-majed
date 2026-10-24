@@ -103,8 +103,15 @@ A separate [public-persistence increment](child-parent-delivery.md) now proves r
 parent-delivery admission and the stored native descriptor in an isolated temporary JSONL backend.
 It does not prove eventual parent notification, cold resume or the full tool dispatch pipeline.
 
-T02D stays open: complete policy/inventory coverage, native preset/composition restoration and
-actual permission-service enforcement remain unproved;
+A subsequent [advisory discovery increment](child-advisory-inventory.md) executes the actual
+registered discovery tool: advertised disallowed models are filtered, an allowed unlisted model
+resolves exact metadata/effort without inference, and the same route still admits through the
+registered delegate. Parent independently reproduced green and the unchanged-assertion inventory
+negative on 2026-10-24; bounded independent Standards/Spec review found no actionable defect.
+
+T02D stays open: native positive preset/composition and actual permission-service enforcement
+remain substantive unproved ownership criteria. Broader policy/inventory matrix coverage remains
+unproved but is not automatically a separate acceptance prerequisite;
 persisted cold resume, mid-preparation abort or exact-parent replacement races, and
 cross-root/descendant disposal coverage also remain unproved. Concrete external adapters
 have not been qualified.
