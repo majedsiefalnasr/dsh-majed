@@ -83,6 +83,11 @@ The preceding publication ledger remains a record of publication, not a claim th
 T02A / #4 has [partial native signed-cookie admission evidence](<research/management-approval-provenance.md#native-signed-cookie-admission-characterization--2026-10-23>), in addition to the older preparatory dispatch/registry probe, but is not complete. The actual native authentication algorithm passes isolated memory-credential/HTTP-stream fixtures. Commit `a1c372b` adds [native filesystem Skills watcher evidence](research/management-approval-provenance.md#native-filesystem-skills-watcher-characterization--2026-10-23), with complete snapshots and independent invocation-policy transitions. Recovered [Settings bundle behavior](research/management-settings-proof.md) and [session/workspace service composition](research/management-scope-proof.md) add bounded partial evidence with explicit doubles and negative controls. The [bounded official MCP lifecycle proof](research/management-mcp-proof.md) adds actual registered-tool execution, error/deadline/cancellation and awaited disposal against a controlled stdio fixture with a result-corruption control. The [native admission/scope composition](research/management-composition-proof.md) now connects actual Owner admission and read-only canonical project resolution, with a reviewed authority-race fix. That historical checkpoint is superseded by the [combined acceptance ledger](research/t02a-acceptance-ledger.md): mounted native client, physical local/remote HTTP, authenticated scope and native Skills/official MCP effects have since been joined in controlled temporary composition. Final integrated acceptance recording remains pending; production CRUD, per-agent isolation and live rollout are later non-claims, not added circular prerequisites for T03.
 Under ADR 0008, trusted original local/remote Approval provenance now belongs to T02E / #47;
 it remains unsupported at the inspected exact Fetch seam and pauses command Approval/execution only.
+The [bounded T02E assessment](research/t02e-provenance-assessment.md) rechecks the decisive source:
+exact Fetch receives only the Request and the paired proxy discards original source identity before
+issuing native Owner-authenticated traffic. This is an architectural information-loss finding,
+not a missing fixture or permission to trust labels. No positive attestation/replay proof or
+implemented Command security gate is claimed; #47 and T10 remain unresolved.
 T03 still waits for completed T02A management proof. T02B–T02D and T04 retain their own gates.
 No installation, live verification or release is implied by T01 closure.
 T02B / #5 has [partial native Auto seam evidence](<research/auto-native-seams.md>): synthetic exact-host
@@ -99,8 +104,12 @@ partial output. Actual provider-internal sends, refresh cancellation and real re
 remain unproved. The issue stays open and failover activation is paused; this does not waive its gate.
 T02D / #7 has [partial local child evidence](<research/child-routing-seams.md>): actual native
 spawn/fork services with a synthetic adapter preserve admission, depth, capacity and settlement.
-Direct caller route inputs do not prove model-facing tool policy/preflight, preset composition,
-real permission enforcement or universal interception. It stays open; no dependent gate is waived.
+A later [registered native tool increment](research/child-tool-preflight.md), merged at `99054ed`,
+adds captured-policy denial, route-change effort validation and cancellation after metadata without
+additional child lifecycle. The suite passes 15 checks with zero network attempts. Successful
+parent-delivery tool admission still requires persistence in the fixture; preset composition,
+real permission enforcement and universal interception remain unproved. It stays open; no dependent
+gate is waived.
 The T02B [upstream capability request](<research/auto-upstream-request-draft.md>) is prepared but
 **unpublished**; Owner authorization is required before posting.
 T04 / #9 now has an inactive [pinned reference baseline](<reference-artifacts.json>),
