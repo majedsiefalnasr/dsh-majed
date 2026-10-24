@@ -59,6 +59,12 @@ All notable changes to `dsh-majed` are documented here. The format follows
   release documents in the published `files` list.
 
 ### Fixed
+- T03 readiness controls keep keyboard focus during asynchronous checks: known native Switches
+  (and checkbox fallbacks) and Refresh remain focusable while busy, with an ARIA-disabled state
+  and a synchronous single-flight guard. No deferred focus restoration can steal focus after
+  the Owner moves, changes Settings sections or unmounts. Real ReactDOM/jsdom keyboard regressions
+  cover focus, Tab order, repeat activation, failures and late responses. Installed desktop/remote
+  verification remains pending; no installed files or operational Manager behavior changed.
 - Register Arabic (`العربية`, English fallback) in the public native language catalog, separately
   from the existing dictionary, so supported hosts can offer it in General's Language menu.
   The client owns only its exact registration's cleanup, preserves another plugin's Arabic entry,

@@ -201,7 +201,9 @@ window.__ModuleLoader__.load({
       const [busy, setBusy] = React.useState(false);
       const active = React.useRef(null);
       const refresh = async (enabled) => {
-        active.current?.abort();
+        // Keep known controls focusable while pending; the synchronous guard also
+        // blocks repeated activation before React commits the busy state.
+        if (active.current) return;
         const controller = new AbortController(); active.current = controller;
         setBusy(true); setError(null);
         const timer = setTimeout(() => controller.abort(), 6000);
@@ -220,10 +222,12 @@ window.__ModuleLoader__.load({
       const Switch = primitives.Switch;
       return h('section', { className: 'majed-management', dir: t('management.direction'), 'aria-label': t('management.' + module), 'data-majed-module': module },
         h('p', null, t('management.description')),
-        h('div', { className: 'majed-management-controls' },
-          Switch ? h(Switch, { label: t('management.enable'), checked: value?.enabled ?? false, disabled: busy || !value, onChange: next => refresh(!!next) })
-            : h('label', null, h('input', { type: 'checkbox', checked: value?.enabled ?? false, disabled: busy || !value, onChange: event => refresh(event.target.checked) }), t('management.enable')),
-          h('button', { type: 'button', className: 'majed-management-refresh', disabled: busy, onClick: () => refresh() }, t('management.retry'))),
+        // Native Switch accepts only its declared props, so expose pending
+        // unavailability on the containing group as well as our own controls.
+        h('div', { className: 'majed-management-controls', role: 'group', 'aria-disabled': busy },
+          Switch ? h(Switch, { label: t('management.enable'), checked: value?.enabled ?? false, disabled: !value, onChange: next => refresh(!!next) })
+            : h('label', null, h('input', { type: 'checkbox', checked: value?.enabled ?? false, disabled: !value, 'aria-disabled': busy || !value, onChange: event => refresh(event.target.checked) }), t('management.enable')),
+          h('button', { type: 'button', className: 'majed-management-refresh', 'aria-disabled': busy, onClick: () => refresh() }, t('management.retry'))),
         h('p', { role: error ? 'alert' : 'status', 'aria-live': 'polite', 'aria-busy': busy }, t('management.' + (error || (busy ? 'loading' : value?.state === 'ready' ? 'ready' : 'disabled')))));
     }
 
@@ -234,7 +238,7 @@ window.__ModuleLoader__.load({
 .majed-management-controls{display:flex;flex-wrap:wrap;align-items:center;gap:1em}
 .majed-management-refresh{font:inherit;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-module-platform);border:1px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md);padding:.5em 1em;white-space:normal}
 .majed-management-refresh:focus-visible{outline:2px solid var(--dsw-alias-label-primary);outline-offset:2px}
-.majed-management-refresh:disabled{opacity:.5}
+.majed-management-refresh[aria-disabled="true"]{opacity:.5}
 
 .majed-row{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:16px 0;border-bottom:.5px solid var(--dsw-alias-border-l2)}
 .majed-text{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
