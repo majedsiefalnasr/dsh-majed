@@ -1865,6 +1865,17 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
         appCtx = ctx;
         ctx.effect(() => () => { notificationGeneration++; appCtx = null; live.forEach((n) => { try { n.close(); } catch (_) {} }); live.clear(); }, 'dsh-majed: notification cleanup');
         ctx.effect(() => ctx.locale.register(NS, { zh, en, ar: { ...en, ...managementAr } }), 'dsh-majed: dictionaries');
+        ctx.effect(() => {
+          // Older hosts may register dictionaries without exposing a language catalog.
+          const locale = ctx.locale;
+          if (typeof locale.getSnapshot !== 'function' || typeof locale.addLanguage !== 'function') return;
+          const locales = locale.getSnapshot()?.locales;
+          if (!Array.isArray(locales) || !locales.every(language => typeof language?.id === 'string')) return;
+          if (locales.some(language => language.id.toLowerCase() === 'ar')) return;
+          if (!locales.some(language => language.id.toLowerCase() === 'en')) return;
+          // Return only our registration's exact disposer; never adopt another plugin's entry.
+          return locale.addLanguage({ id: 'ar', label: 'العربية', fallback: 'en' });
+        }, 'dsh-majed: Arabic language');
         ctx.slots.inject('settings.section', () => {
           const stops = ['skills', 'mcp', 'hooks', 'subscriptions', 'routing'].map((module, index) => ctx.slots.register({
             name: 'settings.section', id: 'majed-' + module, order: 60 + index, locale: NS, label: () => ctx.locale.bind(NS)('management.' + module),
