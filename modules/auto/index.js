@@ -158,7 +158,10 @@ export function selectAuto({ registry, session, budget, request, now = Date.now(
   if (!registry || typeof registry.enabled !== 'function') fail();
   if (!session || typeof session.current !== 'undefined' && typeof session !== 'object') fail();
   const candidates = registry.enabled();
-  const eligible = filterEligible(candidates, request, now);
+  let eligible = filterEligible(candidates, request, now);
+
+  // Revocation blocks new dispatches through a candidate in every session.
+  eligible = eligible.filter(c => !session.isRevoked(c.id));
 
   // Manual model selection exits Auto for this session.
   if (session.manual === true) return { candidate: undefined, effort: undefined, reason: 'manual' };
@@ -167,24 +170,28 @@ export function selectAuto({ registry, session, budget, request, now = Date.now(
   // candidate recovers, unless explicitly reselected or the route is unavailable.
   if (session.current && session.current.route && session.current.route !== 'auto') {
     const cur = registry.get(session.current.route);
-    if (cur && eligible.some(c => c.id === cur.id)) {
+    if (cur && eligible.some(c => c.id === cur.id) && !session.isRevoked(cur.id)) {
       return { candidate: cur, effort: session.current.effort || cur.defaultEffort, reason: 'sticky' };
     }
-    // Current route no longer eligible: fall through to re-selection.
+    // Current route no longer eligible or revoked: fall through to re-selection.
   }
 
   if (eligible.length === 0) return { candidate: undefined, effort: undefined, reason: 'ineligible' };
 
   // Highest priority wins; ties broken by stable insertion order.
   eligible.sort((a, b) => b.priority - a.priority || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-  const pick = eligible[0];
 
   // Budget: distinct candidate attempts, no repeat within a failover cycle.
+  // Skip already-attempted candidates; never repeat one in a cycle.
   if (budget && typeof budget.remaining === 'function' && typeof budget.attempted === 'function') {
     if (budget.remaining() <= 0) return { candidate: undefined, effort: undefined, reason: 'exhausted' };
-    if (budget.attempted(pick.id)) return { candidate: pick, effort: pick.defaultEffort, reason: 'repeated-blocked' };
+    const next = eligible.find(c => !budget.attempted(c.id));
+    if (!next) return { candidate: undefined, effort: undefined, reason: 'exhausted' };
+    const effort = request.explicitEffort !== undefined ? request.explicitEffort : (next.defaultEffort || EFFORTS[1]);
+    return { candidate: next, effort, reason: 'selected' };
   }
 
+  const pick = eligible[0];
   const effort = request.explicitEffort !== undefined ? request.explicitEffort : (pick.defaultEffort || EFFORTS[1]);
   return { candidate: pick, effort, reason: 'selected' };
 }
@@ -215,15 +222,17 @@ export function createSession() {
   let current = undefined;   // { route: candidateId, effort } | undefined
   let manual = false;        // manual model selection exits Auto
   let reselected = false;    // explicit apply-and-reselect for this session
+  const revoked = new Set(); // candidate IDs blocked from new dispatches
   return {
     get current() { return current; },
     setRoute(route, effort) { current = route === undefined ? undefined : { route: String(route), effort }; },
-    clear() { current = undefined; manual = false; reselected = false; },
+    clear() { current = undefined; manual = false; reselected = false; revoked.clear(); },
     exitManual() { manual = true; current = undefined; },
     get manual() { return manual; },
     setReselected(value) { reselected = booleanFlag(value); },
     get reselected() { return reselected; },
     /** Revocation blocks new dispatches through this candidate in every session. */
-    isRevoked(route) { return false; },
+    revoke(route) { revoked.add(String(route)); },
+    isRevoked(route) { return revoked.has(String(route)); },
   };
 }

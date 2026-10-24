@@ -206,3 +206,59 @@ test('selectAuto exhausted budget stops clearly', () => {
   assert.equal(sel.reason, 'exhausted');
   assert.equal(sel.candidate, undefined);
 });
+
+test('selectAuto skips already-attempted candidates, picks next eligible', () => {
+  const reg = createRegistry();
+  reg.add(candidate({ priority: 10 }));              // prov-a/acc-a/model-a, already attempted
+  reg.add({ ...candidate(), provider: 'p2', account: 'a2', model: 'm2', priority: 20 });
+  const budget = createBudget(3);
+  budget.record('prov-a/acc-a/model-a'); // mark top candidate as attempted
+  const session = createSession();
+  const sel = selectAuto({ registry: reg, session, budget, request: {} });
+  assert.equal(sel.reason, 'selected');
+  assert.equal(sel.candidate.id, 'p2/a2/m2'); // skipped the attempted one, picked next
+});
+
+test('selectAuto exhausted when all eligible candidates attempted', () => {
+  const reg = createRegistry();
+  reg.add(candidate({ priority: 10 }));
+  reg.add({ ...candidate(), provider: 'p2', account: 'a2', model: 'm2', priority: 20 });
+  const budget = createBudget(2);
+  budget.record('prov-a/acc-a/model-a');
+  budget.record('p2/a2/m2');
+  const session = createSession();
+  const sel = selectAuto({ registry: reg, session, budget, request: {} });
+  assert.equal(sel.reason, 'exhausted');
+  assert.equal(sel.candidate, undefined);
+});
+
+test('session.revoke blocks candidate in selectAuto', () => {
+  const reg = createRegistry();
+  reg.add(candidate({ priority: 10 }));
+  const budget = createBudget(3);
+  const session = createSession();
+  session.revoke('prov-a/acc-a/model-a');
+  const sel = selectAuto({ registry: reg, session, budget, request: {} });
+  assert.equal(sel.reason, 'ineligible');
+  assert.equal(sel.candidate, undefined);
+});
+
+test('session.revoke does not block non-revoked candidates', () => {
+  const reg = createRegistry();
+  reg.add(candidate({ priority: 10 }));
+  reg.add({ ...candidate(), provider: 'p2', account: 'a2', model: 'm2', priority: 20 });
+  const budget = createBudget(3);
+  const session = createSession();
+  session.revoke('prov-a/acc-a/model-a');
+  const sel = selectAuto({ registry: reg, session, budget, request: {} });
+  assert.equal(sel.reason, 'selected');
+  assert.equal(sel.candidate.id, 'p2/a2/m2');
+});
+
+test('session.clear resets revocation', () => {
+  const session = createSession();
+  session.revoke('some/route');
+  assert.equal(session.isRevoked('some/route'), true);
+  session.clear();
+  assert.equal(session.isRevoked('some/route'), false);
+});
