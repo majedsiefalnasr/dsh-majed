@@ -24,3 +24,10 @@ test('appearance reacts to lazily loaded manager styles and cleans up', () => {
   assert.ok(source.includes("sheet.removeEventListener('load', sheetLoaded)"));
   assert.ok(source.includes('headObserver.disconnect(); bodyObserver.disconnect()'));
 });
+
+test('Settings slice visual contract: 18px heading, modal overflow guard, narrow viewport stacking', () => {
+  assert.ok(source.includes('font:var(--dsw-font-s-18)'), '18px typography used for Settings section heading');
+  assert.ok(source.includes('.majed-management__title'), 'Settings section title element rendered');
+  assert.ok(source.includes('overflow:auto'), 'modal overflow guard on Settings section');
+  assert.ok(source.includes('@media (max-width:'), 'narrow viewport stacking media query');
+});

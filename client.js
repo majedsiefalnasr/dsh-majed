@@ -221,6 +221,7 @@ window.__ModuleLoader__.load({
       React.useEffect(() => { refresh(); return () => { active.current?.abort(); active.current = null; }; }, [ctx, module]);
       const Switch = primitives.Switch;
       return h('section', { className: 'majed-management', dir: t('management.direction'), 'aria-label': t('management.' + module), 'data-majed-module': module },
+        h('h2', { className: 'majed-management__title', id: 'majed-management-title-' + module }, t('management.' + module)),
         h('p', null, t('management.description')),
         // Native Switch accepts only its declared props, so expose pending
         // unavailability on the containing group as well as our own controls.
@@ -233,12 +234,14 @@ window.__ModuleLoader__.load({
 
     // ───────────────────────── settings rows ─────────────────────────
     const ROW_CSS = `
-.majed-management{min-width:0;max-width:100%;overflow-wrap:anywhere;color:var(--dsw-alias-label-primary);font:inherit;text-align:start}
+.majed-management{min-width:0;max-width:100%;overflow-wrap:anywhere;overflow:auto;max-height:min(100dvh,75vh);color:var(--dsw-alias-label-primary);font:inherit;text-align:start}
+.majed-management__title{margin:0 0 .5em 0;font:var(--dsw-font-s-18);color:var(--dsw-alias-label-primary)}
 .majed-management p{margin-block:1em}
 .majed-management-controls{display:flex;flex-wrap:wrap;align-items:center;gap:1em}
 .majed-management-refresh{font:inherit;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-module-platform);border:1px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md);padding:.5em 1em;white-space:normal}
 .majed-management-refresh:focus-visible{outline:2px solid var(--dsw-alias-label-primary);outline-offset:2px}
 .majed-management-refresh[aria-disabled="true"]{opacity:.5}
+@media (max-width:420px){.majed-management-controls{flex-direction:column;align-items:stretch;gap:.5em}.majed-management-refresh{width:100%;justify-content:center}}
 
 .majed-row{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:16px 0;border-bottom:.5px solid var(--dsw-alias-border-l2)}
 .majed-text{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}

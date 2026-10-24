@@ -8,6 +8,12 @@ All notable changes to `dsh-majed` are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- T03 authenticated Settings slice visual contract (Skills, MCP, Hooks, subscriptions, routing): 14/18
+  typography, English/Arabic RTL direction, modal overflow guard and narrow viewport stacking added to the
+  readiness section; service path/method limits and scoped session-to-project rejection proven at the seam.
+  Controls remain inert readiness checks — no Manager operations, commands, accounts or routing activated;
+  process-lifetime enablement resets on host restart. Visual and live evidence remains unverified pending
+  browser-based and host-restart verification; no live claim is made.
 - In-progress T03 authenticated readiness Settings slice for Skills, MCP, Hooks, subscriptions and
   routing. Controls are inert readiness checks with process-lifetime enablement, not feature activation.
   Portable and isolated exact-host local/remote product tests pass; real browser visual and live
