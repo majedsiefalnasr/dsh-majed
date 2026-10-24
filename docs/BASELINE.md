@@ -3,6 +3,12 @@
 Issue: [T01 / #3](https://github.com/majedsiefalnasr/dsh-majed/issues/3).
 Baseline before this prefactor: `b530180`; approved planning recorded separately in `4970c38`.
 
+This document records the **T01 historical boundary**, not the current integration inventory.
+T03 subsequently composed an inert authenticated Settings service in the public host entry
+and added readiness sections to the same explicitly built browser source. See
+[T03 product evidence](research/t03-settings-product-evidence.md) for that extension and its
+pending visual/live acceptance. The historical prototype exclusions below remain in force.
+
 ## Active entry points
 
 - `index.js` exports the accepted host `apply(ctx)` from `lib/baseline/host.js`: the existing font route
