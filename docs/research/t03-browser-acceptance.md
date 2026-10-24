@@ -1,8 +1,10 @@
 # T03 browser acceptance procedure
 
-Status: **not executed**. Automated product evidence is recorded separately in
-[t03-settings-product-evidence.md](t03-settings-product-evidence.md). This procedure
-is an acceptance plan, not evidence that the controls pass.
+Status: **partially executed; T03 acceptance remains open**. Observed cases and
+limitations are recorded in [t03-live-acceptance.md](t03-live-acceptance.md).
+Automated product evidence is recorded separately in
+[t03-settings-product-evidence.md](t03-settings-product-evidence.md). The remaining
+matrix below is an acceptance plan, not evidence that every combination passes.
 
 ## Preconditions and authority
 
