@@ -34,7 +34,7 @@ try {
   assert.equal(report.closedListeners, 2);
   assert.deepEqual(report.statuses, [401, 403, 403, 401, 404, 200, 200, 200, 200]);
   assert.equal(report.proxyCalls, 4);
-  
+
   assert.deepEqual(report.physical, ['/api/fixture/read', ...Array(4).fill('/remote/api/fixture/read'), '/api/fixture/read', '/api/fixture/read', '/remote/api/fixture/read', '/remote/api/fixture/read']);
   assert.match(report.hashes['dsh-client-connection'], /^[a-f0-9]{64}$/);
 } finally {
