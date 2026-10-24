@@ -16,7 +16,7 @@ adapters alone do not establish an unexercised supported carrier. No gate is wai
 
 | Existing requirement | Evidence and status | Outstanding acceptance |
 | --- | --- | --- |
-| Native Owner-authenticated Fetch | `3b192eb`: actual native plugin apply and BrowserAuth algorithm with synthetic memory credentials, in-memory HTTP streams and rejection/lifecycle controls. | Actual local/paired-remote supported carrier admission and resulting Manager operations; no operational login implied. |
+| Native Owner-authenticated Fetch | `3b192eb`: actual native plugin apply and BrowserAuth algorithm with synthetic memory credentials, in-memory HTTP streams and rejection/lifecycle controls. `5e4ce69` + `bbc33da` add actual local/remote HTTP admission through the mounted native client; see the physical increment below. | Controlled Skills/MCP effects still need the same authenticated carrier join. Operational login and final live acceptance remain later non-claims, not prerequisite operations. |
 | Settings registration and actual client | `d3c53aa`: [partial actual bundle evaluation](management-settings-proof.md), supplemented by `a187ecd` + observable initial-state correction `5ae1157`: [real jsdom-mounted Settings](management-mounted-settings-proof.md), unchanged installed renderer/Settings/general, public SlotRegistry/SlotCore, real ReactDOM/stores/Cordis lifecycle. Independent green and both intended selection/withdrawal negative controls reproduced. | jsdom is not browser/live or visual acceptance. Presentation primitives and external remote/locale/session services remain explicit adapters. Actual Manager operations and supported authenticated carrier composition remain open. |
 | Authenticated session/project scope | Earlier `4848585` [service composition](management-scope-proof.md) now complemented by `54856b1` + `6c587d0` [native admission/resolver composition](management-composition-proof.md): actual signed synthetic Owner admission precedes public session/workspace scope observation. Nine groups pass, including live publication/disappearance during both filesystem awaits; membership-fact negative fails. Reviewed P2 authority race fixed and rereviewed. | Memory credentials/storage and in-memory HTTP are not operational login, browser or actual paired-remote acceptance. Resolver remains outside package/registration; no production write operation is enabled. Canonical path is an observation, not a filesystem lease; client identifiers remain selectors, not authentication. |
 | Native Skills policy/catalog invalidation | `a1c372b`: actual filesystem provider/watch and registry over disposable roots; complete snapshots, independent invocation flags, external edit/rename/delete and awaited disposal/catalog removal. | Integrate with actual Manager operations and applicable client/transport proof; no installed Skill store or watcher-handle instrumentation claim. |
@@ -52,11 +52,25 @@ perform no extra operation. Both unchanged DOM expectations reject result corrup
 and wrong response correlation (`Operation failed`). The final runner also requires completed JSON,
 counts, statuses and native client fingerprint after UI and host disposal.
 
-The remaining feasibility join is a controlled temporary composition through the actual supported
-local/paired-remote physical carrier, authenticated scope and applicable Skills/MCP effects. The
-memory fixture does not prove that carrier or waive T02A. Production CRUD, T03 product visuals and
-final live rollout remain later acceptance, not circular prerequisites. T03 remains blocked pending
-the retained feasibility evidence or an explicit Owner decision on a concrete unsupported seam.
+The physical increment `5e4ce69` + DNS-control correction `bbc33da` now supplies
+[real local/remote HTTP and scope composition](management-physical-carrier-proof.md): two exported
+public WebServer plugins bind disposable loopback port-zero listeners; actual installed remote
+routes/proxy forward real HTTP into native BrowserAuth/exactFetch and the real scope resolver.
+The same actual mounted Settings/native RPC action renders both local and remote results. The
+remote document base is an explicit fixture, not production remote boot installation. Pairing/auth
+readiness, credentials and storage remain synthetic. No private handler invocation or response
+interception supplies this physical path.
+
+Parent reproduced two operations, seven click statuses `[200, 200, 401, 403, 403, 401, 404]`, and
+both listener closures. Result/correlation/membership controls reject at unchanged DOM expectations.
+Static review found a vacuous DNS negative (invalid call signature); the committed correction uses
+a valid callback and guard-specific error. No actionable findings remained on the final static review.
+
+The remaining feasibility join is the applicable native Skills invalidation and official MCP effects
+through the controlled authenticated client/carrier path, followed by combined acceptance review.
+The physical proof does not itself exercise those effects, real browser/TLS, operational auth discovery
+or outer-disconnect cancellation. Production CRUD, T03 product visuals and final live rollout remain
+later acceptance, not circular prerequisites. T03 stays blocked; no ticket or operational gate is waived.
 
 ## Integration rules
 
