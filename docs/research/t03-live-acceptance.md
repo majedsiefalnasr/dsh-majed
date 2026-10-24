@@ -1,6 +1,6 @@
 # T03 live acceptance record
 
-Status: **in progress; failure found, no acceptance claim**.
+Status: **in progress; remote async-focus defect fixed and live-rechecked, full acceptance remains open**.
 
 ## Restarted candidate, first remote check — 2026-10-24
 
@@ -63,5 +63,7 @@ In owned remote session `rmnt` at 600×757, English/System App UI size 14, expli
 Owner explicitly approved client-only deployment with rollback. Source `69bd4d8` passed integrated 66/66 tests plus classifier 166/166 and independent Standards/Spec rereview. Backed up both installed client entries under ignored `deployment-backups/before-t03-focus-69bd4d8/`; deployed `client.js` and `dist/client.js` matched SHA-256 `f247be5595b1cb860a481f01e43b9ab78a1b75389a8be5afd12c9c1cdbfe151d`. No host code or operational state was deployed.
 
 Owned remote session `vmej`, verified instance `cfe27991`, reported 1666×677. English/System-dark Skills readiness initially unchecked: focused Switch, Space, waited for checked/ready, then Tab. Screenshot `sha256:255741ec9972094f65589860a7674dbaaf1fb4928e5c5ebe911ffcc824167454` visibly shows the focus ring on Refresh rather than Account. Enter refreshed; Shift+Tab and Space returned readiness to unchecked/disabled. This verifies the formerly failing async sequence in that remote case, not assistive-technology announcements or every matrix cell. No language/theme/font preference changed.
+
+Local follow-up after this fix: owned session `bqqh` again reached the current loopback origin but received the native authentication-required page. A bounded 60-second Owner-help request to open the authorized local page expired. No tokens were recovered, security settings changed or replacement server started; the session was stopped. This is an access prerequisite, not evidence of a product failure or local acceptance.
 
 Remaining: authenticated local page and complete theme/locale/font/keyboard/viewport matrix in [the acceptance procedure](t03-browser-acceptance.md). T03 remains open. No feature runtime, account operation, command hook, reference removal or profile modification was performed.
