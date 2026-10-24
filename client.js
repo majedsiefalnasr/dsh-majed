@@ -170,8 +170,72 @@ window.__ModuleLoader__.load({
       'ap.paused': '多次出现需要你决定的请求，已暂停自动审批。',
     };
 
+    // Inert readiness controls use the native Settings slot and RPC carrier.
+    const managementEn = {
+      'management.skills': 'Skills Manager', 'management.mcp': 'MCP Manager', 'management.hooks': 'Hooks Manager',
+      'management.subscriptions': 'Subscriptions', 'management.routing': 'Auto routing',
+      'management.direction': 'ltr', 'management.enable': 'Enable readiness checks',
+      'management.description': 'Readiness checks only. No Manager operations, commands, accounts or routing are activated. Enablement is shared by this host and resets on host restart.',
+      'management.disabled': 'Readiness checks are disabled.', 'management.ready': 'Service ready for readiness checks only. Feature operations are not implemented here.',
+      'management.loading': 'Checking service…', 'management.retry': 'Refresh status',
+      'management.error': 'Status unavailable. Check the connection and refresh. If it persists, verify the installed host/client versions.',
+      'management.auth': 'Owner access required. Reopen the authenticated DSH page or pair this remote device again, then refresh.',
+      'management.unsupported': 'This host does not provide the Settings transport. Use a supported DSH version.',
+    };
+    const managementAr = {
+      'management.skills': 'مدير المهارات', 'management.mcp': 'مدير MCP', 'management.hooks': 'مدير الخطافات',
+      'management.subscriptions': 'الاشتراكات', 'management.routing': 'التوجيه التلقائي',
+      'management.direction': 'rtl', 'management.enable': 'تفعيل فحوصات الجاهزية',
+      'management.description': 'فحوصات جاهزية فقط. لا يتم تفعيل عمليات الإدارة أو الأوامر أو الحسابات أو التوجيه. التفعيل مشترك على هذا المضيف ويُعاد ضبطه عند إعادة تشغيله.',
+      'management.disabled': 'فحوصات الجاهزية معطلة.', 'management.ready': 'الخدمة جاهزة لفحوصات الجاهزية فقط. عمليات الميزات غير متاحة هنا.',
+      'management.loading': 'جارٍ فحص الخدمة…', 'management.retry': 'تحديث الحالة',
+      'management.error': 'الحالة غير متاحة. تحقق من الاتصال ثم حدّث الحالة. إن استمرت المشكلة، تحقق من توافق إصدارَي المضيف والواجهة.',
+      'management.auth': 'يلزم وصول المالك. أعد فتح صفحة DSH الموثقة أو أعد إقران الجهاز البعيد ثم حدّث الحالة.',
+      'management.unsupported': 'لا يوفر هذا المضيف وسيلة نقل الإعدادات. استخدم إصدار DSH مدعومًا.',
+    };
+    Object.assign(en, managementEn);
+
+    function ManagementSection({ ctx, module, t }) {
+      const [value, setValue] = React.useState(null);
+      const [error, setError] = React.useState(null);
+      const [busy, setBusy] = React.useState(false);
+      const active = React.useRef(null);
+      const refresh = async (enabled) => {
+        active.current?.abort();
+        const controller = new AbortController(); active.current = controller;
+        setBusy(true); setError(null);
+        const timer = setTimeout(() => controller.abort(), 6000);
+        controller.signal.addEventListener('abort', () => clearTimeout(timer), { once: true });
+        try {
+          if (!ctx.connection?.rpc?.call) throw new Error('unsupported');
+          const result = await ctx.connection.rpc.call('/api', 'majed/settings/status', { module, ...(enabled === undefined ? {} : { enabled }) }, controller.signal);
+          if (controller.signal.aborted || active.current !== controller) return;
+          if (!result.ok || result.value?.module !== module || typeof result.value.enabled !== 'boolean' || !['ready', 'disabled'].includes(result.value.state)) throw new Error('service');
+          setValue(result.value);
+        } catch (failure) {
+          if (active.current === controller) setError(failure.message === 'unsupported' ? 'unsupported' : /HTTP (401|403)/.test(failure.message) ? 'auth' : 'error');
+        } finally { clearTimeout(timer); if (active.current === controller) { active.current = null; setBusy(false); } }
+      };
+      React.useEffect(() => { refresh(); return () => { active.current?.abort(); active.current = null; }; }, [ctx, module]);
+      const Switch = primitives.Switch;
+      return h('section', { className: 'majed-management', dir: t('management.direction'), 'aria-label': t('management.' + module), 'data-majed-module': module },
+        h('p', null, t('management.description')),
+        h('div', { className: 'majed-management-controls' },
+          Switch ? h(Switch, { label: t('management.enable'), checked: value?.enabled ?? false, disabled: busy || !value, onChange: next => refresh(!!next) })
+            : h('label', null, h('input', { type: 'checkbox', checked: value?.enabled ?? false, disabled: busy || !value, onChange: event => refresh(event.target.checked) }), t('management.enable')),
+          h('button', { type: 'button', className: 'majed-management-refresh', disabled: busy, onClick: () => refresh() }, t('management.retry'))),
+        h('p', { role: error ? 'alert' : 'status', 'aria-live': 'polite', 'aria-busy': busy }, t('management.' + (error || (busy ? 'loading' : value?.state === 'ready' ? 'ready' : 'disabled')))));
+    }
+
     // ───────────────────────── settings rows ─────────────────────────
     const ROW_CSS = `
+.majed-management{min-width:0;max-width:100%;overflow-wrap:anywhere;color:var(--dsw-alias-label-primary);font:inherit;text-align:start}
+.majed-management p{margin-block:1em}
+.majed-management-controls{display:flex;flex-wrap:wrap;align-items:center;gap:1em}
+.majed-management-refresh{font:inherit;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-module-platform);border:1px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md);padding:.5em 1em;white-space:normal}
+.majed-management-refresh:focus-visible{outline:2px solid var(--dsw-alias-label-primary);outline-offset:2px}
+.majed-management-refresh:disabled{opacity:.5}
+
 .majed-row{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:16px 0;border-bottom:.5px solid var(--dsw-alias-border-l2)}
 .majed-text{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
 .majed-title{color:var(--dsw-alias-label-primary);font:var(--dsw-font-s-14)}
@@ -1800,7 +1864,13 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
       apply(ctx) {
         appCtx = ctx;
         ctx.effect(() => () => { notificationGeneration++; appCtx = null; live.forEach((n) => { try { n.close(); } catch (_) {} }); live.clear(); }, 'dsh-majed: notification cleanup');
-        ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsh-majed: dictionaries');
+        ctx.effect(() => ctx.locale.register(NS, { zh, en, ar: { ...en, ...managementAr } }), 'dsh-majed: dictionaries');
+        ctx.slots.inject('settings.section', () => {
+          const stops = ['skills', 'mcp', 'hooks', 'subscriptions', 'routing'].map((module, index) => ctx.slots.register({
+            name: 'settings.section', id: 'majed-' + module, order: 60 + index, locale: NS, label: () => ctx.locale.bind(NS)('management.' + module),
+          }, props => h(ManagementSection, { ...props, ctx, module })));
+          return () => stops.reverse().forEach(stop => stop());
+        });
 
         ctx.effect(() => {
           const style = document.createElement('style');

@@ -9,6 +9,7 @@ import { createBaselineHarness, SETTINGS_KEY } from './helpers/baseline-client-h
 // The separate package contract checks that these bytes come only from client.js.
 const source = await readFile(new URL('../../dist/client.js', import.meta.url), 'utf8');
 const expectedSlots = [
+  ...['skills', 'mcp', 'hooks', 'subscriptions', 'routing'].map((module, index) => ['majed-' + module, 'settings.section', 60 + index]),
   ['majed-ui-font-size', 'settings.general.item', 11.5],
   ['majed-font-source', 'settings.general.item', 11.6],
   ['majed-bidi', 'settings.general.item', 13],
@@ -53,7 +54,7 @@ test('baseline ModuleLoader registers only dsh-majed and apply exposes existing 
   assert.deepEqual(Array.from(plugin.inject), ['slots', 'locale', 'uiWorkspace']);
   assert.deepEqual(harness.imports, ['react', '@deepseek-ai/dsh-client-ui-primitives']);
   assert.deepEqual([...harness.registrations.values()].map(({ metadata }) => [metadata.id, metadata.name, metadata.order]), expectedSlots);
-  assert.deepEqual(harness.injectCalls, expectedSlots.map(([, name]) => name));
+  assert.deepEqual(harness.injectCalls, ['settings.section', ...expectedSlots.slice(5).map(([, name]) => name)]);
   assert.ok([...harness.registrations.values()].every(({ metadata, Component }) => metadata.locale === 'majed' && typeof Component === 'function'));
   assert.deepEqual([...harness.dictionaries.keys()], ['majed']);
   assert.equal(harness.dictionaries.get('majed').en['bidi.title'], 'Bidirectional text');

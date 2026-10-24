@@ -177,7 +177,7 @@ function createReactFixture() {
   return { React, mount };
 }
 
-export function createBaselineHarness(source, { stored, extension, confirm = true } = {}) {
+export function createBaselineHarness(source, { stored, extension, confirm = true, connection, language = 'en' } = {}) {
   const document = new EventTargetFixture();
   document.head = new ElementFixture('head');
   document.body = new ElementFixture('body');
@@ -225,7 +225,7 @@ export function createBaselineHarness(source, { stored, extension, confirm = tru
   const { React, mount } = createReactFixture();
   const primitives = { Menu: 'fixture-menu' };
   const sandbox = vm.createContext({
-    window, document, localStorage, navigator: {}, Notification: NotificationFixture,
+    window, document, localStorage, navigator: {}, Notification: NotificationFixture, AbortController,
     MutationObserver: MutationObserverFixture,
     requestAnimationFrame(fn) { const id = ++nextId; frames.set(id, fn); return id; },
     cancelAnimationFrame(id) { frames.delete(id); },
@@ -241,10 +241,11 @@ export function createBaselineHarness(source, { stored, extension, confirm = tru
   const views = [];
   const injectCalls = [];
   const context = {
+    connection,
     effect(effect) { const cleanup = effect(); if (cleanup) cleanups.push(cleanup); },
     locale: {
       register(ns, locales) { dictionaries.set(ns, locales); return () => dictionaries.delete(ns); },
-      bind(ns) { return (key) => dictionaries.get(ns)?.en[key] ?? key; },
+      bind(ns) { return (key) => dictionaries.get(ns)?.[language]?.[key] ?? key; },
     },
     slots: {
       inject(name, register) { injectCalls.push(name); const cleanup = register(); if (cleanup) cleanups.push(cleanup); },

@@ -1,2 +1,8 @@
-/** Public host entry. Only the accepted baseline is enabled in this prefactor. */
-export { apply } from './lib/baseline/host.js';
+/** Public host entry: accepted preferences plus inert authenticated Settings. */
+import { apply as baseline } from './lib/baseline/host.js';
+import { apply as settings } from './lib/management/settings.js';
+
+export function apply(ctx) {
+  baseline(ctx);
+  settings(ctx);
+}
