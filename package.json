@@ -76,7 +76,11 @@
     "test:host-child": "node scripts/test-child-seams.mjs"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "4.0.5"
+    "@deepseek-ai/cordis": "4.0.5",
+    "@testing-library/user-event": "14.6.1",
+    "jsdom": "26.1.0",
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
   },
   "icon": "icon.svg"
 }
