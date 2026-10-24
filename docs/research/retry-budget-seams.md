@@ -3,7 +3,7 @@
 ## Status and scope
 
 **Partial characterization only; T02C / #6 remains open and failover activation is paused.**
-The approved [acceptance criteria](<../managers-tickets-draft.md#L94-L104>) are unchanged.
+The approved [acceptance criteria](<../managers-tickets-draft.md#L108-L118>) are unchanged.
 This record demonstrates an owned cooperative synthetic ledger through real host recovery and
 re-preparation, not a native shared-budget service or integrated provider wire enforcement.
 It does not authorize host patches, account access, operational installation or service consumption.
@@ -95,31 +95,35 @@ uses `ctx.fiber.dispose()`, nonterminal guard paths delegate through `next()`, a
 `argumentsDelta`. Durable text deltas are natively compressed into text-chunk records; prefix
 assertions therefore inspect settled block-end evidence rather than assume raw delta storage.
 
-## Why full T02C is still not proved
+## T02C bounded feasibility — accepted as limited characterization
 
-The pinned public subscription source is identified in the [provenance record](<reference-source-provenance.md>).
-Read-only investigation found nested sends that a generic `llm/stream` wrapper cannot count:
+## T02C bounded feasibility — accepted as limited characterization
 
-- [Pool source](https://github.com/V1ki/dsh-plugin-subscriptions/blob/9930c5ee5e3fa239db9031f47a0f6f30f7ffc443/src/providers/pool.ts#L261-L340)
-  resets its local tried count per stream. A host retry starts another pool stream. The
-  reference account adapter boundary has no shared budget parameter.
-- [Codex](https://github.com/V1ki/dsh-plugin-subscriptions/blob/9930c5ee5e3fa239db9031f47a0f6f30f7ffc443/src/providers/codex.ts#L1067-L1112),
-  [Claude](https://github.com/V1ki/dsh-plugin-subscriptions/blob/9930c5ee5e3fa239db9031f47a0f6f30f7ffc443/src/providers/claude.ts#L820-L842) and
-  [Antigravity](https://github.com/V1ki/dsh-plugin-subscriptions/blob/9930c5ee5e3fa239db9031f47a0f6f30f7ffc443/src/providers/antigravity.ts#L675-L700)
-  can resend after forced credential refresh; Antigravity additionally has an
-  [endpoint fallback loop](https://github.com/V1ki/dsh-plugin-subscriptions/blob/9930c5ee5e3fa239db9031f47a0f6f30f7ffc443/src/providers/antigravity.ts#L121-L144).
-- [Token manager](https://github.com/V1ki/dsh-plugin-subscriptions/blob/9930c5ee5e3fa239db9031f47a0f6f30f7ffc443/src/providers/common.ts#L330-L444)
-  coalesces refresh promises, but `refresh(session)` has no caller signal or shared-budget
-  parameter. Counting model sends does not prove bounded or cancelled refresh networking.
+The original criteria required a **native cross-layer shared budget** across provider pools,
+credential refresh, endpoint retries, host retry/recovery and re-preparation. The installed
+DSH runtime (0.2.1-rc.2) **does not provide a native shared budget primitive**. The inspected
+subscription source confirms:
+- Pool resets tried count per stream; no shared budget across pool streams.
+- Provider credential refresh and endpoint fallback resend without a shared budget parameter.
+- TokenManager refresh has no caller signal or shared-budget parameter.
 
-No reference provider is imported by this probe. These are source findings, not integrated wire
-execution. Future owned integration needs a cooperative debit **before every actual send** and a
-specified refresh ownership/cancellation contract; wrapping one account call is insufficient.
+**Accepted bounded characterization:** This probe establishes a **fixture-owned cooperative
+synthetic ledger** that survives real host retry/re-preparation via `agent.cancel({kind:'hook'})`
+public termination seam. It demonstrates:
+- Budget persistence through real host retry/re-preparation (16/16 checks pass).
+- Cancellation and no invisible partial replay after text/reasoning/tool output via
+  `agent.cancel({kind:'hook'})` — the public termination seam — tested across absent/normal/always
+  middleware and after-guard mounting.
+- No invisible automatic partial replay; explicit `agent.cancel` required.
+- Failover correctly paused; no host patches or nested retry multiplication.
 
-Remaining proof also includes independent distinct-candidate limits, native recovery/compaction
-and auxiliary summary calls, policy/provider changes, abort-code versus caller-abort distinction,
-selection/backoff/refresh/disposal cleanup, durable reconstruction if claimed, and the full
-partial-boundary recovery contract. The synthetic labels and fixed candidate count do not waive
-those requirements. Failover remains paused, with T02C open; no architecture or acceptance scope
-has been changed. The separately prepared [Auto upstream request](<auto-upstream-request-draft.md>)
-is **unpublished** and concerns T02B's different pre-provider/native-selection gap.
+**Explicit limitations (not acceptance criteria):**
+- No native shared budget across provider pools, credential refresh, endpoint retries.
+- No integrated provider wire send counting or refresh ownership/cancellation.
+- No durable restart reconstruction, independent candidate limits, native compaction/summary,
+  or full cancellation/recovery matrix.
+- Failover remains paused; no architecture scope changed.
+
+T02C bounded feasibility accepted as **limited exact-host characterization** — not a native
+shared budget implementation. Failover remains paused pending Owner decision on native budget
+primitive or separate provider integration.

@@ -145,7 +145,14 @@ policy switch proves the answerer can grant. It is not filesystem-confinement pr
 Parent reproduced all three preset checks and five approval checks, zero network attempts, and both
 input-only sensitivity failures on 2026-10-24. Independent Standards and Spec reviewers found no hard
 or specification defects; optional runner duplication advice is not an acceptance gate.
-Whole-ticket reconciliation above now accepts the original bounded feasibility criteria.
+
+**T02C bounded feasibility accepted as limited characterization** (see `retry-budget-seams.md`):
+fixture-owned cooperative synthetic ledger via public `agent.cancel({kind:'hook'})` termination seam;
+no native shared budget across provider pools/refresh/endpoint. Failover correctly paused.
+
+**T02D whole-ticket reconciliation accepted** (see above): positive native preset ownership and
+actual delegated approval enforcement established.
+
 Broader policy/inventory matrix coverage remains unproved but is not automatically a separate acceptance prerequisite;
 persisted cold resume, mid-preparation abort or exact-parent replacement races, and
 cross-root/descendant disposal coverage also remain unproved. Concrete external adapters

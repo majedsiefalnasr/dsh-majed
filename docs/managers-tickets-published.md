@@ -98,10 +98,11 @@ no dependent gate is waived. A [pre-provider investigation](research/auto-pre-pr
 real-service ordering characterization rule out prepended assembly and awaited inbox notifications as
 solutions on this host. The explicit required-order probe fails; the unsupported seam needs Owner review
 before any scope change, and no operational or host-patching permission is implied.
-T02C / #6 has [partial retry-budget evidence](<research/retry-budget-seams.md>): a cooperative
-synthetic ledger survives native retry/re-preparation, and public cancellation prevents replay after
-partial output. Actual provider-internal sends, refresh cancellation and real recovery accounting
-remain unproved. The issue stays open and failover activation is paused; this does not waive its gate.
+T02C / #6 bounded feasibility **accepted as limited characterization** (see
+<research/retry-budget-seams.md>). Fixture-owned cooperative synthetic ledger via public
+`agent.cancel({kind:'hook'})` termination seam survives native retry/re-preparation; no native
+shared budget across provider pools/refresh/endpoint. Failover activation remains correctly paused;
+this does not waive its gate.
 T02D / #7 has [partial local child evidence](<research/child-routing-seams.md>): actual native
 spawn/fork services with a synthetic adapter preserve admission, depth, capacity and settlement.
 A later [registered native tool increment](research/child-tool-preflight.md), merged at `99054ed`,

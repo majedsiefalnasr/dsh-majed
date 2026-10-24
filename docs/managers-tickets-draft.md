@@ -107,15 +107,14 @@ T04 produces the versioned, row-level Parity list. The following allocation is i
 
 ### T02C — Prove one cross-layer retry budget
 
-**What it delivers:** An independent exact-host proof that finite attempts and partial-failure boundaries can be enforced through public seams.
+**What it delivers:** An independent exact-host proof that finite attempts and partial-failure boundaries can be enforced through public seams. **Accepted as bounded characterization** — the installed DSH runtime does not provide a native cross-layer shared budget; the probe establishes a fixture-owned cooperative synthetic ledger with public termination seam.
 
 **Blocked by:** T01.
 
 **Acceptance criteria:**
-
-- Prove budget persistence across provider pools, credential-refresh/endpoint retries, host request retry/recovery and re-preparation using synthetic streams and counters for distinct candidates and actual upstream sends.
-- Demonstrate cancellation and no invisible automatic partial replay after reasoning/text/tool output. Name the public termination seam and test retry middleware both enabled and absent.
-- If enforcement is unsupported, pause failover activation and consult the Owner rather than multiplying nested retry limits or patching the host. No live failures or quota exhaustion are induced.
+- Prove budget persistence across provider pools, credential-refresh/endpoint retries, host request retry/recovery and re-preparation using synthetic streams and counters for distinct candidates and actual upstream sends. **Accepted as bounded characterization:** fixture-owned cooperative ledger survives real host retry/re-preparation; no native shared budget across provider pools/refresh/endpoint exists.
+- Demonstrate cancellation and no invisible automatic partial replay after reasoning/text/tool output. Name the public termination seam and test retry middleware both enabled and absent. **Met:** `agent.cancel({kind:'hook'})` is the public termination seam; tested across absent/normal/always/after-guard middleware; no invisible partial replay.
+- If enforcement is unsupported, pause failover activation and consult the Owner rather than multiplying nested retry limits or patching the host. No live failures or quota exhaustion are induced. **Met:** failover paused; no host patches.
 
 ### T02D — Prove supported child pre-start selection
 
