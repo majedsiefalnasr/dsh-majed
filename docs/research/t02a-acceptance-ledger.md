@@ -52,11 +52,25 @@ perform no extra operation. Both unchanged DOM expectations reject result corrup
 and wrong response correlation (`Operation failed`). The final runner also requires completed JSON,
 counts, statuses and native client fingerprint after UI and host disposal.
 
-The remaining feasibility join is a controlled temporary composition through the actual supported
-local/paired-remote physical carrier, authenticated scope and applicable Skills/MCP effects. The
-memory fixture does not prove that carrier or waive T02A. Production CRUD, T03 product visuals and
-final live rollout remain later acceptance, not circular prerequisites. T03 remains blocked pending
-the retained feasibility evidence or an explicit Owner decision on a concrete unsupported seam.
+The physical increment `5e4ce69` + DNS-control correction `bbc33da` now supplies
+[real local/remote HTTP and scope composition](management-physical-carrier-proof.md): two exported
+public WebServer plugins bind disposable loopback port-zero listeners; actual installed remote
+routes/proxy forward real HTTP into native BrowserAuth/exactFetch and the real scope resolver.
+The same actual mounted Settings/native RPC action renders both local and remote results. The
+remote document base is an explicit fixture, not production remote boot installation. Pairing/auth
+readiness, credentials and storage remain synthetic. No private handler invocation or response
+interception supplies this physical path.
+
+Parent reproduced two operations, seven click statuses `[200, 200, 401, 403, 403, 401, 404]`, and
+both listener closures. Result/correlation/membership controls reject at unchanged DOM expectations.
+Static review found a vacuous DNS negative (invalid call signature); the committed correction uses
+a valid callback and guard-specific error. No actionable findings remained on the final static review.
+
+The remaining feasibility join is the applicable native Skills invalidation and official MCP effects
+through the controlled authenticated client/carrier path, followed by combined acceptance review.
+The physical proof does not itself exercise those effects, real browser/TLS, operational auth discovery
+or outer-disconnect cancellation. Production CRUD, T03 product visuals and final live rollout remain
+later acceptance, not circular prerequisites. T03 stays blocked; no ticket or operational gate is waived.
 
 ## Integration rules
 

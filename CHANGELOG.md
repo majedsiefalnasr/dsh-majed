@@ -8,6 +8,10 @@ All notable changes to `dsh-majed` are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Controlled physical local/remote carrier proof: real public ephemeral HTTP servers and installed
+  remote proxy connect mounted native RPC, Owner admission and session/workspace resolution.
+  Synthetic state and explicit remote document base remain; Skills/MCP effects and live acceptance
+  are not inferred from this increment.
 - Bounded mounted Settings/native Connection RPC proof: real clicks use unchanged native serialization,
   response correlation and BrowserAuth/exactFetch admission through an explicit memory carrier.
   Result/correlation controls reject; no actual paired carrier, production Manager or live claim is added.
