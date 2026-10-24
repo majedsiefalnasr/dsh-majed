@@ -61,4 +61,6 @@ Switch appearance, light/dark themes, font sizes 14/18, keyboard focus behavior,
 modal overflow or narrow remote viewport. Real browser visual/keyboard QA and
 local-after-restart plus paired remote live evidence remain required. No installed
 plugin changes, restart, operational authentication or live/provider claim was
-made. The issue must remain open for these missing acceptance checks.
+made. The issue must remain open for these missing acceptance checks. The
+[browser acceptance procedure](t03-browser-acceptance.md) records the pending matrix
+and deployment/identity preconditions; it is not an executed result.
