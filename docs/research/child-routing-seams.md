@@ -94,10 +94,16 @@ not production red/green TDD or universal interception.
 
 ## Remaining acceptance gate
 
-T02D stays open: no completed native tool-definition/policy/inventory/preflight-abort proof,
-no successful native preset/composition restoration, no actual permission-service enforcement,
-no persisted cold resume, no mid-preparation abort or exact-parent replacement race, no
-cross-root/descendant disposal coverage and no concrete external adapter qualification.
+A later [bounded native tool increment](child-tool-preflight.md) adds actual registered
+definition execution, captured-policy denial, route-change effort validation, and cancellation
+after metadata without additional child lifecycle. The historical twelve-check results above
+remain the baseline; see that report for the expanded results and persistence limitation.
+
+T02D stays open: successful tool-originated child delivery, complete policy/inventory coverage,
+native preset/composition restoration and actual permission-service enforcement remain unproved;
+persisted cold resume, mid-preparation abort or exact-parent replacement races, and
+cross-root/descendant disposal coverage also remain unproved. Concrete external adapters
+have not been qualified.
 Some are characterization gaps, not findings that the host is incapable. The absence of a
 universal rewrite hook is an inspected-scope limitation; caller-owned selection is distinct.
 No supported-child scope is narrowed without Owner review. T26 and all dependent edges
