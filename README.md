@@ -78,11 +78,24 @@ Then remove `dsh-persian-rtl` (this plugin supersedes it) and restart DSH.
 
 ```sh
 npm install --package-lock=false # accepted dev dependency; preserve historical prototype lock
-npm run build                   # baseline-only dist/client.js
+npm run build                   # accepted baseline + inert readiness Settings client
 npm test                        # build + baseline regressions + all test/accepted suites
 ```
 
 Layout: `index.js` (public host entry), `lib/baseline/host.js` (accepted host behavior), `client.js` (browser source), `dist/client.js` (generated public client), `lib/` (classifier, native read_page), `fonts/`, `test/accepted/` (automatically discovered approved suites). See [docs/BASELINE.md](docs/BASELINE.md) for the explicit prototype disposition and test-evidence limits. Historical untracked modules are not activated or packaged. Host JavaScript changes need a full DSH desktop restart; client-only changes need a page reload. See [AGENTS.md](AGENTS.md) for contributor and agent conventions.
+
+### Readiness Settings candidate
+
+The integration branch includes five native Settings sections for Skills, MCP, Hooks,
+subscriptions and routing. Their independent toggles enable **inert readiness checks only**:
+they do not activate Manager operations, accounts, commands or Auto routing. Readiness is
+host-shared, process-lifetime state rather than persisted configuration. The public host entry
+ships the Owner-admitted service under `lib/management/`.
+
+Portable and isolated exact-host product integration pass. Actual browser appearance and live
+acceptance remain pending; see [product evidence](docs/research/t03-settings-product-evidence.md)
+and the [pending browser procedure](docs/research/t03-browser-acceptance.md). Workspace commits
+are not an automatic deployment to the installed desktop plugin.
 
 ### Opt-in native management proofs
 
