@@ -119,10 +119,6 @@ async function proof() {
     assert.deepEqual(metadata[0], { provider: 't02d-fixture', id: 'explicit' });
     const catalog = parent.agent.session.snapshotEvents().filter(event => event.type === 'subagent/catalog');
     assert.ok(catalog.length > 0, 'Native parent delivery must establish the parent catalog');
-    console.log('PASS registered native tool admits parent-delivery child with actual JSONL persistence and stored descriptor');
-    assert.equal(networkAttempts, 0);
-    console.log(JSON.stringify({ hostVersion: require(path.join(runtime, 'package.json')).version,
-      checks: 1, streams, networkAttempts, boundary: 'Successful native parent-delivery admission and persisted descriptor only; not completion notification, cold resume, enabled routing or whole #7 acceptance.' }));
   } finally {
     releaseStream();
     if (readHandle) await readHandle.close();
@@ -132,11 +128,16 @@ async function proof() {
       const ends = lifecycle.filter(row => row.type === 'end');
       assert.equal(ends.length, starts.length, 'Cleanup must pair each native child start/end');
       assert.equal(ends[0].event.runId, starts[0].event.runId);
-      console.log('PASS cleanup pairs native child lifecycle');
     }
     if (parent) await parent.dispose();
     await ctx.fiber.dispose();
   }
 }
 const watchdog = setTimeout(() => { console.error('T02D parent-delivery fixture did not settle'); process.exit(1); }, 20000);
-proof().catch(error => { console.error(error); process.exitCode = 1; }).finally(() => clearTimeout(watchdog));
+proof().then(() => {
+  assert.equal(networkAttempts, 0);
+  console.log('PASS registered native tool admits parent-delivery child with actual JSONL persistence and stored descriptor');
+  console.log('PASS cleanup pairs native child lifecycle');
+  console.log(JSON.stringify({ hostVersion: require(path.join(runtime, 'package.json')).version,
+    checks: 1, streams, networkAttempts, boundary: 'Successful native parent-delivery admission and persisted descriptor only; not completion notification, cold resume, enabled routing or whole #7 acceptance.' }));
+}).catch(error => { console.error(error); process.exitCode = 1; }).finally(() => clearTimeout(watchdog));
