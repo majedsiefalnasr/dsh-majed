@@ -6,7 +6,7 @@ const path = require('node:path');
 const runtime = process.argv[2];
 const flags = process.argv.slice(3);
 assert(runtime && path.isAbsolute(runtime));
-assert(flags.every(flag => flag === '--red-no-persistence'));
+assert(flags.every(flag => ['--red-no-persistence', '--red-advertise-explicit'].includes(flag)));
 let networkAttempts = 0;
 const deny = () => { networkAttempts++; throw new Error('T02D forbids network'); };
 globalThis.fetch = deny;
@@ -24,6 +24,7 @@ const { foldSubagentDescriptor } = load('dsh-subagent');
 const ctx = new Context();
 const lifecycle = [];
 const metadata = [];
+const inventoryRequests = [];
 let streams = 0;
 let parent;
 let readHandle;
@@ -42,6 +43,13 @@ class FixtureSelection extends Service {
   current() { return { enabled: true, allowedModels: [{ provider: 't02d-fixture', model: 'explicit' }] }; }
 }
 class FixtureAdapter extends LlmAdapter {
+  async listModels(provider) {
+    inventoryRequests.push(provider);
+    return [
+      { provider, id: 'disallowed-decoy', name: 'Disallowed decoy' },
+      ...(flags.includes('--red-advertise-explicit') ? [{ provider, id: 'explicit', name: 'Explicit' }] : []),
+    ];
+  }
   async resolveModel(provider, id) {
     metadata.push({ provider, id });
     return { provider, id, name: id, reasoning: {
@@ -87,6 +95,20 @@ async function proof() {
     }, parent.agent.session));
     await toolScope.await();
     assert.equal(toolScope.state, 2);
+    const discovery = ctx.tools.get('list_subagent_models');
+    assert.ok(discovery, 'Actual exported native discovery tool must be registered');
+    const discoveryExec = { agent: parent.agent, signal: new AbortController().signal };
+    const advertised = await discovery.execute({ provider: 't02d-fixture' }, discoveryExec);
+    assert.equal(advertised, '(no advertised models for t02d-fixture)',
+      'Public listing must omit unlisted explicit and filter the disallowed decoy');
+    assert.deepEqual(inventoryRequests, ['t02d-fixture'], 'Public discovery must query adapter inventory');
+    assert.deepEqual(metadata, [], 'Provider listing must not resolve exact model metadata');
+    assert.equal(streams, 0, 'Inventory discovery must not start inference');
+    const exact = await discovery.execute({ provider: 't02d-fixture', model: 'explicit' }, discoveryExec);
+    assert.equal(exact, 't02d-fixture/explicit — explicit\nReasoning efforts:\nlow (default) — Low');
+    assert.deepEqual(metadata, [{ provider: 't02d-fixture', id: 'explicit' }],
+      'Exact discovery must resolve the allowed unlisted route');
+    assert.equal(streams, 0, 'Exact-model discovery must not start inference');
     const definition = ctx.tools.get('t02d_delegate');
     assert.ok(definition, 'Actual exported native tool must be registered');
     const result = await definition.execute({ description: 'Synthetic persisted child', prompt: 'No real inference',
@@ -137,7 +159,8 @@ const watchdog = setTimeout(() => { console.error('T02D parent-delivery fixture 
 proof().then(() => {
   assert.equal(networkAttempts, 0);
   console.log('PASS registered native tool admits parent-delivery child with actual JSONL persistence and stored descriptor');
+  console.log('PASS registered discovery filters advisory inventory and resolves allowed unlisted model efforts without inference');
   console.log('PASS cleanup pairs native child lifecycle');
   console.log(JSON.stringify({ hostVersion: require(path.join(runtime, 'package.json')).version,
-    checks: 1, streams, networkAttempts, boundary: 'Successful native parent-delivery admission and persisted descriptor only; not completion notification, cold resume, enabled routing or whole #7 acceptance.' }));
+    checks: 2, streams, networkAttempts, boundary: 'Synthetic advisory inventory discovery plus native parent-delivery admission and persisted descriptor only; not completion notification, cold resume, positive preset/actual permission acceptance, enabled routing or whole #7 acceptance.' }));
 }).catch(error => { console.error(error); process.exitCode = 1; }).finally(() => clearTimeout(watchdog));
