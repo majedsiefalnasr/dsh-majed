@@ -1,0 +1,41 @@
+# T02E / #47: original Approval provenance is unsupported
+
+Assessment date: 2026-10-24. Base: `51c2246`; branch: `feat/t02e-provenance-assessment`.
+
+## Decision and boundary
+
+**Unsupported architecture at the inspected public seam, not a missing fixture.** Native Owner admission is supported; authenticated **original** local/remote provenance bound to that admission is not exposed. Both local and paired-remote Approval remain required. T02E / [#47](https://github.com/majedsiefalnasr/dsh-majed/issues/47) stays unsatisfied and T10 stays blocked under [ADR 0008](../adr/0008-separate-management-admission-from-command-approval-provenance.md). This negative result does not close the ticket or authorize a local-only fallback.
+
+This bounded review re-read exact installed source and [prior admission/provenance evidence](management-approval-provenance.md), rather than repeating broad research or inventing an attestation fixture. No runtime behavior, installed configuration or operational store was changed. No host command hook, network listener, inference/provider call, pairing/auth service or credential store was exercised. GitHub ticket retrieval and repository maintenance are not live product verification.
+
+## Reproducible source evidence
+
+The following are code-reading observations, not execution of the installed services. The native package manifest reports `@deepseek-ai/dsh-client-connection` `0.2.1-rc.2`; prior research identifies the installed remote cohort as `0.4.7`. Re-read these exact locations to reproduce the information-loss finding without initializing authentication or consuming services:
+
+| Public surface / source | Exact contract or decisive behavior | Consequence |
+| --- | --- | --- |
+| [Native registry and admission](</Applications/DeepSeek Harness.app/Contents/Resources/app.asar/dsh/node_modules/@deepseek-ai/dsh-client-connection/lib/index.js#L731-L749>) | `get fetch()` returns `{ register: (route) => this.registerFetchRoute(owner, route) }`; authenticated browsers return `{ peer: this.browserPeer }`. The shared Peer is constructed with `{ principal: { kind: "owner" } }` at line 714. | Owner authentication does not distinguish original local and remote browsers. |
+| [Exact native dispatch](</Applications/DeepSeek Harness.app/Contents/Resources/app.asar/dsh/node_modules/@deepseek-ai/dsh-client-connection/lib/index.js#L820-L853>) | Internal carrier `fetch: (request, peer) => ...` checks `peer.principal.kind !== "owner"`, then **`return route.fetch(request)`**. | The registered callback receives only the WHATWG Request, not authenticated provenance or even Peer. This is the observed executable callback shape, not a reconstructed TypeScript declaration. |
+| [Paired remote gate and rewrite](</Users/majedsiefalnasr/.dsh/profiles/desktop/node_modules/@linxin666/dsh-remote-web-ui/src/remote-api.ts#L105-L191>) | `pairedDeviceIdOf(req: IncomingMessage, service: PairingService): string \| undefined` validates through `service.touchDevice(id)`; `innerPathOf(pathname: string): string \| undefined` strips `/remote`; the handler calls `proxyLoopbackHttp(req, res, port, \`${inner}${url.search}\`, deps.auth)`. | Original pairing identity is checked upstream, but neither the validated identity nor the remote prefix is attached as authenticated downstream context. |
+| [Remote HTTP proxy](</Users/majedsiefalnasr/.dsh/profiles/desktop/node_modules/@linxin666/dsh-remote-web-ui/src/loopback-proxy.ts#L46-L84>) | `proxyLoopbackHttp(req: IncomingMessage, res: ServerResponse, port: number, upstreamPath: string, auth?: InnerAuth): void` creates a new inner request. Headers are loopback `host`, synthetic `sec-fetch-site: same-origin`, selected content headers and an inner native browser-auth cookie. | Outer Origin, source address and device credential are not an attestation delivered to the Fetch callback. Local and remote can produce indistinguishable inner Requests. |
+| [Optional pairing service](</Users/majedsiefalnasr/.dsh/profiles/desktop/node_modules/@linxin666/dsh-remote-web-ui/src/pairing-access.ts#L1-L35>) | `isPairedDevice(request: IncomingMessage): boolean` checks a live outer paired cookie; the documented use is outside `/api`. | A boolean over the original Node request is not authenticated context on the downstream WHATWG Request. False means no live pairing credential, not positive local provenance. |
+
+The native manifest points to `lib/types/index.d.ts`, but that declaration was unavailable through the installed archive's read interface. The executable exported-service implementation above supplies the decisive signature; no claim is made to have read a declaration that was unavailable. Path discovery inside the archive also failed because the archive is not a filesystem directory; this does not invalidate direct source reads.
+
+Even adding the existing Peer to exact Fetch would not repair the loss: both paths use the same Owner Peer after the proxy has discarded outer identity. `Origin`, custom labels, forwarded headers, URL prefix, loopback socket, browser cookie and server receipt time cannot independently authenticate original locality. Refusing remote requests instead would violate the required two-path contract.
+
+## Evidence deliberately not manufactured
+
+The prior isolated native-admission probe already characterizes one-argument exact callback delivery, native signed-cookie admission, forged labels, shared Peer and proxy-shaped fixtures. Its explicitly synthetic proxy-shaped case is **not** execution of the installed paired remote service. Re-running it would add no missing provenance information, so this assessment adds no duplicate probe.
+
+Missing/invalid/stale attestation, replay and scope-substitution tests against actual supported provenance services cannot be genuine positive/negative acceptance yet: no such public attestation contract was found at this seam. A mock signer, invented source field or helper that always says unsupported would only test an invented protocol or an unwired fixture. Paired-proxy rewriting is established here by source, not claimed as live acceptance. Admission/browser/socket coverage gaps remain separate from this architectural information loss.
+
+No standalone capability policy was added: the inspected Majed entry point has no Command Approval/provenance implementation to gate. Adding an unused boolean would not enforce challenge/approve/run/test/event or import paths and would create a misleading production-security claim. A future product seam requires parent review before code, test-first implementation and coverage of every entry point.
+
+## Minimal upstream contract needed to reopen proof
+
+A supported native admission/transport contract must carry immutable, server-authenticated **original** source context through the paired proxy to the exact Fetch callback. Its documented local/remote meaning must positively identify each path, preserve native Owner admission, and associate the context with the same admitted request. Exposing a Peer or trusting a header is insufficient. The paired transport must participate through an official supported contract, not a Majed host patch or private-method interception.
+
+The contract must support verification bound to the reviewed content fingerprint, canonical scope and operation/request identity, with defined audience, validity/server time and nonce/replay semantics. A transport context need not itself implement Approval storage, but must make that binding verifiable rather than merely report a free-floating source label. Missing, invalid, stale, substituted and replayed evidence must reject; no client can mint or downgrade it. The actual supported local and paired-remote services then need isolated adversarial tests, followed separately by authorized live evidence.
+
+Until that exists, keep Command challenge issuance, Approval creation/import/persistence, command event dispatch, test/run shortcuts and execution unavailable server-side, with explicit limitation diagnostics when those surfaces are implemented. Preserve server time, nonce, typed confirmation, exact content/canonical scope and native guard precedence in T10. Inert Hook editing and unrelated Settings/Skills/MCP work remain subject to their own prerequisites and Cutover authorization; this assessment grants none.
