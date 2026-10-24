@@ -32,3 +32,20 @@ test('invalid, oversized and scoped requests do not mutate readiness or leak pat
   assert.equal((await (await call({ module: 'skills', enabled: false, sessionId: 'session', workspaceId: 'workspace' })).json()).result.error.code, 'scope_not_found');
   assert.equal((await (await call({ module: 'skills' })).json()).result.value.enabled, true, 'rejected scope cannot change enablement');
 });
+
+test('wrong method and wrong path are rejected without mutating readiness', async t => {
+  const ctx = new Context(); let route;
+  ctx.provide('connection', { fetch: { register(value) { route = value; } } });
+  const fiber = ctx.plugin({ apply }); await fiber; t.after(() => fiber.dispose());
+  const envelope = JSON.stringify({ type: 'client-request', method: 'majed/settings/status', rpcId: 'x', payload: { module: 'skills' } });
+  // GET on the status path -> 405 method not allowed (method fence precedes body parsing)
+  assert.equal((await route.fetch(new Request('http://fixture/api/majed/settings/status', { method: 'GET' }))).status, 405);
+  // POST to a suffixed path -> 404 not found (exact route, no prefix repair)
+  assert.equal((await route.fetch(new Request('http://fixture/api/majed/settings/status/extra', {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: envelope }))).status, 404);
+  // Readiness untouched by rejected requests
+  const call = payload => route.fetch(new Request('http://fixture/api/majed/settings/status', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ type: 'client-request', method: 'majed/settings/status', rpcId: 'safe-id', payload }) }));
+  assert.equal((await (await call({ module: 'skills' })).json()).result.value.enabled, false);
+});
