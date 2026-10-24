@@ -2,8 +2,33 @@
 
 ## Status and authority
 
-**Partial characterization only; T02D / #7 remains open.** This is an exact installed-host
-proof of caller-supplied local routes, not global interception or enabled Smart Auto.
+**T02D acceptance reconciled on 2026-10-24; bounded proof criteria satisfied.** This is an exact
+installed-host proof of caller-supplied local routes, not global interception or enabled Smart Auto.
+The original partial results below are historical and supplemented by the linked increments.
+
+## Whole-ticket reconciliation
+
+At integration `fa477d4`, an explicitly selected `codex/gpt-6-astra` workflow audit mapped all three
+original criteria to the baseline and subsequent evidence; `codex/gpt-6.1-sol` independently found
+no evidence-integrity blocker. These are configured audit model selections, not proof of product
+routing or a reasoning-effort override. Both audits were read-only; the parent supplied execution
+evidence and reran integrated preset (3 checks), approval (5 checks), portable (66 tests) and
+classifier (166 cases) suites successfully. The original child/preflight/persisted/inventory runs
+and input-only negative controls remain recorded below and in the linked reports.
+
+- Criterion 1: public inputs, explicit ordering, detached descriptors, inherited/latest route,
+  effort clearing and pre-admission cancellation are established by baseline and registered-tool fixtures.
+- Criterion 2: native depth, concurrency, lifecycle, requested preset composition and delegated
+  approval enforcement are established; advisory inventory is distinct from execution authority.
+  External backends remain explicitly unqualified, not declared universally incapable.
+- Criterion 3: fixtures use public services and synthetic inference only, with no host patch or
+  private interception. The original persistence limitation was solved by the public JSONL backend,
+  not a delivery bypass or supported-scope reduction.
+
+This resolves feasibility only. It does not accept T26, production routing, filesystem confinement,
+cold resume, universal interception, every backend or race/disposal matrix, operational Cutover,
+or final live acceptance. Optional runner duplication/teardown hardening advice is not a new gate.
+Older increment reports' open-status wording records their state at creation, not extra criteria.
 The approved [acceptance criteria](<../managers-tickets-draft.md#L120-L130>) are unchanged.
 No private manager method is intercepted and DSH is not patched. No installed plugin,
 operational account, permission setting or model-facing tool exposure is changed.
@@ -120,7 +145,7 @@ policy switch proves the answerer can grant. It is not filesystem-confinement pr
 Parent reproduced all three preset checks and five approval checks, zero network attempts, and both
 input-only sensitivity failures on 2026-10-24. Independent Standards and Spec reviewers found no hard
 or specification defects; optional runner duplication advice is not an acceptance gate.
-T02D remains open pending whole-ticket reconciliation, not because those two criteria are still absent.
+Whole-ticket reconciliation above now accepts the original bounded feasibility criteria.
 Broader policy/inventory matrix coverage remains unproved but is not automatically a separate acceptance prerequisite;
 persisted cold resume, mid-preparation abort or exact-parent replacement races, and
 cross-root/descendant disposal coverage also remain unproved. Concrete external adapters

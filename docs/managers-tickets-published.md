@@ -120,9 +120,13 @@ explicit route/effort, preserved parent, depth rejection and paired completion. 
 and ApprovalService enforce delegated `never` before body/answerer, including audit and a live
 fixture answerer positive control. Parent reproduced their three/five checks and input-only failure
 controls; separate Standards/Spec reviews found no hard/specification defects. These are no longer
-missing ownership criteria. T02D remains open for whole-ticket reconciliation. Cold resume,
-filesystem confinement and universal interception remain non-claims, not newly added standalone
-prerequisites; no dependent gate is waived.
+missing ownership criteria. Whole-ticket reconciliation at `fa477d4` mapped all original criteria
+to evidence using explicitly configured `codex/gpt-6-astra` and `codex/gpt-6.1-sol` workflow audits;
+no genuine unmet original criterion or integrity blocker was identified. Parent reran the integrated
+preset/approval and portable suites successfully. T02D bounded feasibility is accepted; #7 resolution
+is recorded in the tracker. Cold resume, filesystem confinement and universal interception remain
+non-claims, not newly added standalone prerequisites. T26 still requires its other native blockers,
+and no product/live/operational gate is waived.
 The T02B [upstream capability request](<research/auto-upstream-request-draft.md>) is prepared but
 **unpublished**; Owner authorization is required before posting.
 T04 / #9 now has an inactive [pinned reference baseline](<reference-artifacts.json>),
