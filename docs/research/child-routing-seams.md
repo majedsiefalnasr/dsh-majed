@@ -33,7 +33,7 @@ interfaces or upstream source guarantees. Advertised declaration files were unav
 | Native local spawn | `request.agentOptions` before admission; independent preset, output schema and depth capabilities | Actual service route/depth/capacity/lifecycle checks pass; selected preset success and schema execution not tested |
 | Native local fork | Route overrides, output schema, depth; inherits completed parent turns and composition | Actual empty-parent fork settles; independent preset rejects; populated history and route override on fork not exercised |
 | Caller-owned service creation | `async startActivation(spec)` accepts caller-resolved route before native admission | Does not preflight model/effort metadata itself; own caller must validate selection |
-| Native model-facing tool | Configured defaults and settings-opted-in explicit route/effort; exact route allowance and LLM preflight | Source-reviewed only; no tool registration, settings-policy, race or inventory fixture yet |
+| Native model-facing tool | Configured defaults and settings-opted-in explicit route/effort; exact route allowance and LLM preflight | Registered-tool preflight, persisted admission and advisory inventory checks now pass in the linked increments below; positive preset and actual permission enforcement remain open |
 | External backends | Provider-declared capabilities are checked; exported subprocess helper declares none | Concrete Codex/Claude adapters are not inspected or proven here; do not infer all custom backends are incapable |
 | Universal child rewrite | No qualifying public rewrite-all-start hook established | `prepareContinuable` receives no route and is too late to replace resolved options; not a supported interception claim |
 
