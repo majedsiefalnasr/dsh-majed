@@ -22,4 +22,14 @@ After page reload, the actual paired-remote Settings MCP Manager showed an enabl
 
 A second local-authentication help request again resulted in an authenticated remote page, not a local-origin page. Local browser evidence therefore remains unavailable. Existing System appearance, English, App UI size 14 and chat size 18 were unchanged.
 
-Remaining: authenticated local page and complete theme/locale/font/keyboard/viewport matrix in [the acceptance procedure](t03-browser-acceptance.md). T03 remains open. No feature runtime, account operation, command hook, reference removal or profile modification was performed.
+## Additional remote narrow-screen checks
+
+At corrected candidate `6a4d8ad`, BrowserSkill session `lugk` exercised the paired-remote page. Observed initial viewport 1200×1223, then requested a narrower window; actual reported viewport was 500×677 (the browser imposed its own minimum), not the requested 440×820. Screenshots confirmed readable wrapped readiness copy and visible Switch/Refresh/status at this actual viewport in dark System appearance and explicit Light appearance. General showed English, App UI 14 and chat 18; these are distinct font settings, so this does **not** count as UI-size-18 evidence.
+
+Skills, Hooks, Subscriptions and Auto routing sections each returned their disabled readiness status without raw translation keys. Skills readiness was activated with keyboard Space on its focused Switch and returned ready, then restored to disabled. Hooks remained independently disabled. Subscriptions Refresh accepted Enter after explicit focus and returned disabled. A Tab after the Skills async toggle moved focus to Account navigation rather than providing a proven sequential Switch-to-Refresh path; full keyboard/focus-return acceptance is therefore not claimed. Screenshots were observed in-session, not saved as a durable image artifact.
+
+The native General Language menu offered only `中文` and `English`. Arabic could not be selected through the visible native language control despite the plugin's Arabic dictionary. No locale/config/storage workaround was used. This is a concrete remaining usability/acceptance gap requiring investigation of a public locale seam, not evidence that Arabic works live.
+
+Explicit Light was restored to the original System preference through General. Skills readiness was restored to disabled; other modules stayed disabled. English, fonts and other preferences were unchanged. Settings was closed after this pass. No command/account/provider operation occurred.
+
+Remaining: authenticated local page, selectable live Arabic, UI-size-18 and complete theme/locale/font/keyboard/viewport matrix in [the acceptance procedure](t03-browser-acceptance.md). T03 remains open. No feature runtime, account operation, command hook, reference removal or profile modification was performed.
