@@ -2,7 +2,7 @@
 
 Parent: [T02A / #4](https://github.com/majedsiefalnasr/dsh-majed/issues/4), part of [expanded specification / #2](https://github.com/majedsiefalnasr/dsh-majed/issues/2). Integration branch: `feat/managers`. Last reconciled: 2026-10-24.
 
-This is execution tracking against existing acceptance, not a new specification or a dependency waiver. Combined temporary feasibility acceptance was satisfied on 2026-10-24 at merge `80b4a43`, subject to the explicit fixture limitations below. This is not product/live acceptance or operational permission. GitHub resolution is recorded after this evidence commit.
+This is execution tracking against existing acceptance, not a new specification or a dependency waiver. Combined temporary feasibility acceptance was satisfied on 2026-10-24 at merge `80b4a43`, subject to the explicit fixture limitations below. This is not product/live acceptance or operational permission. [GitHub #4](https://github.com/majedsiefalnasr/dsh-majed/issues/4) was resolved as completed after evidence commit `9e4cfc3`; T03 / #8 is unblocked.
 
 **Gate scope:** T02A is the temporary exact-host, actual-client/public-service feasibility composition in
 [the approved ticket](../managers-tickets-draft.md#t02a--prove-authenticated-management-admission)
