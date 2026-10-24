@@ -1,22 +1,34 @@
-import { object, text, flag, dictionary, fail, serial } from '../managers/validation.js';
+import { object, text, flag, maskedDictionary, fail, serial, scope, reconnect, timeout, instructionLimit, serverPath, MASKED_SECRET } from '../managers/validation.js';
 export const SERVER_NAME = /^[A-Za-z0-9_-]{1,32}$/;
+export { MASKED_SECRET };
 export function validateServer(value) {
-  object(value, ['serverName', 'enabled', 'transport', 'command', 'args', 'env', 'cwd', 'url', 'headers']);
+  object(value, ['serverName', 'scope', 'enabled', 'transport', 'command', 'args', 'env', 'cwd', 'url', 'headers', 'reconnect', 'timeout', 'instructionLimit']);
   if (!SERVER_NAME.test(text(value.serverName, 32))) fail();
-  const result = { serverName: value.serverName, enabled: flag(value.enabled), transport: value.transport };
+  const result = {
+    serverName: value.serverName,
+    scope: scope(value.scope),
+    enabled: flag(value.enabled),
+    transport: value.transport,
+  };
   if (value.transport === 'stdio') {
     if (value.url !== undefined || value.headers !== undefined) fail();
     result.command = text(value.command, 1024); if (!result.command.trim()) fail();
     if (value.args !== undefined && (!Array.isArray(value.args) || value.args.length > 128)) fail();
     result.args = (value.args || []).map(arg => text(arg));
-    if (value.env !== undefined) result.env = dictionary(value.env);
-    if (value.cwd !== undefined) { result.cwd = text(value.cwd); if (!result.cwd.trim()) fail(); }
+    if (value.env !== undefined) result.env = maskedDictionary(value.env);
+    if (value.cwd !== undefined) { result.cwd = serverPath(value.cwd); if (!result.cwd.trim()) fail(); }
+    result.reconnect = reconnect(value.reconnect);
+    result.timeout = timeout(value.timeout);
+    result.instructionLimit = instructionLimit(value.instructionLimit);
   } else if (value.transport === 'streamable-http') {
     if (['command', 'args', 'env', 'cwd'].some(key => value[key] !== undefined)) fail();
     let url; try { url = new URL(text(value.url)); } catch { fail(); }
     if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password || url.hash) fail();
     result.url = url.href;
-    if (value.headers !== undefined) result.headers = dictionary(value.headers);
+    if (value.headers !== undefined) result.headers = maskedDictionary(value.headers);
+    result.reconnect = reconnect(value.reconnect);
+    result.timeout = timeout(value.timeout);
+    result.instructionLimit = instructionLimit(value.instructionLimit);
   } else fail();
   return result;
 }

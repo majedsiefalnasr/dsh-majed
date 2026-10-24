@@ -1,6 +1,6 @@
 import { createMcpManager, validateServers, mcpConfigFields } from '../mcp/index.js';
 import { createHooksManager, validateHooks, hooksConfigFields } from '../hooks/index.js';
-import { object, fail, serial, safeFailure, persistenceReason } from './validation.js';
+import { object, fail, serial, safeFailure, persistenceReason, MASKED_SECRET, mergeSecrets } from './validation.js';
 import { registerLocalTransport } from './transport.js';
 export const MANAGER_SERVICE = 'dshMajedManagers';
 export const managerConfigFields = { ...mcpConfigFields, ...hooksConfigFields };
@@ -54,15 +54,42 @@ export function createOwnedPersistence(editor, ownership) {
 export function createManagerService(ctx, initial = {}, options = {}) {
   const mcp = createMcpManager(ctx, options.loadMcp); const hooks = createHooksManager(ctx);
   const queue = serial(); let config = validateManagerConfig(initial); let hookStatus = 'configured'; let disposed = false; let disposal;
-  const snapshot = () => ({ writable: !disposed && options.persistence?.available() === true, servers: mcp.snapshot(), hooks: { ...hooks.snapshot(), status: hookStatus } });
+  const snapshot = () => ({ writable: !disposed && options.mcpStore !== undefined, servers: mcp.snapshot(), hooks: { ...hooks.snapshot(), status: hookStatus } });
   async function activate(next) {
     await mcp.replace(next.servers);
     if (disposed) return;
     try { hooks.replace(next.hooks); hookStatus = next.hooks.enabled ? 'mounted' : 'configured'; }
     catch { hookStatus = 'activation-failed'; }
   }
-  const ready = queue(() => activate(config));
-  const mutate = change => queue(async () => {
+  const ready = queue(async () => {
+    let start = config;
+    if (options.mcpStore) {
+      // Request-time read: private store is the source of truth for servers.
+      const stored = await options.mcpStore.read();
+      start = { servers: stored.servers, hooks: config.hooks };
+    }
+    await activate(start);
+    config = start;
+  });
+  // Server mutations persist to the private Majed store (atomic write, request-time read).
+  const applyServer = change => queue(async () => {
+    let stage = 'unavailable';
+    try {
+      if (disposed || !options.mcpStore) throw new Error('Unavailable.');
+      stage = 'read';
+      const current = await options.mcpStore.read();
+      stage = 'validation';
+      const next = validateManagerConfig(change(structuredClone({ servers: current.servers, hooks: config.hooks })));
+      stage = 'persistence';
+      await options.mcpStore.save({ servers: next.servers });
+      config = next;
+      stage = 'activation';
+      if (!disposed) await activate(next);
+      return { ok: true, state: snapshot() };
+    } catch (error) { return safeFailure(error, stage); }
+  });
+  // Hook mutations persist through the config-editor owned persistence.
+  const applyHooks = change => queue(async () => {
     let stage = 'unavailable';
     try {
       if (disposed || options.persistence?.available() !== true) throw new Error('Unavailable.');
@@ -77,37 +104,52 @@ export function createManagerService(ctx, initial = {}, options = {}) {
   });
   const service = {
     ready,
-    upsertServer: input => mutate(next => {
+    upsertServer: input => applyServer(next => {
       object(input, ['originalName', 'server']);
-      object(input.server, ['serverName', 'enabled', 'transport', 'command', 'args', 'cwd', 'url']);
+      object(input.server, ['serverName', 'scope', 'enabled', 'transport', 'command', 'args', 'env', 'cwd', 'url', 'headers', 'reconnect', 'timeout', 'instructionLimit']);
       const index = input.originalName === undefined ? -1 : next.servers.findIndex(row => row.serverName === input.originalName);
       if (input.originalName !== undefined && index < 0) fail();
       if (next.servers.some((row, i) => i !== index && row.serverName === input.server.serverName)) fail();
       const previous = next.servers[index];
       if (previous && previous.transport !== input.server.transport && (Object.keys(previous.env || {}).length || Object.keys(previous.headers || {}).length)) fail();
-      const row = { ...input.server, enabled: input.server.enabled ?? previous?.enabled ?? false };
-      if (previous?.transport === row.transport) {
-        if (previous.env !== undefined) row.env = previous.env;
-        if (previous.headers !== undefined) row.headers = previous.headers;
-      }
+      const row = {
+        ...input.server,
+        enabled: input.server.enabled ?? previous?.enabled ?? false,
+        scope: input.server.scope ?? previous?.scope ?? 'global',
+        env: mergeSecrets(previous?.env, input.server.env),
+        headers: mergeSecrets(previous?.headers, input.server.headers),
+      };
       if (index < 0) next.servers.push(row); else next.servers[index] = row;
       return next;
     }),
-    removeServer: input => mutate(next => {
+    removeServer: input => applyServer(next => {
       object(input, ['serverName']);
       const index = next.servers.findIndex(row => row.serverName === input.serverName);
       if (index < 0) fail(); next.servers.splice(index, 1); return next;
     }),
-    updateHooks: input => mutate(next => { next.hooks = validateHooks(input); return next; }),
+    updateHooks: input => applyHooks(next => { next.hooks = validateHooks(input); return next; }),
     snapshot: async () => { await ready; return snapshot(); },
-    update: input => mutate(() => { object(input, ['servers', 'hooks']); return input; }),
-    setEnabled: input => mutate(next => {
+    update: input => queue(async () => {
+      object(input, ['servers', 'hooks']);
+      await applyServer(next => { next.servers = input.servers; return next; });
+      await applyHooks(next => { next.hooks = validateHooks(input.hooks); return next; });
+      return { ok: true, state: snapshot() };
+    }),
+    setEnabled: input => {
       object(input, ['kind', 'serverName', 'enabled']);
       if (typeof input.enabled !== 'boolean' || !['server', 'hooks'].includes(input.kind)) fail();
-      if (input.kind === 'hooks') { if (input.serverName !== undefined) fail(); next.hooks.enabled = input.enabled; }
-      else { const row = next.servers.find(server => server.serverName === input.serverName); if (!row) fail(); row.enabled = input.enabled; }
-      return next;
-    }),
+      if (input.kind === 'hooks') {
+        if (input.serverName !== undefined) fail();
+        return applyHooks(next => { next.hooks.enabled = input.enabled; return next; });
+      }
+      const serverName = input.serverName;
+      return applyServer(next => {
+        const row = next.servers.find(server => server.serverName === serverName);
+        if (!row) fail();
+        row.enabled = input.enabled;
+        return next;
+      });
+    },
     dispose: () => {
       if (disposal) return disposal;
       disposed = true;
