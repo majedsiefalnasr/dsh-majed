@@ -32,4 +32,10 @@ The native General Language menu offered only `中文` and `English`. Arabic cou
 
 Explicit Light was restored to the original System preference through General. Skills readiness was restored to disabled; other modules stayed disabled. English, fonts and other preferences were unchanged. Settings was closed after this pass. No command/account/provider operation occurred.
 
+## Arabic client deployment, live continuation unavailable
+
+After reviewed merge `84786a9` and documentation tip `42e05b9`, the build passed. Only installed `client.js` and `dist/client.js` were replaced under approved wider-access retry following the workspace sandbox denial. Prior files were retained in `deployment-backups/before-t03-arabic-84786a9/`. Both deployed files matched SHA-256 `3a5b8ca1e08d24f8e508079816c6ed83234689535f31fd7a21157b26403cb6c0`. No host/configuration file was changed. Targeted locale/readiness tests passed 6/6 after deployment.
+
+Starting the next owned browser session explicitly on verified instance `cfe27991` failed: `requested browser is not connected`. No alternative profile/backend was used and no page or preference was changed. Deployment is verified at the file level only; page reload and live Arabic selection await reconnection of that same browser instance. This does not establish an unsupported locale seam or complete T03.
+
 Remaining: authenticated local page, selectable live Arabic, UI-size-18 and complete theme/locale/font/keyboard/viewport matrix in [the acceptance procedure](t03-browser-acceptance.md). T03 remains open. No feature runtime, account operation, command hook, reference removal or profile modification was performed.
