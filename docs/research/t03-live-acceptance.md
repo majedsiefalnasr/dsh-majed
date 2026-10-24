@@ -89,4 +89,10 @@ Screenshot identities:
 
 Restored Auto to disabled with Shift+Tab/Space and observed the disabled status. MCP was not toggled. Returned to General, decreased App UI to explicitly verified 14 and selected English again. Closed Settings using its semantic Close button and observed the main page; stopped the owned session. Chat size, typeface and appearance were not changed. This batch proves the recorded remote presentation and representative keyboard sequence, not pending-request navigation, opener focus return, authenticated local behavior or operational Auto routing.
 
-Remaining: authenticated local sweep and outstanding lifecycle checks under [the amended acceptance procedure](t03-browser-acceptance.md). T03 remains open. No feature runtime, account operation, command hook, reference removal or profile modification was performed.
+## Semantic close/reopen check — 2026-10-24
+
+Owned session `mitc` on browser `cfe27991` at 1000×757 first reached the current local origin, which still displayed the native authentication-required page. No credentials were inspected or bypass attempted. Continued on the authorized remote origin: opened Settings through Account menu, visited Skills (readiness unchecked/disabled), used the semantic Close button, and observed the main page with no dialog. Screenshot `sha256:904da245de7ae1fc4499aaa3d569132fec7dcf2b5f25a3e5958b909b2a13ce3d` records that closed state. Reopened Settings through the same menu, revisited Skills and observed unchecked/disabled with functional controls. No readiness, appearance, language or font setting changed; session stopped.
+
+This verifies remote semantic close/reopen and preserved readiness. It does not verify opener focus return: the screenshot showed no unambiguous focus ring, so that behavior remains unproved. Pending-request section navigation was not exercised in this pass. Local authentication remains an Owner access prerequisite rather than a product failure.
+
+Remaining: authenticated local sweep, opener-focus evidence and pending-navigation check or explicit reproducibility limit under [the amended acceptance procedure](t03-browser-acceptance.md). T03 remains open. No feature runtime, account operation, command hook, reference removal or profile modification was performed.
