@@ -99,8 +99,12 @@ definition execution, captured-policy denial, route-change effort validation, an
 after metadata without additional child lifecycle. The historical twelve-check results above
 remain the baseline; see that report for the expanded results and persistence limitation.
 
-T02D stays open: successful tool-originated child delivery, complete policy/inventory coverage,
-native preset/composition restoration and actual permission-service enforcement remain unproved;
+A separate [public-persistence increment](child-parent-delivery.md) now proves registered-tool
+parent-delivery admission and the stored native descriptor in an isolated temporary JSONL backend.
+It does not prove eventual parent notification, cold resume or the full tool dispatch pipeline.
+
+T02D stays open: complete policy/inventory coverage, native preset/composition restoration and
+actual permission-service enforcement remain unproved;
 persisted cold resume, mid-preparation abort or exact-parent replacement races, and
 cross-root/descendant disposal coverage also remain unproved. Concrete external adapters
 have not been qualified.
