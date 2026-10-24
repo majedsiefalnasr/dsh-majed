@@ -8,6 +8,10 @@ All notable changes to `dsh-majed` are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Controlled authenticated carrier/service-effects join: mounted native Settings actions perform
+  native Skills watcher/policy updates and official MCP tool calls/disposal over local and remote HTTP.
+  Admission negatives precede effects; owned tasks, children, watchers and listeners are cleaned up.
+  This is temporary feasibility evidence, not production Manager CRUD or final live acceptance.
 - Controlled physical local/remote carrier proof: real public ephemeral HTTP servers and installed
   remote proxy connect mounted native RPC, Owner admission and session/workspace resolution.
   Synthetic state and explicit remote document base remain; Skills/MCP effects and live acceptance
@@ -39,7 +43,8 @@ All notable changes to `dsh-majed` are documented here. The format follows
 ### Changed
 - Owner-approved planning split: management admission remains T02A; trusted local/remote Command hook
   Approval provenance is independently gated by T02E and blocks T10 approval/execution, not ordinary
-  Settings/Skills/MCP/inert Hook editing. Neither gate is complete and no runtime is enabled by this change.
+  Settings/Skills/MCP/inert Hook editing. T02A temporary feasibility subsequently passed the joined
+  exact-host client/carrier/service proof; T02E remains unavailable. No production runtime is enabled.
 - Owner-approved scope clarifications: no process-global subscription networking mutation; local-directory
   Skill import/browse explicitly deferred; legacy profile Hooks manually re-added with fresh Approval.
   These are planning decisions, not implemented or live-verified behavior.

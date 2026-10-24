@@ -2,7 +2,7 @@
 
 Parent: [T02A / #4](https://github.com/majedsiefalnasr/dsh-majed/issues/4), part of [expanded specification / #2](https://github.com/majedsiefalnasr/dsh-majed/issues/2). Integration branch: `feat/managers`. Last reconciled: 2026-10-24.
 
-This is execution tracking against existing acceptance, not a new specification or a dependency waiver. The ticket is OPEN. A partial proof does not close the combined acceptance criterion.
+This is execution tracking against existing acceptance, not a new specification or a dependency waiver. Combined temporary feasibility acceptance was satisfied on 2026-10-24 at merge `80b4a43`, subject to the explicit fixture limitations below. This is not product/live acceptance or operational permission. GitHub resolution is recorded after this evidence commit.
 
 **Gate scope:** T02A is the temporary exact-host, actual-client/public-service feasibility composition in
 [the approved ticket](../managers-tickets-draft.md#t02a--prove-authenticated-management-admission)
@@ -14,7 +14,10 @@ non-claims; it does not promote later work into prerequisite scope. The retained
 carrier and client joins must still be proved under controlled fixtures or reported unsupported; memory
 adapters alone do not establish an unexercised supported carrier. No gate is waived by this clarification.
 
-| Existing requirement | Evidence and status | Outstanding acceptance |
+The following table preserves the incremental checkpoints and their then-outstanding gaps. The combined
+acceptance section below supersedes carrier/effects gaps; later production/live non-claims remain intact.
+
+| Existing requirement | Incremental evidence and status | Outstanding at that checkpoint |
 | --- | --- | --- |
 | Native Owner-authenticated Fetch | `3b192eb`: actual native plugin apply and BrowserAuth algorithm with synthetic memory credentials, in-memory HTTP streams and rejection/lifecycle controls. `5e4ce69` + `bbc33da` add actual local/remote HTTP admission through the mounted native client; see the physical increment below. | Controlled Skills/MCP effects still need the same authenticated carrier join. Operational login and final live acceptance remain later non-claims, not prerequisite operations. |
 | Settings registration and actual client | `d3c53aa`: [partial actual bundle evaluation](management-settings-proof.md), supplemented by `a187ecd` + observable initial-state correction `5ae1157`: [real jsdom-mounted Settings](management-mounted-settings-proof.md), unchanged installed renderer/Settings/general, public SlotRegistry/SlotCore, real ReactDOM/stores/Cordis lifecycle. Independent green and both intended selection/withdrawal negative controls reproduced. | jsdom is not browser/live or visual acceptance. Presentation primitives and external remote/locale/session services remain explicit adapters. Actual Manager operations and supported authenticated carrier composition remain open. |
@@ -66,11 +69,28 @@ both listener closures. Result/correlation/membership controls reject at unchang
 Static review found a vacuous DNS negative (invalid call signature); the committed correction uses
 a valid callback and guard-specific error. No actionable findings remained on the final static review.
 
-The remaining feasibility join is the applicable native Skills invalidation and official MCP effects
-through the controlled authenticated client/carrier path, followed by combined acceptance review.
-The physical proof does not itself exercise those effects, real browser/TLS, operational auth discovery
-or outer-disconnect cancellation. Production CRUD, T03 product visuals and final live rollout remain
-later acceptance, not circular prerequisites. T03 stays blocked; no ticket or operational gate is waived.
+The [carrier/service-effects join](management-carrier-effects-proof.md), reviewed at `94238ff`,
+adds four actual mounted actions over the same local/remote physical path: disable/restore native
+Skills invocation policy through watched complete warm catalogs, and two official MCP client/tool
+lifecycles. Parent independently reproduced four effects, two skill writes, two tool calls, four owned
+children closed, three native watchers closed, two listeners closed and zero cleanup errors.
+The unchanged DOM result and watcher controls both fail as intended, with clean post-cleanup records.
+
+Independent Standards and Spec/security rereads found no remaining actionable findings in the final
+three-file artifact. An initial async-lifetime defect was corrected: request-linked action cancellation,
+awaited startup/call/disposal, owned-child kill fallback and draining actual effect tasks precede global
+teardown. The report distinguishes these from generic timeout checks. A separate acceptance audit
+found no additional original substantive T02A feasibility prerequisite after this join. The whitespace-only
+runner follow-up `211f6ca` merged as `80b4a43`; parent reran the joined proof and all six isolated
+management runners successfully after merge. Portable/package regressions passed 51/51 plus classifier
+166/166, with `git diff --check` clean. Combined temporary feasibility acceptance is therefore satisfied.
+
+All joins retain explicit jsdom/presentation/locale/session/physical-fetch adapters, synthetic
+pairing/credentials/storage and disposable files/stdio peers. ExactFetch uses the public owner-only
+route contract and correlated RPC fixtures, not the native generic dispatcher. Real browser/TLS,
+operational auth discovery, outer-disconnect cancellation, production CRUD, T03 product visuals and
+final live rollout remain later non-claims. T03 may start after native #4 resolution is recorded;
+Command Approval and all operational permission gates remain unchanged.
 
 ## Integration rules
 
