@@ -109,9 +109,19 @@ resolves exact metadata/effort without inference, and the same route still admit
 registered delegate. Parent independently reproduced green and the unchanged-assertion inventory
 negative on 2026-10-24; bounded independent Standards/Spec review found no actionable defect.
 
-T02D stays open: native positive preset/composition and actual permission-service enforcement
-remain substantive unproved ownership criteria. Broader policy/inventory matrix coverage remains
-unproved but is not automatically a separate acceptance prerequisite;
+Two additional bounded increments now establish [positive native preset ownership](child-preset-ownership.md)
+and [actual delegated approval enforcement](child-permission-ownership.md). The former uses the real
+Loader, preset registry and persona plugin to preserve requested child composition, explicit route/effort,
+parent composition, native depth and paired lifecycle. The latter dispatches through actual ToolRuntime
+and ApprovalService: an allowed sentinel runs, delegated `never` denies an ask-gated operation before
+its body or willing answerer, and the audit pair records rejection. A subsequent fixture-only public
+policy switch proves the answerer can grant. It is not filesystem-confinement proof.
+
+Parent reproduced all three preset checks and five approval checks, zero network attempts, and both
+input-only sensitivity failures on 2026-10-24. Independent Standards and Spec reviewers found no hard
+or specification defects; optional runner duplication advice is not an acceptance gate.
+T02D remains open pending whole-ticket reconciliation, not because those two criteria are still absent.
+Broader policy/inventory matrix coverage remains unproved but is not automatically a separate acceptance prerequisite;
 persisted cold resume, mid-preparation abort or exact-parent replacement races, and
 cross-root/descendant disposal coverage also remain unproved. Concrete external adapters
 have not been qualified.

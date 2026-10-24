@@ -113,9 +113,16 @@ descriptor and paired lifecycle cleanup. The historical no-persistence fixture r
 The [registered advisory inventory increment](research/child-advisory-inventory.md) additionally
 proves filtered advertised inventory versus allowed exact unlisted resolution and subsequent admission,
 without inference during discovery. Parent reproduced green plus the inventory sensitivity failure;
-bounded independent review found no actionable defect. Positive preset composition and actual
-permission enforcement remain substantive ownership gaps. Cold resume and universal interception
-remain non-claims, not newly added standalone prerequisites. It stays open; no dependent gate is waived.
+bounded independent review found no actionable defect. The subsequent
+[native preset increment](research/child-preset-ownership.md) proves requested scoped composition,
+explicit route/effort, preserved parent, depth rejection and paired completion. The
+[approval ownership increment](research/child-permission-ownership.md) proves actual ToolRuntime
+and ApprovalService enforce delegated `never` before body/answerer, including audit and a live
+fixture answerer positive control. Parent reproduced their three/five checks and input-only failure
+controls; separate Standards/Spec reviews found no hard/specification defects. These are no longer
+missing ownership criteria. T02D remains open for whole-ticket reconciliation. Cold resume,
+filesystem confinement and universal interception remain non-claims, not newly added standalone
+prerequisites; no dependent gate is waived.
 The T02B [upstream capability request](<research/auto-upstream-request-draft.md>) is prepared but
 **unpublished**; Owner authorization is required before posting.
 T04 / #9 now has an inactive [pinned reference baseline](<reference-artifacts.json>),
