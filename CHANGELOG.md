@@ -8,6 +8,7 @@ All notable changes to `dsh-majed` are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- T07 private MCP definition storage: stdio and streamable HTTP server definitions (with supported reconnect, timeout and instruction-limit fields) round-trip through Majed's own private store with atomic writes and request-time reads, preserving unrelated definitions and scope precedence. Masked credential edits use explicit unchanged/replace/remove semantics and secrets never reach snapshots, errors or logs. Scope/path/transport/name errors are rejected clearly. No profile YAML, generated handoff blocks or Reference plugin store writes are performed, and saving a definition does not claim connection success. MCP import/export disposition is left explicit (deferred to D05), not silently assumed covered. Local/remote live evidence remains unverified pending desktop and remote verification; no live claim is made.
 - T03 authenticated Settings slice visual contract (Skills, MCP, Hooks, subscriptions, routing): 14/18
   typography, English/Arabic RTL direction, modal overflow guard and narrow viewport stacking added to the
   readiness section; service path/method limits and scoped session-to-project rejection proven at the seam.

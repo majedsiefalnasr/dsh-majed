@@ -1,6 +1,7 @@
 // All manager inputs are untrusted, including persisted configuration.
 export class InputError extends Error { constructor() { super('Invalid manager configuration.'); this.name = 'InputError'; } }
 export const fail = () => { throw new InputError(); };
+export const MASKED_SECRET = '***';
 export function object(value, keys) {
   if (!value || typeof value !== 'object' || Array.isArray(value) || ![Object.prototype, null].includes(Object.getPrototypeOf(value))) fail();
   if (Object.keys(value).some(key => !keys.includes(key))) fail();
@@ -9,6 +10,13 @@ export function object(value, keys) {
 export function text(value, max = 4096) {
   if (typeof value !== 'string' || value.length > max || value.includes('\0')) fail();
   return value;
+}
+export function serverPath(value) {
+  if (value === undefined) return undefined;
+  const p = text(value);
+  if (!p.trim()) fail();
+  if (p.split(/[/\\]+/).includes('..')) fail();
+  return p;
 }
 export function flag(value, fallback = false) { if (value === undefined) return fallback; if (typeof value !== 'boolean') fail(); return value; }
 export function dictionary(value, max = 64) {
@@ -20,6 +28,56 @@ export function dictionary(value, max = 64) {
     result[key] = text(val);
   }
   return result;
+}
+// Secret-aware dictionary: null/undefined removes the entry, MASKED_SECRET
+// leaves it unchanged (never erased accidentally), any other string replaces it.
+export function maskedDictionary(value, max = 64) {
+  object(value, Object.keys(value || {}));
+  if (Object.keys(value).length > max) fail();
+  const result = Object.create(null);
+  for (const [key, val] of Object.entries(value)) {
+    if (!/^[A-Za-z_][A-Za-z0-9_.-]{0,127}$/.test(key) || ['__proto__', 'constructor', 'prototype'].includes(key)) fail();
+    if (val === null) { result[key] = null; continue; } // remove intent
+    if (val === MASKED_SECRET) { result[key] = MASKED_SECRET; continue; } // unchanged intent
+    result[key] = text(val); // replace
+  }
+  return result;
+}
+// Resolve masked secret edits against the previously stored value:
+// MASKED_SECRET keeps the existing secret (unchanged), null removes it,
+// any other string replaces it. Resolved values are strings only.
+export function mergeSecrets(previous, input) {
+  if (input === undefined) return previous;
+  const next = { ...(previous || {}) };
+  for (const [key, val] of Object.entries(input)) {
+    if (val === MASKED_SECRET) continue; // unchanged: keep existing secret
+    if (val === null || val === undefined) { delete next[key]; continue; } // remove
+    next[key] = val; // replace (validated string)
+  }
+  return next;
+}
+export function scope(value) {
+  if (value === undefined) return 'global';
+  if (value !== 'global' && value !== 'project') fail();
+  return value;
+}
+export function reconnect(value) {
+  if (value === undefined) return undefined;
+  object(value, ['enabled', 'maxAttempts']);
+  const enabled = flag(value.enabled);
+  const maxAttempts = value.maxAttempts ?? 5;
+  if (!Number.isInteger(maxAttempts) || maxAttempts < 1 || maxAttempts > 100) fail();
+  return { enabled, maxAttempts };
+}
+export function timeout(value) {
+  if (value === undefined) return undefined;
+  if (!Number.isInteger(value) || value < 1000 || value > 3600000) fail();
+  return value;
+}
+export function instructionLimit(value) {
+  if (value === undefined) return undefined;
+  if (!Number.isInteger(value) || value < 1 || value > 100000) fail();
+  return value;
 }
 export function serial() {
   let tail = Promise.resolve();
