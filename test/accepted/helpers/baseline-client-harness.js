@@ -261,7 +261,7 @@ export function createBaselineHarness(source, { stored, extension, confirm = tru
   return {
     modules, imports, document, window, storage, storageReads, registrations, dictionaries, injectCalls,
     confirms, notifications, openedSessions, timers, frames, observers,
-    apply() {
+    apply(mountPlugin = (plugin, context) => plugin.apply(context)) {
       assert.equal(modules.length, 1);
       plugin = modules[0].factory((id) => {
         imports.push(id);
@@ -269,8 +269,7 @@ export function createBaselineHarness(source, { stored, extension, confirm = tru
         if (id === '@deepseek-ai/dsh-client-ui-primitives') return primitives;
         throw new Error(`Unexpected client import: ${id}`);
       });
-      plugin.apply(context);
-      return plugin;
+      return mountPlugin(plugin, context) ?? plugin;
     },
     render(id, props = {}) {
       const registration = registrations.get(id);

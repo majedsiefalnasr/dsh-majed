@@ -51,7 +51,7 @@ test('baseline ModuleLoader registers only dsh-majed and apply exposes existing 
   assert.equal(harness.registrations.size, 0, 'loading alone does not apply the plugin');
   assert.equal(harness.document.head.children.length, 0);
   const plugin = harness.apply();
-  assert.deepEqual(Array.from(plugin.inject), ['slots', 'locale', 'uiWorkspace']);
+  assert.deepEqual(Array.from(plugin.inject), ['slots', 'locale', 'uiWorkspace', 'connection']);
   assert.deepEqual(harness.imports, ['react', '@deepseek-ai/dsh-client-ui-primitives']);
   assert.deepEqual([...harness.registrations.values()].map(({ metadata }) => [metadata.id, metadata.name, metadata.order]), expectedSlots);
   assert.deepEqual(harness.injectCalls, ['settings.section', ...expectedSlots.slice(5).map(([, name]) => name)]);

@@ -1860,7 +1860,7 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
 
     // ───────────────────────── plugin entry ─────────────────────────
     return {
-      inject: ['slots', 'locale', 'uiWorkspace'],
+      inject: ['slots', 'locale', 'uiWorkspace', 'connection'],
       apply(ctx) {
         appCtx = ctx;
         ctx.effect(() => () => { notificationGeneration++; appCtx = null; live.forEach((n) => { try { n.close(); } catch (_) {} }); live.clear(); }, 'dsh-majed: notification cleanup');
