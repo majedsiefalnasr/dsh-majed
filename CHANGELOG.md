@@ -59,6 +59,10 @@ All notable changes to `dsh-majed` are documented here. The format follows
   release documents in the published `files` list.
 
 ### Fixed
+- Declared the native `connection` service required by the T03 Settings readiness client. A real
+  Cordis sibling-service regression now covers initial readiness and Refresh RPC dispatch; the
+  previous declaration produced no request. This targets the observed remote "Status unavailable"
+  failure, but the corrected candidate has not yet been verified in the live local/remote GUI.
 - Baseline disposal restores a previous account-menu extension and removes its own empty namespace and
   pending stylesheet load listeners instead of retaining callbacks or deleting another owner's API.
 - Baseline disposal restores preexisting inline font values/priorities and invalidates pending notification

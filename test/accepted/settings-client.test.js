@@ -1,9 +1,50 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { Context } from '@deepseek-ai/cordis';
 import { createBaselineHarness } from './helpers/baseline-client-harness.js';
 const source = await readFile(new URL('../../dist/client.js', import.meta.url), 'utf8');
 const tick = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
+
+test('Settings readiness and Refresh reach a sibling Cordis connection service', async t => {
+  const calls = [];
+  const root = new Context();
+  // Services belong to sibling plugins in DSH, not the root context. Providing
+  // on root would incorrectly permit undeclared access through ancestry.
+  const provider = root.plugin({ apply(ctx) {
+    ctx.provide('connection', { rpc: { async call(channel, endpoint, payload) {
+      calls.push({ channel, endpoint, payload });
+      return { ok: true, value: { module: payload.module, enabled: false, state: 'disabled' } };
+    } } });
+  } });
+  await provider;
+  const harness = createBaselineHarness(source);
+  let consumer;
+  t.after(async () => { harness.dispose(); await consumer?.dispose(); await provider.dispose(); });
+  consumer = harness.apply((plugin, fixtures) => {
+    // Keep presentation fixtures but resolve connection through actual Cordis.
+    const { connection: unused, ...presentation } = fixtures;
+    for (const name of ['slots', 'locale', 'uiWorkspace']) root.provide(name, presentation[name]);
+    return root.plugin({ ...plugin, apply(ctx) {
+      plugin.apply(new Proxy(presentation, {
+        get(target, key) { return key === 'connection' ? ctx.connection : target[key]; },
+      }));
+    } });
+  });
+  await consumer;
+  const view = harness.render('majed-skills');
+  await tick(); view.render();
+  assert.equal(calls.length, 1, 'initial readiness must send an RPC, not report unavailable');
+  assert.equal(view.nodes(node => node.props.role === 'alert').length, 0);
+  await view.one(node => node.type === 'button').props.onClick();
+  await tick(); view.render();
+  assert.equal(calls.length, 2, 'Refresh must send another RPC');
+  for (const call of calls) {
+    assert.equal(call.channel, '/api');
+    assert.equal(call.endpoint, 'majed/settings/status');
+    assert.equal(call.payload.module, 'skills');
+  }
+});
 
 test('Settings readiness uses native carrier, isolates failures, translates RTL and cleans up', async t => {
   const calls = [], signals = [];
