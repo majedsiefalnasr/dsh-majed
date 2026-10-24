@@ -42,9 +42,12 @@ The existing twelve checks remain. The added three checks establish:
   effort clearing and explicit effort validation, not successful child options or
   a dispatch-time effort binding.
 - While asynchronous metadata lookup is held, the caller aborts. The synthetic
-  adapter intentionally returns normally after release, so the observed rejection
-  `Synthetic tool preflight abort` exercises the native tool's post-preflight
-  abort check. No additional child lifecycle or synthetic stream appears.
+  adapter intentionally returns normally after release. The observed rejection
+  `Synthetic tool preflight abort` and absence of additional child lifecycle or
+  synthetic streams prove cancellation after asynchronous metadata leaves child
+  lifecycle untouched. This fixture cannot attribute rejection to the native
+  tool's post-preflight abort check versus downstream `startActivation` pre-abort
+  handling, and does not prove `startActivation` was never called.
 
 ## Exact unsupported fixture boundary
 

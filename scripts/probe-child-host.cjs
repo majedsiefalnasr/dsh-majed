@@ -269,7 +269,7 @@ async function serviceProof() {
     await assert.rejects(cancelled, /Synthetic tool preflight abort/);
     metadataBarrier = undefined;
     assert.deepEqual({ streams, lifecycle: lifecycle.length }, beforeAbort);
-    recordPass('registered native tool rechecks abort after asynchronous metadata before child admission');
+    recordPass('registered native tool cancellation after asynchronous metadata leaves child lifecycle untouched');
   } finally {
     releaseStream();
     if (receipt) await receipt.dispose();
