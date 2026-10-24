@@ -74,4 +74,19 @@ Arabic async-focus cell after the fix: session `mrjv`, 1000×757, General explic
 
 Explicit font-18 post-fix cell: session `vmjd`, 1000×757, English/System-dark. Re-read General App UI 14/chat 18/default typeface, increased App UI with native controls and verified 18 before opening Auto routing. Initial readiness unchecked; Space returned checked/ready and Tab visibly focused Refresh after completion (screenshot `sha256:1458913e84b25bf7134469996029d69736f96133503037b4635f7426e5169cc2`). Main copy/status wrapped readably; native sidebar labels ellipsized and lower entries required scrolling. Restored readiness with Shift+Tab/Space, returned to General and decreased App UI to verified 14. No language/theme/typeface change; session stopped. This establishes one English dark/font-18 Auto-readiness case, not operational Auto routing or full matrix coverage.
 
-Remaining: authenticated local page and complete theme/locale/font/keyboard/viewport matrix in [the acceptance procedure](t03-browser-acceptance.md). T03 remains open. No feature runtime, account operation, command hook, reference removal or profile modification was performed.
+## Representative narrow Arabic UI18 batch — 2026-10-24
+
+After the Owner-approved risk-based amendment, owned remote session `pzdr` on verified browser `cfe27991` reported 600×757 CSS pixels (screenshots 1200×1514). General initially showed English, App UI 14, chat 18 and DSH default font. Increased App UI with native controls to explicitly verified 18 and selected Arabic; System/dark appearance was unchanged.
+
+Visited all five Majed sections in one batch. Arabic labels, RTL explanatory copy, status and both controls remained readable and accessible at this width. The native host navigation ellipsized long unrelated labels and scrolled vertically; no visible Majed content clipping was observed. Readiness was initially disabled for Skills, Hooks, Subscriptions and Auto, and enabled for MCP. No feature operations were activated.
+
+Screenshot identities:
+- Skills disabled: `sha256:bb3087845b31627100806161f7bcb8170bfbd57dfda688746a832392dbe18f99`.
+- MCP ready: `sha256:f1a2539743e6400aae82bef2cced9c5cd48cd7b5aa5514428d9d594ba777f587`.
+- Hooks disabled: `sha256:2d8e0a920a6bfb9b3479910655ec8b92266acf33e1a091d83780688b6c66c4ea`.
+- Subscriptions disabled: `sha256:815f34d6faa274804323124bfe305c670b3fc5100af3ad9db73e2f8eddd274a3`.
+- Auto after focused Switch → Space → observed ready → Tab: `sha256:0f8797b04a5a2f02c947e2a138cc36d68acd821f5c5deb50c8a3c0f2b625b14d`. The visible focus ring remained on Arabic Refresh after the asynchronous response.
+
+Restored Auto to disabled with Shift+Tab/Space and observed the disabled status. MCP was not toggled. Returned to General, decreased App UI to explicitly verified 14 and selected English again. Closed Settings using its semantic Close button and observed the main page; stopped the owned session. Chat size, typeface and appearance were not changed. This batch proves the recorded remote presentation and representative keyboard sequence, not pending-request navigation, opener focus return, authenticated local behavior or operational Auto routing.
+
+Remaining: authenticated local sweep and outstanding lifecycle checks under [the amended acceptance procedure](t03-browser-acceptance.md). T03 remains open. No feature runtime, account operation, command hook, reference removal or profile modification was performed.
