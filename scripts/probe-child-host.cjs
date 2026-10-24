@@ -110,9 +110,18 @@ async function serviceProof() {
     set(_session, _cwd) { return Promise.resolve(); }
     get() { return process.cwd(); }
   }
+  const metadataCalls = [];
+  let metadataBarrier;
   class FixtureAdapter extends LlmAdapter {
     async listModels(provider) { return [{ provider, id: 'fixture', name: 'Synthetic child fixture' }]; }
-    async resolveModel(provider, id) { return { provider, id, name: id }; }
+    async resolveModel(provider, id) {
+      metadataCalls.push({ provider, id });
+      if (id === 'abort' && metadataBarrier) await metadataBarrier();
+      return { provider, id, name: id, reasoning: {
+        efforts: id === 'explicit' ? [{ id: 'low', name: 'Low' }] :
+          [{ id: 'low', name: 'Low' }, { id: 'high', name: 'High' }], defaultEffort: 'low',
+      } };
+    }
     async *stream() {
       streams++;
       enterStream();
@@ -201,6 +210,66 @@ async function serviceProof() {
     assert.equal(lifecycle.filter(event => event.type === 'end').length, 2);
     await fork.dispose();
     recordPass('released native capacity admits a local fork and settles it');
+    // Approved seam: exported native apply -> actual Tools registration -> definition.execute.
+    // Synthetic settings/adapter metadata only; the child runtime remains unchanged.
+    let selection = { enabled: true, allowedModels: ['configured', 'explicit', 'abort'].map(model =>
+      ({ provider: 't02d-fixture', model })) };
+    class FixtureSelection extends Service {
+      constructor(owner) { super(owner, 'subagentModelSelection'); }
+      current() { return structuredClone(selection); }
+    }
+    const settings = ctx.plugin(FixtureSelection);
+    await settings.await();
+    const nativeTool = load('dsh-tool-subagent');
+    const toolFiber = ctx.inject(nativeTool.inject, async owner => nativeTool.apply(owner, {
+      provider: 'spawn', toolName: 't02d_delegate', modelSelectionSettings: true,
+      agentOptions: { provider: 't02d-fixture', model: 'configured', reasoningEffort: 'high' },
+    }, parentHandle.agent.session));
+    await toolFiber.await();
+    assert.equal(toolFiber.state, 2);
+    const definition = ctx.tools.get('t02d_delegate');
+    assert.ok(definition, 'Actual exported native tool must be registered');
+    assert.ok(definition.parameters.properties.provider);
+    assert.ok(definition.parameters.properties.reasoning_effort);
+    assert.equal(parentHandle.agent.session.snapshotEvents().filter(event =>
+      event.type === 'subagent/model-selection-policy').length, 1);
+    selection = { enabled: false, allowedModels: [] };
+    const args = { description: 'Synthetic native tool child', prompt: 'No real inference' };
+    const invoke = (extra = {}, signal = new AbortController().signal) =>
+      definition.execute({ ...args, ...extra }, { agent: parentHandle.agent, signal });
+    const beforeDenied = { streams, lifecycle: lifecycle.length, metadata: metadataCalls.length };
+    await assert.rejects(invoke({ provider: 't02d-fixture', model: 'denied' }), /is not allowed for this Session/);
+    await assert.rejects(invoke({ provider: 't02d-fixture' }), /must be supplied together/);
+    assert.deepEqual({ streams, lifecycle: lifecycle.length, metadata: metadataCalls.length }, beforeDenied);
+    recordPass('registered native tool captures Session policy and denies route before metadata or admission');
+
+    // Parent-delivery local continuations require persistence; do not widen this fixture.
+    // The selected model supports only low: retaining configured high must fail preflight.
+    await assert.rejects(invoke({ provider: 't02d-fixture', model: 'explicit', reasoning_effort: 'high' }),
+      error => error.code === 'UNSUPPORTED_REASONING_EFFORT');
+    await assert.rejects(invoke({ provider: 't02d-fixture', model: 'explicit' }),
+      error => error.code === 'PERSISTENCE_UNAVAILABLE');
+    assert.equal(metadataCalls.at(-1).id, 'explicit');
+    assert.deepEqual({ streams, lifecycle: lifecycle.length },
+      { streams: beforeDenied.streams, lifecycle: beforeDenied.lifecycle });
+    recordPass('registered native tool clears configured effort on route change but admission requires persistence');
+
+    const beforeAbort = { streams, lifecycle: lifecycle.length };
+    const controllerDuringMetadata = new AbortController();
+    let metadataEntered;
+    let metadataRelease;
+    const enteredMetadata = new Promise(resolve => { metadataEntered = resolve; });
+    const releaseMetadata = new Promise(resolve => { metadataRelease = resolve; });
+    metadataBarrier = async () => { metadataEntered(); await releaseMetadata; };
+    const cancelled = invoke({ provider: 't02d-fixture', model: 'abort' }, controllerDuringMetadata.signal);
+    try {
+      await enteredMetadata;
+      controllerDuringMetadata.abort(new Error('Synthetic tool preflight abort'));
+    } finally { metadataRelease(); }
+    await assert.rejects(cancelled, /Synthetic tool preflight abort/);
+    metadataBarrier = undefined;
+    assert.deepEqual({ streams, lifecycle: lifecycle.length }, beforeAbort);
+    recordPass('registered native tool rechecks abort after asynchronous metadata before child admission');
   } finally {
     releaseStream();
     if (receipt) await receipt.dispose();
