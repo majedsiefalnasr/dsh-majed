@@ -67,8 +67,8 @@ All notable changes to `dsh-majed` are documented here. The format follows
   live desktop/remote verification of Arabic selection remains pending.
 - Declared the native `connection` service required by the T03 Settings readiness client. A real
   Cordis sibling-service regression now covers initial readiness and Refresh RPC dispatch; the
-  previous declaration produced no request. This targets the observed remote "Status unavailable"
-  failure, but the corrected candidate has not yet been verified in the live local/remote GUI.
+  previous declaration produced no request. Corrected paired-remote readiness enable/Refresh/disable
+  was verified live after client deployment and reload; authenticated local and full visual acceptance remain pending.
 - Baseline disposal restores a previous account-menu extension and removes its own empty namespace and
   pending stylesheet load listeners instead of retaining callbacks or deleting another owner's API.
 - Baseline disposal restores preexisting inline font values/priorities and invalidates pending notification
