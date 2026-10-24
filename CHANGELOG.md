@@ -43,6 +43,12 @@ All notable changes to `dsh-majed` are documented here. The format follows
 - Inactive reference-source provenance, granular Parity list and upstream review process for the planned
   Manager/subscription integration. Reference runtimes are not included or enabled; parity and live acceptance
   remain pending, and source/artifact comparisons do not imply verified provenance signatures.
+- **Deterministic Auto core** (`modules/auto/index.js`, unit-tested in `test/auto-core.test.js`): explicitly enrolled
+  provider/account/model candidates with priority, default effort and Smart-permitted efforts; filter-before-selection
+  by images, tools, explicit effort and context/output limits; priority-based selection with session stickiness;
+  manual selection exits Auto; a bounded failover budget of at most three distinct candidates per cycle with no
+  repeats. Opt-in only — no automatic activation, no fake picker option, no global-default write. Local/remote live
+  acceptance and native-picker wiring remain pending (T02B/T22 gates).
 
 ### Changed
 - Owner-approved planning split: management admission remains T02A; trusted local/remote Command hook
