@@ -59,6 +59,12 @@ All notable changes to `dsh-majed` are documented here. The format follows
   release documents in the published `files` list.
 
 ### Fixed
+- Register Arabic (`العربية`, English fallback) in the public native language catalog, separately
+  from the existing dictionary, so supported hosts can offer it in General's Language menu.
+  The client owns only its exact registration's cleanup, preserves another plugin's Arabic entry,
+  and skips registration on older hosts without a usable catalog API or English fallback.
+  No explicit locale selection or preference write is made. Strict public-boundary regressions pass;
+  live desktop/remote verification of Arabic selection remains pending.
 - Declared the native `connection` service required by the T03 Settings readiness client. A real
   Cordis sibling-service regression now covers initial readiness and Refresh RPC dispatch; the
   previous declaration produced no request. This targets the observed remote "Status unavailable"
