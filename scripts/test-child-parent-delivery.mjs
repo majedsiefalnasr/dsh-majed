@@ -9,7 +9,7 @@ const executable = process.env.DSH_PROBE_NODE;
 const runtime = process.env.DSH_PROBE_RUNTIME;
 assert.ok(executable && runtime, 'Set DSH_PROBE_NODE and DSH_PROBE_RUNTIME for the exact-host probe');
 const flags = process.argv.slice(2);
-assert.ok(flags.every(flag => flag === '--red-no-persistence'));
+assert.ok(flags.every(flag => ['--red-no-persistence', '--red-advertise-explicit'].includes(flag)));
 const temporary = realpathSync(mkdtempSync(join(tmpdir(), 'dsh-child-parent-')));
 try {
   for (const [probe, args] of [['probe-child-host.cjs', []], ['probe-child-parent-delivery.cjs', flags]]) {
