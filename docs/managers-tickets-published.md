@@ -116,7 +116,21 @@ runtime/live parity. T02E's unsupported provenance gate and all other dependent 
 
 The `implement-spec` integration branch is `feat/managers`, baseline `a1c372b`. Remaining independent T02A acceptance slices run in separate worktrees/branches: `feat/t02a-scope` (read-only native session/workspace relationship), `feat/t02a-mcp` (official MCP client lifecycle), and `feat/t02a-settings` (actual Settings client contract). Each must return committed evidence and explicit gaps before merge/review; none is a completed ticket on dispatch. Implementers use the Owner-approved `codex/gpt-6-astra` model through workflow; that tool exposes no reasoning-effort override, so effort is the adapter/model default, not an asserted custom setting.
 
-Direct dependency records for T02A–T02E each reference closed T01 / #3. The GitHub aggregate open-blocker count for #4–#7 still reported one on this read; readiness is verified from the actual dependency issue states rather than treating that stale aggregate as a new blocker or deleting approved edges. T03 / #8 still has the genuinely open T02A blocker. Unsupported T02B/T02E findings are not silently waived. Existing historical untracked prototypes remain untouched.
+Direct dependency records for T02A–T02E each reference closed T01 / #3. The GitHub aggregate open-blocker count for #4–#7 still reported one on this read; readiness is verified from the actual dependency issue states rather than treating that stale aggregate as a new blocker or deleting approved edges. That snapshot is historical: T02A / #4 has since closed after combined temporary feasibility acceptance (see above), and T03 / #8 implementation has started. Unsupported T02B/T02E findings are not silently waived. Existing historical untracked prototypes remain untouched.
+
+### T03 product increment — reviewed partial integration
+
+Reviewed implementation `4543f30` adds five native Settings readiness sections and an Owner-admitted inert service.
+Process-lifetime toggles do not activate Skills, MCP, Hooks, subscriptions or routing operations.
+The candidate's portable suite passes 56 tests; a parent rerun of the exact-host product composition
+passes with the production client and route over disposable local/remote HTTP, including native
+failure parsing and listener disposal. See the [product evidence](research/t03-settings-product-evidence.md)
+on the integration branch. Independent Standards review found no actionable issues; Spec review found
+one release-documentation correction, now fixed in CHANGELOG (including the obsolete unshipped-resolver
+claim). No functional/security blocker was demonstrated for this partial increment. Browser theme/font 14/18,
+focus/keyboard, narrow viewport, modal overflow and live desktop/paired-remote acceptance remain
+pending. The verified browser instance is disconnected; no other profile was substituted. T03 / #8
+remains open and no dependent ticket is treated as unblocked. No installed state was changed.
 
 T01 is the only execution record with no blockers. After T01 completes, T02A–T02E and T04
 can proceed independently; T03 depends only on T02A. A `ready-for-agent` label is not proof

@@ -8,6 +8,10 @@ All notable changes to `dsh-majed` are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- In-progress T03 authenticated readiness Settings slice for Skills, MCP, Hooks, subscriptions and
+  routing. Controls are inert readiness checks with process-lifetime enablement, not feature activation.
+  Portable and isolated exact-host local/remote product tests pass; real browser visual and live
+  verification remain pending. This does not enable Manager operations.
 - Controlled authenticated carrier/service-effects join: mounted native Settings actions perform
   native Skills watcher/policy updates and official MCP tool calls/disposal over local and remote HTTP.
   Admission negatives precede effects; owned tasks, children, watchers and listeners are cleaned up.
@@ -66,7 +70,8 @@ All notable changes to `dsh-majed` are documented here. The format follows
   controls fail as intended. This is not mounted/live remote acceptance or production Manager activation.
 - T02A now composes native signed Owner admission with read-only session/project scope resolution over
   disposable services and directories. A reviewed live-session publication race is fixed and tested during
-  filesystem awaits. The resolver remains unshipped/unregistered; real writes, browser and remote acceptance remain pending.
+  filesystem awaits. The resolver now ships with the inert authenticated Settings slice; real Manager
+  writes and browser/live acceptance remain pending.
 - T02A has a bounded official MCP client/ToolRuntime stdio lifecycle proof over a disposable fixture:
   handshake, actual call/error, deadline/cancellation and awaited tool/process teardown pass with a
   result-corruption negative control. This is not production Manager, namespace isolation or remote acceptance.
