@@ -59,6 +59,17 @@ All notable changes to `dsh-majed` are documented here. The format follows
   manual selection exits Auto; a bounded failover budget of at most three distinct candidates per cycle with no
   repeats. Opt-in only — no automatic activation, no fake picker option, no global-default write. Local/remote live
   acceptance and native-picker wiring remain pending (T02B/T22 gates).
+- T14 Grok, Copilot and Antigravity account authentication (issue #19): bounded source integration of the three
+  remaining provider auth surfaces on top of the T12 subscription adapters, without widening T13 into a five-provider
+  mega-ticket and without inventing a common OAuth protocol. Grok and Antigravity use device authorization
+  (login/poll/cancel/expiry); Copilot uses browser OAuth callback validation and a manual token-entry path. Each
+  provider keeps its own mechanism, multi-account/default/removal behavior and provider-specific failure codes.
+  All credentials are synthetic and process-lifetime only: no real account store is opened and no operational login,
+  account discovery or provider request is performed absent later approval. The compatible subscriptions account-store
+  schema and single-writer behavior are preserved, and auth changes invalidate the affected account's health and the
+  provider catalog. Fixture tests cover device polling/cancel/expiry, callback validation, refresh/revocation and
+  per-account isolation using fake credentials only. Local/remote live evidence remains unverified pending desktop
+  and remote verification; no live claim is made.
 
 ### Changed
 - Owner-approved planning split: management admission remains T02A; trusted local/remote Command hook
