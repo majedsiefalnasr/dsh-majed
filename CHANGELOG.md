@@ -8,6 +8,7 @@ All notable changes to `dsh-majed` are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- T05 native Skills list/inspect/enable/disable: Owner-controlled route `/api/dsh-majed/skills` (own route ID, never the copied standalone route) lists project/user skills with source and invocation policy visible, and enables/disables skills through the vendor core behavior oracle without rewriting skill source files. Source precedence, Unicode names, duplicate-name overlays, agent-scoped inventories and frontmatter invocation flags are preserved; disable blocks model/slash invocation and enable does not grant source-denied privileges. Read-only/external sources remain protected; catalogs are refreshed through the `commands/change` public seam. Portable and isolated tests pass; real browser, host-restart and live evidence remain unverified pending verification; no live claim is made.
 - T03 authenticated Settings slice visual contract (Skills, MCP, Hooks, subscriptions, routing): 14/18
   typography, English/Arabic RTL direction, modal overflow guard and narrow viewport stacking added to the
   readiness section; service path/method limits and scoped session-to-project rejection proven at the seam.
