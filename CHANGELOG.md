@@ -83,6 +83,21 @@ All notable changes to `dsh-majed` are documented here. The format follows
   requests through the candidate in all sessions without cancelling, replaying or transferring an in-flight request.
   Native-picker wiring, local/remote live acceptance and server-side exposure remain pending (T22/T23 gates); no live
   claim is made.
+- T28S prepare subscription ownership and compatible rollback (`modules/subscriptions/cutover.js`, unit-tested in
+  `test/accepted/subscriptions-cutover.test.js`): an Owner-reviewable subscription-state preview and synthetic
+  compatible-store/single-writer rollback proof, without waiting for unrelated Managers and without any account-state
+  access or live operation. Reports subscription Parity rows, exact store/schema compatibility and explicit deferrals
+  without reading operational secrets, enumerating sensitive reads/writes, protected backup destination/permissions,
+  restoration and approval points. The read-only preview imports no refresh-capable module. Synthetic-store drills prove
+  compatible existing account-store access with one active writer, no forced reauthentication, rollback after
+  interruption and no concurrent refresh; on compatibility failure it asks the Owner before migration or
+  reauthentication. Backups never go in the repository, browser, evidence bundle or plaintext logs. The cutover order
+  drains/quiesces, disables standalone ownership, then activates replacement; rollback disables the replacement,
+  restores ownership before state, and preserves Reference packages. No accounts/plugins are deleted and no secrets are
+  copied into project/UI/evidence. Produces separate approval checklists for T30; required missing parity blocks
+  operational cutover, preparation can record a pending disposition, and only explicit Owner acceptance can waive a
+  deferred capability. This ticket neither needs Manager readiness nor authorizes account-state access/live evaluation.
+  Local/remote live evidence remains unverified pending verification; no live claim is made.
 - T20 preserve video submission, polling and rendering (`modules/video/index.js`, unit-tested in
   `test/accepted/video.test.js`): Grok video / image-to-video submission starts exactly one synthetic job and returns
   a job id; polling reads the job's status (pending/done/failed/expired/unknown) without resubmitting, so recovery or
