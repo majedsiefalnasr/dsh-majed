@@ -1,17 +1,17 @@
-# Internal Skills module
+# Internal Skills basic core
 
-Vendored from the installed `@michengai/dsh-skills-manager` package, version **1.2.6**, originally published by MichengAI under **Apache-2.0**.
+The retained vendor/lib/core.js, vendor/lib/readonly-discovery.js and vendor/LICENSE originate from MichengAI @michengai/dsh-skills-manager **1.2.6**, under **Apache-2.0**. Majed MIT does not replace it. No NOTICE file is present in that artifact.
 
 Upstream: https://github.com/MichengAI/dsh-skills-manager
 
-The complete installed distribution is preserved under `vendor/`, including its original manifest, LICENSE, locales, assets, documentation, all compiled host feature modules and the compiled browser module. The outer dsh-majed MIT license does not replace this Apache license. There was no NOTICE file in the installed distribution.
+Exact artifact identity, upstream hashes and the local adaptation are recorded in [vendor/UPSTREAM.json](vendor/UPSTREAM.json). Selected files were compared with the downloaded registry artifact on 2026-10-25. Both compiled files matched the previously ignored local prototype before adaptation. This is the existing 1.2.6 subset, not a claim of parity with the separately reviewed T04 1.2.11 oracle or a reproduced source build.
 
-Local modifications to upstream compiled files:
-- `vendor/lib/index.js`: removed standalone plugin updater import and registration; added native DSH Connection owner-admission before all management routes, replacing the initial loopback-only gate. Host and Origin validation are delegated to authenticated native admission; mutations additionally retain JSON, Origin and custom-header requirements. Kept all skill providers, tools, routes, repository/catalog/upload/category/trash/project/discovery features and state paths unchanged.
-- `vendor/lib/client.js`: changed ModuleLoader ID to `dsh-majed/internal/skills`; removed standalone updater UI registration. Its bundled updater helpers remain unreachable, for minimal risk to the compiled feature bundle.
+Local change to core.js: add an attribution/change comment and export the existing checkedWritableRootDefinition required by the native facade. No function body, precedence, policy storage or filesystem behavior is changed. readonly-discovery.js and LICENSE remain unchanged. Its static fflate import requires the pinned MIT dependency fflate@0.8.3, even though ZIP upload is not exposed by the facade.
 
-Integration lives outside the vendored distribution in `index.js`. It is disabled by default, requires explicit conflict acknowledgement, and loads the host implementation only when enabled. The root client source is composed with the internal factory using `scripts/build-client.mjs`; the package client export is the generated bundle. Existing toolkit typography scans handle vendor pixel font sizes once; no additional `--majed-ui-d` term is added here.
+The basic core compiles category, upload and directory-import helpers together with accepted behavior. Those helpers remain inside this shared file to avoid an unreviewed rewrite of filesystem safety and policy behavior; they have no mounted route, tool or UI in Majed. Later extraction needs separate behavior proof.
 
-State compatibility: the upstream implementation still owns `${DSH_HOME}/skills-manager/state.json`, repository metadata, trash, discovery roots and `${DSH_HOME}/dsh-skills-manager.log`. No migration, rename, state copy, state inspection or uninstall was performed during integration. Enabling this module grants the same management operations as upstream, including mutating skills when explicitly invoked.
+modules/skills/.npmignore excludes the safely separable standalone host/client, catalogs, repositories, updater, assets, locales and plugin manifest even when the old ignored distribution exists in a checkout. No ignored source or user file is deleted. The committed subset packages from a fresh checkout without those ignored files.
 
-Conflict policy: automatic detection across arbitrary Cordis plugin aliases and browser loader order is not reliable. The operator MUST disable the old standalone package on BOTH host and client before setting `skills.standaloneDisabled: true`. This is an explicit safety assertion, not an automatic proof or uninstall. Keeping the same API/state/provider identities is deliberate for compatibility and makes concurrent use unsafe.
+The production entry currently reports Skills disabled; its Settings toggle is inert readiness, not activation. The separately enabled native facade loads only the basic core and exposes list/detail/toggle/create/trash/restore/delete. It never applies the standalone runtime or browser module.
+
+The retained core still uses historical skills-manager policy/trash paths under DSH_HOME. Packaging does not approve that persistence architecture, provide authenticated project resolution, propagate native visibility, or grant single-owner Cutover. Those existing integration gaps belong to R11 and later replacement acceptance. No installed/reference state was read or changed.
