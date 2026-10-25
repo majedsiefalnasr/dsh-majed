@@ -1,12 +1,13 @@
 import { createMcpManager, validateServers, mcpConfigFields } from '../mcp/index.js';
-import { createHooksManager, validateHooks, hooksConfigFields } from '../hooks/index.js';
+import { createHooksManager, validateHooks, hooksConfigFields, createCommandHooksManager, validateCommandHookConfig, commandHooksConfigFields } from '../hooks/index.js';
+import { validateRules, validateRule, enabledRulePatterns, rulesConfigFields } from './rules.js';
 import { object, fail, serial, safeFailure, persistenceReason, MASKED_SECRET, mergeSecrets } from './validation.js';
 import { registerLocalTransport } from './transport.js';
 export const MANAGER_SERVICE = 'dshMajedManagers';
-export const managerConfigFields = { ...mcpConfigFields, ...hooksConfigFields };
+export const managerConfigFields = { ...mcpConfigFields, ...hooksConfigFields, ...commandHooksConfigFields, ...rulesConfigFields };
 export function validateManagerConfig(value = {}) {
-  object(value, ['servers', 'hooks']);
-  return { servers: validateServers(value.servers), hooks: validateHooks(value.hooks) };
+  object(value, ['servers', 'hooks', 'commandHooks', 'rules']);
+  return { servers: validateServers(value.servers), hooks: validateHooks(value.hooks), commandHooks: validateCommandHookConfig(value.commandHooks), rules: validateRules(value.rules) };
 }
 /** Parent must attest the active root Include id, not a nested or inherited entry. */
 export function createOwnedPersistence(editor, ownership) {
@@ -52,14 +53,18 @@ export function createOwnedPersistence(editor, ownership) {
 }
 /** Shared service is transport-independent. No file store, credentials echo, or HTTP fallback. */
 export function createManagerService(ctx, initial = {}, options = {}) {
-  const mcp = createMcpManager(ctx, options.loadMcp); const hooks = createHooksManager(ctx);
+  const mcp = createMcpManager(ctx, options.loadMcp); const hooks = createHooksManager(ctx); const commandHooks = createCommandHooksManager();
   const queue = serial(); let config = validateManagerConfig(initial); let hookStatus = 'configured'; let disposed = false; let disposal;
-  const snapshot = () => ({ writable: !disposed && options.mcpStore !== undefined, servers: mcp.snapshot(), hooks: { ...hooks.snapshot(), status: hookStatus } });
+  const snapshot = () => ({ writable: !disposed && options.mcpStore !== undefined, servers: mcp.snapshot(), hooks: { ...hooks.snapshot(), status: hookStatus }, commandHooks: commandHooks.snapshot(), rules: [...(config.rules || [])] });
   async function activate(next) {
     await mcp.replace(next.servers);
     if (disposed) return;
-    try { hooks.replace(next.hooks); hookStatus = next.hooks.enabled ? 'mounted' : 'configured'; }
+    // Compose enabled rule patterns into hooks deny additively: rules never allow, only deny.
+    const mergedHooks = { ...next.hooks, deny: [...new Set([...next.hooks.deny, ...enabledRulePatterns(next.rules || [])])] };
+    try { hooks.replace(mergedHooks); hookStatus = next.hooks.enabled ? 'mounted' : 'configured'; }
     catch { hookStatus = 'activation-failed'; }
+    try { commandHooks.replace('user', next.commandHooks.user.hooks); commandHooks.replace('project', next.commandHooks.project.hooks); }
+    catch { /* inert: Command hooks never block activation */ }
   }
   const ready = queue(async () => {
     let start = config;
@@ -128,6 +133,50 @@ export function createManagerService(ctx, initial = {}, options = {}) {
       if (index < 0) fail(); next.servers.splice(index, 1); return next;
     }),
     updateHooks: input => applyHooks(next => { next.hooks = validateHooks(input); return next; }),
+    upsertCommandHook: input => applyHooks(next => {
+      object(input, ['scope', 'hook']);
+      if (!['user', 'project'].includes(input.scope)) fail();
+      const hook = commandHooks.upsert(input.scope, input.hook);
+      next.commandHooks = commandHooks.snapshot();
+      return next;
+    }),
+    removeCommandHook: input => applyHooks(next => {
+      object(input, ['scope', 'id']);
+      if (!['user', 'project'].includes(input.scope)) fail();
+      const removed = commandHooks.remove(input.scope, input.id);
+      if (!removed) fail();
+      next.commandHooks = commandHooks.snapshot();
+      return next;
+    }),
+    setCommandHookEnabled: input => applyHooks(next => {
+      object(input, ['scope', 'id', 'enabled']);
+      if (!['user', 'project'].includes(input.scope)) fail();
+      const changed = commandHooks.setEnabled(input.scope, input.id, input.enabled);
+      if (!changed) fail();
+      next.commandHooks = commandHooks.snapshot();
+      return next;
+    }),
+    upsertRule: input => applyHooks(next => {
+      object(input, ['id', 'pattern', 'enabled', 'scope']);
+      validateRule(input);
+      const nextRules = validateRules([...(next.rules || []).filter(r => r.id !== input.id), input]);
+      next.rules = nextRules;
+      return next;
+    }),
+    removeRule: input => applyHooks(next => {
+      object(input, ['id']);
+      const idx = (next.rules || []).findIndex(r => r.id === input.id);
+      if (idx < 0) fail();
+      next.rules = [...(next.rules || []).slice(0, idx), ...(next.rules || []).slice(idx + 1)];
+      return next;
+    }),
+    setRuleEnabled: input => applyHooks(next => {
+      object(input, ['id', 'enabled']);
+      const idx = (next.rules || []).findIndex(r => r.id === input.id);
+      if (idx < 0) fail();
+      next.rules = [...(next.rules || []).map(r => r.id === input.id ? { ...r, enabled: input.enabled } : r)];
+      return next;
+    }),
     snapshot: async () => { await ready; return snapshot(); },
     update: input => queue(async () => {
       object(input, ['servers', 'hooks']);
