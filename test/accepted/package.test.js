@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile, mkdtemp, rm } from 'node:fs/promises';
+import { readFile, mkdtemp, rm, cp, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -32,7 +32,7 @@ test('built public client is baseline-only and preserves its ModuleLoader identi
   assert.deepEqual(registrations.map(value => value.id), ['dsh-majed']);
 });
 
-test('packaging includes executable baseline artifacts but not prototype runtimes or tests', () => {
+test('packaging includes baseline and selected runtime artifacts while excluding tests', () => {
   const [pack] = JSON.parse(execFileSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts',
     '--cache', '.npm-pack-cache', '--logs-dir', '.npm-pack-cache/_logs'], { cwd: root, encoding: 'utf8' }));
   const files = pack.files.map(file => file.path);
@@ -40,7 +40,41 @@ test('packaging includes executable baseline artifacts but not prototype runtime
     'scripts/build-baseline.mjs', 'CHANGELOG.md', 'THIRD_PARTY_NOTICES.md', 'LICENSE', 'fonts/inter-latin-wght-normal.woff2']) {
     assert.ok(files.includes(file), `Missing ${file}`);
   }
-  assert.equal(files.some(file => /^(modules|test|deployment-backups)\//.test(file)), false);
+  assert.equal(files.some(file => /^(test|deployment-backups)\//.test(file)), false);
+  assert.ok(files.includes('modules/skills/native.js'));
+  assert.ok(files.includes('modules/skills/vendor/lib/core.js'));
+  assert.ok(files.includes('modules/skills/vendor/lib/readonly-discovery.js'));
+  assert.ok(files.includes('modules/skills/vendor/LICENSE'));
+  assert.equal(files.some(file => /(?:^|\/)test(?:s)?\/|\.test\.[cm]?js$/.test(file)), false);
   assert.equal(files.includes('client-bundle.js'), false);
   assert.equal(files.includes('package-lock.json'), false);
+});
+
+test('packaging excludes deferred Skills payload even when the old distribution is present', async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'dsh-majed-package-test-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  await cp(new URL('modules/', root), join(directory, 'modules'), { recursive: true });
+  await writeFile(join(directory, 'package.json'), JSON.stringify({ name: 'skills-package-fixture', version: '1.0.0', files: ['modules/**/*'] }));
+  const excluded = [
+    'modules/managers/managers.test.js',
+    'modules/skills/vendor/lib/index.js', 'modules/skills/vendor/lib/client.js',
+    'modules/skills/vendor/lib/repositories.js', 'modules/skills/vendor/lib/repository-updates.js',
+    'modules/skills/vendor/lib/plugin-updater.js', 'modules/skills/vendor/lib/catalog-skill.js',
+    'modules/skills/vendor/lib/clawhub-catalog.js', 'modules/skills/vendor/lib/skills-sh-catalog.js',
+    'modules/skills/vendor/assets/branding/banner.webp', 'modules/skills/vendor/locale/zh.json',
+    'modules/skills/vendor/package.json', 'modules/skills/vendor/cordis.patch.yml',
+    'modules/skills/vendor/README.md', 'modules/skills/vendor/CHANGELOG.md',
+  ];
+  for (const path of excluded) {
+    await mkdir(join(directory, path, '..'), { recursive: true });
+    await writeFile(join(directory, path), 'deferred fixture payload');
+  }
+  const [pack] = JSON.parse(execFileSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts',
+    '--cache', join(directory, 'cache')], { cwd: directory, encoding: 'utf8' }));
+  const files = pack.files.map(file => file.path);
+  for (const path of excluded) assert.equal(files.includes(path), false, `Unexpected deferred payload: ${path}`);
+  for (const path of ['modules/skills/native.js', 'modules/skills/vendor/lib/core.js',
+    'modules/skills/vendor/lib/readonly-discovery.js', 'modules/skills/vendor/LICENSE', 'modules/skills/PROVENANCE.md']) {
+    assert.ok(files.includes(path), `Missing retained basic runtime: ${path}`);
+  }
 });

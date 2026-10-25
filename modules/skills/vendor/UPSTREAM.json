@@ -1,0 +1,25 @@
+{
+  "package": "@michengai/dsh-skills-manager",
+  "version": "1.2.6",
+  "license": "Apache-2.0",
+  "registryGitHead": "4344f03e46a39316e82ff8b0fbb255966a7b3529",
+  "tarball": "https://registry.npmjs.org/@michengai/dsh-skills-manager/-/dsh-skills-manager-1.2.6.tgz",
+  "integrity": "sha512-PvW3flyh7a3fL7uc1JB+xdzxLzk44Mh01U+FIcmNVhNcRRJGf0sZkYZuC09Z2GXV9eZaOVrzrekezKi0gkuP2A==",
+  "verifiedOn": "2026-10-25",
+  "files": {
+    "lib/core.js": {
+      "upstreamSha256": "cbeaae958ddd258249c9d6783d48637c15553b75aebaffef7468212ced2be867",
+      "localSha256": "714e8814cdb5bfdf73d5a820bca6aaa602a893fa005c6f6bfe3a6d43453b338d",
+      "adaptation": "Add attribution/change comment and export existing checkedWritableRootDefinition; no function body changes."
+    },
+    "lib/readonly-discovery.js": {
+      "upstreamSha256": "17c2a488bd3014f89b0a5e58a4d14af188f9451fc79055ec4339f182de9b6113",
+      "adaptation": "Unchanged."
+    },
+    "LICENSE": {
+      "upstreamSha256": "50e6751797c50dedd75ef1b8a0d9e42f5f8472e9fbce91f34718e9f97b0c780a",
+      "adaptation": "Unchanged."
+    }
+  },
+  "signatureVerification": "Not performed; artifact byte identity is not provenance-attestation verification."
+}
