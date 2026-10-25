@@ -6,6 +6,7 @@ const root = new URL('../', import.meta.url);
 const tests = [
   'test/appearance-contract.test.js',
   'test/auto-core.test.js',
+  'test/auto-enrollment.test.js',
   'test/classify.test.cjs',
   'test/read-page-native.test.js',
   'test/baseline-host.test.js',

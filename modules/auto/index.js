@@ -100,6 +100,14 @@ export function createRegistry() {
       byId.set(id, Object.freeze(next));
       return next;
     },
+    setDefaultEffort(id, effort) {
+      const c = this.get(id);
+      if (!c) fail();
+      if (effort !== undefined && !EFFORTS.includes(effort)) fail();
+      const next = { ...c, defaultEffort: effort };
+      byId.set(id, Object.freeze(next));
+      return next;
+    },
     setSmartPermittedEfforts(id, efforts) {
       const c = this.get(id);
       if (!c) fail();
@@ -166,8 +174,20 @@ export function selectAuto({ registry, session, budget, request, now = Date.now(
   // Manual model selection exits Auto for this session.
   if (session.manual === true) return { candidate: undefined, effort: undefined, reason: 'manual' };
 
+  // Explicit apply-and-reselect updates this session: honor the reselected
+  // route if eligible, then clear the flag. Later dispatches resume normal
+  // priority selection and stickiness.
+  if (session.reselected === true) {
+    session.setReselected(false);
+    const cur = session.current && session.current.route ? registry.get(session.current.route) : undefined;
+    if (cur && eligible.some(c => c.id === cur.id) && !session.isRevoked(cur.id)) {
+      return { candidate: cur, effort: session.current.effort || cur.defaultEffort, reason: 'selected' };
+    }
+    // Reselected route unavailable or revoked: fall through to normal selection.
+  }
+
   // Session stickiness: retain a healthy current route even if a higher priority
-  // candidate recovers, unless explicitly reselected or the route is unavailable.
+  // candidate recovers, unless the route is unavailable.
   if (session.current && session.current.route && session.current.route !== 'auto') {
     const cur = registry.get(session.current.route);
     if (cur && eligible.some(c => c.id === cur.id) && !session.isRevoked(cur.id)) {

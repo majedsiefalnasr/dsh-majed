@@ -71,6 +71,17 @@ All notable changes to `dsh-majed` are documented here. The format follows
   provider catalog. Fixture tests cover device polling/cancel/expiry, callback validation, refresh/revocation and
   per-account isolation using fake credentials only. Local/remote live evidence remains unverified pending desktop
   and remote verification; no live claim is made.
+- T21 explicit Auto candidate enrollment and session policy (`modules/auto/enrollment.js`, unit-tested in
+  `test/auto-enrollment.test.js`): explicitly enrolls provider/account/model candidates with priority, default effort
+  and Smart-permitted efforts through an explicit enroll path only — login, catalog import, direct pooling,
+  search/media scheduling and child-routing never enroll candidates, and empty membership is valid (Auto reports
+  'ineligible' rather than falling back to an implicit model). Effort sets and priority edits are validated locally
+  (exported validators usable server-side); a monotonic settings-version stamp surfaces concurrent / stale revisions.
+  Manual model selection exits Auto for the session; strategy/default-priority edits affect new sessions read live
+  from the registry, while explicit apply-and-reselect updates an existing session. Removal or disable blocks new
+  requests through the candidate in all sessions without cancelling, replaying or transferring an in-flight request.
+  Native-picker wiring, local/remote live acceptance and server-side exposure remain pending (T22/T23 gates); no live
+  claim is made.
 
 ### Changed
 - Owner-approved planning split: management admission remains T02A; trusted local/remote Command hook
