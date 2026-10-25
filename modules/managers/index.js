@@ -199,6 +199,15 @@ export function createManagerService(ctx, initial = {}, options = {}) {
         return next;
       });
     },
+    probeServer: input => queue(async () => {
+      let stage = 'operation';
+      try {
+        object(input, ['serverName']);
+        if (disposed) { stage = 'unavailable'; throw new Error('Unavailable.'); }
+        await mcp.probeServer(input.serverName);
+        return { ok: true, state: snapshot() };
+      } catch (error) { return safeFailure(error, stage); }
+    }),
     dispose: () => {
       if (disposal) return disposal;
       disposed = true;

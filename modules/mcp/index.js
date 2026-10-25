@@ -1,6 +1,12 @@
 import { object, text, flag, maskedDictionary, fail, serial, scope, reconnect, timeout, instructionLimit, serverPath, MASKED_SECRET } from '../managers/validation.js';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import { ListToolsResultSchema } from '@modelcontextprotocol/sdk/types.js';
 export const SERVER_NAME = /^[A-Za-z0-9_-]{1,32}$/;
 export { MASKED_SECRET };
+/** Probe a saved connection once, then dispose it: bounded, disposable, side-effect free. */
+export const PROBE_TIMEOUT_MS = 10_000;
 export function validateServer(value) {
   object(value, ['serverName', 'scope', 'enabled', 'transport', 'command', 'args', 'env', 'cwd', 'url', 'headers', 'reconnect', 'timeout', 'instructionLimit']);
   if (!SERVER_NAME.test(text(value.serverName, 32))) fail();
@@ -45,6 +51,48 @@ export function createMcpManager(ctx, load = loadMcpClient) {
   async function unload() {
     for (const [name, child] of mounted) { await child.dispose(); mounted.delete(name); }
   }
+  function buildStdioEnv(row) {
+    const env = { ...process.env };
+    for (const [key, value] of Object.entries(row.env || {})) {
+      if (value === null || value === undefined) delete env[key];
+      else if (value !== MASKED_SECRET) env[key] = value;
+    }
+    return env;
+  }
+  async function probeTransport(row, signal) {
+    const transport = row.transport === 'stdio'
+      ? new StdioClientTransport({ command: row.command, args: [...row.args], env: buildStdioEnv(row), cwd: row.cwd })
+      : new StreamableHTTPClientTransport(new URL(row.url), { requestInit: { headers: row.headers || {}, signal, duplex: 'half' } });
+    const client = new Client({ name: 'dsh-majed-mcp-probe', version: '0.0.1' }, { capabilities: {} });
+    await client.connect(transport);
+    await client.request({ method: 'tools/list' }, ListToolsResultSchema);
+    return client;
+  }
+  async function probeServer(serverName) {
+    return queue(async () => {
+      if (closed) throw new Error('Manager disposed.');
+      const row = rows.find(r => r.serverName === serverName);
+      if (!row) throw new Error('Server not found.');
+      const view = rows.find(r => r.serverName === serverName);
+      view.status = 'probing';
+      let client;
+      try {
+        const controller = new AbortController();
+        const deadline = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
+        try {
+          client = await probeTransport(row, controller.signal);
+          view.status = 'connected';
+        } finally {
+          clearTimeout(deadline);
+        }
+      } catch {
+        view.status = 'error';
+      } finally {
+        if (client) { try { await client.close(); } catch {} }
+      }
+      return { ...view };
+    });
+  }
   return {
     replace: input => queue(async () => {
       if (closed) throw new Error('Manager disposed.');
@@ -71,6 +119,7 @@ export function createMcpManager(ctx, load = loadMcpClient) {
       }
       return rows.map(row => ({ ...row, ...(row.args ? { args: [...row.args] } : {}) }));
     }),
+    probeServer,
     snapshot: () => rows.map(row => ({ ...row, ...(row.args ? { args: [...row.args] } : {}) })),
     dispose: () => queue(async () => { closed = true; await unload(); }),
   };

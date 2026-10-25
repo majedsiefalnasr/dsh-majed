@@ -1,6 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtemp, realpath, rm } from 'node:fs/promises';
+import { spawn } from 'node:child_process';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { Context } from '@deepseek-ai/cordis';
 import { validateServer, createMcpManager } from '../mcp/index.js';
+import { createMcpDefinitionStore } from '../mcp/storage.js';
 import { createHooksManager, validateHooks, matchesTool } from '../hooks/index.js';
 import { createOwnedPersistence, createManagerService } from './index.js';
 import { trustedLocalRequest, createManagerHandler } from './transport.js';
@@ -158,4 +164,35 @@ test('service refuses mutation without ownership and never echoes secrets', asyn
   assert.equal((await service.update({ servers: [server({ env: { SECRET: 'private' } })] })).ok, false);
   assert.equal(JSON.stringify(await service.snapshot()).includes('private'), false);
   await service.dispose();
+});
+
+test('service probeServer observes connection state without mutating persisted config', { timeout: 25_000 }, async t => {
+  const workspaceRoot = await realpath(fileURLToPath(new URL('../../..', import.meta.url)));
+  const temporary = await realpath(await mkdtemp(join(workspaceRoot, '.mcp-service-probe-')));
+  const journal = join(temporary, 'wire.jsonl');
+  const stdioFixture = fileURLToPath(new URL('../../test/fixtures/mcp-stdio.cjs', import.meta.url));
+  const store = createMcpDefinitionStore(join(temporary, 'mcp.json'));
+  const server = { serverName: 'probe_svc', enabled: true, transport: 'stdio', command: process.execPath, args: [stdioFixture, journal, 'svc'], cwd: temporary };
+  await store.save({ servers: [server] });
+  const ctx = new Context();
+  ctx.provide('tools', { register: () => () => {} });
+  const service = createManagerService(ctx, {}, { mcpStore: store });
+  t.after(async () => {
+    await service.dispose();
+    await ctx.fiber.dispose();
+    await store.dispose();
+    await rm(temporary, { recursive: true, force: true });
+  });
+  await service.ready;
+  const probed = await service.probeServer({ serverName: 'probe_svc' });
+  assert.equal(probed.ok, true);
+  assert.equal(probed.state.servers[0].status, 'connected');
+  assert.equal(probed.state.writable, true);
+  const missing = await service.probeServer({ serverName: 'nope' });
+  assert.equal(missing.ok, false);
+  assert.equal(missing.code, 'MANAGER_OPERATION_FAILED');
+  await service.dispose();
+  const after = await service.probeServer({ serverName: 'probe_svc' });
+  assert.equal(after.ok, false);
+  assert.equal(after.code, 'MANAGER_UNAVAILABLE');
 });

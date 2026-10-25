@@ -224,6 +224,38 @@ test('server forms save bounded nonsecret fields, confirm delete, and save hook 
   assert.doesNotMatch(JSON.stringify(calls), /DO-NOT-ECHO/);
 });
 
+test('test connection button probes a server and updates its status', async () => {
+  const requests = [];
+  let state = snapshot();
+  const harness = loadClient(async (url, options) => {
+    requests.push(JSON.parse(JSON.stringify({ url, options })));
+    if (options.method === 'POST') {
+      const { action, input } = JSON.parse(options.body);
+      if (action === 'probeServer') {
+        state = structuredClone(state);
+        state.servers = state.servers.map(s => s.serverName === input.serverName ? { ...s, status: 'connected' } : s);
+      }
+      return { ok: true, json: async () => ({ ok: true, state }) };
+    }
+    return { ok: true, json: async () => state };
+  });
+  let service;
+  harness.module.apply({ slots: { inject: (_name, callback) => callback(), register: (_contract, render) => { service = render().props.service; } } });
+  let tree = harness.render(service, [snapshot(), '', false]);
+  await button(tree, 'Refresh').props.onClick();
+  tree = harness.render(service);
+  assert.match(text(tree), /local-tools.*stdio.*mounted/);
+  await button(tree, 'Test connection').props.onClick();
+  tree = harness.render(service);
+  assert.match(text(tree), /local-tools.*stdio.*connected/);
+  assert.equal(requests.length, 2);
+  const probeRequest = requests.find(r => r.options.body && JSON.parse(r.options.body).action === 'probeServer');
+  assert.ok(probeRequest, 'probeServer request sent');
+  assert.equal(probeRequest.options.method, 'POST');
+  assert.equal(probeRequest.options.headers['x-dsh-majed-manager'], '1');
+  assert.deepEqual(JSON.parse(probeRequest.options.body), { action: 'probeServer', input: { serverName: 'local-tools' } });
+});
+
 // The vendored manager is the authority for the native sidebar extension point.
 test('native section registration matches actual bundled Skills Manager API', async () => {
   const vendor = await readFile(new URL('../modules/skills/vendor/lib/client.js', import.meta.url), 'utf8');
