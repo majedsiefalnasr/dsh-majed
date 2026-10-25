@@ -95,6 +95,27 @@ All notable changes to `dsh-majed` are documented here. The format follows
   scheduling remains separate from Auto. No real video generation or capacity consumption is performed; every job is
   a synthetic fixture. Fixture tests cover success, failure, unknown job and interrupted polling. Local/remote live
   evidence remains unverified pending verification; no live claim is made.
+- T19 preserve image generation and editing (`modules/image/index.js`, unit-tested in
+  `test/accepted/image.test.js`): image generation (text-to-image) and image editing
+  (image-to-image with ordered, complete edit references) start exactly one synthetic
+  job per submission and return a job id; polling reads the job's status without
+  resubmitting, so recovery or cancellation cannot create duplicate side-effecting
+  submissions. Edit references must be complete and ordered: an edit-reference failure
+  throws and cannot silently become text-to-image generation. Completed images map to
+  output attachments (fileName, url, mime) and inline image views render with
+  loading/error states and object-URL cleanup; gallery access lists all jobs newest
+  first and open returns a read-only snapshot. Token-based progress (`progressToken`)
+  and error (`errorToken`) controls keep local and remote UI usable without resubmission.
+  Jobs are bound to [provider, account, model]: same-provider accounts schedule
+  independently and a logged-out account yields to the next candidate (cross-provider
+  fallback) only on a definitive auth/quota/entitlement rejection; ambiguous
+  timeout/transport/5xx errors never resubmit a potentially completed image.
+  Enrollment/allowlists for chat Auto are not repurposed as media policy. Fixture tests
+  cover generation, ordered complete edit references, output attachments, inline image
+  views and gallery/open behavior, the fallback contract, one supported auth-refresh
+  path, cancellation and secret-safe diagnostics. No real image generation or capacity
+  consumption is performed; every job is a synthetic fixture. Local/remote live evidence
+  remains unverified pending verification; no live claim is made.
 
 ### Changed
 - Owner-approved planning split: management admission remains T02A; trusted local/remote Command hook
