@@ -14,7 +14,7 @@ export function skillsEnabled(config = {}) {
   }
   return true;
 }
-export function registerSkills(ctx, config = {}, load = () => import('./vendor/lib/index.js')) {
+export function registerSkills(ctx, config = {}, load = () => import('./native.js')) {
   const enabled = skillsEnabled(config);
   ctx.inject(['connection'], (webCtx) => {
     // Connection admits the browser and requires an owner before this callback.
