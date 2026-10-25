@@ -27,7 +27,7 @@ export function createSubscriptionsFetchHandler(service) {
       const body = await readBody({ [Symbol.asyncIterator]: async function* () { if (request.body) yield* request.body; } });
       if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).some(key => !['action', 'input'].includes(key)))
         return send(400, { error: 'Invalid request.' });
-      if (!['snapshot'].includes(body.action) || typeof service[body.action] !== 'function')
+      if (!['snapshot', 'recordUsage', 'recordQuotaFailure', 'recordProviderReset', 'viewUsage', 'excludesCandidate', 'requestReset', 'confirmReset', 'cancelReset'].includes(body.action) || typeof service[body.action] !== 'function')
         return send(400, { error: 'Invalid action.' });
       const result = await service[body.action](body.input);
       return send(200, { ok: true, ...result });

@@ -10,6 +10,8 @@ import { createSyntheticAccount, modelAllowedForPool, createAccountStore } from 
 import { createHealthRegistry, memberKey, accountKey } from './health.js';
 import { streamAccountWithReplay } from './replay.js';
 import { createDirectRoute, poolKey } from './routes.js';
+import { createUsageTracker } from './usage.js';
+import { createQuotaOperations } from './quota.js';
 import { registerLocalTransport, SUBSCRIPTIONS_ROUTE } from './transport.js';
 
 export { PROVIDER_IDS, SUBSCRIPTIONS_ROUTE };
@@ -47,6 +49,8 @@ export function createSubscriptionsService(ctx, initial = {}, options = {}) {
   const providers = Object.freeze([...(options.providers || PROVIDER_IDS)]);
   const store = createAccountStore(initial.accounts || []);
   const health = createHealthRegistry();
+  const usage = createUsageTracker({ now: options.now, health });
+  const quota = createQuotaOperations({ now: options.now });
   const wireAdapters = new Map(); // provider → wire adapter (single owner)
   const routes = new Map(); // routeKey ('${provider}/${model}' or poolId) → route adapter
   let disposed = false;
@@ -156,6 +160,8 @@ export function createSubscriptionsService(ctx, initial = {}, options = {}) {
       })),
       store: store.snapshot(),
       health: health.snapshot(),
+      usage: usage.snapshot(),
+      quota: quota.snapshot(),
       disposed,
     };
   }
@@ -186,6 +192,16 @@ export function createSubscriptionsService(ctx, initial = {}, options = {}) {
     createAccountStore,
     createSyntheticAccount,
     modelAllowedForPool,
+    usage,
+    quota,
+    recordUsage: input => usage.recordUsage(input),
+    recordQuotaFailure: input => usage.recordQuotaFailure(input),
+    recordProviderReset: input => usage.recordProviderReset(input),
+    viewUsage: input => usage.view(input),
+    excludesCandidate: input => usage.excludesCandidate(input),
+    requestReset: input => quota.requestReset(input),
+    confirmReset: input => quota.confirmReset(input),
+    cancelReset: input => quota.cancelReset(input),
   };
 }
 
