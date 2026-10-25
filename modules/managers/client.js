@@ -55,6 +55,19 @@ window.__ModuleLoader__.load({
         } catch { setError('Change refused. The active owned root configuration must be available.'); }
         finally { setBusy(false); }
       }
+      async function probe(serverName) {
+        setBusy(true);
+        try {
+          const result = await change('probeServer', { serverName });
+          if (!result.ok) { setError(refusal(result)); return; }
+          setState(result.state); setError('');
+        } catch { setError('Change refused. The active owned root configuration must be available.'); }
+        finally { setBusy(false); }
+      }
+      function statusLabel(server) {
+        const labels = { configured: 'saved', 'activation-failed': 'error' };
+        return labels[server.status] ?? server.status;
+      }
       const button = (label, onClick, disabled = false) => h('button', { type: 'button', onClick, disabled: busy || disabled }, label);
       return h('section', { className: 'dsm-managers', 'aria-label': `${title} manager`, style: { font: 'inherit', color: 'var(--dsw-alias-label-primary)', padding: '16px', background: 'var(--dsw-alias-bg-layer-1)', borderRadius: 'var(--dsw-radius-lg)', border: '1px solid var(--dsw-alias-border-l2)' } },
         h('h2', null, title),
@@ -71,12 +84,13 @@ window.__ModuleLoader__.load({
             h('button', { type: 'submit', disabled: busy || !state.writable }, 'Save server'), button('Cancel', () => setDraft(null))),
           !state.servers.length && h('p', null, 'No servers configured.'),
           state.servers.map(server => h('div', { key: server.serverName },
-            h('strong', null, server.serverName), ` · ${server.transport} · ${server.status} · ${server.enabled ? 'enabled' : 'disabled'} `,
+            h('strong', null, server.serverName), ` · ${server.transport} · ${statusLabel(server)} · ${server.enabled ? 'enabled' : 'disabled'} `,
             h('span', null, `Stored environment: ${server.envCount || 0}; headers: ${server.headerCount || 0}. `),
             button('Edit ' + server.serverName, () => editServer(server), !state.writable),
             button('Delete ' + server.serverName, () => setConfirmDelete(server.serverName), !state.writable),
             confirmDelete === server.serverName && h('div', { role: 'alert' }, 'Delete this server and its stored credentials?', button('Confirm delete', () => change('removeServer', { serverName: server.serverName }), !state.writable), button('Cancel delete', () => setConfirmDelete(''))),
-            button(server.enabled ? 'Disable' : 'Enable', () => toggle('server', server.serverName, !server.enabled), !state.writable)))) : h('div', null,
+            button(server.enabled ? 'Disable' : 'Enable', () => toggle('server', server.serverName, !server.enabled), !state.writable),
+            button('Test connection', () => probe(server.serverName), !state.writable || server.status === 'probing')))) : h('div', null,
           h('p', null, `Policy: ${state.hooks.status} · ${state.hooks.enabled ? 'enabled' : 'disabled'}`),
           button(state.hooks.enabled ? 'Disable hooks' : 'Enable hooks', () => toggle('hooks', undefined, !state.hooks.enabled), !state.writable),
           button('Edit hook policies', () => setDraft({ deny: state.hooks.deny.join('\n'), audit: state.hooks.audit, auditLimit: String(state.hooks.auditLimit || 100) }), !state.writable),
@@ -111,6 +125,7 @@ window.__ModuleLoader__.load({
       upsertServer(input) { return this.request('upsertServer', input); },
       removeServer(input) { return this.request('removeServer', input); },
       updateHooks(input) { return this.request('updateHooks', input); },
+      probeServer(input) { return this.request('probeServer', input); },
     };
     function apply(ctx, options = {}) {
       const service = options.service || localService;
