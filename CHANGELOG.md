@@ -83,6 +83,18 @@ All notable changes to `dsh-majed` are documented here. The format follows
   requests through the candidate in all sessions without cancelling, replaying or transferring an in-flight request.
   Native-picker wiring, local/remote live acceptance and server-side exposure remain pending (T22/T23 gates); no live
   claim is made.
+- T20 preserve video submission, polling and rendering (`modules/video/index.js`, unit-tested in
+  `test/accepted/video.test.js`): Grok video / image-to-video submission starts exactly one synthetic job and returns
+  a job id; polling reads the job's status (pending/done/failed/expired/unknown) without resubmitting, so recovery or
+  cancellation cannot create duplicate side-effecting submissions and chat retry rules are not generalized to async
+  video. Inputs preserve duration (1-15s), aspect ratio (seven ratios), resolution (480p/720p/1080p) and a
+  starting-image URL or JPEG/PNG/WebP data URL. Job/result mapping returns `{ path, url, duration? }` with a bare
+  `.mp4` fileName for the `video` RPC loader; inline video/tool view renders `<video controls>` with object-URL
+  cleanup and usable loading/error states; gallery access lists all jobs newest first. Token-based progress
+  (`progressToken`) and error (`errorToken`) controls keep local and remote UI usable without resubmission. Media
+  scheduling remains separate from Auto. No real video generation or capacity consumption is performed; every job is
+  a synthetic fixture. Fixture tests cover success, failure, unknown job and interrupted polling. Local/remote live
+  evidence remains unverified pending verification; no live claim is made.
 
 ### Changed
 - Owner-approved planning split: management admission remains T02A; trusted local/remote Command hook
