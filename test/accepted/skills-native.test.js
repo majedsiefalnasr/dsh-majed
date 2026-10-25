@@ -28,13 +28,35 @@ function mockContext(core = {}) {
 
 const emptyState = { roots: [], projects: [], summary: { total: 0, enabled: 0, disabled: 0, issues: 0 } };
 
+function kebabOf(name) {
+  return String(name || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
 function coreWith(overrides = {}) {
+  const captured = { createInput: null, createOptions: null, trashArgs: null, restoreId: null, restoreOptions: null, deleteId: null };
   return {
     state: async () => structuredClone(emptyState),
     setSkillEnabled: async () => ({ ok: true }),
     skillDetail: async ({ root, name } = {}) => ({ ok: true, root, name }),
     userRoots: () => [{ key: 'dsh', path: '/home/dsh/skills', label: 'DSH', mutable: true, toggleable: true, native: true, scope: 'user' }],
     projectRoots: async () => [],
+    createSkill: async (input, _log, options) => {
+      captured.createInput = input; captured.createOptions = options;
+      const name = kebabOf(input && input.name);
+      if (!name || !KEBAB_RE.test(name)) return { ok: false, code: 'error.import.invalidName', error: 'invalid name', params: { name: input && input.name } };
+      const description = String(input && input.description || '').trim();
+      const body = String(input && input.body || '').trim();
+      if (!description) return { ok: false, code: 'error.create.descriptionRequired', error: 'description required' };
+      if (!body) return { ok: false, code: 'error.create.bodyRequired', error: 'body required' };
+      if (description.length > 500 || body.length > (1 << 18)) return { ok: false, code: 'error.create.tooLarge', error: 'too large' };
+      return { ok: true, name, path: `${options.root.path}/${name}/SKILL.md`, root: options.root.key };
+    },
+    deleteSkill: async (root, name, _log) => { captured.trashArgs = [root, name]; return { ok: true, id: '1700000000-00000000-0000-0000-0000-000000000000', name, deletedAt: '2023-11-04T12:00:00.000Z', root: { key: root.key, scope: 'user', label: root.label } }; },
+    restoreTrash: async (id, _log, options) => { captured.restoreId = id; captured.restoreOptions = options; return { ok: true, id, name: 'restored-skill', root: { key: 'dsh', scope: 'user', label: 'DSH' } }; },
+    permanentlyDeleteTrash: async (id, _log) => { captured.deleteId = id; return { ok: true, id, name: 'deleted-skill' }; },
+    listTrash: async () => [],
+    checkedWritableRootDefinition: async (root) => root,
+    captured,
     ...overrides,
   };
 }
@@ -44,7 +66,7 @@ async function handlerFor(core = {}, handlerCtx = {}) {
   registerNativeSkills(ctx, core);
   const route = connection.registeredRoute;
   assert.ok(route, 'route handler registered');
-  return { handler: route.fetch, connection, route, emitted, ctx };
+  return { handler: route.fetch, connection, route, emitted, ctx, core };
 }
 
 test('native skills route uses its own path, not the copied standalone route id', () => {
@@ -264,4 +286,229 @@ test('apply wires the route through registerSkills-style context', async () => {
 test('native module does not activate copied provider, tool, client or updater ids', () => {
   assert.doesNotMatch(ROUTE, /skills-manager/);
   assert.notEqual(ROUTE, '/api/dsh-skills-manager');
+});
+
+function postJson(handler, payload, headers = {}) {
+  return handler(new Request('https://host' + ROUTE, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-dsh-majed-skills': '1', ...headers },
+    body: JSON.stringify(payload),
+  }));
+}
+
+test('POST create validates kebab name, description and body are required', async () => {
+  const { handler } = await handlerFor(coreWith());
+  const cases = [
+    [{ action: 'create', input: { root: 'dsh', name: '  ', description: 'd', body: 'b' } }, 'error.import.invalidName'],
+    [{ action: 'create', input: { root: 'dsh', name: 'skill', description: '', body: 'b' } }, 'error.create.descriptionRequired'],
+    [{ action: 'create', input: { root: 'dsh', name: 'skill', description: 'd', body: '' } }, 'error.create.bodyRequired'],
+  ];
+  for (const [payload, code] of cases) {
+    const res = await postJson(handler, payload);
+    assert.equal(res.status, 400);
+    const body = await res.json();
+    assert.equal(body.ok, false);
+    assert.equal(body.code, code);
+  }
+});
+
+const KEBAB_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+test('POST create rejects names that cannot become a legal kebab path', async () => {
+  const { handler } = await handlerFor(coreWith());
+  for (const name of ['', '   ', '..', '.', '___', ' . ']) {
+    const res = await postJson(handler, { action: 'create', input: { root: 'dsh', name, description: 'd', body: 'b' } });
+    assert.equal(res.status, 400, name);
+    const body = await res.json();
+    assert.equal(body.code, 'error.import.invalidName', name);
+  }
+});
+
+test('POST create requires description and body and enforces size limits', async () => {
+  const { handler } = await handlerFor(coreWith());
+  let res = await postJson(handler, { action: 'create', input: { root: 'dsh', name: 'skill', description: '', body: 'b' } });
+  assert.equal(res.status, 400);
+  let body = await res.json(); assert.equal(body.code, 'error.create.descriptionRequired');
+  res = await postJson(handler, { action: 'create', input: { root: 'dsh', name: 'skill', description: 'd', body: '' } });
+  assert.equal(res.status, 400);
+  body = await res.json(); assert.equal(body.code, 'error.create.bodyRequired');
+  res = await postJson(handler, { action: 'create', input: { root: 'dsh', name: 'skill', description: 'x'.repeat(501), body: 'b' } });
+  assert.equal(res.status, 413);
+  body = await res.json(); assert.equal(body.code, 'error.create.tooLarge');
+  res = await postJson(handler, { action: 'create', input: { root: 'dsh', name: 'skill', description: 'd', body: 'x'.repeat((1 << 18) + 1) } });
+  assert.equal(res.status, 413);
+  body = await res.json(); assert.equal(body.code, 'error.create.tooLarge');
+});
+
+test('POST create preserves Unicode body/description and kebab-cases the filesystem name', async () => {
+  const unicodeName = 'unicode-skill-\u4e2d\u6587';
+  const unicodeBody = '# \u4e2d\u6587\u6280\u80FD\n\u6b63\u6587\u5185\u5bb9\u3002';
+  const unicodeDesc = '\u4e2d\u6587\u7b80\u4ecb';
+  const { handler, core } = await handlerFor(coreWith());
+  const res = await postJson(handler, { action: 'create', input: { root: 'dsh', name: unicodeName, description: unicodeDesc, body: unicodeBody } });
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.ok, true);
+  assert.equal(body.data.name, 'unicode-skill', 'non-ASCII name kebab-cased to filesystem-safe identifier');
+  assert.equal(core.captured.createInput.name, unicodeName, 'original name passed through');
+  assert.equal(core.captured.createInput.description, unicodeDesc, 'Unicode description preserved verbatim');
+  assert.equal(core.captured.createInput.body, unicodeBody, 'Unicode body preserved verbatim');
+  assert.equal(core.captured.createOptions.root.key, 'dsh');
+  assert.equal(body.data.root, 'dsh');
+});
+
+test('POST create updates agent/slash inventories via public seam on success', async () => {
+  const { handler, emitted } = await handlerFor(coreWith());
+  const res = await postJson(handler, { action: 'create', input: { root: 'dsh', name: 'new-skill', description: 'd', body: 'b' } });
+  assert.equal(res.status, 200);
+  assert.deepEqual(emitted, ['commands/change'], 'catalogs refreshed through public seam');
+});
+
+test('POST create respects the single-owner collision gate', async () => {
+  const { handler } = await handlerFor(coreWith({
+    createSkill: async () => ({ ok: false, code: 'error.create.conflict', error: '同名技能已存在: skill', params: { name: 'skill' } }),
+  }));
+  const res = await postJson(handler, { action: 'create', input: { root: 'dsh', name: 'skill', description: 'd', body: 'b' } });
+  assert.equal(res.status, 409);
+  const body = await res.json();
+  assert.equal(body.ok, false);
+  assert.equal(body.code, 'error.create.conflict');
+});
+
+test('POST create protects read-only external sources', async () => {
+  const { handler } = await handlerFor(coreWith({
+    checkedWritableRootDefinition: async () => null,
+  }));
+  const res = await postJson(handler, { action: 'create', input: { root: 'dsh', name: 'skill', description: 'd', body: 'b' } });
+  assert.equal(res.status, 403);
+  const body = await res.json();
+  assert.equal(body.ok, false);
+  assert.equal(body.code, 'error.root.readonly');
+});
+
+test('POST create 404s for unknown root and rejects missing marker / wrong content-type', async () => {
+  const { handler } = await handlerFor(coreWith({
+    userRoots: () => [], projectRoots: async () => [],
+  }));
+  let res = await postJson(handler, { action: 'create', input: { root: 'nope', name: 'skill', description: 'd', body: 'b' } });
+  assert.equal(res.status, 404);
+  res = await handler(new Request('https://host' + ROUTE, { method: 'POST', body: JSON.stringify({ action: 'create', input: {} }) }));
+  assert.equal(res.status, 415);
+  res = await handler(new Request('https://host' + ROUTE, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'create', input: {} }) }));
+  assert.equal(res.status, 403);
+});
+
+test('POST trash moves skill to trash and updates inventories', async () => {
+  const { handler, emitted, core } = await handlerFor(coreWith());
+  const res = await postJson(handler, { action: 'trash', input: { root: 'dsh', name: 'old-skill' } });
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.ok, true);
+  assert.equal(body.data.id, '1700000000-00000000-0000-0000-0000-000000000000');
+  assert.equal(body.data.name, 'old-skill');
+  assert.deepEqual(core.captured.trashArgs[1], 'old-skill');
+  assert.equal(core.captured.trashArgs[0].key, 'dsh');
+  assert.deepEqual(emitted, ['commands/change']);
+});
+
+test('POST trash requires name, 404s unknown root, protects read-only and skill-not-found', async () => {
+  const { handler } = await handlerFor(coreWith());
+  let res = await postJson(handler, { action: 'trash', input: { root: 'dsh', name: '' } });
+  assert.equal(res.status, 400);
+  res = await postJson(handler, { action: 'trash', input: { root: 'nope', name: 'x' } });
+  assert.equal(res.status, 404);
+  const ro = await handlerFor(coreWith({ checkedWritableRootDefinition: async () => null }));
+  res = await postJson(ro.handler, { action: 'trash', input: { root: 'dsh', name: 'x' } });
+  assert.equal(res.status, 403);
+  const nf = await handlerFor(coreWith({
+    deleteSkill: async () => ({ ok: false, code: 'error.skill.notFound', error: '技能不存在: x', params: { name: 'x' } }),
+  }));
+  res = await postJson(nf.handler, { action: 'trash', input: { root: 'dsh', name: 'x' } });
+  assert.equal(res.status, 404);
+  const body = await res.json(); assert.equal(body.code, 'error.skill.notFound');
+});
+
+test('POST restore restores from trash preserving metadata and content', async () => {
+  let restoreId, restoreOptions;
+  const { handler, emitted } = await handlerFor(coreWith({
+    restoreTrash: async (id, _log, options) => { restoreId = id; restoreOptions = options; return { ok: true, id, name: 'restored-skill', root: { key: 'dsh', scope: 'user', label: 'DSH' } }; },
+  }));
+  const res = await postJson(handler, { action: 'restore', input: { id: '1700000000-00000000-0000-0000-0000-000000000000', projectCwds: ['/proj'] } });
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.ok, true);
+  assert.equal(body.data.id, '1700000000-00000000-0000-0000-0000-000000000000');
+  assert.equal(body.data.name, 'restored-skill');
+  assert.equal(restoreId, '1700000000-00000000-0000-0000-0000-000000000000');
+  assert.deepEqual(restoreOptions.projectCwds, ['/proj']);
+  assert.deepEqual(emitted, ['commands/change']);
+});
+
+test('POST restore handles not-found, conflict and project-unavailable explicitly', async () => {
+  const { handler } = await handlerFor(coreWith());
+  let res = await postJson(handler, { action: 'restore', input: { id: '' } });
+  assert.equal(res.status, 400);
+  const nf = await handlerFor(coreWith({
+    restoreTrash: async () => ({ ok: false, code: 'error.trash.notFound', error: '回收站条目不存在: id', params: { id: 'id' } }),
+  }));
+  res = await postJson(nf.handler, { action: 'restore', input: { id: 'missing' } });
+  assert.equal(res.status, 404);
+  const body = await res.json(); assert.equal(body.code, 'error.trash.notFound');
+  const cf = await handlerFor(coreWith({
+    restoreTrash: async () => ({ ok: false, code: 'error.trash.conflict', error: '无法恢复，同名技能已存在: skill', params: { name: 'skill' } }),
+  }));
+  res = await postJson(cf.handler, { action: 'restore', input: { id: 'id' } });
+  assert.equal(res.status, 409);
+  const body2 = await res.json(); assert.equal(body2.code, 'error.trash.conflict');
+  const pu = await handlerFor(coreWith({
+    restoreTrash: async () => ({ ok: false, code: 'error.trash.projectUnavailable', error: '原项目目录当前不在活动工作区中，无法恢复', params: { path: '/proj' } }),
+  }));
+  res = await postJson(pu.handler, { action: 'restore', input: { id: 'id' } });
+  assert.equal(res.status, 409);
+});
+
+test('POST delete permanently removes a trashed skill only with deliberate confirmation', async () => {
+  const { handler, emitted, core } = await handlerFor(coreWith());
+  // no confirm
+  let res = await postJson(handler, { action: 'delete', input: { id: '1700000000-00000000-0000-0000-0000-000000000000' } });
+  assert.equal(res.status, 400);
+  // confirm false
+  res = await postJson(handler, { action: 'delete', input: { id: 'id', confirm: false } });
+  assert.equal(res.status, 400);
+  // missing id
+  res = await postJson(handler, { action: 'delete', input: { confirm: true } });
+  assert.equal(res.status, 400);
+  // deliberate confirmation
+  res = await postJson(handler, { action: 'delete', input: { id: '1700000000-00000000-0000-0000-0000-000000000000', confirm: true } });
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.ok, true);
+  assert.equal(core.captured.deleteId, '1700000000-00000000-0000-0000-0000-000000000000');
+  assert.deepEqual(emitted, ['commands/change']);
+  // not found
+  const nf = await handlerFor(coreWith({
+    permanentlyDeleteTrash: async () => ({ ok: false, code: 'error.trash.notFound', error: '回收站条目不存在: id', params: { id: 'id' } }),
+  }));
+  res = await postJson(nf.handler, { action: 'delete', input: { id: 'id', confirm: true } });
+  assert.equal(res.status, 404);
+});
+
+test('POST listTrash returns trashed items sorted by deletion time', async () => {
+  const trash = [
+    { id: 'a', name: 'first', deletedAt: '2023-01-01T00:00:00.000Z', root: { key: 'dsh', scope: 'user', label: 'DSH' }, entries: ['SKILL.md'] },
+    { id: 'b', name: 'second', deletedAt: '2023-02-01T00:00:00.000Z', root: { key: 'dsh', scope: 'user', label: 'DSH' }, entries: ['SKILL.md'] },
+  ];
+  const { handler } = await handlerFor(coreWith({ listTrash: async () => trash }));
+  const res = await postJson(handler, { action: 'listTrash', input: {} });
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.ok, true);
+  assert.deepEqual(body.data, trash);
+});
+
+test('POST rejects unknown actions', async () => {
+  const { handler } = await handlerFor(coreWith());
+  const res = await postJson(handler, { action: 'nuke', input: {} });
+  assert.equal(res.status, 400);
+  const body = await res.json(); assert.equal(body.error, 'Invalid action.');
 });

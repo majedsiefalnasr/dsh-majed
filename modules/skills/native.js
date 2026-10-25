@@ -3,6 +3,26 @@
 // oracle; the vendored apply/runtime (copied route, tools, provider, updater,
 // client) is never activated. The vendor module is lazy-loaded only when apply()
 // runs, so importing this module never pulls in the vendored dependency graph.
+const STATUS_FOR = Object.freeze({
+  'error.root.readonly': 403,
+  'error.root.unsafe': 409,
+  'error.create.conflict': 409,
+  'error.create.tooLarge': 413,
+  'error.create.descriptionRequired': 400,
+  'error.create.bodyRequired': 400,
+  'error.import.invalidName': 400,
+  'error.skill.notFound': 404,
+  'error.trash.notFound': 404,
+  'error.trash.conflict': 409,
+  'error.trash.invalid': 400,
+  'error.trash.projectUnavailable': 409,
+  'error.root.unknown': 404,
+});
+
+function statusFor(code, fallback = 400) {
+  return STATUS_FOR[code] ?? fallback;
+}
+
 let loadedCore;
 async function loadCore() {
   if (!loadedCore) {
@@ -13,6 +33,12 @@ async function loadCore() {
       skillDetail: mod.skillDetail,
       userRoots: mod.userRoots,
       projectRoots: mod.projectRoots,
+      createSkill: mod.createSkill,
+      deleteSkill: mod.deleteSkill,
+      restoreTrash: mod.restoreTrash,
+      permanentlyDeleteTrash: mod.permanentlyDeleteTrash,
+      listTrash: mod.listTrash,
+      checkedWritableRootDefinition: mod.checkedWritableRootDefinition,
     };
   }
   return loadedCore;
@@ -56,7 +82,31 @@ async function resolveRoot(userRoots, projectRoots, key, projectCwds) {
 
 export function createHandler(handlerCtx, core) {
   const { emit } = handlerCtx;
-  const { state: stateFn, setSkillEnabled: setEnabledFn, skillDetail: detailFn } = core;
+  const {
+    state: stateFn,
+    setSkillEnabled: setEnabledFn,
+    skillDetail: detailFn,
+    createSkill: createSkillFn,
+    deleteSkill: deleteSkillFn,
+    restoreTrash: restoreTrashFn,
+    permanentlyDeleteTrash: permanentlyDeleteTrashFn,
+    listTrash: listTrashFn,
+  } = core;
+
+  async function resolveWritableRoot(rootKey, projectCwds) {
+    const root = await resolveRoot(core.userRoots, core.projectRoots, rootKey, projectCwds);
+    if (!root) return { notFound: true };
+    const checked = await core.checkedWritableRootDefinition(root);
+    if (!checked) return { readonly: true };
+    if (checked.ok === false) return { unsafe: true, checked };
+    return { root: checked };
+  }
+
+  function mutationResult(result, fallback = 400) {
+    if (!result || result.ok !== false) return null;
+    const status = Number.isInteger(result.statusCode) ? result.statusCode : statusFor(result.code, fallback);
+    return { ok: false, code: result.code, error: result.error, status };
+  }
 
   return async (request) => {
     try {
@@ -86,10 +136,8 @@ export function createHandler(handlerCtx, core) {
           const root = await resolveRoot(core.userRoots, core.projectRoots, rootKey, input.projectCwds);
           if (!root) return json({ error: 'root not found.' }, 404);
           const result = await setEnabledFn(root, name, enabled);
-          if (result && result.ok === false) {
-            const status = Number.isInteger(result.statusCode) ? result.statusCode : 400;
-            return json({ ok: false, code: result.code, error: result.error }, status);
-          }
+          const rejected = mutationResult(result);
+          if (rejected) return json(rejected, rejected.status);
           // Refresh native catalogs/active agents through the proven public seam.
           if (typeof emit === 'function') emit('commands/change');
           return json({ ok: true, data: result });
@@ -97,6 +145,54 @@ export function createHandler(handlerCtx, core) {
         if (action === 'detail') {
           const detail = await detailFn(String(input.root || 'dsh'), String(input.name || ''));
           return json({ ok: true, data: detail });
+        }
+        if (action === 'create') {
+          const rootKey = String(input.root || 'dsh');
+          const resolution = await resolveWritableRoot(rootKey, input.projectCwds);
+          if (resolution.notFound) return json({ error: 'root not found.' }, 404);
+          if (resolution.readonly) return json({ ok: false, code: 'error.root.readonly', error: 'root is read-only or not writable' }, 403);
+          if (resolution.unsafe) return json({ ok: false, code: resolution.checked.code, error: resolution.checked.error }, statusFor(resolution.checked.code, 409));
+          const result = await createSkillFn(input, undefined, { root: resolution.root });
+          const rejected = mutationResult(result, 400);
+          if (rejected) return json(rejected, rejected.status);
+          if (typeof emit === 'function') emit('commands/change');
+          return json({ ok: true, data: result });
+        }
+        if (action === 'trash') {
+          const rootKey = String(input.root || 'dsh');
+          const name = String(input.name || '');
+          if (!name) return json({ error: 'name is required.' }, 400);
+          const resolution = await resolveWritableRoot(rootKey, input.projectCwds);
+          if (resolution.notFound) return json({ error: 'root not found.' }, 404);
+          if (resolution.readonly) return json({ ok: false, code: 'error.root.readonly', error: 'root is read-only or not writable' }, 403);
+          if (resolution.unsafe) return json({ ok: false, code: resolution.checked.code, error: resolution.checked.error }, statusFor(resolution.checked.code, 409));
+          const result = await deleteSkillFn(resolution.root, name, undefined);
+          const rejected = mutationResult(result);
+          if (rejected) return json(rejected, rejected.status);
+          if (typeof emit === 'function') emit('commands/change');
+          return json({ ok: true, data: result });
+        }
+        if (action === 'restore') {
+          const id = String(input.id || '');
+          if (!id) return json({ error: 'id is required.' }, 400);
+          const result = await restoreTrashFn(id, undefined, { projectCwds: input.projectCwds });
+          const rejected = mutationResult(result);
+          if (rejected) return json(rejected, rejected.status);
+          if (typeof emit === 'function') emit('commands/change');
+          return json({ ok: true, data: result });
+        }
+        if (action === 'delete') {
+          const id = String(input.id || '');
+          if (!id || input.confirm !== true) return json({ error: 'id and confirm are required for permanent deletion.' }, 400);
+          const result = await permanentlyDeleteTrashFn(id, undefined);
+          const rejected = mutationResult(result);
+          if (rejected) return json(rejected, rejected.status);
+          if (typeof emit === 'function') emit('commands/change');
+          return json({ ok: true, data: result });
+        }
+        if (action === 'listTrash') {
+          const items = await listTrashFn();
+          return json({ ok: true, data: items });
         }
         return json({ error: 'Invalid action.' }, 400);
       }
