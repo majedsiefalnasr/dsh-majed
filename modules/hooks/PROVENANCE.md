@@ -47,3 +47,15 @@ PeterBon comparison source:
 Its bounded capture, concurrency and cancellation techniques are comparison
 inputs; fire-and-forget run/notify and retries do not supply awaited blocking
 authority and are not copied as event semantics. No PeterBon source is bundled.
+
+Retained/adapted SHA-256 at this milestone:
+
+| Local file | SHA-256 |
+| --- | --- |
+| vendor/pouch/LICENSE | 6cabb6e4498c72c7b1bf2ff3984c894fe12ff1df4370260e949a417ee226dade |
+| vendor/pouch/adapters.js | c56ed4507f7932b9a6a705e8e602d3b8b968d7ff835c748557e40df7c3035968 |
+| vendor/pouch/protocol.js | cb7329c5c376a1147788a914aaed2fee2a93f0be508f8cd8f03475d412116224 |
+| vendor/pouch/runner.js | 50801aea7d461439f9adfc2d4d4f1957b3d4fc47f0614d1fe6a14243317dc9d7 |
+| vendor/pouch/shell.js | 96bc02e95e222b0404fa9be3c9d72b8bac33fe9bbddf4e1cf6b019bb3377582c |
+| execution.js | f2ed5c72fc64697915e3742046d2f6844a63ade59b24581c7be5a7560c9e0f6c |
+| history.js | b3bee4a2b04447253de8bf31bd42b0a2f2dac1a69eb849983192fc19259d5cb8 |

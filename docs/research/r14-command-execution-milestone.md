@@ -66,6 +66,13 @@ authority there. Tests use harmless `printf`, `cat`, `touch` and bounded `sleep`
 commands only. No installed operational definitions, accounts, credentials or
 Hook histories were read; no operational execution or host restart occurred.
 
+After merging reviewed integration `f2a3aaa` into the candidate as `2e33a5b`,
+`npm test` passes **496/496**, and `git diff --check` passes. The exact native
+execution command above passes again on the combined tree. These results include
+the one new portable authority/advanced-options test; they do not close the
+unproved runtime gates below. Original main working-tree documents were never
+edited or stashed by this milestone.
+
 ## Open acceptance gates and next-session work
 
 1. Prove UserPromptSubmit, PreToolUse, PostToolUse, PermissionRequest, Stop and
