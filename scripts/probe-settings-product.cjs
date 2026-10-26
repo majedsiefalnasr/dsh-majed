@@ -14,9 +14,10 @@ assert.equal(process.cwd(), process.env.HOME);
 assert.equal(process.env.DSH_HOME, process.env.HOME);
 assert.ok(basename(process.cwd()).startsWith('dsh-physical-carrier-'));
 const [base, deps, remoteFile, ...flags] = process.argv.slice(2);
-assert.ok(flags.every(x => ['--red-result', '--red-correlation', '--red-membership', '--codex', '--approval'].includes(x)));
+assert.ok(flags.every(x => ['--red-result', '--red-correlation', '--red-membership', '--codex', '--approval', '--judgment'].includes(x)));
 const codexProbe = flags.includes('--codex');
 const approvalProbe = flags.includes('--approval');
+const judgmentProbe = flags.includes('--judgment');
 const dependencyRequire = createRequire(join(deps, '..', '__probe.cjs'));
 const req = name => dependencyRequire(join(deps, name));
 req.resolve = name => dependencyRequire.resolve(join(deps, name));
@@ -229,11 +230,23 @@ async function main() {
     const disposeRemote = remote.makeRemoteApiRoutes({ service, port: () => inner.port, auth }).map(route => outer.register(route));
     let remoteMode = false;
     const { apply: settingsHost } = await import('../lib/management/settings.js');
-    let endpointFiber;
+    let endpointFiber, judgmentSends = 0;
     const mountEndpoint = async () => {
-      if (!approvalProbe) return mount({ apply: settingsHost });
+      if (!approvalProbe && !judgmentProbe) return mount({ apply: settingsHost });
       const { apply: productHost } = await import('../index.js');
-      return mount({ apply: context => productHost(context, { hooksApproval: { enabled: true, userDirectory: process.cwd(), stateDirectory: join(process.cwd(), 'approval-state') } }) });
+      return mount({ apply: context => productHost(context, {
+        hooksApproval: { enabled: approvalProbe, userDirectory: process.cwd(), stateDirectory: join(process.cwd(), 'approval-state') },
+        judgment: { path: join(process.cwd(), 'judgment.json'), fetch: async (url, init) => {
+          assert.ok(['https://judge.example/v1/systemone', 'https://judge.example/api/alpha/decisions'].includes(url));
+          assert.equal(init.headers.authorization, 'Bearer fixture-judgment-value');
+          assert.equal(init.redirect, 'error');
+          const body = JSON.parse(init.body);
+          assert.equal(body.state, 'Majed judgment connection test. No conversation data.');
+          assert.deepEqual(body.questions, { connection: { type: 'choice', instructions: 'Select ready to confirm this protocol responds.', criteria: { ready: 'Connection test' } } });
+          judgmentSends++;
+          return Response.json({ model: 'jev-actual', answers: { connection: { type: 'choice', choice: 'ready' } }, usage: { input_tokens: 7, output_tokens: 1, cost: 0.0001 } });
+        } },
+      }) });
     };
     endpointFiber = await mountEndpoint();
     let codexFiber, codexMount, codexGrantCount = 0;
@@ -250,7 +263,7 @@ async function main() {
       codexFiber = await codexMount();
     }
     const carrier = async (input, init) => {
-      assert.ok(input === 'api/majed/settings/status' || (codexProbe && input === 'api/majed/subscriptions/codex') || (approvalProbe && input === 'api/majed/hooks/approval')); assert.equal(init.method, 'POST');
+      assert.ok(input === 'api/majed/settings/status' || input === 'api/majed/hooks/approval' || (codexProbe && input === 'api/majed/subscriptions/codex') || (judgmentProbe && input === 'api/majed/judgment/manage')); assert.equal(init.method, 'POST');
       // Deliberate document base; no repair of native URL, RPC payload or headers.
       const url = new URL(input, document.baseURI);
       assert.equal(url.origin, remoteMode ? outer.getOrigin() : inner.getOrigin());
@@ -322,7 +335,7 @@ async function main() {
     const select = async title => { await act(async () => { const button = [...document.querySelectorAll('button')].find(b => b.textContent === title); assert.ok(button, 'Missing title: ' + title + '; buttons: ' + [...document.querySelectorAll('button')].map(b => b.textContent).join('|')); button.click(); await settle(); }); };
     const refresh = async () => { await act(async () => { document.querySelector('.majed-management-refresh').click(); await settle(); }); };
     const text = () => document.querySelector('.majed-management').textContent;
-    await select('Skills Manager'); await act(settle);
+    await select('Hooks Manager'); await act(settle);
     assert.match(text(), /Readiness checks are disabled/);
     await act(async () => { document.querySelector('.majed-management input').click(); await settle(); });
     assert.match(text(), /Service ready for readiness checks only/);
@@ -399,6 +412,56 @@ async function main() {
       browserCookie = ''; await click('Refresh saved commands'); assert.match(panel().textContent, /request was refused/);
       browserCookie = cookie; await click('Refresh saved commands');
     }
+    if (judgmentProbe) {
+      checkpoint = 'judgment-native-settings';
+      remoteMode = false; document.head.innerHTML = `<base href="${inner.getOrigin()}/">`;
+      await select('Auto routing'); await act(settle);
+      const panel = () => document.querySelector('[data-majed-judgment]');
+      const field = name => { const element = panel().querySelector(`[data-judgment-field="${name}"]`); assert.ok(element); return element; };
+      const change = (name, value) => act(async () => {
+        const element = field(name);
+        const prototype = element.tagName === 'SELECT' ? window.HTMLSelectElement.prototype : window.HTMLInputElement.prototype;
+        Object.getOwnPropertyDescriptor(prototype, 'value').set.call(element, value);
+        element.dispatchEvent(new window.Event(element.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })); await settle();
+      });
+      const click = action => act(async () => { const button = panel().querySelector(`[data-judgment-action="${action}"]`); assert.ok(button); button.click(); await settle(); });
+      await change('address', 'https://judge.example'); await change('model', 'jev-requested');
+      await change('credential-action', 'replace'); await change('credential', 'fixture-judgment-value');
+      await click('save'); assert.match(panel().textContent, /settings saved/);
+      assert.equal(field('credential').value, ''); assert.equal(judgmentSends, 0);
+      assert.equal(panel().querySelector('[data-judgment-action="validate"]').disabled, true);
+      await act(async () => { field('consent').click(); await settle(); }); await click('validate');
+      assert.equal(judgmentSends, 1); assert.match(panel().textContent, /jev-requested; Actual model: jev-actual/);
+      assert.equal(field('consent').checked, false);
+      await endpointFiber.dispose(); endpointFiber = await mountEndpoint();
+      await select('General'); await select('Auto routing'); await act(settle);
+      assert.match(panel().textContent, /Credential configured/);
+      assert.equal(fs.statSync(join(process.cwd(), 'judgment.json')).mode & 0o777, 0o600);
+      remoteMode = true; document.head.innerHTML = `<base href="${outer.getOrigin()}/remote/">`;
+      await change('protocol', 'decisions'); await change('address', 'https://judge.example/api/alpha/decisions'); await click('save');
+      await act(async () => { field('consent').click(); await settle(); }); await click('validate');
+      assert.equal(judgmentSends, 2); assert.ok(proxyCalls > 0);
+      assert.equal(panel().textContent.includes('fixture-judgment-value'), false);
+      pairingCookie = ''; await click('save'); assert.match(panel().textContent, /unavailable/);
+      pairingCookie = 'synthetic-device=synthetic-live'; await click('save');
+      remoteMode = false; document.head.innerHTML = `<base href="${inner.getOrigin()}/">`;
+      browserCookie = ''; await click('save'); assert.match(panel().textContent, /unavailable/);
+      browserCookie = cookie; await click('save');
+      await change('credential-action', 'remove'); await click('save');
+      assert.equal(JSON.parse(fs.readFileSync(join(process.cwd(), 'judgment.json'), 'utf8')).credential, null);
+      assert.equal(judgmentSends, 2);
+      await change('credential-action', 'replace'); await change('credential', 'fixture-judgment-value'); await click('save');
+      const namespace = [...registeredLocales].find(([, values]) => values.ar?.['management.direction'] === 'rtl')?.[0];
+      assert.ok(namespace);
+      dictionaries.set(namespace, registeredLocales.get(namespace).ar);
+      await act(async () => { localeRevision.set({ revision: 10 }); await settle(); });
+      assert.equal(panel().dir, 'rtl');
+      await act(async () => { field('consent').click(); await settle(); }); await click('validate');
+      assert.equal(judgmentSends, 3); assert.match(panel().textContent, /اكتمل اختبار الاتصال/);
+      assert.equal(field('credential').value, '');
+      dictionaries.set(namespace, registeredLocales.get(namespace).en);
+      await act(async () => { localeRevision.set({ revision: 11 }); await settle(); });
+    }
     if (codexProbe) {
       await select('Subscriptions'); await act(settle);
       const codexText = () => document.querySelector('[data-majed-codex]').textContent;
@@ -449,13 +512,13 @@ async function main() {
     assert.equal(document.getElementById('mount').childNodes.length, 0); assert.equal(events.size, 0);
     report = { runtime: JSON.parse(fs.readFileSync(join(base, 'package.json'), 'utf8')).version,
       node: process.version, hashes, statuses, physical, proxyCalls,
-      checks: ['actual production bundle mounted in native Settings; readiness enable + isolated module status',
+      checks: [...(judgmentProbe ? ['judgment production Settings/configure/private restart/consented System One and Decisions requests; native local+paired denial; no Smart activation'] : []), 'actual production bundle mounted in native Settings; readiness enable + isolated module status',
         'production Fetch route over actual local and remote-prefixed HTTP using native RPC envelope',
         'local cookie and remote pairing denial; CSRF; body/method limits; authentic session/workspace membership',
         'endpoint and mounted client disposed', ...(codexProbe ? ['Codex native mounted Settings enable/login/manual callback/protected temporary persistence/restart/refresh; local and paired-remote denial'] : []), ...(approvalProbe ? ['Command Approval production entry/native React Settings/native RPC over actual local/paired HTTP: user/project save/review/exact phrase/approve/revoke, persisted restart, Arabic RTL, authentication denial'] : [])],
       limitations: ['jsdom, explicit presentation primitives and locale adapters: NOT browser layout/focus/theme or live proof',
         'synthetic credentials/pairing/memory storage only; no installed state or operational auth',
-        ...(codexProbe ? ['Codex fixture transport only; no real account login or model dispatch; no browser visual proof'] : []), ...(approvalProbe ? ['Command consent only; no execution, operational state or browser layout proof'] : []), ...(!codexProbe && !approvalProbe ? ['readiness only; no feature operations'] : [])] };
+        ...(codexProbe ? ['Codex fixture transport only; no real account login or model dispatch; no browser visual proof'] : []), ...(approvalProbe ? ['Command consent only; no execution, operational state or browser layout proof'] : []), ...(!codexProbe && !approvalProbe && !judgmentProbe ? ['readiness only; no feature operations'] : [])] };
   } finally {
     const cleanupErrors = [];
     const clean = async callback => { try { await callback(); } catch (error) { cleanupErrors.push(error); } };

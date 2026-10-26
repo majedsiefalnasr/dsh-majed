@@ -3,6 +3,7 @@ import { apply as baseline } from './lib/baseline/host.js';
 import { apply as settings } from './lib/management/settings.js';
 import { apply as skills } from './modules/skills/service.js';
 import { AUTO_ROUTE_ID } from './modules/auto/index.js';
+import { applyJudgment } from './modules/judgment/native.js';
 import { applyCodexAccounts } from './modules/subscriptions/codex/native.js';
 import { applyCommandApproval } from './modules/hooks/approval.js';
 
@@ -12,6 +13,7 @@ export function apply(ctx, config = {}) {
   baseline(ctx);
   settings(ctx);
   skills(ctx);
+  applyJudgment(ctx, config.judgment);
   applyCodexAccounts(ctx, config.codexAccounts || {});
   applyCommandApproval(ctx, config.hooksApproval || {});
   // Deterministic Auto routing is opt-in and explicitly enabled; no automatic
