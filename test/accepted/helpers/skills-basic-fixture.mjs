@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
+import { mkdir, writeFile, readFile } from 'node:fs/promises';
 const { registerSkills, SKILLS_GATE_ROUTE } = await import(pathToFileURL(join(process.argv[2], 'modules/skills/index.js')));
 
 const routes = new Map();
@@ -70,6 +71,31 @@ assert.deepEqual(await action('listTrash', {}), []);
 for (const deferred of ['repositories', 'catalog', 'install', 'import', 'upload', 'createCategory', 'updatePlugin']) {
   assert.equal((await request(deferred, {})).status, 400);
 }
+// Pinned v1.2.11 oracle: non-ASCII declared names never become truncated
+// ASCII invocation aliases. Historical documents remain manageable unchanged.
+for (const name of ['技能', 'مراجعة', 'review-技能', '../unsafe']) {
+  const entryName = name === '../unsafe' ? 'historical-invalid' : name;
+  const directory = join(process.env.DSH_HOME, 'skills', entryName);
+  const source = `---\nname: ${name}\ndescription: Historical Unicode fixture\n---\n\nKeep original Unicode content.\n`;
+  await mkdir(directory, { recursive: true });
+  await writeFile(join(directory, 'SKILL.md'), '---\nname: historical-fixture\ndescription: Historical fixture\n---\n\nOriginal.\n');
+  await action('setEnabled', { root: 'dsh', name: entryName, enabled: true });
+  await writeFile(join(directory, 'SKILL.md'), source);
+  const listed = (await userRoot()).skills.find(skill => skill.name === entryName);
+  assert.equal(listed.declaredName, name);
+  assert.equal(listed.loadable, false, `${name} must not acquire a truncated invocation alias`);
+  assert.ok(listed.diagnostics.some(diagnostic => diagnostic.code === 'diagnostic.name.invalid'));
+  const detail = await action('detail', { root: 'dsh', name: entryName });
+  assert.equal(detail.declaredName, name);
+  assert.equal((await request('setEnabled', { root: 'dsh', name: entryName, enabled: true })).status, 400);
+  await action('setEnabled', { root: 'dsh', name: entryName, enabled: false });
+  await action('setEnabled', { root: 'dsh', name: entryName, enabled: false });
+  const removed = await action('trash', { root: 'dsh', name: entryName });
+  await action('restore', { id: removed.id });
+  assert.equal(await readFile(join(directory, 'SKILL.md'), 'utf8'), source);
+}
+const rejected = await request('create', { root: 'dsh', name: 'review-技能', description: 'No truncation', body: 'Keep name intact.' });
+assert.equal(rejected.status, 400, 'creation must reject rather than silently truncate Unicode');
 assert.ok(events.includes('commands/change'));
 await action('create', { root: 'dsh', name: 'persistent-fixture', description: 'Cold restart fixture', body: 'Preserve source.' });
 await action('setEnabled', { root: 'dsh', name: 'persistent-fixture', enabled: false });

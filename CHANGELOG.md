@@ -8,6 +8,7 @@ All notable changes to `dsh-majed` are documented here. The format follows
 ## [Unreleased]
 
 ### Fixed
+- Skills management retains Chinese, Arabic and mixed Unicode declared names without silently shortening them into ASCII invocation aliases. Names unsupported by the native invocation grammar remain visible with diagnostics; previously explicitly enabled invalid documents can be disabled idempotently and safely trashed/restored unchanged. Creation rejects Unicode rather than truncating it, matching the pinned 1.2.11 oracle. Packaged temporary-storage regression coverage is not native Unicode invocation or live acceptance.
 - MCP startup now isolates an unavailable saved stdio working directory to that server, reports it as failed, and keeps healthy peers and disable/remove/recovery available. Saved definitions are retained; corrupt stores and invalid schemas still reject without repair. Controlled service and native lifecycle fixtures pass; operational desktop/remote acceptance remains unverified.
 - Codex cancellation now covers asynchronous callback-listener startup: a cancelled attempt closes before publication or code exchange and retains existing accounts. A real disposable-loopback regression and controlled native Codex Settings fixture pass; real provider login and live acceptance remain unverified.
 
