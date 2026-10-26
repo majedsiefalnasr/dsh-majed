@@ -181,6 +181,13 @@ window.__ModuleLoader__.load({
       'management.error': 'Status unavailable. Check the connection and refresh. If it persists, verify the installed host/client versions.',
       'management.auth': 'Owner access required. Reopen the authenticated DSH page or pair this remote device again, then refresh.',
       'management.unsupported': 'This host does not provide the Settings transport. Use a supported DSH version.',
+      'skills.disabled': 'Skills are disabled.', 'skills.enabled': 'Skills are enabled.',
+      'skills.enable': 'Enable Skills; the standalone Skills Manager is disabled',
+      'skills.disable': 'Disable Skills management', 'skills.user': 'User Skills', 'skills.project': 'Project',
+      'skills.name': 'Name', 'skills.description': 'Description', 'skills.body': 'Instructions',
+      'skills.create': 'Create Skill', 'skills.inspect': 'View', 'skills.trash': 'Move to trash',
+      'skills.restore': 'Restore', 'skills.toggle': 'Enabled', 'skills.root': 'Source',
+      'skills.delete': 'Permanently delete', 'skills.confirmDelete': 'I confirm permanent deletion',
     };
     const managementAr = {
       'management.skills': 'مدير المهارات', 'management.mcp': 'مدير MCP', 'management.hooks': 'مدير الخطافات',
@@ -192,6 +199,13 @@ window.__ModuleLoader__.load({
       'management.error': 'الحالة غير متاحة. تحقق من الاتصال ثم حدّث الحالة. إن استمرت المشكلة، تحقق من توافق إصدارَي المضيف والواجهة.',
       'management.auth': 'يلزم وصول المالك. أعد فتح صفحة DSH الموثقة أو أعد إقران الجهاز البعيد ثم حدّث الحالة.',
       'management.unsupported': 'لا يوفر هذا المضيف وسيلة نقل الإعدادات. استخدم إصدار DSH مدعومًا.',
+      'skills.disabled': 'إدارة المهارات معطلة.', 'skills.enabled': 'إدارة المهارات مفعلة.',
+      'skills.enable': 'تفعيل المهارات؛ مدير المهارات المستقل معطل',
+      'skills.disable': 'تعطيل إدارة المهارات', 'skills.user': 'مهارات المستخدم', 'skills.project': 'المشروع',
+      'skills.name': 'الاسم', 'skills.description': 'الوصف', 'skills.body': 'التعليمات',
+      'skills.create': 'إنشاء مهارة', 'skills.inspect': 'عرض', 'skills.trash': 'نقل إلى سلة المحذوفات',
+      'skills.restore': 'استعادة', 'skills.toggle': 'مفعلة', 'skills.root': 'المصدر',
+      'skills.delete': 'حذف نهائي', 'skills.confirmDelete': 'أؤكد الحذف النهائي',
     };
     Object.assign(managementEn, {
       'codex.title': 'Codex account', 'codex.enable': 'Enable account management', 'codex.disable': 'Disable account management',
@@ -310,6 +324,136 @@ window.__ModuleLoader__.load({
         h('button', { type: 'submit', className: 'majed-management-refresh', disabled: busy }, t('codex.saveAccount')));
     }
 
+    function SkillsSection({ ctx, t }) {
+      const [status, setStatus] = React.useState(null), [snapshot, setSnapshot] = React.useState(null);
+      const [trash, setTrash] = React.useState([]), [detail, setDetail] = React.useState(null);
+      const [error, setError] = React.useState(null), [busy, setBusy] = React.useState(false);
+      const [project, setProject] = React.useState(''), [root, setRoot] = React.useState('dsh');
+      const [name, setName] = React.useState(''), [description, setDescription] = React.useState(''), [body, setBody] = React.useState('');
+      const [deleteId, setDeleteId] = React.useState('');
+      const active = React.useRef(null);
+      const run = async (action = 'status', input = {}, scopeOverride) => {
+        if (active.current) return;
+        const controller = new AbortController(); active.current = controller;
+        const timer = setTimeout(() => controller.abort(), 6000);
+        setBusy(true); setError(null);
+        try {
+          const selected = scopeOverride === undefined ? status?.projects?.find(item => item.workspaceId === project) : scopeOverride;
+          const selectors = selected ? { sessionId: selected.sessionId, workspaceId: selected.workspaceId } : {};
+          const call = async (action, input = {}) => {
+            const result = await ctx.connection.rpc.call('/api', 'majed/skills', { action, input, ...selectors }, controller.signal);
+            if (!result.ok) throw new Error('operation');
+            return result.value;
+          };
+          if (action !== 'status') {
+            const result = await call(action, input);
+            if (action === 'detail') setDetail(result);
+          }
+          const next = await call('status');
+          const rows = next.enabled ? await call('list') : null;
+          const removed = next.enabled ? await call('listTrash') : [];
+          if (controller.signal.aborted || active.current !== controller) return;
+          setStatus(next); setSnapshot(rows); setTrash(removed);
+        } catch (failure) {
+          if (active.current === controller) setError(/HTTP (401|403)/.test(failure.message) ? 'auth' : 'error');
+        } finally {
+          clearTimeout(timer);
+          if (active.current === controller) { active.current = null; setBusy(false); }
+        }
+      };
+      React.useEffect(() => { run(); return () => { active.current?.abort(); active.current = null; }; }, [ctx]);
+      const button = (label, onClick, attrs = {}) => h('button', { type: 'button', className: 'majed-management-refresh', 'aria-disabled': busy, onClick, ...attrs }, t(label));
+      return h('section', { className: 'majed-management majed-skills', dir: t('management.direction'), 'aria-label': t('management.skills'), 'aria-busy': busy },
+        h('h2', { className: 'majed-management__title' }, t('management.skills')),
+        h('p', { role: error ? 'alert' : 'status' }, t(error ? 'management.' + error : 'skills.' + (status?.enabled ? 'enabled' : 'disabled'))),
+        button('management.retry', () => run(), { 'data-skills-refresh': '' }),
+        status && button(status.enabled ? 'skills.disable' : 'skills.enable', () => run('enable', { enabled: !status.enabled, confirm: true }), { 'data-skills-enable': '' }),
+        status?.enabled && h(React.Fragment, null,
+          h('label', null, t('skills.project'), h('select', { value: project, disabled: busy, 'data-skills-project': '', onChange: event => {
+            const value = event.target.value; setProject(value); setRoot('dsh'); setDetail(null);
+            run('status', {}, status.projects.find(item => item.workspaceId === value) ?? null);
+          } }, h('option', { value: '' }, t('skills.user')), ...(status.projects ?? []).map(item => h('option', { key: item.workspaceId, value: item.workspaceId }, item.title)))),
+          ...(snapshot?.roots ?? []).map(source => h('div', { key: source.key }, h('h3', null, source.label),
+            ...source.skills.map(skill => h('div', { key: skill.name, className: 'majed-management-controls' },
+              h('span', { dir: 'auto' }, skill.declaredName || skill.name),
+              button('skills.inspect', () => run('detail', { root: source.key, name: skill.name })),
+              source.toggleable && h('label', null, h('input', { type: 'checkbox', checked: skill.managerEnabled, disabled: busy,
+                'data-skills-toggle': skill.name, onChange: event => run('setEnabled', { root: source.key, name: skill.name, enabled: event.target.checked }) }), t('skills.toggle')),
+              source.mutable && button('skills.trash', () => run('trash', { root: source.key, name: skill.name }), { 'data-skills-trash': skill.name }))))),
+          detail && h('pre', { dir: 'auto' }, detail.body),
+          h('form', { onSubmit: event => { event.preventDefault(); run('create', { root, name, description, body }); } },
+            h('label', null, t('skills.root'), h('select', { value: root, disabled: busy, onChange: event => setRoot(event.target.value) },
+              ...(snapshot?.roots ?? []).filter(source => source.mutable).map(source => h('option', { key: source.key, value: source.key }, source.label)))),
+            ...[['name', name, setName], ['description', description, setDescription], ['body', body, setBody]].map(([key, value, set]) => h('label', { key }, t('skills.' + key),
+              h(key === 'body' ? 'textarea' : 'input', { value, required: true, disabled: busy, 'data-skills-field': key, onChange: event => set(event.target.value) }))),
+            h('button', { type: 'submit', disabled: busy, className: 'majed-management-refresh', 'data-skills-create': '' }, t('skills.create'))),
+          ...trash.map(item => h('div', { key: item.id, className: 'majed-management-controls' }, h('span', null, item.name),
+            button('skills.restore', () => run('restore', { id: item.id }), { 'data-skills-restore': item.id }),
+            h('label', null, h('input', { type: 'checkbox', checked: deleteId === item.id, disabled: busy, onChange: event => setDeleteId(event.target.checked ? item.id : '') }), t('skills.confirmDelete')),
+            deleteId === item.id && button('skills.delete', () => run('delete', { id: item.id, confirm: true }))))));
+    }
+
+    Object.assign(en, {
+      'judgment.title': 'Judgment service', 'judgment.description': 'Configure a separate judgment service. Saving and testing do not enable Smart routing.',
+      'judgment.protocol': 'Protocol', 'judgment.address': 'Service address', 'judgment.model': 'Requested model', 'judgment.credential': 'Credential',
+      'judgment.keep': 'Keep existing credential', 'judgment.replace': 'Replace credential', 'judgment.remove': 'Remove credential',
+      'judgment.save': 'Save judgment settings', 'judgment.test': 'Test connection',
+      'judgment.consent': 'Send the fixed connection-test question to this service. This request may incur a charge. No conversation data is sent.',
+      'judgment.configured': 'Credential configured. Smart remains disabled.', 'judgment.missing': 'Credential unavailable. Manual and deterministic routes remain usable.',
+      'judgment.error': 'Judgment service unavailable or configuration invalid.', 'judgment.saved': 'Judgment settings saved. Smart remains disabled.',
+      'judgment.tested': 'Connection test completed', 'judgment.requested': 'Requested model', 'judgment.actual': 'Actual model',
+      'judgment.inputTokens': 'Input tokens', 'judgment.outputTokens': 'Output tokens', 'judgment.cost': 'Reported cost',
+    });
+    Object.assign(managementAr, {
+      'judgment.title': 'خدمة التقييم', 'judgment.description': 'إعداد خدمة تقييم مستقلة. الحفظ والاختبار لا يفعّلان التوجيه الذكي.',
+      'judgment.protocol': 'البروتوكول', 'judgment.address': 'عنوان الخدمة', 'judgment.model': 'النموذج المطلوب', 'judgment.credential': 'بيانات الاعتماد',
+      'judgment.keep': 'الاحتفاظ ببيانات الاعتماد الحالية', 'judgment.replace': 'استبدال بيانات الاعتماد', 'judgment.remove': 'إزالة بيانات الاعتماد',
+      'judgment.save': 'حفظ إعدادات التقييم', 'judgment.test': 'اختبار الاتصال',
+      'judgment.consent': 'إرسال سؤال اختبار ثابت إلى هذه الخدمة. قد تترتب رسوم على الطلب. لن تُرسل بيانات المحادثة.',
+      'judgment.configured': 'تم إعداد بيانات الاعتماد. التوجيه الذكي معطّل.', 'judgment.missing': 'بيانات الاعتماد غير متاحة. تظل المسارات اليدوية والحتمية قابلة للاستخدام.',
+      'judgment.error': 'خدمة التقييم غير متاحة أو الإعدادات غير صالحة.', 'judgment.saved': 'تم حفظ إعدادات التقييم. التوجيه الذكي معطّل.',
+      'judgment.tested': 'اكتمل اختبار الاتصال', 'judgment.requested': 'النموذج المطلوب', 'judgment.actual': 'النموذج الفعلي',
+      'judgment.inputTokens': 'رموز الإدخال', 'judgment.outputTokens': 'رموز الإخراج', 'judgment.cost': 'التكلفة المبلغ عنها',
+    });
+
+    function JudgmentSection({ ctx, t }) {
+      const [value, setValue] = React.useState(null), [error, setError] = React.useState(false), [busy, setBusy] = React.useState(false);
+      const [protocol, setProtocol] = React.useState('systemone'), [address, setAddress] = React.useState(''), [model, setModel] = React.useState('');
+      const [credential, setCredential] = React.useState(''), [edit, setEdit] = React.useState('keep'), [consent, setConsent] = React.useState(false);
+      const [result, setResult] = React.useState(null), [saved, setSaved] = React.useState(false), active = React.useRef(null);
+      const call = async payload => {
+        if (active.current) return;
+        const controller = new AbortController(); active.current = controller; setBusy(true); setError(false);
+        const timer = setTimeout(() => controller.abort(), 6000);
+        try {
+          if (typeof ctx.connection?.rpc?.call !== 'function') throw new Error('unsupported');
+          const response = await ctx.connection.rpc.call('/api', 'majed/judgment/manage', payload, controller.signal);
+          if (controller.signal.aborted || active.current !== controller) return;
+          if (!response.ok) throw new Error('unavailable');
+          if (payload.action === 'validate') setResult(response.value);
+          else { setValue(response.value); if (response.value.protocol) setProtocol(response.value.protocol); }
+          if (payload.action === 'configure') { setCredential(''); setEdit('keep'); setSaved(true); setResult(null); }
+        } catch (failure) { if (active.current === controller) setError(failure.message === 'unsupported' ? 'unsupported' : 'unavailable'); }
+        finally { clearTimeout(timer); if (active.current === controller) { active.current = null; setBusy(false); } }
+      };
+      React.useEffect(() => { call({ action: 'status' }); return () => { active.current?.abort(); active.current = null; }; }, [ctx]);
+      const field = (key, input) => h('label', null, h('span', null, t('judgment.' + key)), input);
+      return h('section', { className: 'majed-management', dir: t('management.direction'), 'data-majed-judgment': true },
+        h('h2', { className: 'majed-management__title' }, t('judgment.title')), h('p', null, t('judgment.description')),
+        h('div', { className: 'majed-management-controls' },
+          field('protocol', h('select', { value: protocol, disabled: busy, 'data-judgment-field': 'protocol', onChange: e => setProtocol(e.target.value) }, h('option', { value: 'systemone' }, 'System One'), h('option', { value: 'decisions' }, 'Decisions'))),
+          field('address', h('input', { type: 'url', value: address, disabled: busy, dir: 'ltr', placeholder: protocol === 'systemone' ? 'https://api.typesafe.ai' : 'https://openrouter.ai/api/alpha/decisions', 'data-judgment-field': 'address', onChange: e => setAddress(e.target.value) })),
+          field('model', h('input', { value: model, disabled: busy, dir: 'ltr', 'data-judgment-field': 'model', onChange: e => setModel(e.target.value) })),
+          field('credential', h('select', { value: edit, disabled: busy, 'data-judgment-field': 'credential-action', onChange: e => { setEdit(e.target.value); setCredential(''); } }, ...['keep', 'replace', 'remove'].map(action => h('option', { key: action, value: action }, t('judgment.' + action))))),
+          field('credential', h('input', { type: 'password', autoComplete: 'new-password', value: credential, disabled: busy || edit !== 'replace', 'data-judgment-field': 'credential', onChange: e => setCredential(e.target.value) })),
+          h('button', { type: 'button', className: 'majed-management-refresh', disabled: busy, 'data-judgment-action': 'save', onClick: () => call({ action: 'configure', config: { protocol, ...(address ? { address } : {}), ...(model ? { model } : {}), credential: { action: edit, ...(edit === 'replace' ? { value: credential } : {}) } } }) }, t('judgment.save'))),
+        h('p', { role: error ? 'alert' : 'status', 'aria-busy': busy }, t(error === 'unsupported' ? 'management.unsupported' : error ? 'judgment.error' : saved ? 'judgment.saved' : value?.credentialConfigured ? 'judgment.configured' : 'judgment.missing')),
+        h('label', null, h('input', { type: 'checkbox', checked: consent, disabled: busy, 'data-judgment-field': 'consent', onChange: e => setConsent(e.target.checked) }), t('judgment.consent')),
+        h('button', { type: 'button', className: 'majed-management-refresh', disabled: busy || !consent || !value?.credentialConfigured, 'data-judgment-action': 'validate', onClick: () => { if (!consent) return; setConsent(false); return call({ action: 'validate', consent: true }); } }, t('judgment.test')),
+        result ? h('p', { role: 'status', 'data-judgment-result': true }, t('judgment.tested') + '. ' + t('judgment.requested') + ': ' + result.requestedModel + '; ' + t('judgment.actual') + ': ' + result.actualModel,
+          ...['input_tokens', 'output_tokens', 'cost'].filter(key => typeof result.usage?.[key] === 'number').map(key => h('span', { key, style: { display: 'block' } }, t('judgment.' + ({ input_tokens: 'inputTokens', output_tokens: 'outputTokens', cost: 'cost' })[key]) + ': ' + result.usage[key]))) : null);
+    }
+
     function CodexAccountsSection({ ctx, t }) {
       const [value, setValue] = React.useState({ enabled: false, state: 'disabled', accounts: [] });
       const [callback, setCallback] = React.useState('');
@@ -419,6 +563,64 @@ window.__ModuleLoader__.load({
           button(labels.cancel, () => { setReview(null); setPhrase(''); })));
     }
 
+    function ManagedMcpSection({ ctx, t }) {
+      const arabic = t('management.direction') === 'rtl';
+      const enLabels = { title: 'Managed MCP servers', disabled: 'MCP management is disabled in the host configuration.', refresh: 'Refresh servers', add: 'Add server', save: 'Save configuration', cancel: 'Cancel edit', edit: 'Edit', remove: 'Remove', connect: 'Connect', disconnect: 'Disconnect', reconnect: 'Reconnect', probe: 'Test connection', scope: 'Scope', global: 'User/global', name: 'Server name', transport: 'Transport', command: 'Command', args: 'Arguments (one per line)', cwd: 'Working directory', url: 'Server URL', credentialName: 'Credential name', addCredential: 'Add credential', keep: 'Keep stored value', replace: 'Replace value', erase: 'Remove value', secret: 'Credential value', error: 'The operation was refused. Refresh the saved configuration and check ownership, scope and connection settings. Stored credentials are retained.', disclosure: 'Connect and Test start the configured stdio process on the DSH host as its OS user. Saving an active definition restarts that connection. Active means native registration is running; it does not guarantee that the remote server is currently reachable.', saved: 'Saved', 'awaiting-agent': 'Saved; waiting for a matching native session runtime', active: 'Active native registration', failed: 'Connection failed', probing: 'Connecting or testing', 'cleanup-failed': 'Cleanup failed; replacement refused', 'probe-passed': 'Connection test passed; runtime inactive', 'probe-failed': 'Connection test failed', passed: 'passed', unknown: 'Not tested', probeResult: 'Last connection test' };
+      const labels = arabic ? { ...enLabels, title: 'خوادم MCP المُدارة', disabled: 'إدارة MCP معطلة في إعدادات المضيف.', refresh: 'تحديث الخوادم', add: 'إضافة خادم', save: 'حفظ الإعدادات', cancel: 'إلغاء التعديل', edit: 'تعديل', remove: 'إزالة', connect: 'اتصال', disconnect: 'قطع الاتصال', reconnect: 'إعادة الاتصال', probe: 'اختبار الاتصال', scope: 'النطاق', global: 'المستخدم/عام', name: 'اسم الخادم', transport: 'النقل', command: 'الأمر', args: 'المعاملات (معامل لكل سطر)', cwd: 'مجلد العمل', url: 'عنوان الخادم', credentialName: 'اسم بيانات الاعتماد', addCredential: 'إضافة بيانات اعتماد', keep: 'الإبقاء على القيمة المحفوظة', replace: 'استبدال القيمة', erase: 'إزالة القيمة', secret: 'قيمة بيانات الاعتماد', error: 'رُفضت العملية. حدّث الإعدادات المحفوظة وتحقق من الملكية والنطاق وإعدادات الاتصال. يتم الاحتفاظ ببيانات الاعتماد المحفوظة.', disclosure: 'يبدأ الاتصال والاختبار عملية stdio المُعدة على مضيف DSH بصلاحيات مستخدم نظام التشغيل. يؤدي حفظ تعريف نشط إلى إعادة تشغيل اتصاله. تعني الحالة النشطة أن التسجيل الأصلي يعمل، ولا تضمن إمكانية الوصول الحالية إلى الخادم البعيد.', saved: 'محفوظ', 'awaiting-agent': 'محفوظ؛ بانتظار تشغيل جلسة أصلية مطابقة', active: 'التسجيل الأصلي نشط', failed: 'فشل الاتصال', probing: 'جارٍ الاتصال أو الاختبار', 'cleanup-failed': 'فشل التنظيف؛ رُفض الاستبدال', 'probe-passed': 'نجح اختبار الاتصال؛ التشغيل غير نشط', 'probe-failed': 'فشل اختبار الاتصال', passed: 'ناجح', unknown: 'لم يُختبر', probeResult: 'آخر اختبار اتصال' } : enLabels;
+      const [state, setState] = React.useState(null), [draft, setDraft] = React.useState(null), [scopeKey, setScopeKey] = React.useState('global');
+      const [error, setError] = React.useState(false), [busy, setBusy] = React.useState(false), [connecting, setConnecting] = React.useState(false); const active = React.useRef(null);
+      async function call(action, extra = {}, key = scopeKey) {
+        if (active.current) return;
+        setConnecting(['probe', 'reconnect'].includes(action) || (action === 'setEnabled' && extra.enabled === true) || (action === 'save' && extra.server?.enabled === true));
+        const controller = new AbortController(); active.current = controller; setBusy(true); setError(false);
+        const timer = setTimeout(() => controller.abort(), 15000); controller.signal.addEventListener('abort', () => clearTimeout(timer), { once: true });
+        try {
+          const context = state?.contexts?.find(value => JSON.stringify([value.sessionId, value.workspaceId]) === key);
+          if (key !== 'global' && !context) throw new Error('scope');
+          const selector = key === 'global' ? { scope: 'global' } : { scope: 'project', sessionId: context.sessionId, workspaceId: context.workspaceId };
+          const result = await ctx.connection.rpc.call('/api', 'majed/mcp', { action, ...selector, ...extra }, controller.signal);
+          if (controller.signal.aborted || active.current !== controller) return;
+          if (!result?.ok || !result.value) throw new Error('refused');
+          setState(result.value); if (action === 'save' || action === 'remove') setDraft(null);
+        } catch { if (active.current === controller) setError(true); }
+        finally { clearTimeout(timer); if (active.current === controller) { active.current = null; setBusy(false); } }
+      }
+      React.useEffect(() => { call('list'); return () => { active.current?.abort(); active.current = null; }; }, [ctx]);
+      function edit(server) {
+        const secrets = server?.transport === 'streamable-http' ? server.headers : server?.env;
+        setDraft({ originalName: server?.serverName, base: server, serverName: server?.serverName || '', transport: server?.transport || 'stdio', command: server?.command || '', args: (server?.args || []).join('\n'), cwd: server?.cwd || '', url: server?.url || '', credentialName: '', credentials: Object.keys(secrets || {}).map(name => ({ name, action: 'keep', value: '' })) });
+      }
+      const button = (text, action, disabled = false) => h('button', { type: 'button', className: 'majed-management-refresh', disabled: busy || disabled, onClick: action }, text);
+      const field = (label, name, area = false) => h('label', null, label, h(area ? 'textarea' : 'input', { name, value: draft[name], maxLength: name === 'serverName' ? 32 : 8192, disabled: busy, onChange: event => setDraft({ ...draft, [name]: event.target.value }) }));
+      function save(event) {
+        event.preventDefault();
+        const secrets = {};
+        for (const value of draft.credentials) secrets[value.name] = value.action === 'erase' ? null : value.action === 'keep' ? '***' : value.value;
+        const server = { serverName: draft.serverName, transport: draft.transport, enabled: draft.base?.enabled ?? false,
+          ...(draft.base?.timeout === undefined ? {} : { timeout: draft.base.timeout }), ...(draft.base?.reconnect ? { reconnect: draft.base.reconnect } : {}), ...(draft.base?.instructionLimit === undefined ? {} : { instructionLimit: draft.base.instructionLimit }) };
+        if (draft.transport === 'stdio') Object.assign(server, { command: draft.command, args: draft.args ? draft.args.split('\n') : [], env: secrets, ...(draft.cwd ? { cwd: draft.cwd } : {}) });
+        else Object.assign(server, { url: draft.url, headers: secrets });
+        call('save', { ...(draft.originalName ? { originalName: draft.originalName } : {}), server });
+      }
+      return h('section', { 'data-majed-mcp': '', className: 'majed-managed-mcp', 'aria-label': labels.title },
+        h('h3', null, labels.title), h('p', null, labels.disclosure), button(labels.refresh, () => call('list')),
+        busy && connecting && h('p', { role: 'status', 'aria-live': 'polite' }, labels.probing),
+        error && h('p', { role: 'alert' }, labels.error), state?.enabled === false && h('p', { role: 'status' }, labels.disabled),
+        state?.enabled === true && h('div', null,
+          h('label', null, labels.scope, h('select', { name: 'scope', value: scopeKey, disabled: busy, onChange: event => { const key = event.target.value; setScopeKey(key); setDraft(null); call('list', {}, key); } }, h('option', { value: 'global' }, labels.global), (state.contexts || []).map(value => h('option', { key: value.workspaceId, value: JSON.stringify([value.sessionId, value.workspaceId]) }, value.label)))),
+          button(labels.add, () => edit()),
+          draft && h('form', { 'data-mcp-form': 'definition', onSubmit: save },
+            field(labels.name, 'serverName'), h('label', null, labels.transport, h('select', { name: 'transport', value: draft.transport, disabled: busy, onChange: event => setDraft({ ...draft, transport: event.target.value }) }, h('option', { value: 'stdio' }, 'stdio'), h('option', { value: 'streamable-http' }, 'streamable HTTP'))),
+            draft.transport === 'stdio' ? h('div', null, field(labels.command, 'command'), field(labels.args, 'args', true), field(labels.cwd, 'cwd')) : field(labels.url, 'url'),
+            draft.credentials.map((credential, index) => h('div', { key: credential.name }, h('strong', null, credential.name),
+              h('select', { 'aria-label': credential.name, value: credential.action, disabled: busy, onChange: event => setDraft({ ...draft, credentials: draft.credentials.map((value, position) => position === index ? { ...value, action: event.target.value } : value) }) }, ['keep', 'replace', 'erase'].map(value => h('option', { key: value, value }, labels[value]))),
+              credential.action === 'replace' && h('input', { type: 'password', autoComplete: 'new-password', 'aria-label': labels.secret, value: credential.value, disabled: busy, maxLength: 4096, onChange: event => setDraft({ ...draft, credentials: draft.credentials.map((value, position) => position === index ? { ...value, value: event.target.value } : value) }) }))),
+            field(labels.credentialName, 'credentialName'), button(labels.addCredential, () => { if (!draft.credentialName || draft.credentials.some(value => value.name === draft.credentialName)) return; setDraft({ ...draft, credentialName: '', credentials: [...draft.credentials, { name: draft.credentialName, action: 'replace', value: '' }] }); }),
+            h('button', { type: 'submit', className: 'majed-management-refresh', disabled: busy }, labels.save), button(labels.cancel, () => setDraft(null))),
+          (state.servers || []).map(server => h('div', { key: server.serverName, 'data-mcp-server': server.serverName }, h('strong', null, server.serverName), h('p', { role: 'status' }, labels[server.status] || labels.saved), h('p', null, labels.probeResult + ': ' + (labels[server.probe] || labels.unknown)),
+            button(labels.edit, () => edit(server)), button(server.enabled ? labels.disconnect : labels.connect, () => call('setEnabled', { serverName: server.serverName, enabled: !server.enabled })), button(labels.reconnect, () => call('reconnect', { serverName: server.serverName }), !server.enabled), button(labels.probe, () => call('probe', { serverName: server.serverName })), button(labels.remove, () => call('remove', { serverName: server.serverName }))))));
+    }
+
     function ManagementSection({ ctx, module, t }) {
       const [value, setValue] = React.useState(null);
       const [error, setError] = React.useState(null);
@@ -455,7 +657,9 @@ window.__ModuleLoader__.load({
           h('button', { type: 'button', className: 'majed-management-refresh', 'aria-disabled': busy, onClick: () => refresh() }, t('management.retry'))),
         h('p', { role: error ? 'alert' : 'status', 'aria-live': 'polite', 'aria-busy': busy }, t('management.' + (error || (busy ? 'loading' : value?.state === 'ready' ? 'ready' : 'disabled')))),
         module === 'subscriptions' && h(CodexAccountsSection, { ctx, t }),
-        module === 'hooks' && h(CommandApprovalSection, { ctx, t }));
+        module === 'hooks' && h(CommandApprovalSection, { ctx, t }),
+        module === 'mcp' && h(ManagedMcpSection, { ctx, t }),
+        module === 'routing' && h(JudgmentSection, { ctx, t }));
     }
 
     // ───────────────────────── settings rows ─────────────────────────
@@ -470,9 +674,16 @@ window.__ModuleLoader__.load({
 .majed-management-refresh{font:inherit;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-module-platform);border:1px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md);padding:.5em 1em;white-space:normal}
 .majed-management-refresh:focus-visible{outline:2px solid var(--dsw-alias-label-primary);outline-offset:2px}
 .majed-management-refresh[aria-disabled="true"]{opacity:.5}
+.majed-skills form,.majed-skills label{display:grid;gap:.5em;margin-block:.5em;min-width:0}
+.majed-skills input,.majed-skills textarea,.majed-skills select{box-sizing:border-box;max-width:100%;font:inherit;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-module-platform);border:1px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md)}
+.majed-skills pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit}
+[data-majed-judgment] .majed-management-controls label{display:flex;flex-direction:column;gap:.25em;min-width:0;max-width:100%}
+.majed-management [data-judgment-field]{font:inherit;max-width:100%;box-sizing:border-box;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-module-platform);border:1px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md)}
 .majed-command-approval form,.majed-command-approval label{display:flex;flex-direction:column;gap:.5em;min-width:0;margin-block:1em}
 .majed-command-approval input,.majed-command-approval textarea,.majed-command-approval select{box-sizing:border-box;max-width:100%;font:inherit;color:inherit;background:var(--dsw-alias-bg-module-platform);border:1px solid var(--dsw-alias-border-l2);padding:.5em}
 .majed-command-approval pre{max-width:100%;white-space:pre-wrap;overflow-wrap:anywhere;font:inherit}
+.majed-managed-mcp form,.majed-managed-mcp label{display:flex;flex-direction:column;gap:.5em;min-width:0;margin-block:1em}
+.majed-managed-mcp input,.majed-managed-mcp textarea,.majed-managed-mcp select{box-sizing:border-box;max-width:100%;font:inherit;color:inherit;background:var(--dsw-alias-bg-module-platform);border:1px solid var(--dsw-alias-border-l2);padding:.5em}
 @media (max-width:420px){.majed-management-controls{flex-direction:column;align-items:stretch;gap:.5em}.majed-management-refresh{width:100%;justify-content:center}}
 
 .majed-row{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:16px 0;border-bottom:.5px solid var(--dsw-alias-border-l2)}
@@ -2120,7 +2331,7 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
         ctx.slots.inject('settings.section', () => {
           const stops = ['skills', 'mcp', 'hooks', 'subscriptions', 'routing'].map((module, index) => ctx.slots.register({
             name: 'settings.section', id: 'majed-' + module, order: 60 + index, locale: NS, label: () => ctx.locale.bind(NS)('management.' + module),
-          }, props => h(ManagementSection, { ...props, ctx, module })));
+          }, props => h(module === 'skills' ? SkillsSection : ManagementSection, { ...props, ctx, module })));
           return () => stops.reverse().forEach(stop => stop());
         });
         ctx.slots.inject('conversation.input.right', () => ctx.slots.register({ name: 'conversation.input.right', id: 'majed-codex-speed', order: 0, locale: NS }, props => h(CodexSpeedSelect, { ...props, ctx })));

@@ -6,14 +6,14 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 const flags = process.argv.slice(2);
-assert.ok(flags.every(flag => ['--codex', '--codex-direct', '--approval'].includes(flag)), 'Unknown product proof option.');
+assert.ok(flags.every(flag => ['--codex', '--codex-direct', '--approval', '--mcp', '--judgment'].includes(flag)), 'Unknown product proof option.');
 const { DSH_PROBE_NODE: executable, DSH_PROBE_RUNTIME: runtime, DSH_MOUNTED_DEPS: dependencies, DSH_PROBE_REMOTE: remote } = process.env;
 assert.ok(executable && runtime && dependencies && remote, 'Set the four DSH_PROBE_NODE/RUNTIME/REMOTE and DSH_MOUNTED_DEPS paths.');
 const parent = realpathSync(tmpdir()), home = realpathSync(mkdtempSync(join(parent, 'dsh-physical-carrier-')));
 try {
   const result = spawnSync(executable, [fileURLToPath(new URL('./probe-settings-product.cjs', import.meta.url)), runtime, resolve(dependencies), remote, ...flags], {
     cwd: home, env: { HOME: home, DSH_HOME: home, TMPDIR: home, ELECTRON_RUN_AS_NODE: '1', DSH_PHYSICAL_CARRIER_PROBE: '1' },
-    encoding: 'utf8', timeout: 25000, maxBuffer: 1024 * 1024,
+    encoding: 'utf8', timeout: flags.includes('--mcp') ? 45000 : 25000, maxBuffer: 1024 * 1024,
   });
   if (result.stdout) process.stdout.write(result.stdout);
   if (result.stderr) process.stderr.write(result.stderr);

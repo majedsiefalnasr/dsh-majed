@@ -1,5 +1,6 @@
 // MichengAI dsh-skills-manager 1.2.6, Apache-2.0. Majed adaptation:
-// export the existing writable-root check for the basic native management facade.
+// export the existing writable-root check; isolate policy/trash under Majed;
+// protect private directory/file permissions and reject private-store symlinks.
 import { homedir } from "node:os";
 import { randomBytes } from "node:crypto";
 import {
@@ -493,7 +494,17 @@ async function resolveWorkspaceTarget(workspace, registered) {
   return { root: checked };
 }
 function managerHomePath() {
-  return join(resolveDshHome(), "skills-manager");
+  return join(resolveDshHome(), "majed", "skills");
+}
+async function checkManagerHome(prepare = false) {
+  for (const path of [join(resolveDshHome(), "majed"), managerHomePath(), managerStatePath(), trashRootPath()]) {
+    const entry = await lstatOrNull(path);
+    if (entry?.isSymbolicLink()) throw codedError("Unsafe private Skills state", "error.state.invalid");
+  }
+  if (prepare) {
+    await fs.mkdir(managerHomePath(), { recursive: true, mode: 0o700 });
+    await fs.chmod(managerHomePath(), 0o700);
+  }
 }
 function managerStatePath() {
   return join(managerHomePath(), "state.json");
@@ -637,7 +648,7 @@ async function checkedUserRootAncestors(definition) {
 }
 async function checkedWritableRootDefinition(root) {
   const definition = writableRootDefinition(root);
-  if (definition?.key === "agents") return checkedUserRootAncestors(definition);
+  if (definition?.key === "agents" || definition?.key === "dsh") return checkedUserRootAncestors(definition);
   if (!definition || definition.scope !== "project") return definition;
   if (await overlapsUserSkillRoot(definition.path)) {
     return {
@@ -888,7 +899,7 @@ async function writeFileAtomically(path, content) {
     `.${basename(path)}.dssm-${randomUUID()}.tmp`
   );
   try {
-    await fs.writeFile(temp, content, "utf8");
+    await fs.writeFile(temp, content, { encoding: "utf8", mode: 0o600, flag: "wx" });
     await fs.rename(temp, path);
   } catch (caught) {
     const error = caught;
@@ -1335,6 +1346,7 @@ function normalizeCategoryOrder(value, categories) {
 }
 async function readManagerState() {
   try {
+    await checkManagerHome();
     const raw = await fs.readFile(managerStatePath(), "utf8");
     const parsed = migrateManagerStateDocument(JSON.parse(raw));
     if (!validManagerStateDocument(parsed))
@@ -1360,7 +1372,9 @@ async function readManagerState() {
   }
 }
 async function writeManagerState(value) {
-  await fs.mkdir(managerHomePath(), { recursive: true });
+  await checkManagerHome();
+  await fs.mkdir(managerHomePath(), { recursive: true, mode: 0o700 });
+  await fs.chmod(managerHomePath(), 0o700);
   await writeFileAtomically(
     managerStatePath(),
     `${JSON.stringify(normalizeManagerState(value), null, 2)}
@@ -1396,15 +1410,6 @@ function effectiveSkillPolicy(policyResult, root, entry) {
       modelInvocable: false,
       userInvocable: false,
       enabled: false
-    };
-  }
-  if (override === true) {
-    return {
-      override,
-      sourceEnabled,
-      modelInvocable: true,
-      userInvocable: true,
-      enabled: true
     };
   }
   const modelInvocable = entry.invocationPolicyValid && entry.modelInvocable;
@@ -3055,6 +3060,7 @@ export {
   browseDirectories,
   checkedRepositoryRootDefinition,
   checkedWritableRootDefinition,
+  checkManagerHome,
   createCategory,
   createSkill,
   createWorkspaceIndex,

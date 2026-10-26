@@ -44,6 +44,8 @@ async function mount(t, { fallback = false } = {}) {
       register(metadata, Component) { sections.set(metadata.id, Component); return () => {}; },
     },
     connection: { rpc: { call(channel, endpoint, payload, signal) {
+      // Feature metadata is independent of the readiness control under test.
+      if (endpoint === 'majed/mcp') return Promise.resolve({ ok: true, value: { enabled: false, servers: [], contexts: [] } });
       calls.push({ channel, endpoint, payload, signal });
       return new Promise((resolve, reject) => pending.push({ resolve, reject }));
     } } },
@@ -51,7 +53,7 @@ async function mount(t, { fallback = false } = {}) {
   plugin.apply(ctx);
   const root = createRoot(dom.window.document.querySelector('main'));
   const render = async module => act(async () => root.render(h(sections.get(`majed-${module}`), { t: ctx.locale.bind('majed') })));
-  await render('skills');
+  await render('mcp');
   const settle = async (enabled = false, failure) => act(async () => {
     const request = pending.shift();
     if (failure) request.reject(new Error(failure));

@@ -38,6 +38,15 @@ async function action(action, input) {
   assert.equal(status, 200, JSON.stringify(value));
   return value.data;
 }
+if (process.argv[3] === 'read') {
+  const snapshot = (await (await route.fetch(new Request('https://fixture/api/dsh-majed/skills'))).json()).data;
+  const persisted = snapshot.roots.find(root => root.key === 'dsh').skills.find(skill => skill.name === 'persistent-fixture');
+  assert.equal(persisted.managerEnabled, false);
+  assert.equal(persisted.effectiveModelInvocable, false);
+  assert.equal(persisted.effectiveUserInvocable, false);
+  console.log('PASS cold Skills policy reload');
+  process.exit(0);
+}
 const created = await action('create', { root: 'dsh', name: 'Basic Fixture', description: 'Temporary basic fixture', body: 'Keep this fixture isolated.' });
 assert.equal(created.name, 'basic-fixture');
 const snapshot = async () => (await (await route.fetch(new Request('https://fixture/api/dsh-majed/skills'))).json()).data;
@@ -62,4 +71,6 @@ for (const deferred of ['repositories', 'catalog', 'install', 'import', 'upload'
   assert.equal((await request(deferred, {})).status, 400);
 }
 assert.ok(events.includes('commands/change'));
+await action('create', { root: 'dsh', name: 'persistent-fixture', description: 'Cold restart fixture', body: 'Preserve source.' });
+await action('setEnabled', { root: 'dsh', name: 'persistent-fixture', enabled: false });
 console.log('PASS basic Skills create/list/detail/toggle/trash/restore/delete and deferred rejection');
