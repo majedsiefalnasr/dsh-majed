@@ -13,16 +13,18 @@ function fixture() {
     plugin(plugin) {
       const abort = new AbortController();
       let error;
-      const row = { invalidations: 0 };
+      const owned = [];
+      const skills = { registerProvider(create) {
+        const row = { invalidations: 0 }; owned.push(row);
+        create({ signal: abort.signal, invalidate() { row.invalidations++; } });
+        if (fail) throw new Error('registration failed');
+        rows.add(row);
+      } };
       try {
-        plugin.apply({ skills: { registerProvider(create) {
-          create({ signal: abort.signal, invalidate() { row.invalidations++; } });
-          if (fail) throw new Error('registration failed');
-          rows.add(row);
-        } } });
+        plugin.apply({ skills, reflect: { trace() { return skills; } } });
       } catch (value) { error = value; abort.abort(); }
       return { then(resolve, reject) { return error ? reject(error) : resolve(); },
-        async dispose() { rows.delete(row); abort.abort(); } };
+        async dispose() { for (const row of owned) rows.delete(row); abort.abort(); } };
     },
   });
   const ctx = context();
@@ -31,6 +33,21 @@ function fixture() {
     emit: (name, agent) => listeners.get(name)?.({ agent }) };
 }
 const core = { listProviderCandidates: async () => [], getProviderSkill() {} };
+
+test('selected preset registration shares exact Agent invalidation and teardown ownership', async () => {
+  const f = fixture(), agent = f.agent('preset'); f.setLive([agent]);
+  const get = f.ctx.get;
+  f.ctx.get = name => name === 'agentPresets' ? { serviceFor(value, key) {
+    assert.equal(value, agent); assert.equal(key, 'skills'); return {};
+  } } : get(name);
+  const runtime = await mountOverlays(f.ctx, core, f.invalidators);
+  assert.equal(f.rows.size, 3);
+  for (const invalidate of f.invalidators) invalidate();
+  assert.ok([...f.rows].every(row => row.invalidations === 1));
+  await f.emit('agent/disposed', agent);
+  assert.equal(f.rows.size, 1); assert.equal(f.invalidators.size, 1);
+  await runtime.dispose(); assert.equal(f.rows.size, 0); assert.equal(f.listeners.size, 0);
+});
 
 test('overlay owns pre-existing, new and reused-id Agents by exact identity and cleans feature restart', async () => {
   const f = fixture(), first = f.agent('same'); f.setLive([first]);

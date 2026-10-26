@@ -296,11 +296,32 @@ const endpoint = '/api/majed/skills';
       agentOptions: { provider: 'fixture-never-called', model: 'fixture-never-called' } });
     assert.equal(host.agents.get('fixture-active-agent'), nativeHandle.agent);
     assert.ok(nativeHandle.agent.ctx.get('skills'), 'Actual Agent resolves native registry');
-    const scopedFilesystem = nativeHandle.agent.ctx.plugin({ inject: ['skills'], apply(owner) {
+    // Public preset-selection seam: a deliberately distinct native registry.
+    // The actual Agent retains its root skills context; the catalog must not use it.
+    const presetContext = host.isolate('skills');
+    await mount({ apply(owner) { new skillModule.SkillRegistry(owner); } }, presetContext);
+    const presetSkills = presetContext.get('skills');
+    assert.notEqual(presetSkills, nativeHandle.agent.ctx.get('skills'));
+    await mount({ apply(owner) {
+      class Presets extends Service {
+        constructor(ctx) { super(ctx, 'agentPresets'); }
+        serviceFor(agent, name) {
+          assert.equal(agent, nativeHandle.agent); assert.equal(name, 'skills');
+          return presetSkills;
+        }
+      }
+      new Presets(owner);
+    } });
+    const scopedFilesystem = presetContext.plugin({ inject: ['skills'], apply(owner) {
       hostLoad('dsh-skill-filesystem').apply(owner, { dshHome: process.env.HOME,
         agentsHome: join(process.env.HOME, '.agents'), watch: false });
     } });
     fibers.push(scopedFilesystem); await scopedFilesystem;
+    const rootScopedFilesystem = nativeHandle.agent.ctx.plugin({ inject: ['skills'], apply(owner) {
+      hostLoad('dsh-skill-filesystem').apply(owner, { dshHome: process.env.HOME,
+        agentsHome: join(process.env.HOME, '.agents'), watch: false });
+    } });
+    fibers.push(rootScopedFilesystem); await rootScopedFilesystem;
     checkpoint = 'actual-agent-created';
     await mount({ inject: ['tools', 'skills', 'workingDirectory'], apply: hostLoad('dsh-tool-skill').apply });
     await mount({ inject: ['sessionQuery', 'agents', 'workingDirectory', 'skills'], apply(owner) {
@@ -427,6 +448,8 @@ const endpoint = '/api/majed/skills';
     assert.equal((await nativeHandle.agent.ctx.get('skills').snapshot({ cwd: project, scope: nativeHandle.agent }))
       .skills.find(skill => skill.name === 'native-fixture').invocation.modelInvocable, true,
       'Actual Agent scoped filesystem duplicate starts enabled and warms its registry');
+    assert.equal((await host.sessionSkillCatalog.list({ sessionId: nativeHandle.agent.id })).skills.length, 1,
+      'Distinct preset registry catalog is warmed before mutation');
     await refresh(); assert.match(text(), /native-fixture/);
     await click('[data-skills-toggle="native-fixture"]');
     if (flags.includes('--require-active-policy')) {
@@ -447,6 +470,8 @@ const endpoint = '/api/majed/skills';
     assert.match(modelDenied.error.message, /not available for model invocation/);
     await click('[data-skills-toggle="native-fixture"]');
     assert.equal((await readSkill(project)).invocation.modelInvocable, true);
+    assert.equal((await host.sessionSkillCatalog.list({ sessionId: nativeHandle.agent.id })).skills.length, 1,
+      'Distinct preset catalog respects re-enable invalidation');
     assert.equal((await slash()).length, 1);
     remoteMode = true; document.head.innerHTML = `<base href="${outer.getOrigin()}/remote/">`;
     await refresh(); assert.match(text(), /native-fixture/); assert.ok(proxyCalls > 0);
@@ -533,7 +558,7 @@ const endpoint = '/api/majed/skills';
         'known failed acceptance criterion: warmed native slash source remains stale; --require-slash-refresh fails',
         'synthetic credentials/pairing/memory persistence, real temporary Skill files',
         'native SessionSkillCatalog uses explicit query/working-directory adapters and actual AgentRegistry; no event resume',
-        'active scoped policy overlay proved for Agent context registry; distinct preset registry and cold standing presets remain unproved',
+        'active distinct native registry selected through explicit serviceFor adapter proved; real preset composition and cold standing presets remain unproved',
         'native slash remote list/event callbacks are same-process adapters, not a proved paired event-stream carrier'] };
   } finally {
     const cleanupErrors = [];

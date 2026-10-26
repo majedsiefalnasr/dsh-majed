@@ -10,6 +10,14 @@ Both native commands pass (exit 0): the scoped duplicate is disabled, the native
 
 The exact Agent-context registry is proved; a distinct registry selected by `agentPresets.serviceFor` is not. No standing preset is mutated and no claim is made for cold preset lookup, warmed slash refresh, browser layout, real provider inference, operational sessions or paired event-stream invalidation. The source-only pointers and disposable synthetic persistence/guard boundaries below remain unchanged.
 
+## Distinct registry follow-up (2026-10-26)
+
+The fixture now supplies an explicit public `agentPresets.serviceFor(agent, 'skills')` adapter returning a separately constructed native SkillRegistry in a public isolated context. It asserts this is not the Agent-context registry and warms the actual SessionSkillCatalog before the admitted disable. Before the production change, native `--require-active-policy` failed at `active-agent-scoped-policy`: `Actual live Agent native user catalog respects Manager policy`, `1 !== 0`; all 3/3 watchers closed. This was an actual catalog policy red, not the earlier missing-bundle/dependency setup failures.
+
+Production retains the Agent-context overlay and adds the selected-registry overlay via public `owner.reflect.trace(selected)` in the same Agent-owned plugin fiber. Its separate provider name avoids duplicate registration if the selected implementation is the context registry. Every control contributes its exact invalidator and abort cleanup; the existing identity map, disposal, restart and startup rollback remain intact. Final native `--require-active-policy` exits 0 and closes 8/8 watchers and 2/2 listeners; source flag and model-tool proofs remain unchanged. Final `npm test` passes 498/498 tests and classification 166/166; `git diff --check` exits 0. Controlled lifecycle coverage additionally checks selected registration invalidation and exact Agent teardown.
+
+This proves the distinct-registry selection seam using an explicit service adapter, not actual native preset composition/mounting, a provider turn, cold standing presets, or warmed native slash invalidation. No operational HOME, provider account or host implementation is modified. Existing reproduction pointers below are source-only, and every run uses the runner-owned temporary HOME. Context7 lookup was unavailable because the ordinary npm cache is not writable (`EPERM`); no cache ownership change or escalation was attempted. Public tracing semantics were inspected in the installed Cordis dependency and verified by the native fixture.
+
 ## Reproduction
 
 From this worktree, use the existing source-only dependency pointers:
