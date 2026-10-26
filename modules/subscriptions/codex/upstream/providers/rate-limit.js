@@ -6,7 +6,7 @@
  * window, a weekly window, and on some plans a per-model weekly one — so a 429
  * is not a dead end: the window reopens at a time the provider discloses. This
  * module turns that disclosure into the `providerRetryAfterMs` the optional
- * `@deepseek-ai/dsh-llm-retry` plugin waits out, and resolves the retry policy
+ * `../host-llm.js-retry` plugin waits out, and resolves the retry policy
  * whose `maxDelayMs` decides how long a route is allowed to hold the turn.
  *
  * The wait itself is provider-independent: adapters own the policy, the retry
@@ -16,7 +16,7 @@
  *
  * @module dsh-plugin-subscriptions/providers/rate-limit
  */
-import { resolveRetryPolicy } from '@deepseek-ai/dsh-llm';
+import { resolveRetryPolicy } from '../host-llm.js';
 /**
  * Extra time added to every provider-disclosed wait. Absorbs clock skew
  * between the harness and the provider, so a retry does not land a moment

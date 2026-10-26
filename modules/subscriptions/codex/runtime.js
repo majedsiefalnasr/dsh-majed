@@ -1,4 +1,4 @@
-import { LlmAdapter, LlmError, attributionHeaders } from '@deepseek-ai/dsh-llm';
+import { LlmAdapter, LlmError, attributionHeaders, bindHostLlm } from './upstream/host-llm.js';
 import { createHash } from 'node:crypto';
 import { createPrivateStore } from './storage.js';
 import { fetchCodexModels, codexRequestBody, projectCodexMessages } from './upstream/providers/codex-helpers.js';
@@ -6,6 +6,7 @@ import { resolveImages } from './upstream/translate/resolved.js';
 import { toResponsesInput, streamResponses } from './upstream/translate/responses.js';
 import { idleWatchdog, httpLlmError } from './upstream/providers/common.js';
 import { subscriptionRetryPolicy, DEFAULT_RETRY, DEFAULT_RATE_LIMIT_WAIT, jsonBody, resetFromFields } from './upstream/providers/rate-limit.js';
+import { startCatalogRefresh } from './upstream/providers/catalog-refresh.js';
 
 const endpoint = 'https://chatgpt.com/backend-api/codex/responses';
 const prefix = '~account:';
@@ -43,11 +44,12 @@ function guardedBody(stream, signal) {
 }
 
 /** Account-bound adapter. Only the external provider transport is injectable. */
-export async function createCodexRuntime({ accounts, llm, path, fetch: transport = globalThis.fetch, resolveAttachments = () => undefined, streamIdleTimeoutMs = 30000, clientVersion } = {}) {
+export async function createCodexRuntime({ accounts, llm, llmModule, path, fetch: transport = globalThis.fetch, resolveAttachments = () => undefined, streamIdleTimeoutMs = 30000, clientVersion } = {}) {
+  bindHostLlm(llmModule);
   if (!accounts || !llm?.registerAdapter || !path) throw failure('NO_ADAPTER');
   const store = createPrivateStore(path, { empty: () => ({ version: 1, preferences: {}, catalogs: {} }),
     validate: value => value?.version === 1 && object(value.preferences) && object(value.catalogs) });
-  const cache = new Map(), lifecycle = new AbortController();
+  const cache = new Map(), speedBySession = new Map(), lifecycle = new AbortController();
   let disposed = false, generation = 0, registration;
   const live = () => { if (disposed) throw failure('NO_ADAPTER'); };
   const snapshotAccounts = async () => (await accounts.snapshot()).accounts.filter(a => a.state === 'connected');
@@ -93,8 +95,11 @@ export async function createCodexRuntime({ accounts, llm, path, fetch: transport
       entry = entries.find(e => e.account.id === parsed.account && accountPrefs[parsed.account]?.independentEntry === true && e.models.some(m => m.id === parsed.model));
     } else {
       entry = entries.find(e => e.account.default && e.models.some(m => m.id === parsed.model))
-        || entries.find(e => e.models.some(m => m.id === parsed.model))
-        || entries.find(e => e.account.default);
+        || entries.find(e => e.models.some(m => m.id === parsed.model));
+      // Unlisted exact IDs remain queryable, but an account-only model already
+      // known to belong to a removed account must never migrate to the default.
+      const knownAccountOnly = Object.values(data.catalogs).some(catalog => catalog.models.some(model => model.id === parsed.model));
+      if (!entry && !knownAccountOnly) entry = entries.find(e => e.account.default);
     }
     if (!entry) throw failure('NO_ADAPTER');
     const model = entry.models.find(m => m.id === parsed.model);
@@ -107,7 +112,7 @@ export async function createCodexRuntime({ accounts, llm, path, fetch: transport
       ...(contextWindow ? { context: { contextWindow } } : {}), ...(model?.maxTokens ? { defaultMaxTokens: model.maxTokens } : {}), ...(reasoning ? { reasoning } : {}) };
     const accountAlias = accountPrefs[entry.account.id]?.alias || entry.account.label;
     if (parsed.account) info.name = `${accountAlias} · ${info.name}`;
-    return { id, model: parsed.model, account: entry.account.id, info, fast: model?.fastTier === true && modelPref.speed === 'fast', epoch: generation };
+    return { id, model: parsed.model, account: entry.account.id, info, fast: model?.fastTier === true, epoch: generation };
   }
   async function* streamBound(bound, options) {
     live(); options.signal?.throwIfAborted();
@@ -125,7 +130,7 @@ export async function createCodexRuntime({ accounts, llm, path, fetch: transport
           const replay = message?.source?.replayState?.response;
           return replay?.kind === 'majed-codex-replay' && replay.version === 1 && replay.key === key ? replay.items : undefined;
         };
-        const body = codexRequestBody({ ...options, model: bound.model }, toResponsesInput(messages, options.system, reasoningFor), bound.fast);
+        const body = codexRequestBody({ ...options, model: bound.model }, toResponsesInput(messages, options.system, reasoningFor), bound.fast && speedBySession.get(options.sessionId) === 'fast');
         watchdog.signal.throwIfAborted(); live();
         return bounded(Promise.resolve().then(() => transport(endpoint, { method: 'POST', signal: watchdog.signal, redirect: 'error', headers: {
           authorization: `Bearer ${session.accessToken}`, 'chatgpt-account-id': session.accountId, originator: 'codex_cli_rs',
@@ -148,8 +153,10 @@ export async function createCodexRuntime({ accounts, llm, path, fetch: transport
         else yield chunk;
       }
     } catch (error) {
-      const allowed = ['AUTH', 'RATE_LIMIT', 'QUOTA_EXCEEDED', 'CONTEXT_WINDOW_EXCEEDED', 'EMPTY_RESPONSE', 'INVALID_REQUEST', 'NO_ADAPTER'];
-      throw new LlmError('Codex request failed.', watchdog.signal.aborted ? 'ABORTED' : allowed.includes(error.code) ? error.code : 'TRANSPORT',
+      const allowed = ['AUTH', 'RATE_LIMIT', 'QUOTA', 'CONTEXT_WINDOW_EXCEEDED', 'EMPTY_RESPONSE', 'INVALID_REQUEST', 'NO_ADAPTER', 'UNSUPPORTED', 'TIMEOUT', 'SERVER', 'MALFORMED_RESPONSE', 'STREAM_CLOSED', 'INVALID_CREDENTIAL'];
+      const code = watchdog.timedOut() ? 'TIMEOUT' : watchdog.signal.aborted ? 'ABORTED' : error.code === 'reauthentication_required' ? 'AUTH'
+        : allowed.includes(error.code) || /^HTTP_[1-5][0-9]{2}$/.test(error.code) ? error.code : 'TRANSPORT';
+      throw new LlmError('Codex request failed.', code,
         { ...(Number.isInteger(error.status) ? { status: error.status } : {}), ...(Number.isFinite(error.providerRetryAfterMs) ? { providerRetryAfterMs: error.providerRetryAfterMs } : {}) });
     } finally { watchdog.stop(); }
   }
@@ -176,6 +183,9 @@ export async function createCodexRuntime({ accounts, llm, path, fetch: transport
   const adapter = new CodexDirectAdapter();
   try { registration = llm.registerAdapter(['codex'], adapter); }
   catch (error) { unsubscribe(); throw error; }
+  const stopRefresh = startCatalogRefresh(async signal => {
+    live(); generation++; cache.clear(); await available(signal); live(); registration.replace(['codex']);
+  });
   return { adapter, async snapshot() {
       live(); const data = await store.load(), entries = await available();
       return { enabled: true, autoEnrolled: false, models: await adapter.listModels('codex'), preferences: data.preferences,
@@ -183,7 +193,7 @@ export async function createCodexRuntime({ accounts, llm, path, fetch: transport
     },
     async configure(input) {
       live();
-      if (!only(input, ['model', 'hidden', 'name', 'defaultEffort', 'contextWindow', 'speed', 'account', 'independentEntry', 'alias', 'manualModels'])) throw failure('INVALID_REQUEST');
+      if (!only(input, ['model', 'hidden', 'name', 'defaultEffort', 'contextWindow', 'account', 'independentEntry', 'alias', 'manualModels'])) throw failure('INVALID_REQUEST');
       if ('manualModels' in input) {
         if (Object.keys(input).length !== 1 || (input.manualModels !== null && (!Array.isArray(input.manualModels) || !input.manualModels.length || input.manualModels.length > 64))) throw failure('INVALID_REQUEST');
         const seen = new Set();
@@ -205,17 +215,31 @@ export async function createCodexRuntime({ accounts, llm, path, fetch: transport
           || ('independentEntry' in input && typeof input.independentEntry !== 'boolean') || ('alias' in input && (typeof input.alias !== 'string' || input.alias.length > 128))) throw failure('INVALID_REQUEST');
         await store.transaction(data => { data.preferences.accounts ||= {}; data.preferences.accounts[input.account] = { ...data.preferences.accounts[input.account], ...input }; delete data.preferences.accounts[input.account].account; }, { signal: lifecycle.signal });
       } else {
-        if (!identifier(input.model) || ('hidden' in input && typeof input.hidden !== 'boolean') || ('name' in input && (typeof input.name !== 'string' || input.name.length > 128))
-          || ('contextWindow' in input && input.contextWindow !== null && !positive(input.contextWindow)) || ('speed' in input && !['standard', 'fast'].includes(input.speed))
+        if (!only(input, ['model', 'hidden', 'name', 'defaultEffort', 'contextWindow']) || !identifier(input.model) || ('hidden' in input && typeof input.hidden !== 'boolean') || ('name' in input && (typeof input.name !== 'string' || input.name.length > 128))
+          || ('contextWindow' in input && input.contextWindow !== null && !positive(input.contextWindow))
           || ('defaultEffort' in input && input.defaultEffort !== null && !identifier(input.defaultEffort))) throw failure('INVALID_REQUEST');
         const catalogs = await available(), model = catalogs.flatMap(e => e.models).find(m => m.id === input.model);
         if (!model || (input.defaultEffort && !model.reasoning?.efforts.some(e => e.id === input.defaultEffort))
-          || (input.contextWindow && input.contextWindow > (model.maxContextWindow || model.contextWindow || 0)) || (input.speed === 'fast' && model.fastTier !== true)) throw failure('INVALID_REQUEST');
+          || (input.contextWindow && input.contextWindow > (model.maxContextWindow || model.contextWindow || 0))) throw failure('INVALID_REQUEST');
         await store.transaction(data => { data.preferences.models ||= {}; data.preferences.models[input.model] = { ...data.preferences.models[input.model], ...input }; delete data.preferences.models[input.model].model; }, { signal: lifecycle.signal });
       }
       notify(); return this.snapshot();
     },
+    async speed(sessionId) {
+      live(); if (typeof sessionId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(sessionId)) throw failure('INVALID_REQUEST');
+      const data = await store.load(), fastModels = new Set();
+      for (const entry of await available()) for (const model of entry.models) if (model.fastTier) {
+        fastModels.add(model.id);
+        if (data.preferences.accounts?.[entry.account.id]?.independentEntry) fastModels.add(accountModelId(entry.account.id, model.id));
+      }
+      return { tier: speedBySession.get(sessionId) || 'standard', fastModels: [...fastModels], runtimeEnabled: true };
+    },
+    async setSpeed(sessionId, tier) {
+      live(); if (!['standard', 'fast'].includes(tier) || typeof sessionId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(sessionId)) throw failure('INVALID_REQUEST');
+      if (tier === 'standard') speedBySession.delete(sessionId); else speedBySession.set(sessionId, tier);
+      return this.speed(sessionId);
+    },
     async invalidate() { live(); notify(); return this.snapshot(); },
-    async dispose() { if (disposed) return; disposed = true; lifecycle.abort(); unsubscribe(); registration(); cache.clear(); },
+    async dispose() { if (disposed) return; disposed = true; stopRefresh(); lifecycle.abort(); unsubscribe(); registration(); cache.clear(); speedBySession.clear(); },
   };
 }

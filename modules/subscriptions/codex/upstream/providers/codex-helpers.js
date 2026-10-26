@@ -1,6 +1,6 @@
 // Extracted pure/catalog helpers from reviewed compiled codex.js; see PROVENANCE.md.
 import {createHash} from "node:crypto";
-import {attributionHeaders,LlmError,ReasoningEffortId} from "@deepseek-ai/dsh-llm";
+import {attributionHeaders,LlmError,ReasoningEffortId} from "../host-llm.js";
 import {ToolCallId} from "../compat.js";
 import {toResponsesTools} from "../translate/responses.js";
 import {effortDisplayName,oauthEndpointError} from "./common.js";

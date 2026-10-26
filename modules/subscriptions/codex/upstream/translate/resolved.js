@@ -6,8 +6,8 @@
  * translators, so the translators see {@link ResolvedImagePart}s with inline
  * base64 data.
  */
-import { LlmError } from '@deepseek-ai/dsh-llm';
-import * as llm from '@deepseek-ai/dsh-llm';
+import { LlmError } from '../host-llm.js';
+import * as llm from '../host-llm.js';
 /**
  * Wires with text-only tool outputs receive images in a following user turn.
  * Defer that turn until all consecutive user messages have been processed:

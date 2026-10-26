@@ -31,6 +31,10 @@
     {
       "source": "lib/translate/sse.js",
       "sha256": "304b03ec6df90053361d781c9821089254da13b3e33e56e02afb2ebbaab17e1b"
+    },
+    {
+      "source": "lib/providers/catalog-refresh.js",
+      "sha256": "97397067149233af449a96a4e1433d3fe80a064b27643d9dddc6058ccc823526"
     }
   ]
 }

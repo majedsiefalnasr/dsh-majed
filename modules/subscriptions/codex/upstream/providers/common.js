@@ -7,7 +7,7 @@
  * promise (`inflight`), so a rotating refresh token is never spent twice.
  */
 import { createHash, randomUUID } from 'node:crypto';
-import { CONTEXT_WINDOW_EXCEEDED_CODE, isContextWindowExceededError, isQuotaExceededError, LlmError, QUOTA_EXCEEDED_CODE, ReasoningEffortId, } from '@deepseek-ai/dsh-llm';
+import { CONTEXT_WINDOW_EXCEEDED_CODE, isContextWindowExceededError, isQuotaExceededError, LlmError, QUOTA_EXCEEDED_CODE, ReasoningEffortId, } from '../host-llm.js';
 import { durationMs, rateLimitDiagnostics, retryAfterInstant, waitFromReset } from './rate-limit.js';
 /**
  * Validate a configured model catalog (mirrors llm-deepseek's resolveModels).

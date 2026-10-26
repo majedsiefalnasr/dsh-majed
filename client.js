@@ -208,6 +208,8 @@ window.__ModuleLoader__.load({
       'codex.independent': 'Show an independent account entry', 'codex.alias': 'Account alias', 'codex.saveAccount': 'Save account settings',
       'codex.manualId': 'Manual model ID', 'codex.addManual': 'Add manual model', 'codex.providerCatalog': 'Use provider catalog',
       'codex.manualNote': 'Manual catalogs use only the models you add. Omitted capabilities remain unknown.',
+      'codex.runtimeUnavailable': 'Codex models require the host loader and account-bound preparation support. Update to a supported host and try again.',
+      'codex.fastCommand': 'Choose Standard/Fast for this Codex session', 'codex.fastUnavailable': 'Enable Codex models and select a model that supports Fast first.',
     });
     Object.assign(managementAr, {
       'codex.title': 'حساب Codex', 'codex.enable': 'تفعيل إدارة الحساب', 'codex.disable': 'تعطيل إدارة الحساب',
@@ -224,25 +226,64 @@ window.__ModuleLoader__.load({
       'codex.independent': 'إظهار إدخال مستقل للحساب', 'codex.alias': 'اسم الحساب المستعار', 'codex.saveAccount': 'حفظ إعدادات الحساب',
       'codex.manualId': 'معرّف النموذج اليدوي', 'codex.addManual': 'إضافة نموذج يدوي', 'codex.providerCatalog': 'استخدام قائمة المزود',
       'codex.manualNote': 'تستخدم القائمة اليدوية النماذج التي تضيفها فقط. تظل القدرات غير المحددة مجهولة.',
+      'codex.runtimeUnavailable': 'تتطلب نماذج Codex محمّل المضيف ودعم التحضير المرتبط بالحساب. حدّث إلى مضيف مدعوم وحاول مجددًا.',
+      'codex.fastCommand': 'اختيار السرعة القياسية أو السريعة لجلسة Codex الحالية', 'codex.fastUnavailable': 'فعّل نماذج Codex واختر نموذجًا يدعم السرعة السريعة أولًا.',
     });
     Object.assign(en, managementEn);
+    const codexRuntimeObservers = new Set();
+    let codexRuntimeKnown = false;
+    function observeCodexRuntime(enabled) {
+      codexRuntimeKnown = !!enabled;
+      for (const observer of codexRuntimeObservers) observer(codexRuntimeKnown);
+    }
+    async function loadCodexSpeed(ctx, sessionId, signal) {
+      const result = await ctx.connection.rpc.call('/api', 'majed/subscriptions/codex', { action: 'speed', sessionId }, signal);
+      signal?.throwIfAborted();
+      observeCodexRuntime(result.ok && result.value?.runtimeEnabled);
+      if (!result.ok) return { visible: false, tier: 'standard' };
+      const directories = ctx.get?.('modelDirectories');
+      if (!directories) return { visible: false, tier: result.value.tier };
+      const { current } = await directories.directoryFor(sessionId).load();
+      return { visible: !!current && current.provider === 'codex' && result.value.fastModels.includes(current.model), tier: result.value.tier };
+    }
+    function CodexSpeedSelect({ ctx, sessionId, locked, t }) {
+      const [state, setState] = React.useState(null), [busy, setBusy] = React.useState(false);
+      React.useEffect(() => {
+        if (!sessionId || !ctx.connection?.rpc?.call) return;
+        let disposed = false, timer;
+        const controller = new AbortController();
+        const reload = async () => {
+          try { const value = await loadCodexSpeed(ctx, sessionId, controller.signal); if (!disposed) setState(value); }
+          catch { /* Preserve the last successful status across transient connection failure. */ }
+          finally { if (!disposed) timer = setTimeout(reload, 3000); }
+        };
+        reload(); return () => { disposed = true; clearTimeout(timer); controller.abort(); };
+      }, [ctx, sessionId]);
+      if (!state?.visible) return null;
+      return h('label', null, t('codex.speed'), h('select', { 'data-codex-speed': true, value: state.tier, disabled: busy || locked, onChange: async event => {
+        const tier = event.target.value; if (busy) return; setBusy(true);
+        try { const result = await ctx.connection.rpc.call('/api', 'majed/subscriptions/codex', { action: 'setSpeed', sessionId, tier }); if (result.ok) setState({ visible: true, tier: result.value.tier }); }
+        catch { /* Keep the previous tier after a refused or disconnected update. */ }
+        finally { setBusy(false); }
+      } }, h('option', { value: 'standard' }, t('codex.standard')), h('option', { value: 'fast' }, t('codex.fast'))));
+    }
 
     function CodexModelSettings({ runtime, call, busy, t }) {
       const models = [...new Map((runtime.catalogs || []).flatMap(c => c.models).map(model => [model.id, model])).values()];
       const [selected, setSelected] = React.useState(models[0]?.id || '');
       const [name, setName] = React.useState(''), [hidden, setHidden] = React.useState(false), [effort, setEffort] = React.useState('');
-      const [context, setContext] = React.useState(''), [speed, setSpeed] = React.useState('standard');
+      const [context, setContext] = React.useState('');
       const [manualId, setManualId] = React.useState(''), [manualName, setManualName] = React.useState('');
       const model = models.find(model => model.id === selected);
       const pref = runtime.preferences?.models?.[selected];
       React.useEffect(() => {
         setName(pref?.name || ''); setHidden(!!pref?.hidden); setEffort(pref?.defaultEffort || '');
-        setContext(pref?.contextWindow || ''); setSpeed(pref?.speed || 'standard');
+        setContext(pref?.contextWindow || '');
       }, [selected, JSON.stringify(pref)]);
       const field = (label, element) => h('label', null, t('codex.' + label), element);
       return h('div', null,
         models.length > 0 && h('form', { className: 'majed-codex-form', 'data-codex-model-settings': true, onSubmit: event => {
-          event.preventDefault(); call('configure', { settings: { model: selected, name, hidden, defaultEffort: effort || null, contextWindow: context ? Number(context) : null, speed } });
+          event.preventDefault(); call('configure', { settings: { model: selected, name, hidden, defaultEffort: effort || null, contextWindow: context ? Number(context) : null } });
         } },
         field('model', h('select', { value: selected, onChange: event => setSelected(event.target.value) }, ...models.map(model => h('option', { key: model.id, value: model.id }, model.name || model.id)))),
         field('modelName', h('input', { value: name, maxLength: 128, onChange: event => setName(event.target.value) })),
@@ -250,7 +291,6 @@ window.__ModuleLoader__.load({
         field('effort', h('select', { value: effort, onChange: event => setEffort(event.target.value) }, h('option', { value: '' }, t('codex.providerDefault')),
           ...(model?.reasoning?.efforts || []).map(e => h('option', { key: e.id, value: e.id }, e.name)))),
         field('context', h('input', { type: 'number', min: 1, max: model?.maxContextWindow || model?.contextWindow, value: context, placeholder: model?.contextWindow ? String(model.contextWindow) : '', onChange: event => setContext(event.target.value) })),
-        field('speed', h('select', { value: speed, onChange: event => setSpeed(event.target.value) }, h('option', { value: 'standard' }, t('codex.standard')), model?.fastTier && h('option', { value: 'fast' }, t('codex.fast')))),
         h('button', { type: 'submit', className: 'majed-management-refresh', disabled: busy }, t('codex.saveModel'))),
         h('form', { className: 'majed-codex-form', onSubmit: event => {
           event.preventDefault(); if (!manualId) return;
@@ -282,12 +322,13 @@ window.__ModuleLoader__.load({
         const timer = setTimeout(() => controller.abort(), 35_000);
         try {
           const result = await ctx.connection.rpc.call('/api', 'majed/subscriptions/codex', { action, ...payload }, controller.signal);
-          if (!result.ok) throw new Error('account_operation_failed');
+          if (!result.ok) throw Object.assign(new Error('account_operation_failed'), { code: result.error?.code });
           if (mounted.current && !controller.signal.aborted) {
+            observeCodexRuntime(result.value.runtimeEnabled);
             setValue(previous => ({ ...result.value, accounts: result.value.accounts || previous.accounts || [] }));
             if (action === 'complete' || action === 'cancel') setCallback('');
           }
-        } catch { if (mounted.current && !controller.signal.aborted) setFailure(true); }
+        } catch (error) { if (mounted.current && !controller.signal.aborted) setFailure(error.code === 'runtime_unavailable' ? 'runtimeUnavailable' : 'error'); }
         finally { clearTimeout(timer); active.current = null; if (mounted.current) setBusy(false); }
       };
       React.useEffect(() => { mounted.current = true; call('status'); return () => { mounted.current = false; active.current?.abort(); }; }, [ctx]);
@@ -305,9 +346,9 @@ window.__ModuleLoader__.load({
         value.enabled && h('div', { className: 'majed-management-controls' }, button('begin', 'begin', {}, pending),
           pending && button('cancel', 'cancel')),
         pending && h('div', null, authorizeUrl && h('a', { href: authorizeUrl, target: '_blank', rel: 'noreferrer noopener' }, t('codex.open')),
-          h('label', null, t('codex.callback'), h('input', { type: 'text', value: callback, autoComplete: 'off', spellCheck: false, onChange: event => setCallback(event.target.value) })),
+          h('label', null, t('codex.callback'), h('input', { type: 'text', 'data-codex-callback': true, value: callback, autoComplete: 'off', spellCheck: false, onChange: event => setCallback(event.target.value) })),
           button('complete', 'complete', { callback }, !callback)),
-        h('p', { role: failure ? 'alert' : 'status', 'aria-live': 'polite' }, t('codex.' + (failure ? 'error' : busy ? 'working' : status))),
+        h('p', { role: failure ? 'alert' : 'status', 'aria-live': 'polite' }, t('codex.' + (failure || (busy ? 'working' : status)))),
         ...(value.accounts || []).map(account => h('div', { key: account.id }, h('p', null, account.label),
           h('p', null, t('codex.' + account.state)), h('div', { className: 'majed-management-controls' },
             button('refresh', 'refresh', { account: account.id }), button('default', 'default', { account: account.id }, account.default), button('remove', 'remove', { account: account.id })),
@@ -2060,6 +2101,8 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
     return {
       inject: ['slots', 'locale', 'uiWorkspace', 'connection'],
       apply(ctx) {
+        observeCodexRuntime(false);
+        ctx.effect(() => () => observeCodexRuntime(false), 'dsh-majed: Codex runtime observation');
         appCtx = ctx;
         ctx.effect(() => () => { notificationGeneration++; appCtx = null; live.forEach((n) => { try { n.close(); } catch (_) {} }); live.clear(); }, 'dsh-majed: notification cleanup');
         ctx.effect(() => ctx.locale.register(NS, { zh, en, ar: { ...en, ...managementAr } }), 'dsh-majed: dictionaries');
@@ -2079,6 +2122,28 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
             name: 'settings.section', id: 'majed-' + module, order: 60 + index, locale: NS, label: () => ctx.locale.bind(NS)('management.' + module),
           }, props => h(ManagementSection, { ...props, ctx, module })));
           return () => stops.reverse().forEach(stop => stop());
+        });
+        ctx.slots.inject('conversation.input.right', () => ctx.slots.register({ name: 'conversation.input.right', id: 'majed-codex-speed', order: 0, locale: NS }, props => h(CodexSpeedSelect, { ...props, ctx })));
+        ctx.inject?.(['commandUi'], scope => {
+          const commands = scope.get?.('commandUi'); if (!commands?.register) return;
+          let unregister;
+          const t = ctx.locale.bind(NS);
+          const update = enabled => {
+            if (!enabled) { unregister?.(); unregister = undefined; return; }
+            if (unregister) return;
+            try { unregister = commands.register({ name: 'fast', description: () => t('codex.fastCommand'), available: () => codexRuntimeKnown,
+              ui: { kind: 'popupSelect', options: async session => {
+                const state = await loadCodexSpeed(ctx, session.sessionId);
+                if (!state.visible) throw new Error(t('codex.fastUnavailable'));
+                return ['standard', 'fast'].map(id => ({ id, label: t('codex.' + id), active: id === state.tier }));
+              }, onSelect: async (option, session) => {
+                const result = await ctx.connection.rpc.call('/api', 'majed/subscriptions/codex', { action: 'setSpeed', sessionId: session.sessionId, tier: option.id });
+                if (!result.ok) throw new Error(t('codex.fastUnavailable'));
+              } },
+            }); } catch { /* A different owner keeps its existing command contribution. */ }
+          };
+          codexRuntimeObservers.add(update); update(codexRuntimeKnown);
+          scope.effect(() => () => { codexRuntimeObservers.delete(update); unregister?.(); });
         });
 
         ctx.effect(() => {

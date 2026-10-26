@@ -239,17 +239,23 @@ async function main() {
     };
     endpointFiber = await mountEndpoint();
     let codexFiber, codexMount, codexGrantCount = 0;
-    let directLlm, directCalls = [];
+    let directLlm, directCalls = [], activeCodexIdToken;
     if (codexProbe) {
       const { applyCodexAccounts } = await import('../modules/subscriptions/codex/native.js');
       const { apply: productHost } = codexDirect ? await import('../index.js') : {};
-      if (codexDirect) { await mount(hostLoad('dsh-llm').LlmRuntime); directLlm = host.get('llm'); }
+      if (codexDirect) {
+        host.baseUrl = pathToFileURL(base + '/').href;
+        await mount({ apply(context) { new (hostLoad('cordis-plugin-loader').Loader)(context); } });
+        assert.equal((await host.get('loader').import('@deepseek-ai/dsh-llm')).LlmAdapter, hostLoad('dsh-llm').LlmAdapter);
+        await mount(hostLoad('dsh-llm').LlmRuntime); directLlm = host.get('llm');
+      }
       const idToken = 'header.' + Buffer.from(JSON.stringify({ email: 'fixture@example.test', 'https://api.openai.com/auth': { chatgpt_account_id: 'fixture-workspace' } })).toString('base64url') + '.signature';
+      activeCodexIdToken = idToken;
       codexMount = async () => {
         const configuration = {
         path: join(process.cwd(), 'codex-auth.json'), ports: [0], fetch: async (url, init) => {
           if (codexDirect && url.startsWith('https://chatgpt.com/backend-api/codex/models')) return Response.json({ models: [{
-            slug: 'fixture-codex', display_name: 'Fixture Codex', context_window: 120000, max_context_window: 200000,
+            slug: 'fixture-codex', display_name: 'Fixture Codex', context_window: init.headers['chatgpt-account-id'] === 'fixture-workspace' ? 120000 : 60000, max_context_window: 200000,
             supported_reasoning_levels: [{ effort: 'low' }, { effort: 'high' }], default_reasoning_level: 'high', service_tiers: [{ id: 'priority' }],
           }] });
           if (codexDirect && url === 'https://chatgpt.com/backend-api/codex/responses') {
@@ -259,8 +265,9 @@ async function main() {
               + 'data: ' + JSON.stringify({ type: 'response.completed', response: { usage: { input_tokens: 7, output_tokens: 2 }, output: [] } }) + '\n\n', { headers: { 'content-type': 'text/event-stream' } });
           }
           assert.equal(url, 'https://auth.openai.com/oauth/token'); codexGrantCount++;
-          assert.ok(init.body.includes(codexGrantCount === 1 ? 'authorization_code' : 'refresh_token'));
-          return Response.json({ access_token: 'fixture-access', refresh_token: 'fixture-refresh', expires_in: 3600, id_token: idToken });
+          const grant = init.headers['content-type'] === 'application/json' ? JSON.parse(init.body).grant_type : new URLSearchParams(init.body).get('grant_type');
+          assert.ok(codexDirect ? ['authorization_code', 'refresh_token'].includes(grant) : grant === (codexGrantCount === 1 ? 'authorization_code' : 'refresh_token'));
+          return Response.json({ access_token: 'fixture-access', refresh_token: 'fixture-refresh', expires_in: 3600, id_token: activeCodexIdToken });
         },
         };
         const fiber = await mount({ apply(context) { if (codexDirect) productHost(context, { codexAccounts: configuration }); else applyCodexAccounts(context, configuration); } });
@@ -432,7 +439,7 @@ async function main() {
       const callback = new URL(authorize.searchParams.get('redirect_uri'));
       callback.searchParams.set('code', 'fixture-code'); callback.searchParams.set('state', authorize.searchParams.get('state'));
       await act(async () => {
-        const input = document.querySelector('[data-majed-codex] input');
+        const input = document.querySelector('[data-codex-callback]');
         Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(input, callback.href);
         input.dispatchEvent(new window.Event('input', { bubbles: true })); await settle();
       });
@@ -464,10 +471,27 @@ async function main() {
           assert.equal(selection.model, 'fixture-codex');
           const prepared = await directLlm.prepareCall(selection);
           assert.equal(prepared.context.contextWindow, 120000);
+          activeCodexIdToken = 'header.' + Buffer.from(JSON.stringify({ email: 'second@example.test', 'https://api.openai.com/auth': { chatgpt_account_id: 'fixture-second-workspace' } })).toString('base64url') + '.signature';
+          oauthCreating = true;
+          try { await codexClick('begin'); } finally { oauthCreating = false; }
+          const secondAuthorize = new URL(document.querySelector('[data-majed-codex] a').href), secondCallback = new URL(secondAuthorize.searchParams.get('redirect_uri'));
+          secondCallback.searchParams.set('code', 'second-fixture-code'); secondCallback.searchParams.set('state', secondAuthorize.searchParams.get('state'));
+          await act(async () => {
+            const input = document.querySelector('[data-codex-callback]');
+            Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(input, secondCallback.href);
+            input.dispatchEvent(new window.Event('input', { bubbles: true })); await settle();
+          });
+          await codexClick('complete');
+          const accountState = await ctx.connection.rpc.call('/api', 'majed/subscriptions/codex', { action: 'status' });
+          const secondAccount = accountState.value.accounts.find(account => !account.default);
+          assert.ok(secondAccount);
+          assert.equal((await ctx.connection.rpc.call('/api', 'majed/subscriptions/codex', { action: 'default', account: secondAccount.id })).ok, true);
+          assert.equal((await directLlm.resolveModelInfo('codex', 'fixture-codex')).context.contextWindow, 60000);
+          assert.equal((await ctx.connection.rpc.call('/api', 'majed/subscriptions/codex', { action: 'setSpeed', sessionId: 'fixture-direct-session', tier: 'fast' })).ok, true);
           const chunks = [];
-          for await (const chunk of prepared.stream({ ...prepared.config, messages: [createUserMessage({ content: [{ type: 'text', text: 'Controlled native request' }], source: { kind: 'user' } })] })) chunks.push(chunk);
+          for await (const chunk of prepared.stream({ ...prepared.config, sessionId: 'fixture-direct-session', messages: [createUserMessage({ content: [{ type: 'text', text: 'Controlled native request' }], source: { kind: 'user' } })] })) chunks.push(chunk);
           assert.equal(chunks.filter(chunk => chunk.type === 'text-delta').map(chunk => chunk.text).join(''), 'Native Codex response');
-          assert.equal(chunks.at(-1).reason.kind, 'stop'); assert.equal(directCalls.length, 1); assert.equal(directCalls[0].reasoning.effort, 'low');
+          assert.equal(chunks.at(-1).reason.kind, 'stop'); assert.equal(directCalls.length, 1); assert.equal(directCalls[0].reasoning.effort, 'low'); assert.equal(directCalls[0].service_tier, 'priority');
           await codexClick('runtime'); assert.equal(directLlm.listProviders().length, 0);
           await codexClick('runtime'); assert.equal(directLlm.listProviders().length, 1);
         } finally { directory.dispose(); }
@@ -518,7 +542,7 @@ async function main() {
     assert.ok(servers.every(server => !server.listening));
     assert.equal(cleanupErrors.length, 0, 'All independent cleanup steps must succeed');
   }
-  assert.equal(closes, 1); assert.equal(closedListeners, codexProbe ? 4 : 2);
+  assert.equal(closes, 1); assert.equal(closedListeners, codexDirect ? 6 : codexProbe ? 4 : 2);
   assert.equal(host.get('webServer'), undefined); assert.equal(outerHost.get('webServer'), undefined);
   console.log(JSON.stringify({ ...report, listeners: servers.length, closedListeners, checkpoint: 'complete' }, null, 2));
 }

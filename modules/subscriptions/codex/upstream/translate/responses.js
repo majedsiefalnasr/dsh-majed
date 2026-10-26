@@ -5,7 +5,7 @@
  * assembly, tool schema mapping, and a push-model SSE-event → StreamChunk
  * state machine ({@link ResponsesStreamTranslator}) so tests need no streams.
  */
-import { CONTEXT_WINDOW_EXCEEDED_CODE, EMPTY_RESPONSE_CODE, isContextWindowExceededError, isQuotaExceededError, LlmError, QUOTA_EXCEEDED_CODE, } from '@deepseek-ai/dsh-llm';
+import { CONTEXT_WINDOW_EXCEEDED_CODE, EMPTY_RESPONSE_CODE, isContextWindowExceededError, isQuotaExceededError, LlmError, QUOTA_EXCEEDED_CODE, } from '../host-llm.js';
 import { ToolCallId } from '../compat.js';
 import { parseSse } from './sse.js';
 import { withToolResultImages } from './resolved.js';

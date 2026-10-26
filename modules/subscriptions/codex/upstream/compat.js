@@ -13,9 +13,9 @@
  * from `@deepseek-ai/dsh-client-connection`. Both are the same structural
  * shape, so this local mirror avoids importing from either package.
  */
-import * as llm from '@deepseek-ai/dsh-llm';
+import * as llm from './host-llm.js';
 /** Brand a string as a tool-call id: alpha's `ToolCallId`, rc.2's `CallId`. */
-export const ToolCallId = (() => {
+export const ToolCallId = id => {
     const exports = llm;
-    return (exports['ToolCallId'] ?? exports['CallId']);
-})();
+    return (exports['ToolCallId'] ?? exports['CallId'])(id);
+};
