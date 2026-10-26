@@ -246,3 +246,14 @@ test('source-backed request preparation resolves retained attachments and preser
   assert.equal(call.call_id, output.call_id); assert.ok(call.call_id.length <= 64); assert.equal(output.output, 'Fixture tool result');
   assert.equal(sent.tools[0].name, 'fixture_tool');
 });
+
+test('a catalog rejecting an unexpired access token retries once through the real refresh lifecycle', async t => {
+  let discoveries = 0;
+  const { runtime, calls } = await setup(t, { transport: async url => {
+    if (url.includes('/codex/models') && ++discoveries === 1) return Response.json({ error: 'invalid_token' }, { status: 401 });
+  } });
+  const snapshot = await runtime.snapshot();
+  assert.equal(snapshot.catalogs[0].source, 'discovered');
+  assert.equal(calls.filter(c => c.url === 'https://auth.openai.com/oauth/token').length, 2);
+  assert.equal(discoveries, 2);
+});

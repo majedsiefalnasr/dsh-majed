@@ -65,8 +65,16 @@ export async function createCodexRuntime({ accounts, llm, llmModule, path, fetch
       if (preferences.manualModels) return { models: preferences.manualModels, source: 'manual' };
       const combined = AbortSignal.any([lifecycle.signal, AbortSignal.timeout(10000)]);
       try {
-        const session = await bounded(accounts.session(key, { signal: combined }), combined);
-        const models = await bounded(fetchCodexModels(session, transport, combined, clientVersion), combined);
+        let session = await bounded(accounts.session(key, { signal: combined }), combined);
+        let models;
+        try { models = await bounded(fetchCodexModels(session, transport, combined, clientVersion), combined); }
+        catch (error) {
+          if (error.status !== 401) throw error;
+          // Preserve upstream discovery's one forced-refresh retry. Rejected
+          // credentials never turn into a synthetic successful catalog.
+          session = await bounded(accounts.session(key, { force: true, signal: combined }), combined);
+          models = await bounded(fetchCodexModels(session, transport, combined, clientVersion), combined);
+        }
         live();
         if (epoch !== generation || !(await snapshotAccounts()).some(a => a.id === key)) throw failure('STATE_CHANGED');
         await store.transaction(data => { data.catalogs[key] = { models, savedAt: Date.now() }; }, { signal: lifecycle.signal });
@@ -74,6 +82,7 @@ export async function createCodexRuntime({ accounts, llm, llmModule, path, fetch
       } catch (error) {
         live(); combined.throwIfAborted();
         if (['reauthentication_required', 'STATE_CHANGED'].includes(error.code)) throw error;
+        if (error.status === 401 || error.status === 403) return { models: [], source: 'unavailable', failed: true };
         // A durable account-specific catalog beats the reviewed static fallback.
         return { models: persisted.catalogs[key]?.models || staticModels, source: persisted.catalogs[key] ? 'cached' : 'static', failed: true };
       }

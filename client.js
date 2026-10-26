@@ -224,6 +224,7 @@ window.__ModuleLoader__.load({
       'codex.manualNote': 'Manual catalogs use only the models you add. Omitted capabilities remain unknown.',
       'codex.runtimeUnavailable': 'Codex models require the host loader and account-bound preparation support. Update to a supported host and try again.',
       'codex.fastCommand': 'Choose Standard/Fast for this Codex session', 'codex.fastUnavailable': 'Enable Codex models and select a model that supports Fast first.',
+      'codex.catalogFallback': 'Catalog refresh failed. Saved or built-in model metadata is shown where available; refresh the catalog or reconnect the account.',
     });
     Object.assign(managementAr, {
       'codex.title': 'حساب Codex', 'codex.enable': 'تفعيل إدارة الحساب', 'codex.disable': 'تعطيل إدارة الحساب',
@@ -242,6 +243,7 @@ window.__ModuleLoader__.load({
       'codex.manualNote': 'تستخدم القائمة اليدوية النماذج التي تضيفها فقط. تظل القدرات غير المحددة مجهولة.',
       'codex.runtimeUnavailable': 'تتطلب نماذج Codex محمّل المضيف ودعم التحضير المرتبط بالحساب. حدّث إلى مضيف مدعوم وحاول مجددًا.',
       'codex.fastCommand': 'اختيار السرعة القياسية أو السريعة لجلسة Codex الحالية', 'codex.fastUnavailable': 'فعّل نماذج Codex واختر نموذجًا يدعم السرعة السريعة أولًا.',
+      'codex.catalogFallback': 'فشل تحديث قائمة النماذج. تُعرض البيانات المحفوظة أو المضمنة حيث تتوفر؛ حدّث القائمة أو أعد ربط الحساب.',
     });
     Object.assign(en, managementEn);
     const codexRuntimeObservers = new Set();
@@ -296,6 +298,7 @@ window.__ModuleLoader__.load({
       }, [selected, JSON.stringify(pref)]);
       const field = (label, element) => h('label', null, t('codex.' + label), element);
       return h('div', null,
+        (runtime.catalogs || []).some(catalog => catalog.failed) && h('p', { role: 'status' }, t('codex.catalogFallback')),
         models.length > 0 && h('form', { className: 'majed-codex-form', 'data-codex-model-settings': true, onSubmit: event => {
           event.preventDefault(); call('configure', { settings: { model: selected, name, hidden, defaultEffort: effort || null, contextWindow: context ? Number(context) : null } });
         } },
