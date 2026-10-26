@@ -247,6 +247,47 @@ test('source-backed request preparation resolves retained attachments and preser
   assert.equal(sent.tools[0].name, 'fixture_tool');
 });
 
+test('account removal during attachment preparation prevents a prepared direct dispatch', async t => {
+  const ref = { attachmentId: 'sha256:' + '0'.repeat(64), mediaType: 'image/png', bytes: 3, width: 1, height: 1 };
+  let release, started;
+  const reading = new Promise(resolve => { started = resolve; });
+  const { runtime, accounts, calls } = await setup(t, { attachments: { async readImage() {
+    started(); await new Promise(resolve => { release = resolve; });
+    return { data: new Uint8Array([1, 2, 3]), ref };
+  } } });
+  const prepared = await runtime.adapter.prepareCall('codex', 'fixture-codex');
+  const dispatch = (async () => { for await (const chunk of prepared.stream({ provider: 'codex', model: 'fixture-codex', messages: [
+    { role: 'user', source: { kind: 'user' }, content: [{ type: 'image', attachment: ref }] },
+  ] })) void chunk; })();
+  const rejected = assert.rejects(dispatch, { code: 'NO_ADAPTER' });
+  await reading;
+  try { await accounts.remove((await accounts.snapshot()).accounts[0].id); } finally { release(); }
+  await rejected;
+  assert.equal(calls.filter(call => call.url.endsWith('/responses')).length, 0);
+});
+
+test('independent route revocation during attachment preparation prevents a prepared pinned dispatch', async t => {
+  const ref = { attachmentId: 'sha256:' + '0'.repeat(64), mediaType: 'image/png', bytes: 3, width: 1, height: 1 };
+  let release, started;
+  const reading = new Promise(resolve => { started = resolve; });
+  const { runtime, accounts, calls } = await setup(t, { attachments: { async readImage() {
+    started(); await new Promise(resolve => { release = resolve; });
+    return { data: new Uint8Array([1, 2, 3]), ref };
+  } } });
+  const account = (await accounts.snapshot()).accounts[0].id;
+  await runtime.configure({ account, independentEntry: true });
+  const pinned = (await runtime.adapter.listModels('codex')).find(model => model.id.startsWith('~account:'));
+  const prepared = await runtime.adapter.prepareCall('codex', pinned.id);
+  const dispatch = (async () => { for await (const chunk of prepared.stream({ provider: 'codex', model: pinned.id, messages: [
+    { role: 'user', source: { kind: 'user' }, content: [{ type: 'image', attachment: ref }] },
+  ] })) void chunk; })();
+  const rejected = assert.rejects(dispatch, { code: 'NO_ADAPTER' });
+  await reading;
+  try { await runtime.configure({ account, independentEntry: false }); } finally { release(); }
+  await rejected;
+  assert.equal(calls.filter(call => call.url.endsWith('/responses')).length, 0);
+});
+
 test('a catalog rejecting an unexpired access token retries once through the real refresh lifecycle', async t => {
   let discoveries = 0;
   const { runtime, calls } = await setup(t, { transport: async url => {

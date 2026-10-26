@@ -140,6 +140,11 @@ export async function createCodexRuntime({ accounts, llm, llmModule, path, fetch
           return replay?.kind === 'majed-codex-replay' && replay.version === 1 && replay.key === key ? replay.items : undefined;
         };
         const body = codexRequestBody({ ...options, model: bound.model }, toResponsesInput(messages, options.system, reasoningFor), bound.fast && speedBySession.get(options.sessionId) === 'fast');
+        // Credential refresh and attachment reads can outlive Owner revocation.
+        // Revalidate the bound route for every send, including a 401 retry.
+        const latest = await bounded(store.load(), watchdog.signal);
+        if (!(await bounded(snapshotAccounts(), watchdog.signal)).some(a => a.id === bound.account)
+          || (bound.id.startsWith(prefix) && latest.preferences.accounts?.[bound.account]?.independentEntry !== true)) throw failure('NO_ADAPTER');
         watchdog.signal.throwIfAborted(); live();
         return bounded(Promise.resolve().then(() => transport(endpoint, { method: 'POST', signal: watchdog.signal, redirect: 'error', headers: {
           authorization: `Bearer ${session.accessToken}`, 'chatgpt-account-id': session.accountId, originator: 'codex_cli_rs',
