@@ -263,7 +263,7 @@ async function main() {
       codexFiber = await codexMount();
     }
     const carrier = async (input, init) => {
-      assert.ok(input === 'api/majed/settings/status' || (codexProbe && input === 'api/majed/subscriptions/codex') || (approvalProbe && input === 'api/majed/hooks/approval') || (judgmentProbe && input === 'api/majed/judgment/manage')); assert.equal(init.method, 'POST');
+      assert.ok(input === 'api/majed/settings/status' || input === 'api/majed/hooks/approval' || (codexProbe && input === 'api/majed/subscriptions/codex') || (judgmentProbe && input === 'api/majed/judgment/manage')); assert.equal(init.method, 'POST');
       // Deliberate document base; no repair of native URL, RPC payload or headers.
       const url = new URL(input, document.baseURI);
       assert.equal(url.origin, remoteMode ? outer.getOrigin() : inner.getOrigin());
@@ -335,7 +335,7 @@ async function main() {
     const select = async title => { await act(async () => { const button = [...document.querySelectorAll('button')].find(b => b.textContent === title); assert.ok(button, 'Missing title: ' + title + '; buttons: ' + [...document.querySelectorAll('button')].map(b => b.textContent).join('|')); button.click(); await settle(); }); };
     const refresh = async () => { await act(async () => { document.querySelector('.majed-management-refresh').click(); await settle(); }); };
     const text = () => document.querySelector('.majed-management').textContent;
-    await select('Skills Manager'); await act(settle);
+    await select('Hooks Manager'); await act(settle);
     assert.match(text(), /Readiness checks are disabled/);
     await act(async () => { document.querySelector('.majed-management input').click(); await settle(); });
     assert.match(text(), /Service ready for readiness checks only/);

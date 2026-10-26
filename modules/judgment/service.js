@@ -138,6 +138,7 @@ export function createJudgmentService({ path, fetch: transport = globalThis.fetc
       const raw = await responseBody(response, combined);
       const result = JSON.parse(raw); const answer = result.answers?.[name];
       if (typeof result.model !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}$/.test(result.model) || result.model.includes(config.credential) || answer?.type !== 'choice' || typeof answer.choice !== 'string' || !permittedChoices.has(answer.choice)) throw fail('protocol_failed');
+      if (!object(result.usage) || ['input_tokens', 'output_tokens'].some(key => !Number.isSafeInteger(result.usage[key]) || result.usage[key] < 0)) throw fail('protocol_failed');
       const usage = {};
       for (const key of ['input_tokens', 'output_tokens', 'cost']) if (Number.isFinite(result.usage?.[key]) && result.usage[key] >= 0) usage[key] = result.usage[key];
       // A response to an earlier endpoint/model/credential must not validate or

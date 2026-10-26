@@ -71,7 +71,7 @@ test('judgment rejects non-string Choice answers rather than coercing their iden
   const directory = await mkdtemp(join(tmpdir(), 'dsh-r15-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   let choice = ['ready'];
-  const service = createJudgmentService({ path: join(directory, 'judgment.json'), fetch: async () => Response.json({ model: 'jev', answers: { connection: { type: 'choice', choice } } }) });
+  const service = createJudgmentService({ path: join(directory, 'judgment.json'), fetch: async () => Response.json({ model: 'jev', answers: { connection: { type: 'choice', choice } }, usage: { input_tokens: 1, output_tokens: 1 } }) });
   t.after(() => service.dispose());
   await service.configure({ protocol: 'systemone', address: 'https://judge.example', model: 'jev', credential: { action: 'replace', value: 'fixture-value' } });
   await assert.rejects(service.validate({ consent: true }), { code: 'protocol_failed' });
@@ -102,6 +102,18 @@ test('failed or oversized judgment responses release their owned stream', async 
   status = 200;
   await assert.rejects(service.validate({ consent: true }), { code: 'protocol_failed' });
   assert.equal(cancelled, 2);
+});
+
+test('connection validation requires the documented protocol usage record', async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'dsh-r15-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  let usage;
+  const service = createJudgmentService({ path: join(directory, 'judgment.json'), fetch: async () => Response.json({ model: 'jev', answers: { connection: { type: 'choice', choice: 'ready' } }, usage }) });
+  t.after(() => service.dispose());
+  await service.configure({ protocol: 'systemone', address: 'https://judge.example', model: 'jev', credential: { action: 'replace', value: 'fixture-value' } });
+  await assert.rejects(service.validate({ consent: true }), { code: 'protocol_failed' });
+  usage = { input_tokens: 1, output_tokens: 2 };
+  assert.deepEqual((await service.validate({ consent: true })).usage, usage);
 });
 
 test('a judgment completed after credential removal cannot validate stale settings', async t => {
@@ -166,6 +178,6 @@ test('an in-flight judgment cannot gain choices that were absent from its dispat
   const input = { state: 'Bounded task', questions: { route: { type: 'choice', instructions: 'Choose the authorized route', criteria: { original: 'Original route' } } } };
   const checked = assert.rejects(service.decide(input, { consent: true }), { code: 'protocol_failed' });
   await received; input.questions.route.criteria.added = 'Route added after dispatch';
-  release(Response.json({ model: 'jev', answers: { route: { type: 'choice', choice: 'added' } } }));
+  release(Response.json({ model: 'jev', answers: { route: { type: 'choice', choice: 'added' } }, usage: { input_tokens: 1, output_tokens: 1 } }));
   await checked;
 });
