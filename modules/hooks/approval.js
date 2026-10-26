@@ -109,7 +109,23 @@ export function applyCommandApproval(ctx, options = {}) {
     const entry = next.entries[index];
     let approvalExpiresAt;
     const challengeKey = JSON.stringify([input.scope, root, id]);
-    const snapshot = async () => ({ enabled: true, executionAvailable: false, hooks: await Promise.all(next.entries.filter(entry => entry.scope === input.scope && entry.root === root).map(async entry => {
+    async function contexts() {
+      const services = { sessions: owner.get('sessions'), sessionPersistence: owner.get('sessionPersistence'), workspaceRegistry: owner.get('workspaceRegistry') };
+      if (Object.values(services).some(value => !value) || typeof services.workspaceRegistry.list !== 'function') return [];
+      const values = [];
+      // One live native session per project supplies a supported, revalidated
+      // scope selector. Never infer context from private client viewing fields.
+      for (const workspace of services.workspaceRegistry.list().slice(0, 64)) {
+        for (const sessionId of workspace.sessionIds.slice(0, 32)) {
+          if (!services.sessions.get(sessionId)) continue;
+          const selectors = { sessionId, workspaceId: workspace.id };
+          const resolved = await resolveManagementScope(services, selectors, signal);
+          if (resolved) { values.push({ ...selectors, label: resolved.projectPath }); break; }
+        }
+      }
+      return values;
+    }
+    const snapshot = async () => ({ enabled: true, executionAvailable: false, contexts: await contexts(), hooks: await Promise.all(next.entries.filter(entry => entry.scope === input.scope && entry.root === root).map(async entry => {
       let valid = false;
       try { valid = !!entry.approval && entry.approval.fingerprint === (await reviewEntry(entry)).fingerprint; } catch {}
       return { hook: entry.hook, approval: entry.approval ? { receivedAt: entry.approval.receivedAt, origin: entry.approval.origin, valid } : null };

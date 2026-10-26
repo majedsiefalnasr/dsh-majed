@@ -51,13 +51,14 @@ test('Owner-admitted Fetch contract reviews exact command and persists truthful 
 test('project Approval binds the admitted native session/workspace and rejects substitution', async t => {
   const root = await fixture(t);
   const header = { id: 'session-a', cwd: root };
-  const workspace = { path: root, sessionIds: ['session-a'] };
+  const workspace = { id: 'workspace-a', path: root, sessionIds: ['session-a'] };
   const service = await mount(t, root, { services: {
     sessions: { get(id) { return id === 'session-a' ? { header } : undefined; } },
     sessionPersistence: { async stat() {} },
-    workspaceRegistry: { get(id) { return id === 'workspace-a' ? workspace : undefined; } },
+    workspaceRegistry: { get(id) { return id === 'workspace-a' ? workspace : undefined; }, list() { return [workspace]; } },
   } });
   const scope = { scope: 'project', sessionId: 'session-a', workspaceId: 'workspace-a' };
+  assert.deepEqual((await service.call('list', { scope: 'user' })).value.contexts, [{ sessionId: 'session-a', workspaceId: 'workspace-a', label: root }]);
   assert.equal((await service.call('save', { ...scope, hook })).ok, true);
   const challenge = (await service.call('review', { ...scope, id: hook.id })).value;
   assert.equal(challenge.review.scope, 'project');

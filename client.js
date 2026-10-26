@@ -198,29 +198,33 @@ window.__ModuleLoader__.load({
     const approvalLabels = {
       en: { title: 'Command hook Approval', refresh: 'Refresh saved commands', disabled: 'Command Approval is disabled in the host configuration.',
         disclosure: 'Commands run on the DSH host as its OS user, outside a sandbox. Original local/remote origin is unknown. Execution is unavailable.',
-        id: 'Hook name', command: 'Full command', events: 'Events (comma separated)', cwd: 'Working directory (within user home)', watched: 'Watched files (one per line)',
+        id: 'Hook name', command: 'Full command or script path', events: 'Events (comma separated)', cwd: 'Working directory (within selected scope)', watched: 'Watched files (one per line)', source: 'Command source', inline: 'Inline command', file: 'Script file',
         save: 'Save command', review: 'Review command', revoke: 'Revoke Approval', remove: 'Remove command', approve: 'Approve exact command', cancel: 'Cancel review', phrase: 'Type RUN AS DSH USER',
-        error: 'The request was refused. Refresh and review the saved command again.', approved: 'Approved', unapproved: 'Needs review', scope: 'Scope: user', fingerprint: 'Reviewed fingerprint', expiry: 'Review expires',
+        error: 'The request was refused. Refresh and review the saved command again.', approved: 'Approved', unapproved: 'Needs review', scope: 'Scope', user: 'User', edit: 'Edit command', fingerprint: 'Reviewed fingerprint', expiry: 'Review expires',
       },
       ar: { title: 'الموافقة على أوامر الخطافات', refresh: 'تحديث الأوامر المحفوظة', disabled: 'الموافقة على الأوامر معطلة في إعدادات المضيف.',
         disclosure: 'تعمل الأوامر على مضيف DSH بصلاحيات مستخدم نظام التشغيل وخارج بيئة معزولة. مصدر الطلب المحلي أو البعيد غير معروف. التنفيذ غير متاح.',
-        id: 'اسم الخطاف', command: 'الأمر الكامل', events: 'الأحداث (مفصولة بفاصلة)', cwd: 'مجلد العمل (ضمن مجلد المستخدم)', watched: 'الملفات المراقبة (ملف لكل سطر)',
+        id: 'اسم الخطاف', command: 'الأمر الكامل أو مسار النص البرمجي', events: 'الأحداث (مفصولة بفاصلة)', cwd: 'مجلد العمل (ضمن النطاق المحدد)', watched: 'الملفات المراقبة (ملف لكل سطر)', source: 'مصدر الأمر', inline: 'أمر مباشر', file: 'ملف نص برمجي',
         save: 'حفظ الأمر', review: 'مراجعة الأمر', revoke: 'إلغاء الموافقة', remove: 'إزالة الأمر', approve: 'الموافقة على الأمر المطابق', cancel: 'إلغاء المراجعة', phrase: 'اكتب RUN AS DSH USER',
-        error: 'رُفض الطلب. حدّث البيانات وراجع الأمر المحفوظ مجددًا.', approved: 'تمت الموافقة', unapproved: 'يحتاج إلى مراجعة', scope: 'النطاق: المستخدم', fingerprint: 'بصمة المحتوى المراجع', expiry: 'تنتهي المراجعة',
+        error: 'رُفض الطلب. حدّث البيانات وراجع الأمر المحفوظ مجددًا.', approved: 'تمت الموافقة', unapproved: 'يحتاج إلى مراجعة', scope: 'النطاق', user: 'المستخدم', edit: 'تعديل الأمر', fingerprint: 'بصمة المحتوى المراجع', expiry: 'تنتهي المراجعة',
       },
     };
     function CommandApprovalSection({ ctx, t }) {
       const labels = approvalLabels[t('management.direction') === 'rtl' ? 'ar' : 'en'];
       const [state, setState] = React.useState(null), [error, setError] = React.useState(false), [review, setReview] = React.useState(null);
-      const [phrase, setPhrase] = React.useState(''), [draft, setDraft] = React.useState({ id: '', command: '', events: 'SessionStart', cwd: '', watched: '' });
+      const [phrase, setPhrase] = React.useState(''), [draft, setDraft] = React.useState({ id: '', command: '', source: 'inline', events: 'SessionStart', cwd: '', watched: '' });
+      const [scopeKey, setScopeKey] = React.useState('user');
       const [busy, setBusy] = React.useState(false); const active = React.useRef(null);
-      async function call(action, input = {}) {
+      async function call(action, input = {}, selectedKey = scopeKey) {
         if (active.current) return;
         const controller = new AbortController(); active.current = controller; setBusy(true); setError(false);
         const timer = setTimeout(() => controller.abort(), 6000);
         controller.signal.addEventListener('abort', () => clearTimeout(timer), { once: true });
         try {
-          const result = await ctx.connection.rpc.call('/api', 'majed/hooks/approval', { action, scope: 'user', ...input }, controller.signal);
+          const context = state?.contexts?.find(value => JSON.stringify([value.sessionId, value.workspaceId]) === selectedKey);
+          if (selectedKey !== 'user' && !context) throw new Error('scope');
+          const selector = selectedKey === 'user' ? { scope: 'user' } : { scope: 'project', sessionId: context.sessionId, workspaceId: context.workspaceId };
+          const result = await ctx.connection.rpc.call('/api', 'majed/hooks/approval', { action, ...selector, ...input }, controller.signal);
           if (controller.signal.aborted || active.current !== controller) return;
           if (!result?.ok || !result.value) throw new Error('refused');
           if (action === 'review') { setReview(result.value); setPhrase(''); }
@@ -231,23 +235,26 @@ window.__ModuleLoader__.load({
       React.useEffect(() => { call('list'); return () => { active.current?.abort(); active.current = null; }; }, [ctx]);
       const button = (label, action, disabled = false) => h('button', { type: 'button', className: 'majed-management-refresh', disabled: busy || disabled, onClick: action }, label);
       const field = (name, multiline = false) => h('label', { key: name }, labels[name], h(multiline ? 'textarea' : 'input', {
-        'aria-label': labels[name], value: draft[name], maxLength: name === 'command' ? 4096 : 8192, disabled: busy,
+        name, 'aria-label': labels[name], value: draft[name], maxLength: name === 'id' ? 128 : name === 'events' ? 256 : name === 'watched' ? 8192 : 4096, disabled: busy,
         onChange: event => { setDraft({ ...draft, [name]: event.target.value }); setReview(null); },
       }));
-      return h('section', { 'aria-label': labels.title, className: 'majed-command-approval' },
+      return h('section', { 'aria-label': labels.title, className: 'majed-command-approval', 'data-majed-approval': '' },
         h('h3', null, labels.title), h('p', null, labels.disclosure), button(labels.refresh, () => call('list')),
         error && h('p', { role: 'alert' }, labels.error),
         state?.enabled === false && h('p', { role: 'status' }, labels.disabled),
-        state?.enabled === true && h('div', null, h('p', null, labels.scope),
-          h('form', { onSubmit: event => { event.preventDefault(); call('save', { hook: { id: draft.id, command: draft.command, events: draft.events.split(',').map(value => value.trim()), source: 'inline', enabled: false, ...(draft.cwd ? { cwd: draft.cwd } : {}), watchedFiles: draft.watched.split('\n').map(value => value.trim()).filter(Boolean) } }); } },
-            field('id'), field('command', true), field('events'), field('cwd'), field('watched', true),
+        state?.enabled === true && h('div', null,
+          h('label', null, labels.scope, h('select', { name: 'scope', 'aria-label': labels.scope, value: scopeKey, disabled: busy, onChange: event => { const key = event.target.value; setScopeKey(key); setReview(null); setPhrase(''); call('list', {}, key); } },
+            h('option', { value: 'user' }, labels.user), (state.contexts || []).map(value => h('option', { key: value.workspaceId, value: JSON.stringify([value.sessionId, value.workspaceId]) }, value.label)))),
+          h('form', { 'data-approval-form': 'definition', onSubmit: event => { event.preventDefault(); const hook = { ...draft.base, id: draft.id, command: draft.command, events: draft.events.split(',').map(value => value.trim()), source: draft.source, enabled: false, watchedFiles: draft.watched.split('\n').map(value => value.trim()).filter(Boolean) }; if (draft.cwd) hook.cwd = draft.cwd; else delete hook.cwd; call('save', { hook }); } },
+            field('id'), h('label', null, labels.source, h('select', { name: 'source', value: draft.source, disabled: busy, onChange: event => setDraft({ ...draft, source: event.target.value }) }, h('option', { value: 'inline' }, labels.inline), h('option', { value: 'file' }, labels.file))), field('command', true), field('events'), field('cwd'), field('watched', true),
             h('button', { type: 'submit', className: 'majed-management-refresh', disabled: busy }, labels.save)),
           (state.hooks || []).map(({ hook, approval }) => h('div', { key: hook.id }, h('strong', null, hook.id), h('pre', null, hook.command),
             h('p', null, approval?.valid ? labels.approved : labels.unapproved),
+            button(labels.edit, () => { setDraft({ base: hook, id: hook.id, command: hook.command, source: hook.source, events: hook.events.join(','), cwd: hook.cwd || '', watched: (hook.watchedFiles || []).join('\n') }); setReview(null); setPhrase(''); }),
             button(labels.review, () => call('review', { id: hook.id })), button(labels.revoke, () => call('revoke', { id: hook.id })), button(labels.remove, () => call('remove', { id: hook.id }))))),
-        review && h('form', { onSubmit: event => { event.preventDefault(); call('approve', { id: review.review.id, nonce: review.nonce, phrase }); } },
+        review && h('form', { 'data-approval-form': 'confirmation', onSubmit: event => { event.preventDefault(); call('approve', { id: review.review.id, nonce: review.nonce, phrase }); } },
           h('pre', { dir: 'ltr' }, JSON.stringify(review.review, null, 2)), h('p', null, labels.expiry + ': ' + new Date(review.expiresAt).toLocaleTimeString()),
-          h('label', null, labels.phrase, h('input', { value: phrase, dir: 'ltr', autoComplete: 'off', maxLength: 64, disabled: busy, onChange: event => setPhrase(event.target.value) })),
+          h('label', null, labels.phrase, h('input', { name: 'confirmation', value: phrase, dir: 'ltr', autoComplete: 'off', maxLength: 64, disabled: busy, onChange: event => setPhrase(event.target.value) })),
           h('button', { type: 'submit', className: 'majed-management-refresh', disabled: busy || phrase !== 'RUN AS DSH USER' }, labels.approve),
           button(labels.cancel, () => { setReview(null); setPhrase(''); })));
     }
@@ -300,7 +307,7 @@ window.__ModuleLoader__.load({
 .majed-management-refresh:focus-visible{outline:2px solid var(--dsw-alias-label-primary);outline-offset:2px}
 .majed-management-refresh[aria-disabled="true"]{opacity:.5}
 .majed-command-approval form,.majed-command-approval label{display:flex;flex-direction:column;gap:.5em;min-width:0;margin-block:1em}
-.majed-command-approval input,.majed-command-approval textarea{box-sizing:border-box;max-width:100%;font:inherit;color:inherit;background:var(--dsw-alias-bg-module-platform);border:1px solid var(--dsw-alias-border-l2);padding:.5em}
+.majed-command-approval input,.majed-command-approval textarea,.majed-command-approval select{box-sizing:border-box;max-width:100%;font:inherit;color:inherit;background:var(--dsw-alias-bg-module-platform);border:1px solid var(--dsw-alias-border-l2);padding:.5em}
 .majed-command-approval pre{max-width:100%;white-space:pre-wrap;overflow-wrap:anywhere;font:inherit}
 @media (max-width:420px){.majed-management-controls{flex-direction:column;align-items:stretch;gap:.5em}.majed-management-refresh{width:100%;justify-content:center}}
 
