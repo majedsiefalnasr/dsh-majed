@@ -1,0 +1,11 @@
+# Keep the compiled basic core and its recursive read-only discovery dependency.
+# The standalone registrations, catalogs, updater and visual assets are deferred.
+vendor/lib/*
+!vendor/lib/core.js
+!vendor/lib/readonly-discovery.js
+vendor/assets/
+vendor/locale/
+vendor/package.json
+vendor/cordis.patch.yml
+vendor/README*
+vendor/CHANGELOG*

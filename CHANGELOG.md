@@ -134,6 +134,7 @@ All notable changes to `dsh-majed` are documented here. The format follows
   remains unverified pending verification; no live claim is made.
 
 ### Changed
+- R09 Skills package cleanup: omit standalone catalog/repository/updater runtimes, browser code and assets while retaining a reproducible Apache-2.0 basic-core subset and its pinned dependency. Extracted-package fixtures cover disabled/enabled registration, basic create/list/detail/toggle/trash/restore/delete and deferred-action rejection. This does not activate Skills in production Settings, complete native visibility integration, or establish desktop/remote live acceptance.
 - Owner-approved planning split: management admission remains T02A; trusted local/remote Command hook
   Approval provenance is independently gated by T02E and blocks T10 approval/execution, not ordinary
   Settings/Skills/MCP/inert Hook editing. T02A temporary feasibility subsequently passed the joined
