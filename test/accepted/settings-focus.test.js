@@ -44,6 +44,8 @@ async function mount(t, { fallback = false } = {}) {
       register(metadata, Component) { sections.set(metadata.id, Component); return () => {}; },
     },
     connection: { rpc: { call(channel, endpoint, payload, signal) {
+      // Feature metadata is independent of the readiness control under test.
+      if (endpoint === 'majed/mcp') return Promise.resolve({ ok: true, value: { enabled: false, servers: [], contexts: [] } });
       calls.push({ channel, endpoint, payload, signal });
       return new Promise((resolve, reject) => pending.push({ resolve, reject }));
     } } },
