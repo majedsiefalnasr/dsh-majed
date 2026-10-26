@@ -426,7 +426,7 @@ window.__ModuleLoader__.load({
 .majed-management-refresh{font:inherit;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-module-platform);border:1px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md);padding:.5em 1em;white-space:normal}
 .majed-management-refresh:focus-visible{outline:2px solid var(--dsw-alias-label-primary);outline-offset:2px}
 .majed-management-refresh[aria-disabled="true"]{opacity:.5}
-.majed-management-controls label{display:flex;flex-direction:column;gap:.25em;min-width:0;max-width:100%}
+[data-majed-judgment] .majed-management-controls label{display:flex;flex-direction:column;gap:.25em;min-width:0;max-width:100%}
 .majed-management [data-judgment-field]{font:inherit;max-width:100%;box-sizing:border-box;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-module-platform);border:1px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md)}
 .majed-command-approval form,.majed-command-approval label{display:flex;flex-direction:column;gap:.5em;min-width:0;margin-block:1em}
 .majed-command-approval input,.majed-command-approval textarea,.majed-command-approval select{box-sizing:border-box;max-width:100%;font:inherit;color:inherit;background:var(--dsw-alias-bg-module-platform);border:1px solid var(--dsw-alias-border-l2);padding:.5em}
