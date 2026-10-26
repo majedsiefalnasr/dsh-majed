@@ -32,6 +32,33 @@ The existing runners set `ELECTRON_RUN_AS_NODE=1` in each child, give it a gener
 
 Each negative control exits at its intended scenario assertion. Electron also prints a nonfatal macOS `task_name_for_pid` diagnostic; it does not prevent scenario execution. These assertions are sensitivity controls, not newly implemented red/green production tests.
 
+## Pending cooperative wait cancellation increment (2026-10-26)
+
+Proof-only candidate based on `6c2b5a6`, branch `proof/r10-pending-cancel`, using gpt-6.1-sol. No production code or user-visible behavior changed, so no changelog entry is warranted. R11 candidate `1d077c8` remains unmerged; dormant R14 and the original checkout's dirty documentation are untouched.
+
+Exact host: `/Applications/DeepSeek Harness.app/Contents/MacOS/DeepSeek Harness`, runtime `/Applications/DeepSeek Harness.app/Contents/Resources/app.asar/dsh`, reported version **0.2.1-rc.3**. Runner Node: **v23.11.0**. Reproduce from this candidate:
+
+```sh
+export DSH_PROBE_NODE='/Applications/DeepSeek Harness.app/Contents/MacOS/DeepSeek Harness'
+export DSH_PROBE_RUNTIME='/Applications/DeepSeek Harness.app/Contents/Resources/app.asar/dsh'
+npm ci --offline --ignore-scripts --no-audit --no-fund
+npm test
+npm run test:host-retry
+npm run test:host-retry -- --red-late-send
+npm run test:host-retry -- --red-late-endpoint
+npm run test:host-retry -- --red-reset-budget
+npm run test:host-retry -- --red-disable-guard
+npm run test:host-retry -- --red-replay-partial
+```
+
+`npm test` passes **497/497**, no skips. The first run in the fresh worktree failed due to absent dependencies (`ERR_MODULE_NOT_FOUND` for Cordis/jsdom/fflate); installing from the offline lockfile cache resolved that environmental failure. No network installation was used.
+
+The exact-host positive passes **20 scenarios**, zero attempted network calls. Four new cases independently hold a deterministic deferred credential-refresh or endpoint-fallback wait and later resolve or reject it. The scenario waits for the adapter's reached-boundary handshake, verifies an open iterator and one owned abort callback, then calls public `handle.agent.cancel`. The original request signal aborts, `whenIdle()` settles and the iterator closes **before** the deferred wait is released/rejected. The abort callback is removed. After late completion and two event-loop turns, assertions require no resumed work, no additional synthetic sends, no unhandled rejection, no reinstalled callback, no session-event mutation, no recovery/retry, no successful assistant message/tool effect, and an aborted owning `turn/end`.
+
+Red → green: the new assertion was first executed with `--red-late-send` omitting the post-wait signal check; it failed after 15 passing existing scenarios at `late wait completion must not resume candidate or endpoint send`, `1 !== 0`. The guarded implementation passes. The endpoint-selective `--red-late-endpoint` independently passes both refresh cases then fails that same assertion on endpoint release. Both controls exit **1** by assertion, not module load or timeout; the unchanged runner has a **30-second watchdog**. Prior controls still exit **1** at their intended assertions: reset budget `0 !== 3`, disabled guard `9 !== 3`, partial replay `3 !== 1`.
+
+The wait's race, cancellation check, send ledger and callback ownership are **fixture-owned cooperative contracts**, not host-provided refresh cancellation enforcement. The rejection branch remains observed by `Promise.race` after cancellation. This does not prove production provider/refresh wire enforcement, a native cross-layer shared budget, pre-provider contributor coherence, selection/backoff/disposal/restart coverage, or Auto activation. Native services are unmodified; no fake lifecycle events, operational accounts/state, live providers, host patches, tracker writes, merge or push are involved. Only the runner-generated temporary HOME/DSH_HOME is mounted and removed by the existing runner.
+
 ## Acceptance disposition
 
 | Required contract | Current evidence and gate |
@@ -42,7 +69,7 @@ Each negative control exits at its intended scenario assertion. Electron also pr
 | Explicit effort, manual precedence and generation capture | **Partial fixture proof.** Invalid effort rejects before dispatch; held generations and next-step manual precedence pass. Real Session-controller selection ownership, concurrent manual selection, resume and mounted picker remain unverified. |
 | One finite cross-layer budget | **Partial characterization.** A fixture-owned ledger bounds cooperative synthetic pool/refresh/endpoint sends across actual host recovery. It is not integrated provider/refresh wire enforcement or a native shared-budget primitive. |
 | First reasoning/text/tool fragment stops failover | **Bounded fixture proof.** One send, settled failed attempt and no committed successful assistant/tool effect across absent/normal/always/after-guard retry modes. Production provider composition remains unverified. |
-| Cancellation and cleanup | **Partial fixture proof.** Caller cancellation closes the synthetic iterator without retry; full selection/backoff/refresh/disposal and restart matrices remain unverified. |
+| Cancellation and cleanup | **Partial fixture proof.** Caller cancellation closes the synthetic iterator without retry. The pending-wait increment below covers cooperative synthetic refresh and endpoint waits; production enforcement and full selection/backoff/disposal/restart matrices remain unverified. |
 
 R08 / #62 stays blocked by R10. The existing [pre-provider investigation](auto-pre-provider-seam.md) and [retry evidence](retry-budget-seams.md) retain their semantic limitations. No reduced coherence contract, provider failover activation or native ownership workaround is accepted here.
 

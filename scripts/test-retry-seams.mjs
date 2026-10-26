@@ -9,7 +9,7 @@ const executable = process.env.DSH_PROBE_NODE;
 const runtime = process.env.DSH_PROBE_RUNTIME;
 assert.ok(executable && runtime, 'Set DSH_PROBE_NODE and DSH_PROBE_RUNTIME for the exact-host probe');
 const flags = process.argv.slice(2);
-assert.ok(flags.every(flag => ['--red-reset-budget', '--red-disable-guard', '--red-replay-partial'].includes(flag)), 'Only the named negative control is supported');
+assert.ok(flags.every(flag => ['--red-reset-budget', '--red-disable-guard', '--red-replay-partial', '--red-late-send', '--red-late-endpoint'].includes(flag)), 'Only the named negative control is supported');
 const temporary = realpathSync(mkdtempSync(join(tmpdir(), 'dsh-retry-seams-')));
 try {
   const result = spawnSync(executable, [fileURLToPath(new URL('./probe-retry-host.cjs', import.meta.url)), runtime, ...flags], {
