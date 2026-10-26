@@ -14,7 +14,7 @@ assert.equal(process.cwd(), process.env.HOME);
 assert.equal(process.env.DSH_HOME, process.env.HOME);
 assert.ok(basename(process.cwd()).startsWith('dsh-physical-carrier-'));
 const [base, deps, remoteFile, ...flags] = process.argv.slice(2);
-assert.ok(flags.every(x => ['--require-slash-refresh', '--red-membership'].includes(x)));
+assert.ok(flags.every(x => ['--require-slash-refresh', '--red-membership', '--require-active-policy'].includes(x)));
 const dependencyRequire = createRequire(join(deps, '..', '__probe.cjs'));
 const req = name => dependencyRequire(join(deps, name));
 req.resolve = name => dependencyRequire.resolve(join(deps, name));
@@ -146,6 +146,7 @@ const { WorkspaceRegistry } = hostLoad('dsh-workspace');
 const { DomainFacility } = hostLoad('dsh-storage-domain');
 const { mkdirSync } = require('node:fs');
 const records = new Map();
+const syntheticHandles = [];
 let statCalls = 0;
 let onStat;
 class MemoryPersistence extends SessionPersistence {
@@ -159,7 +160,32 @@ class MemoryPersistence extends SessionPersistence {
     return header ? { header, revision: 'fixture' } : undefined;
   }
   open() { throw new Error('No event reads or Agent resume permitted'); }
-  create() { throw new Error('No persistence writes permitted'); }
+  async create(header, options = {}) {
+    options.signal?.throwIfAborted();
+    assert.equal(header.id, 'fixture-active-agent', 'Only the owned synthetic Agent may persist');
+    assert.equal(records.has(header.id), false);
+    const events = [];
+    let closed = false;
+    const check = () => assert.equal(closed, false, 'Synthetic handle is closed');
+    records.set(header.id, structuredClone(header));
+    const handle = {
+      id: header.id, header: structuredClone(header), access: 'write',
+      inheritedEventCount: options.inheritedEventCount ?? 0,
+      async read(offset = 0, length = Number.MAX_SAFE_INTEGER) {
+        check(); return { eventState: 'detached', events: structuredClone(events.slice(offset, offset + length)) };
+      },
+      async append(batch, request = {}) {
+        check(); request.signal?.throwIfAborted();
+        assert.ok(events.length + batch.length <= 32, 'Synthetic event bound');
+        assert.ok(Buffer.byteLength(JSON.stringify(batch)) <= 65536, 'Synthetic byte bound');
+        for (const event of batch) { assert.equal(event.seq, events.length); events.push(structuredClone(event)); }
+      },
+      async flush() { check(); },
+      async close() { closed = true; },
+    };
+    syntheticHandles.push({ handle, isClosed: () => closed });
+    return handle;
+  }
 }
 // Synthetic KV medium only: actual DomainFacility owns schemas, tables and write chains.
 let writes = 0;
@@ -246,19 +272,36 @@ const endpoint = '/api/majed/skills';
           return { header, projections: { values: {} }, [Symbol.dispose]() {} };
         }
       }
-      class Agents extends Service {
-        constructor(ctx) { super(ctx, 'agents'); }
-        get() { return undefined; }
+      class InertLLM extends Service {
+        constructor(ctx) { super(ctx, 'llm'); }
+        providers = { get: forbidden, list: forbidden };
+        chat = forbidden;
       }
       class Prompts extends Service {
         constructor(ctx) { super(ctx, 'systemPrompt'); }
         tools() { return () => {}; }
         section() { return () => {}; }
         getSectionOrder() { return 0; }
+        variable() { return () => {}; }
       }
-      new WorkingDirectory(owner); new Queries(owner); new Agents(owner); new Prompts(owner);
+      new WorkingDirectory(owner); new Queries(owner); new InertLLM(owner); new Prompts(owner);
     } });
+    await mount(hostLoad('dsh-agent').AgentRegistry);
+    await mount(hostLoad('dsh-session-projection').SessionProjectionRegistry);
     await mount(hostLoad('dsh-tools').ToolRuntime);
+    const loopFiber = host.plugin(hostLoad('dsh-agent-loop').AgentLoop, { agents: [], maxParallelToolCalls: 1 });
+    fibers.push(loopFiber); await loopFiber;
+    checkpoint = 'actual-agent-create';
+    const nativeHandle = await host.agents.create({ sessionId: 'fixture-active-agent', meta: { cwd: project },
+      agentOptions: { provider: 'fixture-never-called', model: 'fixture-never-called' } });
+    assert.equal(host.agents.get('fixture-active-agent'), nativeHandle.agent);
+    assert.ok(nativeHandle.agent.ctx.get('skills'), 'Actual Agent resolves native registry');
+    const scopedFilesystem = nativeHandle.agent.ctx.plugin({ inject: ['skills'], apply(owner) {
+      hostLoad('dsh-skill-filesystem').apply(owner, { dshHome: process.env.HOME,
+        agentsHome: join(process.env.HOME, '.agents'), watch: false });
+    } });
+    fibers.push(scopedFilesystem); await scopedFilesystem;
+    checkpoint = 'actual-agent-created';
     await mount({ inject: ['tools', 'skills', 'workingDirectory'], apply: hostLoad('dsh-tool-skill').apply });
     await mount({ inject: ['sessionQuery', 'agents', 'workingDirectory', 'skills'], apply(owner) {
       new (hostLoad('dsh-api-session-controller').SessionSkillCatalog)(owner);
@@ -379,10 +422,21 @@ const endpoint = '/api/majed/skills';
     assert.equal(first.invocation.modelInvocable, true);
     assert.equal(first.invocation.userInvocable, true);
     assert.equal((await slash()).length, 1, 'native slash menu starts visible and warms its session cache');
-    const modelCall = () => host.tools.execute({ name: 'skill', arguments: { name: 'native-fixture' }, callId: 'model-proof', signal: new AbortController().signal });
+    const modelCall = () => host.tools.execute({ agent: nativeHandle.agent, name: 'skill', arguments: { name: 'native-fixture' }, callId: 'model-proof', signal: new AbortController().signal });
     assert.equal((await modelCall()).isError, false, 'actual native tool loads enabled Skill');
+    assert.equal((await nativeHandle.agent.ctx.get('skills').snapshot({ cwd: project, scope: nativeHandle.agent }))
+      .skills.find(skill => skill.name === 'native-fixture').invocation.modelInvocable, true,
+      'Actual Agent scoped filesystem duplicate starts enabled and warms its registry');
     await refresh(); assert.match(text(), /native-fixture/);
     await click('[data-skills-toggle="native-fixture"]');
+    if (flags.includes('--require-active-policy')) {
+      checkpoint = 'active-agent-scoped-policy';
+      const scoped = await nativeHandle.agent.ctx.get('skills').snapshot({ cwd: project, scope: nativeHandle.agent });
+      assert.equal(scoped.skills.find(skill => skill.name === 'native-fixture').invocation.modelInvocable,
+        false, 'Actual Agent scoped duplicate must not bypass disabled Manager policy');
+      assert.equal((await host.sessionSkillCatalog.list({ sessionId: nativeHandle.agent.id })).skills.length,
+        0, 'Actual live Agent native user catalog respects Manager policy');
+    }
     const disabled = await readSkill(project);
     assert.equal(disabled.invocation.modelInvocable, false);
     assert.equal(disabled.invocation.userInvocable, false);
@@ -456,6 +510,9 @@ const endpoint = '/api/majed/skills';
     const post = { method: 'POST', headers: { 'content-type': 'application/json', cookie }, body: JSON.stringify({ type: 'client-request', rpcId: 'scoped', method: 'majed/skills', payload: { action: 'list', input: {}, ...selectors } }) };
     for (const headers of [{ ...post.headers, origin: 'http://evil.invalid' }, { ...post.headers, 'sec-fetch-site': 'cross-site' }]) assert.equal((await physicalFetch(inner.getOrigin() + endpoint, { ...post, headers })).status, 403);
     assert.equal((await physicalFetch(inner.getOrigin() + endpoint + '/suffix', post)).status, 404);
+    await nativeHandle.dispose();
+    assert.equal(host.agents.get('fixture-active-agent'), undefined);
+    assert.ok(syntheticHandles.every(record => record.isClosed()), 'Actual Agent closes synthetic persistence');
     await endpointFiber.dispose();
     slashStops.reverse().forEach(stop => stop());
     assert.equal((await physicalFetch(inner.getOrigin() + endpoint, post)).status, 404);
@@ -464,7 +521,8 @@ const endpoint = '/api/majed/skills';
     assert.equal(document.getElementById('mount').childNodes.length, 0); assert.equal(events.size, 0);
     report = { runtime: JSON.parse(fs.readFileSync(join(base, 'package.json'), 'utf8')).version,
       node: process.version, hashes, statuses, physical, proxyCalls,
-      checks: ['production Skills service and mounted native Settings over authenticated local/paired remote HTTP',
+      checks: ['actual native Agent create/dispose with bounded synthetic write handle and scoped filesystem registry',
+        'production Skills service and mounted native Settings over authenticated local/paired remote HTTP',
         'real core create/toggle/trash/restore reaches actual native model tool and current native user catalog',
         'source model/user invocation flags remain independent and cannot be overridden by enable',
         'private mode-0600 policy, mode-0700 directory, unchanged source, service restart restoration',
@@ -474,7 +532,8 @@ const endpoint = '/api/majed/skills';
       limitations: ['jsdom and presentation/locale adapters; no browser layout or operational state',
         'known failed acceptance criterion: warmed native slash source remains stale; --require-slash-refresh fails',
         'synthetic credentials/pairing/memory persistence, real temporary Skill files',
-        'native SessionSkillCatalog uses explicit query/agent/working-directory adapters; no live Agent resume',
+        'native SessionSkillCatalog uses explicit query/working-directory adapters and actual AgentRegistry; no event resume',
+        'active scoped policy overlay proved for Agent context registry; distinct preset registry and cold standing presets remain unproved',
         'native slash remote list/event callbacks are same-process adapters, not a proved paired event-stream carrier'] };
   } finally {
     const cleanupErrors = [];
@@ -489,6 +548,7 @@ const endpoint = '/api/majed/skills';
     assert.equal(closedListeners, servers.length, 'Every owned listener closed, including red controls');
     assert.ok(servers.every(server => !server.listening));
     assert.ok(watchers.every(watcher => watcher.closed), 'Every owned native watcher closed');
+    assert.ok(syntheticHandles.every(record => record.isClosed()), 'Every synthetic persistence handle closes, including red controls');
     assert.equal(cleanupErrors.length, 0, 'All independent cleanup steps must succeed');
   }
   assert.equal(closes, 1); assert.equal(closedListeners, 2);

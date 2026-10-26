@@ -1,5 +1,6 @@
 import { resolveManagementScope } from '../../lib/management/scope.js';
 import { createHandler } from './native.js';
+import { mountOverlays } from './overlay.js';
 
 const PATH = '/api/majed/skills';
 const record = value => value && typeof value === 'object' && !Array.isArray(value);
@@ -15,7 +16,10 @@ export function apply(ctx) {
     let core, runtime, disposed = false;
     const lifetime = new AbortController();
     const invalidators = new Set();
-    owner.effect(() => () => { disposed = true; lifetime.abort(); }, 'Majed Skills request lifetime');
+    owner.effect(() => async () => {
+      disposed = true; lifetime.abort();
+      await runtime?.dispose(); runtime = undefined;
+    }, 'Majed Skills request lifetime');
     const status = () => ({ enabled: !!runtime, projects: [...(owner.get('workspaceRegistry')?.list() ?? [])]
       .flatMap(workspace => {
         const sessionId = workspace.sessionIds.find(id => owner.get('sessions')?.get(id));
@@ -42,17 +46,9 @@ export function apply(ctx) {
           if (!owner.get('skills')?.registerProvider) throw failure('skills_unavailable');
           core ??= await import('./vendor/lib/core.js');
           signal.throwIfAborted();
-          const fiber = owner.plugin({ inject: ['skills'], apply(providerCtx) {
-            providerCtx.skills.registerProvider(control => {
-              invalidators.add(control.invalidate);
-              control.signal.addEventListener('abort', () => invalidators.delete(control.invalidate), { once: true });
-              return { name: 'dsh-majed-skills', async list(options) {
-                return (await core.listProviderCandidates(options)).map(candidate => ({ ...candidate, provider: 'dsh-majed-skills' }));
-              }, get: (candidate, options) => core.getProviderSkill(candidate, options) };
-            });
-          } });
-          try { await fiber; signal.throwIfAborted(); if (disposed) throw failure('disposed'); runtime = fiber; }
-          catch (error) { await fiber.dispose(); throw error; }
+          const overlays = await mountOverlays(owner, core, invalidators);
+          try { signal.throwIfAborted(); if (disposed) throw failure('disposed'); runtime = overlays; }
+          catch (error) { await overlays.dispose(); throw error; }
         }
         return status();
       }
