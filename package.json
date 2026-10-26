@@ -35,6 +35,7 @@
     "lib/baseline/host.js",
     "lib/management/settings.js",
     "lib/management/scope.js",
+    "lib/management/judgment-settings.js",
     "client.js",
     "dist/client.js",
     "scripts/build-baseline.mjs",

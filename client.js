@@ -195,7 +195,66 @@ window.__ModuleLoader__.load({
     };
     Object.assign(en, managementEn);
 
+    Object.assign(en, {
+      'judgment.title': 'Judgment service', 'judgment.description': 'Configure a separate judgment service. Saving and testing do not enable Smart routing.',
+      'judgment.protocol': 'Protocol', 'judgment.address': 'Service address', 'judgment.model': 'Requested model', 'judgment.credential': 'Credential',
+      'judgment.keep': 'Keep existing credential', 'judgment.replace': 'Replace credential', 'judgment.remove': 'Remove credential',
+      'judgment.save': 'Save judgment settings', 'judgment.test': 'Test connection',
+      'judgment.consent': 'Send the fixed connection-test question to this service. This request may incur a charge. No conversation data is sent.',
+      'judgment.configured': 'Credential configured. Smart remains disabled.', 'judgment.missing': 'Credential unavailable. Manual and deterministic routes remain usable.',
+      'judgment.error': 'Judgment service unavailable or configuration invalid.', 'judgment.saved': 'Judgment settings saved. Smart remains disabled.',
+      'judgment.tested': 'Connection test completed', 'judgment.requested': 'Requested model', 'judgment.actual': 'Actual model',
+    });
+    Object.assign(managementAr, {
+      'judgment.title': 'خدمة التقييم', 'judgment.description': 'إعداد خدمة تقييم مستقلة. الحفظ والاختبار لا يفعّلان التوجيه الذكي.',
+      'judgment.protocol': 'البروتوكول', 'judgment.address': 'عنوان الخدمة', 'judgment.model': 'النموذج المطلوب', 'judgment.credential': 'بيانات الاعتماد',
+      'judgment.keep': 'الاحتفاظ ببيانات الاعتماد الحالية', 'judgment.replace': 'استبدال بيانات الاعتماد', 'judgment.remove': 'إزالة بيانات الاعتماد',
+      'judgment.save': 'حفظ إعدادات التقييم', 'judgment.test': 'اختبار الاتصال',
+      'judgment.consent': 'إرسال سؤال اختبار ثابت إلى هذه الخدمة. قد تترتب رسوم على الطلب. لن تُرسل بيانات المحادثة.',
+      'judgment.configured': 'تم إعداد بيانات الاعتماد. التوجيه الذكي معطّل.', 'judgment.missing': 'بيانات الاعتماد غير متاحة. تظل المسارات اليدوية والحتمية قابلة للاستخدام.',
+      'judgment.error': 'خدمة التقييم غير متاحة أو الإعدادات غير صالحة.', 'judgment.saved': 'تم حفظ إعدادات التقييم. التوجيه الذكي معطّل.',
+      'judgment.tested': 'اكتمل اختبار الاتصال', 'judgment.requested': 'النموذج المطلوب', 'judgment.actual': 'النموذج الفعلي',
+    });
+
+    function JudgmentSection({ ctx, t }) {
+      const [value, setValue] = React.useState(null), [error, setError] = React.useState(false), [busy, setBusy] = React.useState(false);
+      const [protocol, setProtocol] = React.useState('systemone'), [address, setAddress] = React.useState(''), [model, setModel] = React.useState('');
+      const [credential, setCredential] = React.useState(''), [edit, setEdit] = React.useState('keep'), [consent, setConsent] = React.useState(false);
+      const [result, setResult] = React.useState(null), [saved, setSaved] = React.useState(false), active = React.useRef(null);
+      const call = async payload => {
+        if (active.current) return;
+        const controller = new AbortController(); active.current = controller; setBusy(true); setError(false);
+        const timer = setTimeout(() => controller.abort(), 6000);
+        try {
+          if (typeof ctx.connection?.rpc?.call !== 'function') throw new Error('unsupported');
+          const response = await ctx.connection.rpc.call('/api', 'majed/judgment/manage', payload, controller.signal);
+          if (controller.signal.aborted || active.current !== controller) return;
+          if (!response.ok) throw new Error('unavailable');
+          if (payload.action === 'validate') setResult(response.value);
+          else { setValue(response.value); if (response.value.protocol) setProtocol(response.value.protocol); }
+          if (payload.action === 'configure') { setCredential(''); setEdit('keep'); setSaved(true); setResult(null); }
+        } catch (failure) { if (active.current === controller) setError(failure.message === 'unsupported' ? 'unsupported' : 'unavailable'); }
+        finally { clearTimeout(timer); if (active.current === controller) { active.current = null; setBusy(false); } }
+      };
+      React.useEffect(() => { call({ action: 'status' }); return () => { active.current?.abort(); active.current = null; }; }, [ctx]);
+      const field = (key, input) => h('label', null, h('span', null, t('judgment.' + key)), input);
+      return h('section', { className: 'majed-management', dir: t('management.direction'), 'data-majed-judgment': true },
+        h('h2', { className: 'majed-management__title' }, t('judgment.title')), h('p', null, t('judgment.description')),
+        h('div', { className: 'majed-management-controls' },
+          field('protocol', h('select', { value: protocol, disabled: busy, 'data-judgment-field': 'protocol', onChange: e => setProtocol(e.target.value) }, h('option', { value: 'systemone' }, 'System One'), h('option', { value: 'decisions' }, 'Decisions'))),
+          field('address', h('input', { type: 'url', value: address, disabled: busy, dir: 'ltr', placeholder: protocol === 'systemone' ? 'https://api.typesafe.ai' : 'https://openrouter.ai/api/alpha/decisions', 'data-judgment-field': 'address', onChange: e => setAddress(e.target.value) })),
+          field('model', h('input', { value: model, disabled: busy, dir: 'ltr', 'data-judgment-field': 'model', onChange: e => setModel(e.target.value) })),
+          field('credential', h('select', { value: edit, disabled: busy, 'data-judgment-field': 'credential-action', onChange: e => { setEdit(e.target.value); setCredential(''); } }, ...['keep', 'replace', 'remove'].map(action => h('option', { key: action, value: action }, t('judgment.' + action))))),
+          field('credential', h('input', { type: 'password', autoComplete: 'new-password', value: credential, disabled: busy || edit !== 'replace', 'data-judgment-field': 'credential', onChange: e => setCredential(e.target.value) })),
+          h('button', { type: 'button', className: 'majed-management-refresh', disabled: busy, 'data-judgment-action': 'save', onClick: () => call({ action: 'configure', config: { protocol, ...(address ? { address } : {}), ...(model ? { model } : {}), credential: { action: edit, ...(edit === 'replace' ? { value: credential } : {}) } } }) }, t('judgment.save'))),
+        h('p', { role: error ? 'alert' : 'status', 'aria-busy': busy }, t(error === 'unsupported' ? 'management.unsupported' : error ? 'judgment.error' : saved ? 'judgment.saved' : value?.credentialConfigured ? 'judgment.configured' : 'judgment.missing')),
+        h('label', null, h('input', { type: 'checkbox', checked: consent, disabled: busy, 'data-judgment-field': 'consent', onChange: e => setConsent(e.target.checked) }), t('judgment.consent')),
+        h('button', { type: 'button', className: 'majed-management-refresh', disabled: busy || !consent || !value?.credentialConfigured, 'data-judgment-action': 'validate', onClick: () => { if (!consent) return; setConsent(false); return call({ action: 'validate', consent: true }); } }, t('judgment.test')),
+        result ? h('p', { role: 'status', 'data-judgment-result': true }, t('judgment.tested') + '. ' + t('judgment.requested') + ': ' + result.requestedModel + '; ' + t('judgment.actual') + ': ' + result.actualModel) : null);
+    }
+
     function ManagementSection({ ctx, module, t }) {
+      if (module === 'routing') return h(JudgmentSection, { ctx, t });
       const [value, setValue] = React.useState(null);
       const [error, setError] = React.useState(null);
       const [busy, setBusy] = React.useState(false);
@@ -241,6 +300,8 @@ window.__ModuleLoader__.load({
 .majed-management-refresh{font:inherit;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-module-platform);border:1px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md);padding:.5em 1em;white-space:normal}
 .majed-management-refresh:focus-visible{outline:2px solid var(--dsw-alias-label-primary);outline-offset:2px}
 .majed-management-refresh[aria-disabled="true"]{opacity:.5}
+.majed-management-controls label{display:flex;flex-direction:column;gap:.25em;min-width:0;max-width:100%}
+.majed-management [data-judgment-field]{font:inherit;max-width:100%;box-sizing:border-box;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-module-platform);border:1px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md)}
 @media (max-width:420px){.majed-management-controls{flex-direction:column;align-items:stretch;gap:.5em}.majed-management-refresh{width:100%;justify-content:center}}
 
 .majed-row{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:16px 0;border-bottom:.5px solid var(--dsw-alias-border-l2)}
