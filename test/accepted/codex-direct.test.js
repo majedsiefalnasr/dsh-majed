@@ -223,6 +223,8 @@ test('prepared direct calls retain their account across default changes and remo
   assert.equal(calls.find(c => c.url.endsWith('/responses')).options.headers['chatgpt-account-id'], 'workspace-one');
   const onlySecond = await runtime.adapter.prepareCall('codex', 'only-second');
   await accounts.setDefault(first.id); await accounts.remove(second.id);
+  for await (const chunk of prepared.stream({ provider: 'codex', model: 'shared-model', messages: [] })) void chunk;
+  assert.equal(calls.filter(c => c.url.endsWith('/responses')).at(-1).options.headers['chatgpt-account-id'], 'workspace-one');
   await assert.rejects(async () => { for await (const chunk of onlySecond.stream({ provider: 'codex', model: 'only-second', messages: [] })) void chunk; }, { code: 'NO_ADAPTER' });
   await assert.rejects(runtime.adapter.prepareCall('codex', 'only-second'), { code: 'NO_ADAPTER' });
 });
@@ -286,6 +288,73 @@ test('independent route revocation during attachment preparation prevents a prep
   try { await runtime.configure({ account, independentEntry: false }); } finally { release(); }
   await rejected;
   assert.equal(calls.filter(call => call.url.endsWith('/responses')).length, 0);
+});
+
+test('consent revoked during final account validation prevents transport invocation', async t => {
+  const { runtime, accounts, calls } = await setup(t);
+  const account = (await accounts.snapshot()).accounts[0].id;
+  await runtime.configure({ account, independentEntry: true });
+  const pinned = (await runtime.adapter.listModels('codex')).find(model => model.id.startsWith('~account:'));
+  const prepared = await runtime.adapter.prepareCall('codex', pinned.id);
+  const snapshot = accounts.snapshot;
+  let validations = 0;
+  accounts.snapshot = async () => {
+    const result = await snapshot();
+    if (++validations === 2) {
+      accounts.snapshot = snapshot;
+      await runtime.configure({ account, independentEntry: false });
+    }
+    return result;
+  };
+  await assert.rejects(async () => {
+    for await (const chunk of prepared.stream({ provider: 'codex', model: pinned.id, messages: [] })) void chunk;
+  }, { code: 'NO_ADAPTER' });
+  assert.equal(calls.filter(call => call.url.endsWith('/responses')).length, 0);
+});
+
+for (const retry of [false, true]) for (const revoke of ['account', 'consent']) test(`${revoke} revocation fences ${retry ? 'auth retry' : 'initial send'} after a stale final snapshot`, async t => {
+  let sends = 0;
+  const { runtime, accounts, calls } = await setup(t, { transport: async url => {
+    if (url.endsWith('/responses') && ++sends === 1 && retry) return new Response('', { status: 401 });
+  } });
+  const account = (await accounts.snapshot()).accounts[0].id;
+  await runtime.configure({ account, independentEntry: true });
+  const pinned = (await runtime.adapter.listModels('codex')).find(model => model.id.startsWith('~account:'));
+  const prepared = await runtime.adapter.prepareCall('codex', pinned.id);
+  const snapshot = accounts.snapshot;
+  let validations = 0;
+  accounts.snapshot = async () => {
+    const result = await snapshot();
+    if (++validations === (retry ? 3 : 2)) {
+      accounts.snapshot = snapshot;
+      if (revoke === 'account') await accounts.remove(account);
+      else { await runtime.configure({ account, independentEntry: false }); await runtime.configure({ account, independentEntry: true }); }
+    }
+    return result;
+  };
+  await assert.rejects(async () => {
+    for await (const chunk of prepared.stream({ provider: 'codex', model: pinned.id, messages: [] })) void chunk;
+  }, { code: 'NO_ADAPTER' });
+  assert.equal(calls.filter(call => call.url.endsWith('/responses')).length, retry ? 1 : 0);
+  if (retry) assert.equal(calls.filter(call => call.url === 'https://auth.openai.com/oauth/token').length, 2);
+});
+
+test('no-op consent and legitimate forced refresh preserve prepared routes', async t => {
+  let sends = 0;
+  const { runtime, accounts, calls } = await setup(t, { transport: async url => {
+    if (url.endsWith('/responses') && ++sends === 1) return new Response('', { status: 401 });
+  } });
+  const account = (await accounts.snapshot()).accounts[0].id;
+  await runtime.configure({ account, independentEntry: true });
+  const pinned = (await runtime.adapter.listModels('codex')).find(model => model.id.startsWith('~account:'));
+  const prepared = await runtime.adapter.prepareCall('codex', pinned.id);
+  await runtime.configure({ account, independentEntry: true });
+  await runtime.configure({ account, alias: 'Renamed' });
+  const chunks = [];
+  for await (const chunk of prepared.stream({ provider: 'codex', model: pinned.id, messages: [] })) chunks.push(chunk);
+  assert.equal(chunks.at(-1).reason.kind, 'stop');
+  assert.equal(calls.filter(call => call.url.endsWith('/responses')).length, 2);
+  assert.equal(calls.filter(call => call.url === 'https://auth.openai.com/oauth/token').length, 2);
 });
 
 test('a catalog rejecting an unexpired access token retries once through the real refresh lifecycle', async t => {

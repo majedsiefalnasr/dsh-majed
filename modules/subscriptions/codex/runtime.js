@@ -54,7 +54,12 @@ export async function createCodexRuntime({ accounts, llm, llmModule, path, fetch
   const live = () => { if (disposed) throw failure('NO_ADAPTER'); };
   const snapshotAccounts = async () => (await accounts.snapshot()).accounts.filter(a => a.state === 'connected');
   const notify = () => { generation++; cache.clear(); registration?.replace(['codex']); };
-  const unsubscribe = accounts.subscribe(notify);
+  // Revocation epochs are route-scoped and monotonic. Publish before mutation
+  // persistence yields: a failed write may conservatively reject an old call,
+  // but no committed revocation can race a held snapshot into a send.
+  const accountEpochs = new Map(), consentEpochs = new Map();
+  const bump = (epochs, key) => epochs.set(key, (epochs.get(key) || 0) + 1);
+  const unsubscribe = accounts.subscribe(event => { if (event?.revoked) bump(accountEpochs, event.revoked); notify(); });
   async function catalog(account, signal) {
     live(); signal?.throwIfAborted();
     const key = account.id;
@@ -97,7 +102,9 @@ export async function createCodexRuntime({ accounts, llm, llmModule, path, fetch
     return result;
   }
   async function binding(id, signal) {
-    live(); const parsed = parseModel(id), data = await store.load(), entries = await available(signal);
+    live(); const parsed = parseModel(id);
+    const accountVersions = new Map(accountEpochs), consentVersion = consentEpochs.get(parsed.account) || 0;
+    const data = await store.load(), entries = await available(signal);
     const prefs = data.preferences, accountPrefs = prefs.accounts || {};
     let entry;
     if (parsed.account) {
@@ -121,7 +128,8 @@ export async function createCodexRuntime({ accounts, llm, llmModule, path, fetch
       ...(contextWindow ? { context: { contextWindow } } : {}), ...(model?.maxTokens ? { defaultMaxTokens: model.maxTokens } : {}), ...(reasoning ? { reasoning } : {}) };
     const accountAlias = accountPrefs[entry.account.id]?.alias || entry.account.label;
     if (parsed.account) info.name = `${accountAlias} · ${info.name}`;
-    return { id, model: parsed.model, account: entry.account.id, info, fast: model?.fastTier === true, epoch: generation };
+    return { id, model: parsed.model, account: entry.account.id, info, fast: model?.fastTier === true,
+      accountEpoch: accountVersions.get(entry.account.id) || 0, consentEpoch: consentVersion };
   }
   async function* streamBound(bound, options) {
     live(); options.signal?.throwIfAborted();
@@ -146,10 +154,15 @@ export async function createCodexRuntime({ accounts, llm, llmModule, path, fetch
         if (!(await bounded(snapshotAccounts(), watchdog.signal)).some(a => a.id === bound.account)
           || (bound.id.startsWith(prefix) && latest.preferences.accounts?.[bound.account]?.independentEntry !== true)) throw failure('NO_ADAPTER');
         watchdog.signal.throwIfAborted(); live();
-        return bounded(Promise.resolve().then(() => transport(endpoint, { method: 'POST', signal: watchdog.signal, redirect: 'error', headers: {
+        return bounded(Promise.resolve().then(() => {
+          watchdog.signal.throwIfAborted(); live();
+          if ((accountEpochs.get(bound.account) || 0) !== bound.accountEpoch
+            || (bound.id.startsWith(prefix) && (consentEpochs.get(bound.account) || 0) !== bound.consentEpoch)) throw failure('NO_ADAPTER');
+          return transport(endpoint, { method: 'POST', signal: watchdog.signal, redirect: 'error', headers: {
           authorization: `Bearer ${session.accessToken}`, 'chatgpt-account-id': session.accountId, originator: 'codex_cli_rs',
           'session-id': createHash('sha256').update(String(options.sessionId || '')).digest('hex'), accept: 'text/event-stream', 'content-type': 'application/json', ...attributionHeaders(),
-        }, body: JSON.stringify(body) })), watchdog.signal);
+        }, body: JSON.stringify(body) });
+        }), watchdog.signal);
       };
       let response = await request(false);
       if (response.status === 401) { void response.body?.cancel().catch(() => {}); response = await request(true); }
@@ -227,7 +240,14 @@ export async function createCodexRuntime({ accounts, llm, llmModule, path, fetch
       } else if ('account' in input) {
         if (!only(input, ['account', 'independentEntry', 'alias']) || !(await snapshotAccounts()).some(a => a.id === input.account)
           || ('independentEntry' in input && typeof input.independentEntry !== 'boolean') || ('alias' in input && (typeof input.alias !== 'string' || input.alias.length > 128))) throw failure('INVALID_REQUEST');
-        await store.transaction(data => { data.preferences.accounts ||= {}; data.preferences.accounts[input.account] = { ...data.preferences.accounts[input.account], ...input }; delete data.preferences.accounts[input.account].account; }, { signal: lifecycle.signal });
+        let revoked = false;
+        await store.transaction(data => {
+          revoked = input.independentEntry === false && data.preferences.accounts?.[input.account]?.independentEntry === true;
+          if (revoked) bump(consentEpochs, input.account);
+          data.preferences.accounts ||= {}; data.preferences.accounts[input.account] = { ...data.preferences.accounts[input.account], ...input }; delete data.preferences.accounts[input.account].account; }, { signal: lifecycle.signal });
+        // Also fence calls prepared against old durable state while the write
+        // was pending; the early epoch alone cannot distinguish those calls.
+        if (revoked) bump(consentEpochs, input.account);
       } else {
         if (!only(input, ['model', 'hidden', 'name', 'defaultEffort', 'contextWindow']) || !identifier(input.model) || ('hidden' in input && typeof input.hidden !== 'boolean') || ('name' in input && (typeof input.name !== 'string' || input.name.length > 128))
           || ('contextWindow' in input && input.contextWindow !== null && !positive(input.contextWindow))
