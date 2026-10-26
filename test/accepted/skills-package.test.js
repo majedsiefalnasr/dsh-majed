@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, symlink } from 'node:fs/promises';
+import { mkdtemp, rm, symlink, realpath } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 // Approved management seam: production route + real core + disposable storage.
 // This portable fixture does not substitute for native Owner/remote admission.
 test('enabled Skills basic workflows load from the packaged runtime without standalone modules', async t => {
-  const directory = await mkdtemp(join(tmpdir(), 'dsh-skills-package-'));
+  const directory = await realpath(await mkdtemp(join(tmpdir(), 'dsh-skills-package-')));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const root = fileURLToPath(new URL('../../', import.meta.url));
   const [pack] = JSON.parse(execFileSync('npm', ['pack', '--json', '--ignore-scripts', '--pack-destination', directory,
@@ -25,4 +25,11 @@ test('enabled Skills basic workflows load from the packaged runtime without stan
   assert.equal(child.error, undefined);
   assert.equal(child.status, 0, `${child.stdout}\n${child.stderr}`);
   assert.match(child.stdout, /PASS basic Skills/);
+  const cold = spawnSync(process.execPath, [fixture, join(directory, 'package'), 'read'], {
+    cwd: directory, env: { PATH: process.env.PATH || '', HOME: directory, DSH_HOME: directory },
+    encoding: 'utf8', timeout: 30000,
+  });
+  assert.equal(cold.error, undefined);
+  assert.equal(cold.status, 0, `${cold.stdout}\n${cold.stderr}`);
+  assert.match(cold.stdout, /PASS cold Skills policy reload/);
 });

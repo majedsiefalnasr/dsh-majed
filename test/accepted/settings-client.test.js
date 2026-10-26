@@ -32,17 +32,18 @@ test('Settings readiness and Refresh reach a sibling Cordis connection service',
     } });
   });
   await consumer;
-  const view = harness.render('majed-skills');
+  const view = harness.render('majed-hooks');
   await tick(); view.render();
-  assert.equal(calls.length, 1, 'initial readiness must send an RPC, not report unavailable');
+  const readinessCalls = () => calls.filter(call => call.endpoint === 'majed/settings/status');
+  assert.equal(readinessCalls().length, 1, 'initial readiness must send an RPC, not report unavailable');
   assert.equal(view.nodes(node => node.props.role === 'alert').length, 0);
-  await view.one(node => node.type === 'button').props.onClick();
+  await view.one(node => node.type === 'button' && node.props.children?.includes('Refresh status')).props.onClick();
   await tick(); view.render();
-  assert.equal(calls.length, 2, 'Refresh must send another RPC');
-  for (const call of calls) {
+  assert.equal(readinessCalls().length, 2, 'Refresh must send another RPC');
+  for (const call of readinessCalls()) {
     assert.equal(call.channel, '/api');
     assert.equal(call.endpoint, 'majed/settings/status');
-    assert.equal(call.payload.module, 'skills');
+    assert.equal(call.payload.module, 'hooks');
   }
 });
 
@@ -55,16 +56,16 @@ test('Settings readiness uses native carrier, isolates failures, translates RTL 
   } } };
   const harness = createBaselineHarness(source, { connection, language: 'ar' });
   t.after(() => harness.dispose()); harness.apply();
-  const skills = harness.render('majed-skills'), mcp = harness.render('majed-mcp');
+  const skills = harness.render('majed-hooks'), mcp = harness.render('majed-mcp');
   await tick(); skills.render(); mcp.render();
-  assert.equal(skills.one(node => node.type === 'section').props.dir, 'rtl');
+  assert.equal(skills.one(node => node.props['data-majed-module'] === 'hooks').props.dir, 'rtl');
   assert.equal(skills.one(node => node.type === 'input').props.checked, false);
   assert.ok(mcp.one(node => node.props.role === 'alert'));
   await skills.one(node => node.type === 'input').props.onChange({ target: { checked: true } });
   await tick(); skills.render();
   assert.equal(skills.one(node => node.type === 'input').props.checked, true);
   assert.equal(calls.at(-1).channel, '/api'); assert.equal(calls.at(-1).endpoint, 'majed/settings/status');
-  assert.equal(calls.at(-1).payload.module, 'skills');
+  assert.equal(calls.at(-1).payload.module, 'hooks');
   assert.equal(harness.storage.size, 0, 'readiness never persists as baseline preferences');
   assert.equal(harness.timers.size, 0);
   harness.dispose(); assert.equal(harness.registrations.size, 0);
@@ -73,7 +74,7 @@ test('Settings readiness uses native carrier, isolates failures, translates RTL 
 test('unsupported carrier offers actionable error and unmount aborts pending request', async t => {
   const harness = createBaselineHarness(source); t.after(() => harness.dispose()); harness.apply();
   const view = harness.render('majed-routing'); await tick(); view.render();
-  assert.match(JSON.stringify(view.one(node => node.props.role === 'alert')), /supported DSH version/);
+  assert.ok(view.nodes(node => node.props.role === 'alert').some(node => /supported DSH version/.test(JSON.stringify(node))));
   let signal;
   const pending = createBaselineHarness(source, { connection: { rpc: { call(a, b, c, s) { signal = s; return new Promise(() => {}); } } } });
   t.after(() => pending.dispose()); pending.apply(); pending.render('majed-hooks');

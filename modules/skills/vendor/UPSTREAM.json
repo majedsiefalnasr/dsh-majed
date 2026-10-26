@@ -9,8 +9,8 @@
   "files": {
     "lib/core.js": {
       "upstreamSha256": "cbeaae958ddd258249c9d6783d48637c15553b75aebaffef7468212ced2be867",
-      "localSha256": "714e8814cdb5bfdf73d5a820bca6aaa602a893fa005c6f6bfe3a6d43453b338d",
-      "adaptation": "Add attribution/change comment and export existing checkedWritableRootDefinition; no function body changes."
+      "localSha256": "3e0fb7e8c804f3b10568890a48e24c5b5b1d1d9afc1253c03fda31c1044a2288",
+      "adaptation": "Export writable/private-store checks; isolate state/trash under Majed; reject private/user-root symlinks; private atomic-file/directory modes; Manager enable respects source invocation flags."
     },
     "lib/readonly-discovery.js": {
       "upstreamSha256": "17c2a488bd3014f89b0a5e58a4d14af188f9451fc79055ec4339f182de9b6113",
