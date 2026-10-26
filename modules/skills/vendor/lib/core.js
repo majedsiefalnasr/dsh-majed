@@ -1,6 +1,7 @@
 // MichengAI dsh-skills-manager 1.2.6, Apache-2.0. Majed adaptation:
 // export the existing writable-root check; isolate policy/trash under Majed;
-// protect private directory/file permissions and reject private-store symlinks.
+// protect private directory/file permissions and reject private-store symlinks;
+// port selected v1.2.11 name/diagnostic and historical-disable semantics.
 import { homedir } from "node:os";
 import { randomBytes } from "node:crypto";
 import {
@@ -756,7 +757,7 @@ function isDshRoot(root) {
 }
 function toKebab(s) {
   let t = String(s).trim();
-  if (t === "") return "";
+  if (t === "" || /[^\x00-\x7F]/.test(t)) return "";
   t = t.replace(/([a-z0-9])([A-Z])/g, "$1-$2");
   t = t.toLowerCase();
   t = t.replace(/[\s_.]+/g, "-");
@@ -1010,6 +1011,22 @@ async function resolveEntry(root, name) {
     return null;
   }
 }
+// Selected v1.2.11 name semantics; management names are not invocation aliases.
+function isValidDeclaredName(name) {
+  if (typeof name !== "string") return false;
+  const trimmed = name.trim();
+  if (trimmed === "" || trimmed === "." || trimmed === ".." || trimmed.startsWith(".")) return false;
+  if (trimmed.length > MAX_ENTRY_NAME_LENGTH) return false;
+  if (/[\\/:*?"<>|\0]/.test(trimmed) || /[. ]$/.test(trimmed)) return false;
+  return true;
+}
+function hostAcceptableSkillName(declaredName) {
+  const trimmed = String(declaredName || "").trim();
+  if (trimmed === "" || !isValidDeclaredName(trimmed)) return null;
+  if (KEBAB_RE.test(trimmed)) return trimmed;
+  const kebab = toKebab(trimmed);
+  return kebab && KEBAB_RE.test(kebab) ? kebab : null;
+}
 function entryOf(name, kind, docPath, doc) {
   const declaredName = doc.map.name !== void 0 ? unquote(doc.map.name) : "";
   const description = doc.map.description !== void 0 ? unquote(doc.map.description) : "";
@@ -1026,7 +1043,7 @@ function entryOf(name, kind, docPath, doc) {
     });
   if (doc.hasFrontmatter && !declaredName)
     diagnostics.push({ level: "error", code: "diagnostic.name.missing" });
-  else if (declaredName && !KEBAB_RE.test(toKebab(declaredName)))
+  else if (declaredName && hostAcceptableSkillName(declaredName) === null)
     diagnostics.push({
       level: "error",
       code: "diagnostic.name.invalid",
@@ -1049,8 +1066,8 @@ function entryOf(name, kind, docPath, doc) {
     userInvocable: !userDisabled,
     invocationPolicyValid,
     hasFrontmatter: doc.hasFrontmatter,
-    // 调用策略值异常可以由 manager 本地策略覆盖；结构本身合法即可加载。
-    loadable: doc.hasFrontmatter && description !== "" && KEBAB_RE.test(KEBAB_RE.test(declaredName) ? declaredName : toKebab(declaredName)),
+    // Native invocation compatibility is separate from management visibility.
+    loadable: doc.hasFrontmatter && description !== "" && hostAcceptableSkillName(declaredName) !== null,
     diagnostics
   };
 }
@@ -1500,7 +1517,11 @@ async function applyPolicySkillEnabled(definition, name, enabled, state2) {
       params: { name }
     };
   }
-  if (!summary.hasFrontmatter) {
+  const explicitlyEnabled = new Set(state2.enabledSkills[definition.key] || []);
+  const disabled = new Set(state2.disabledSkills[definition.key] || []);
+  const isAlreadyEnabled = explicitlyEnabled.has(name);
+  if (!enabled && disabled.has(name)) return { root: definition.key, name, enabled: false };
+  if (!summary.hasFrontmatter && (enabled || !isAlreadyEnabled)) {
     return {
       ok: false,
       error: `\u6280\u80FD\u7F3A\u5C11\u5B8C\u6574 frontmatter\uFF0C\u65E0\u6CD5${enabled ? "\u542F\u7528" : "\u505C\u7528"}: ${name}`,
@@ -1508,7 +1529,7 @@ async function applyPolicySkillEnabled(definition, name, enabled, state2) {
       params: { name, action: enabled ? "enable" : "disable" }
     };
   }
-  if (!summary.loadable) {
+  if (!summary.loadable && (enabled || !isAlreadyEnabled)) {
     return {
       ok: false,
       error: `\u6280\u80FD\u7ED3\u6784\u4E0D\u5B8C\u6574\uFF0C\u65E0\u6CD5${enabled ? "\u542F\u7528" : "\u505C\u7528"}: ${name}`,
@@ -1516,8 +1537,6 @@ async function applyPolicySkillEnabled(definition, name, enabled, state2) {
       params: { name, action: enabled ? "enable" : "disable" }
     };
   }
-  const disabled = new Set(state2.disabledSkills[definition.key] || []);
-  const explicitlyEnabled = new Set(state2.enabledSkills[definition.key] || []);
   if (enabled) {
     disabled.delete(name);
     explicitlyEnabled.add(name);

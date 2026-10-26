@@ -9,8 +9,9 @@
   "files": {
     "lib/core.js": {
       "upstreamSha256": "cbeaae958ddd258249c9d6783d48637c15553b75aebaffef7468212ced2be867",
-      "localSha256": "3e0fb7e8c804f3b10568890a48e24c5b5b1d1d9afc1253c03fda31c1044a2288",
-      "adaptation": "Export writable/private-store checks; isolate state/trash under Majed; reject private/user-root symlinks; private atomic-file/directory modes; Manager enable respects source invocation flags."
+      "localSha256": "28eecd451b31dbf03d97ee6614925a91ae8837ec2502175964ffd5b064d1dd08",
+      "adaptation": "Export writable/private-store checks; isolate state/trash under Majed; reject private/user-root symlinks; private atomic-file/directory modes; Manager enable respects source invocation flags; selected v1.2.11 Unicode name/diagnostic and historical-disable semantics.",
+      "semanticOracle": { "version": "1.2.11", "commit": "b4d385b10ee49c6e09d244863a06c9d3a9b43a9d", "source": "src/core.ts:886-895,1220-1288,1864-1889", "verification": "Read local pinned git source; not a full 1.2.11 re-vendor." }
     },
     "lib/readonly-discovery.js": {
       "upstreamSha256": "17c2a488bd3014f89b0a5e58a4d14af188f9451fc79055ec4339f182de9b6113",
