@@ -68,6 +68,7 @@ export function createMcpManager(ctx, load = () => loadMcpClient(ctx), moduleCon
         const loader = moduleContext.get('loader');
         if (typeof loader?.import !== 'function') throw new Error('Native module loader unavailable.');
         const [{ createScope }, namespace] = await Promise.all([loader.import('@deepseek-ai/dsh-scope'), load()]);
+        if (closed) throw new Error('Manager disposed.');
         // The temporary native scope keeps probe registrations out of every
         // real agent/global inventory; no SDK/runtime alternative is selected.
         probeScope = createScope(ctx, {});
@@ -115,6 +116,7 @@ export function createMcpManager(ctx, load = () => loadMcpClient(ctx), moduleCon
         let child;
         try {
           const namespace = await load();
+          if (closed) break;
           child = ctx.plugin(namespace, nativeConfig(row));
           await child;
           if (closed) { await child.dispose(); continue; }

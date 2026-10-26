@@ -73,3 +73,21 @@ test('disabled production MCP composition opens no store and needs no native loa
   assert.equal((await response.json()).result.value.enabled, false);
   await assert.rejects(stat(join(root, 'unopened')), { code: 'ENOENT' });
 });
+
+for (const operation of ['replace', 'probe']) test(`disposing during deferred native loading prevents ${operation} from starting a plugin`, async t => {
+  const ctx = new Context(); t.after(() => ctx.fiber.dispose());
+  const { createScope } = await import('@deepseek-ai/dsh-scope');
+  ctx.provide('loader', { import: async () => ({ createScope }) });
+  let release, entered, starts = 0;
+  const loading = new Promise(resolve => { release = resolve; });
+  const reached = new Promise(resolve => { entered = resolve; });
+  const manager = createMcpManager(ctx, () => { entered(); return loading; });
+  const server = { serverName: 'deferred', transport: 'stdio', command: 'never-launched', enabled: operation === 'replace' };
+  if (operation === 'probe') await manager.replace([server]);
+  const pending = operation === 'probe' ? manager.probeServer(server.serverName) : manager.replace([server]);
+  await reached;
+  const closing = manager.dispose();
+  release({ apply() { starts++; } });
+  await pending; await closing;
+  assert.equal(starts, 0, 'Disposal must prevent native startup, rather than only clean it up afterward');
+});
