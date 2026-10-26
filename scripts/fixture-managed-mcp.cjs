@@ -11,6 +11,7 @@ const definition = name => ({ name, description: 'Controlled protocol fixture', 
 const input = createInterface({ input: process.stdin });
 input.on('line', line => {
   const message = JSON.parse(line);
+  if (message.method === 'initialize' && process.argv.includes('--hang-init')) return;
   if (process.env.MCP_JOURNAL) appendFileSync(process.env.MCP_JOURNAL, JSON.stringify({ pid: process.pid, cwd: basename(process.cwd()), method: message.method }) + '\n');
   if (message.method === 'initialize') return reply(message.id, { protocolVersion: message.params.protocolVersion, capabilities: { tools: { listChanged: true } }, serverInfo: { name: 'controlled', version: '1' } });
   if (message.method === 'notifications/initialized') { initialized = true; return; }

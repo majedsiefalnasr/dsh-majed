@@ -2,7 +2,7 @@ import { object, text, flag, maskedDictionary, fail, serial, scope, reconnect, t
 import { isDeepStrictEqual } from 'node:util';
 export const SERVER_NAME = /^[A-Za-z0-9_-]{1,32}$/;
 export { MASKED_SECRET };
-/** Probe a saved connection once, then dispose it: bounded, disposable, side-effect free. */
+/** Bounded native handshake/list probe with isolated registrations and awaited disposal. Starts the configured process or HTTP connection. */
 export const PROBE_TIMEOUT_MS = 10_000;
 export function validateServer(value) {
   object(value, ['serverName', 'scope', 'enabled', 'transport', 'command', 'args', 'env', 'cwd', 'url', 'headers', 'reconnect', 'timeout', 'instructionLimit']);

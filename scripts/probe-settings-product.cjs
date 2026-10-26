@@ -394,6 +394,7 @@ async function main() {
     await select('MCP Manager'); await act(settle); assert.match(text(), /Readiness checks are disabled/);
     if (mcpProbe) {
       checkpoint = 'mcp-native-settings-http';
+      remoteMode = false; document.head.innerHTML = `<base href="${inner.getOrigin()}/">`;
       const panel = () => document.querySelector('[data-majed-mcp]');
       const idle = async () => {
         for (let attempt = 0; attempt < 80 && panel().querySelector('button')?.disabled; attempt++) await act(settle);
@@ -423,6 +424,7 @@ async function main() {
       await click('Refresh servers'); assert.match(panel().textContent, /Active native registration/);
       await click('Disconnect', 'http'); assert.equal(host.tools.get('mcp__http__echo'), undefined); await click('Remove', 'http');
       checkpoint = 'mcp-native-settings-stdio';
+      remoteMode = true; document.head.innerHTML = `<base href="${outer.getOrigin()}/remote/">`;
       await click('Add server'); await change('serverName', 'stdio'); await change('command', process.execPath); await change('args', protocolFixture);
       for (const [name, value] of [['DSH_MANAGED_MCP_FIXTURE', '1'], ['ELECTRON_RUN_AS_NODE', '1'], ['TOKEN', 'fixture-secret']]) {
         await credential(name, value);

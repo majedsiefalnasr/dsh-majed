@@ -84,6 +84,14 @@ async function main() {
     assert.notEqual(carrier.ctx.tools.get(tool), connected, 'Native bounded reconnect must replace its tool generation');
     assert.equal((await invoke('hello')).isError, false);
     await call('setEnabled', { serverName: server.serverName, enabled: false }); assert.equal(carrier.ctx.tools.get(tool), undefined);
+    checkpoint = 'bounded-probe';
+    await call('save', { server: { ...server, serverName: 'slow', args: [fixture, '--hang-init'], enabled: false } });
+    const probeStarted = Date.now();
+    const timedOut = await call('probe', { serverName: 'slow' });
+    assert.equal(timedOut.servers.find(value => value.serverName === 'slow').probe, 'failed');
+    assert.ok(Date.now() - probeStarted < 15000, 'Native probe deadline plus cleanup must remain bounded');
+    assert.equal(carrier.ctx.tools.get('mcp__slow__echo'), undefined);
+    await call('remove', { serverName: 'slow' });
     checkpoint = 'project-scope';
     const selectors = { scope: 'project', sessionId: 'project-agent', workspaceId: workspace.id };
     const beforeInvalidScope = children.length;
@@ -105,7 +113,8 @@ async function main() {
     await call('remove', { ...selectors, serverName: 'scoped' });
     assert.equal(carrier.ctx.tools.get('mcp__scoped__echo', scopeOf(agent.agent.ctx)), undefined);
     await agent.dispose(); await other.dispose();
-    console.log(JSON.stringify({ runtime: carrier.runtime, checks: ['public native Loader namespace identity', 'production admitted local/paired save/discovery/native tool calls/permission/cancellation/image/error', 'bad-server isolation/tool-list refresh/reconnect/disable', 'actual native agent project scope/CWD isolation', 'persisted restart/remove'], children: children.length, limits: ['Synthetic memory signing/pair registry and HTTP carrier; no installed state/provider inference.', 'HTTP MCP and actual native mounted Settings acceptance run separately.'] }, null, 2));
+    const hash = file => require('node:crypto').createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+    console.log(JSON.stringify({ runtime: carrier.runtime, sources: Object.fromEntries(['dsh-mcp-client', 'dsh-tools', 'dsh-scope', 'cordis-plugin-loader'].map(name => [name, hash(join(base, 'node_modules/@deepseek-ai', name, 'lib/index.js'))])), checks: ['public native Loader namespace identity', 'production admitted local/paired save/discovery/native tool calls/permission/cancellation/image/error', 'bad-server isolation/tool-list refresh/manual and automatic bounded reconnect/disable', 'hung-handshake native probe deadline and cleanup', 'actual native agent project scope/CWD isolation and rejected scope substitution before process launch', 'persisted restart/remove'], children: children.length, limits: ['Synthetic memory signing/pair registry and HTTP carrier; no installed state/provider inference.', 'HTTP MCP and actual native mounted Settings acceptance run separately.'] }, null, 2));
   } finally {
     await carrier.dispose();
     for (const { child, closed } of children) {
