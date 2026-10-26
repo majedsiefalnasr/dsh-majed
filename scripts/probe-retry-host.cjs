@@ -21,8 +21,12 @@ const { LlmAdapter } = load('dsh-llm');
 const negative = process.argv.includes('--red-reset-budget');
 const noGuard = process.argv.includes('--red-disable-guard');
 const replayPartial = process.argv.includes('--red-replay-partial');
+const lateSend = process.argv.includes('--red-late-send');
+const lateEndpoint = process.argv.includes('--red-late-endpoint');
 const failure = { message: 'Synthetic transport failure', code: 'TRANSPORT' };
 const results = [];
+const unhandledRejections = [];
+process.on('unhandledRejection', reason => unhandledRejections.push(reason));
 async function mount(ctx, name, config = {}) {
   const fiber = ctx.plugin(load(name).default || load(name), config);
   await fiber.await();
@@ -40,6 +44,33 @@ function budget(limit) {
       this.sends.push({ candidate, phase });
       return true;
     } };
+}
+function deferred() {
+  let resolve, reject;
+  const promise = new Promise((yes, no) => { resolve = yes; reject = no; });
+  return { promise, resolve, reject };
+}
+// Cooperative fixture contract, not enforcement inside any production adapter.
+async function pendingWait(signal, control, state) {
+  let onAbort;
+  const cancelled = new Promise((resolve, reject) => {
+    onAbort = () => reject(signal.reason);
+    signal.addEventListener('abort', onAbort, { once: true });
+    control.callbacks++;
+  });
+  const work = control.wait.promise.then(() => {
+    if (!(lateSend || (lateEndpoint && control.phase === 'endpoint-fallback'))) signal.throwIfAborted();
+    control.resumed++;
+    state.reserve('beta', control.phase);
+  });
+  control.reached.resolve();
+  try {
+    signal.throwIfAborted();
+    await Promise.race([work, cancelled]);
+  } finally {
+    signal.removeEventListener('abort', onAbort);
+    control.callbacks--;
+  }
 }
 class SyntheticPool extends LlmAdapter {
   constructor(state, options) {
@@ -65,6 +96,10 @@ class SyntheticPool extends LlmAdapter {
     }
     this.signals.push(options.signal);
     try {
+      if (this.options.pending) {
+        this.state.reserve('alpha', 'request');
+        await pendingWait(options.signal, this.options.pending, this.state);
+      }
       if (this.options.cancelDuringStream) {
         this.state.reserve('alpha', 'request');
         this.options.cancel('Synthetic caller cancellation');
@@ -127,7 +162,28 @@ async function scenario(name, options, verify) {
     assert.equal(ctx.get('credentials'), undefined);
     assert.equal(ctx.get('attachments'), undefined);
     handle.agent.followup({ content: [{ type: 'text', text: 'synthetic retry characterization' }], source: { kind: 'user' } });
+    if (options.pending) {
+      await options.pending.reached.promise;
+      assert.equal(adapter.dispatches, 1, 'pending boundary must be reached inside native request');
+      assert.equal(adapter.closed, 0, 'iterator must still be pending before cancellation');
+      assert.equal(options.pending.callbacks, 1, 'pending wait must own one abort callback');
+      options.cancel(`Synthetic pending ${options.pending.phase} cancellation`);
+    }
     await handle.agent.whenIdle();
+    if (options.pending) {
+      assert.equal(adapter.closed, 1, 'cancelled pending iterator must close before late completion');
+      assert.equal(options.pending.callbacks, 0, 'cancelled wait must remove abort callback');
+      const before = JSON.stringify(handle.agent.session.snapshotEvents());
+      if (options.pending.rejectLate) options.pending.wait.reject(new Error('Synthetic late wait rejection'));
+      else options.pending.wait.resolve();
+      // Drain promise reactions and a full event-loop turn, including unhandled rejection delivery.
+      await new Promise(resolve => setImmediate(resolve));
+      await new Promise(resolve => setImmediate(resolve));
+      assert.equal(unhandledRejections.length, 0, 'late wait must not cause unhandled rejection');
+      assert.equal(options.pending.callbacks, 0, 'late completion must not reinstall abort callback');
+      assert.equal(options.pending.resumed, 0, 'late wait completion must not resume candidate or endpoint send');
+      assert.equal(JSON.stringify(handle.agent.session.snapshotEvents()), before, 'late wait must not publish recovery or effects');
+    }
     const events = handle.agent.session.snapshotEvents();
     assert.equal(adapter.closed, Math.min(adapter.dispatches, 8), 'every admitted synthetic iterator must close');
     assert(adapter.signals.every(signal => signal === adapter.signals[0]), 'original turn signal must survive re-preparation');
@@ -190,6 +246,23 @@ async function main() {
     assert.equal(events.at(-1).data.reason.kind, 'aborted');
     assert(JSON.stringify(events.at(-1).data.reason).includes('Synthetic caller cancellation'));
   });
+  for (const phase of ['credential-refresh', 'endpoint-fallback']) {
+    for (const rejectLate of [false, true]) {
+      const pending = { phase, rejectLate, wait: deferred(), reached: deferred(), callbacks: 0, resumed: 0 };
+      await scenario(`pending ${phase} cancellation with late ${rejectLate ? 'rejection' : 'release'}`, {
+        retry: true, pending,
+      }, ({ state, adapter, recoveries, events }) => {
+        assert.deepEqual(state.sends, [{ candidate: 'alpha', phase: 'request' }], 'no late candidate or endpoint send');
+        assert.equal(adapter.preparations, 1);
+        assert.equal(adapter.dispatches, 1);
+        assert.equal(recoveries, 0, 'cancellation must not invoke recovery');
+        assert.equal(adapter.signals[0].aborted, true, 'public Agent cancellation must abort request signal');
+        assert.equal(events.filter(event => event.type === 'llm/retry' || event.type === 'assistant/message' || event.type.startsWith('tool/')).length, 0);
+        assert.equal(events.at(-1).type, 'turn/end');
+        assert.equal(events.at(-1).data.reason.kind, 'aborted');
+      });
+    }
+  }
   await scenario('normal middleware does not retry a nonretryable failure', {
     retry: true, mode: 'normal', failure: { message: 'Synthetic authentication failure', code: 'AUTH' },
   }, ({ state, adapter, events }) => {
