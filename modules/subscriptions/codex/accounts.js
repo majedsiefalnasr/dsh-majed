@@ -8,7 +8,7 @@ const publicAccount = account => ({ id: account.id, label: account.session.label
 export function createCodexAccounts({ path, fetch: fetchFn = globalThis.fetch, ports, timeoutMs, now = Date.now } = {}) {
   if (!path) throw fail('account_store_required');
   const store = createPrivateStore(path), flow = new OAuthFlowManager(), refreshes = new Map();
-  let current, state = 'disconnected', disposed = false, starting, disposing = false;
+  let current, state = 'disconnected', disposed = false, starting, disposing = false, loginGeneration = 0;
   const lifecycle = new AbortController();
   const controllers = new Set();
   const listeners = new Set();
@@ -21,9 +21,17 @@ export function createCodexAccounts({ path, fetch: fetchFn = globalThis.fetch, p
   }
   async function begin() {
     live(); if (current || starting) throw fail('login_pending');
+    const generation = loginGeneration;
     starting = flow.start('codex', { ...codexFlow, ...(timeoutMs ? { timeoutMs } : {}), listen: { ...codexFlow.listen, ...(ports ? { ports } : {}) } });
     let attempt;
     try { attempt = await starting; } finally { starting = undefined; }
+    if (generation !== loginGeneration || disposing || disposed) {
+      // Cancellation can arrive before the asynchronous loopback listeners bind.
+      // Observe rejection before closing; never publish this attempt or exchange.
+      const closed = attempt.waitCode().catch(() => {});
+      attempt.cancel(); await closed;
+      return { state: 'cancelled' };
+    }
     const controller = new AbortController(); controllers.add(controller);
     const entry = { attempt, controller, cancelled: false }; current = entry; state = 'pending';
     entry.done = (async () => {
@@ -56,8 +64,9 @@ export function createCodexAccounts({ path, fetch: fetchFn = globalThis.fetch, p
     return snapshot();
   }
   async function cancel() {
-    live(); const entry = current;
+    live(); ++loginGeneration; const entry = current, opening = starting;
     state = 'cancelled';
+    if (opening) await opening.catch(() => {});
     if (entry) { entry.cancelled = true; entry.controller.abort(); entry.attempt.cancel(); await entry.done; }
     return snapshot();
   }
