@@ -66,8 +66,9 @@ export function createManagedMcpService(ctx, options = {}) {
     // Re-read definitions are untrusted too. A private file is not authority to
     // start a project process outside its currently canonical project root.
     const prepared = await Promise.all(validateServers(servers).map(row => row.enabled ? validateCwd(row, record.root) : row));
+    if (disposed) deny('unavailable');
     if (record.manager) await record.manager.replace(prepared);
-    for (const value of agents.values()) if (value.root === record.root) await value.manager.replace(prepared);
+    for (const value of agents.values()) if (value.root === record.root) { if (disposed) deny('unavailable'); await value.manager.replace(prepared); }
   }
   async function attachAgent(agent) {
     if (disposed || agents.has(agent) || !agent.ctx) return;
@@ -80,7 +81,9 @@ export function createManagedMcpService(ctx, options = {}) {
     const manager = createMcpManager(agent.ctx, () => loadMcpClient(ctx), ctx), record = scopeRecord(scope.projectPath);
     agents.set(agent, { root: scope.projectPath, manager });
     const rows = validateServers((await record.store.read()).servers);
-    await manager.replace(await Promise.all(rows.map(row => row.enabled ? validateCwd(row, scope.projectPath) : row)));
+    const prepared = await Promise.all(rows.map(row => row.enabled ? validateCwd(row, scope.projectPath) : row));
+    if (disposed) deny('unavailable');
+    await manager.replace(prepared);
   }
   // Public scoped agent contexts own project tool registrations; no global
   // project tool is hidden after registration or authorized by a UI label.
