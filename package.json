@@ -47,7 +47,8 @@
     "README.md",
     "LICENSE",
     "CHANGELOG.md",
-    "THIRD_PARTY_NOTICES.md"
+    "THIRD_PARTY_NOTICES.md",
+    "modules/**/*"
   ],
   "dsh": {
     "engines": {
@@ -77,11 +78,14 @@
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.5",
-    "@testing-library/user-event": "14.6.1",
     "@deepseek-ai/dsh-mcp-client": "0.0.1-rc.1",
+    "@testing-library/user-event": "14.6.1",
     "jsdom": "26.1.0",
     "react": "19.2.0",
     "react-dom": "19.2.0"
   },
-  "icon": "icon.svg"
+  "icon": "icon.svg",
+  "dependencies": {
+    "fflate": "0.8.3"
+  }
 }
