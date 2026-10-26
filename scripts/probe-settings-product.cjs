@@ -14,8 +14,9 @@ assert.equal(process.cwd(), process.env.HOME);
 assert.equal(process.env.DSH_HOME, process.env.HOME);
 assert.ok(basename(process.cwd()).startsWith('dsh-physical-carrier-'));
 const [base, deps, remoteFile, ...flags] = process.argv.slice(2);
-assert.ok(flags.every(x => ['--red-result', '--red-correlation', '--red-membership', '--codex', '--approval'].includes(x)));
-const codexProbe = flags.includes('--codex');
+assert.ok(flags.every(x => ['--red-result', '--red-correlation', '--red-membership', '--codex', '--codex-direct', '--approval'].includes(x)));
+const codexDirect = flags.includes('--codex-direct');
+const codexProbe = flags.includes('--codex') || codexDirect;
 const approvalProbe = flags.includes('--approval');
 const dependencyRequire = createRequire(join(deps, '..', '__probe.cjs'));
 const req = name => dependencyRequire(join(deps, name));
@@ -231,22 +232,41 @@ async function main() {
     const { apply: settingsHost } = await import('../lib/management/settings.js');
     let endpointFiber;
     const mountEndpoint = async () => {
+      if (codexDirect) return;
       if (!approvalProbe) return mount({ apply: settingsHost });
       const { apply: productHost } = await import('../index.js');
       return mount({ apply: context => productHost(context, { hooksApproval: { enabled: true, userDirectory: process.cwd(), stateDirectory: join(process.cwd(), 'approval-state') } }) });
     };
     endpointFiber = await mountEndpoint();
     let codexFiber, codexMount, codexGrantCount = 0;
+    let directLlm, directCalls = [];
     if (codexProbe) {
       const { applyCodexAccounts } = await import('../modules/subscriptions/codex/native.js');
+      const { apply: productHost } = codexDirect ? await import('../index.js') : {};
+      if (codexDirect) { await mount(hostLoad('dsh-llm').LlmRuntime); directLlm = host.get('llm'); }
       const idToken = 'header.' + Buffer.from(JSON.stringify({ email: 'fixture@example.test', 'https://api.openai.com/auth': { chatgpt_account_id: 'fixture-workspace' } })).toString('base64url') + '.signature';
-      codexMount = () => mount({ apply(context) { applyCodexAccounts(context, {
+      codexMount = async () => {
+        const configuration = {
         path: join(process.cwd(), 'codex-auth.json'), ports: [0], fetch: async (url, init) => {
+          if (codexDirect && url.startsWith('https://chatgpt.com/backend-api/codex/models')) return Response.json({ models: [{
+            slug: 'fixture-codex', display_name: 'Fixture Codex', context_window: 120000, max_context_window: 200000,
+            supported_reasoning_levels: [{ effort: 'low' }, { effort: 'high' }], default_reasoning_level: 'high', service_tiers: [{ id: 'priority' }],
+          }] });
+          if (codexDirect && url === 'https://chatgpt.com/backend-api/codex/responses') {
+            directCalls.push(JSON.parse(init.body));
+            assert.equal(init.headers.authorization, 'Bearer fixture-access'); assert.equal(init.headers['chatgpt-account-id'], 'fixture-workspace');
+            return new Response('data: ' + JSON.stringify({ type: 'response.output_text.delta', item_id: 'fixture-message', content_index: 0, delta: 'Native Codex response' }) + '\n\n'
+              + 'data: ' + JSON.stringify({ type: 'response.completed', response: { usage: { input_tokens: 7, output_tokens: 2 }, output: [] } }) + '\n\n', { headers: { 'content-type': 'text/event-stream' } });
+          }
           assert.equal(url, 'https://auth.openai.com/oauth/token'); codexGrantCount++;
           assert.ok(init.body.includes(codexGrantCount === 1 ? 'authorization_code' : 'refresh_token'));
           return Response.json({ access_token: 'fixture-access', refresh_token: 'fixture-refresh', expires_in: 3600, id_token: idToken });
         },
-      }); } });
+        };
+        const fiber = await mount({ apply(context) { if (codexDirect) productHost(context, { codexAccounts: configuration }); else applyCodexAccounts(context, configuration); } });
+        if (codexDirect) endpointFiber = fiber;
+        return fiber;
+      };
       codexFiber = await codexMount();
     }
     const carrier = async (input, init) => {
@@ -422,12 +442,42 @@ async function main() {
       await codexClick('status'); assert.match(codexText(), /Account management is disabled/);
       await codexClick('enable'); assert.match(codexText(), /fixture@example.test/);
       await codexClick('refresh'); assert.equal(codexGrantCount, 2);
+      if (codexDirect) {
+        checkpoint = 'codex-native-direct';
+        assert.equal(directLlm.listProviders().length, 0, 'Login does not enable providers');
+        await codexClick('runtime');
+        assert.equal(directLlm.listProviders()[0].id, 'codex');
+        assert.match(codexText(), /Fixture Codex/);
+        const { createUserMessage } = hostLoad('dsh-llm');
+        const picker = load('dsh-client-ui-model-selection', { ...shared, '@deepseek-ai/dsh-client-ui-primitives': primitives });
+        const models = await directLlm.listModels('codex');
+        const initialSelection = { provider: 'codex', model: models[0].id };
+        const projected = stores.createSnapshotStore({ next: initialSelection });
+        const catalogValue = { groups: [{ id: 'codex', name: 'Codex (Subscription)', models: await Promise.all(models.map(async model => ({ ...model, ...(await directLlm.resolveModelInfo('codex', model.id)) }))) }], failures: [], default: initialSelection };
+        const catalog = { store: stores.createSnapshotStore({ value: catalogValue, status: 'ready', error: null }), load: async () => catalogValue,
+          reasoningFor: selection => catalogValue.groups[0].models.find(model => model.id === selection.model)?.reasoning };
+        const directory = new picker.ModelDirectory({ async selectModel({ sessionId, ...next }) { assert.equal(sessionId, 'fixture-direct-session'); projected.set({ next }); return { ok: true }; } },
+          'fixture-direct-session', () => true, catalog, projected, () => true);
+        try {
+          await directory.load(); await directory.select({ provider: 'codex', model: 'fixture-codex', reasoningEffort: 'low' });
+          const selection = directory.store.getSnapshot().current;
+          assert.equal(selection.model, 'fixture-codex');
+          const prepared = await directLlm.prepareCall(selection);
+          assert.equal(prepared.context.contextWindow, 120000);
+          const chunks = [];
+          for await (const chunk of prepared.stream({ ...prepared.config, messages: [createUserMessage({ content: [{ type: 'text', text: 'Controlled native request' }], source: { kind: 'user' } })] })) chunks.push(chunk);
+          assert.equal(chunks.filter(chunk => chunk.type === 'text-delta').map(chunk => chunk.text).join(''), 'Native Codex response');
+          assert.equal(chunks.at(-1).reason.kind, 'stop'); assert.equal(directCalls.length, 1); assert.equal(directCalls[0].reasoning.effort, 'low');
+          await codexClick('runtime'); assert.equal(directLlm.listProviders().length, 0);
+          await codexClick('runtime'); assert.equal(directLlm.listProviders().length, 1);
+        } finally { directory.dispose(); }
+      }
       pairingCookie = ''; await codexClick('status'); assert.match(codexText(), /Account operation failed/);
       pairingCookie = 'synthetic-device=synthetic-live'; await codexClick('status'); assert.match(codexText(), /Account connected/);
       remoteMode = false; document.head.innerHTML = `<base href="${inner.getOrigin()}/">`;
       browserCookie = ''; await codexClick('status'); assert.match(codexText(), /Account operation failed/);
       browserCookie = cookie; await codexClick('status'); assert.match(codexText(), /Account connected/);
-      await codexFiber.dispose();
+      if (!codexDirect) await codexFiber.dispose();
     }
     const post = { method: 'POST', headers: { 'content-type': 'application/json', cookie }, body: JSON.stringify({ type: 'client-request', rpcId: 'scoped', method: 'majed/settings/status', payload: { module: 'skills', ...selectors } }) };
     const scoped = await physicalFetch(inner.getOrigin() + endpoint, post);
@@ -452,10 +502,10 @@ async function main() {
       checks: ['actual production bundle mounted in native Settings; readiness enable + isolated module status',
         'production Fetch route over actual local and remote-prefixed HTTP using native RPC envelope',
         'local cookie and remote pairing denial; CSRF; body/method limits; authentic session/workspace membership',
-        'endpoint and mounted client disposed', ...(codexProbe ? ['Codex native mounted Settings enable/login/manual callback/protected temporary persistence/restart/refresh; local and paired-remote denial'] : []), ...(approvalProbe ? ['Command Approval production entry/native React Settings/native RPC over actual local/paired HTTP: user/project save/review/exact phrase/approve/revoke, persisted restart, Arabic RTL, authentication denial'] : [])],
+        'endpoint and mounted client disposed', ...(codexProbe ? ['Codex native mounted Settings enable/login/manual callback/protected temporary persistence/restart/refresh; local and paired-remote denial'] : []), ...(codexDirect ? ['Production Codex runtime activation, native ModelDirectory selection from actual adapter metadata, native prepared direct stream, disable/re-enable without duplicate registration'] : []), ...(approvalProbe ? ['Command Approval production entry/native React Settings/native RPC over actual local/paired HTTP: user/project save/review/exact phrase/approve/revoke, persisted restart, Arabic RTL, authentication denial'] : [])],
       limitations: ['jsdom, explicit presentation primitives and locale adapters: NOT browser layout/focus/theme or live proof',
         'synthetic credentials/pairing/memory storage only; no installed state or operational auth',
-        ...(codexProbe ? ['Codex fixture transport only; no real account login or model dispatch; no browser visual proof'] : []), ...(approvalProbe ? ['Command consent only; no execution, operational state or browser layout proof'] : []), ...(!codexProbe && !approvalProbe ? ['readiness only; no feature operations'] : [])] };
+        ...(codexProbe ? ['Codex fixture transport only; no real account login or live model dispatch; no browser visual proof'] : []), ...(codexDirect ? ['Native ModelDirectory uses fixture session projection and catalog projection from actual registered LLM metadata; no live session or browser picker geometry claim'] : []), ...(approvalProbe ? ['Command consent only; no execution, operational state or browser layout proof'] : []), ...(!codexProbe && !approvalProbe ? ['readiness only; no feature operations'] : [])] };
   } finally {
     const cleanupErrors = [];
     const clean = async callback => { try { await callback(); } catch (error) { cleanupErrors.push(error); } };

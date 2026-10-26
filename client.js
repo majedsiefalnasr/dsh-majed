@@ -197,23 +197,78 @@ window.__ModuleLoader__.load({
       'codex.title': 'Codex account', 'codex.enable': 'Enable account management', 'codex.disable': 'Disable account management',
       'codex.begin': 'Connect Codex', 'codex.complete': 'Complete login', 'codex.callback': 'Paste the full callback URL', 'codex.cancel': 'Cancel login',
       'codex.open': 'Open Codex sign-in', 'codex.status': 'Refresh account status', 'codex.refresh': 'Refresh credentials', 'codex.remove': 'Remove account', 'codex.default': 'Use by default',
-      'codex.description': 'Enable account management to connect and retain Codex credentials privately on this host. This does not activate model dispatch or Auto routing.',
+      'codex.description': 'Enable account management to connect and retain Codex credentials privately on this host. Enable Codex models separately to use direct chat. Login never enrolls Auto candidates.',
       'codex.pending': 'Waiting for sign-in. Open the link on the host, or paste the full callback URL here from a remote device.',
       'codex.disconnected': 'No Codex account connected.', 'codex.connected': 'Account connected.', 'codex.disabled': 'Account management is disabled.',
       'codex.failed': 'Login failed or expired. Try connecting again.', 'codex.cancelled': 'Login cancelled.', 'codex.reauthentication_required': 'Sign in again to reconnect this account.',
       'codex.error': 'Account operation failed. Refresh status or reconnect. No credential details are displayed.', 'codex.working': 'Working…',
+      'codex.modelsEnable': 'Enable Codex models', 'codex.modelsDisable': 'Disable Codex models', 'codex.catalog': 'Refresh model catalog',
+      'codex.model': 'Model', 'codex.modelName': 'Display name', 'codex.hidden': 'Hide from picker', 'codex.effort': 'Default reasoning effort', 'codex.providerDefault': 'Provider default',
+      'codex.context': 'Context budget (tokens)', 'codex.speed': 'Speed', 'codex.standard': 'Standard', 'codex.fast': 'Fast', 'codex.saveModel': 'Save model settings',
+      'codex.independent': 'Show an independent account entry', 'codex.alias': 'Account alias', 'codex.saveAccount': 'Save account settings',
+      'codex.manualId': 'Manual model ID', 'codex.addManual': 'Add manual model', 'codex.providerCatalog': 'Use provider catalog',
+      'codex.manualNote': 'Manual catalogs use only the models you add. Omitted capabilities remain unknown.',
     });
     Object.assign(managementAr, {
       'codex.title': 'حساب Codex', 'codex.enable': 'تفعيل إدارة الحساب', 'codex.disable': 'تعطيل إدارة الحساب',
       'codex.begin': 'ربط Codex', 'codex.complete': 'إكمال تسجيل الدخول', 'codex.callback': 'ألصق رابط العودة الكامل', 'codex.cancel': 'إلغاء تسجيل الدخول',
       'codex.open': 'فتح تسجيل دخول Codex', 'codex.status': 'تحديث حالة الحساب', 'codex.refresh': 'تحديث بيانات الاعتماد', 'codex.remove': 'إزالة الحساب', 'codex.default': 'استخدامه افتراضيًا',
-      'codex.description': 'فعّل إدارة الحساب لربط بيانات اعتماد Codex وحفظها بخصوصية على هذا المضيف. لا يؤدي ذلك إلى تفعيل إرسال الطلبات للنماذج أو التوجيه التلقائي.',
+      'codex.description': 'فعّل إدارة الحساب لربط بيانات اعتماد Codex وحفظها بخصوصية على هذا المضيف. فعّل نماذج Codex بشكل منفصل للمحادثة المباشرة. لا يُدرج تسجيل الدخول الحساب في التوجيه التلقائي.',
       'codex.pending': 'بانتظار تسجيل الدخول. افتح الرابط على المضيف أو ألصق رابط العودة الكامل هنا من جهاز بعيد.',
       'codex.disconnected': 'لا يوجد حساب Codex متصل.', 'codex.connected': 'الحساب متصل.', 'codex.disabled': 'إدارة الحساب معطلة.',
       'codex.failed': 'فشل تسجيل الدخول أو انتهت مهلته. حاول الربط مجددًا.', 'codex.cancelled': 'تم إلغاء تسجيل الدخول.', 'codex.reauthentication_required': 'سجّل الدخول مجددًا لإعادة ربط هذا الحساب.',
       'codex.error': 'فشلت عملية الحساب. حدّث الحالة أو أعد الربط. لا تُعرض تفاصيل بيانات الاعتماد.', 'codex.working': 'جارٍ التنفيذ…',
+      'codex.modelsEnable': 'تفعيل نماذج Codex', 'codex.modelsDisable': 'تعطيل نماذج Codex', 'codex.catalog': 'تحديث قائمة النماذج',
+      'codex.model': 'النموذج', 'codex.modelName': 'اسم العرض', 'codex.hidden': 'إخفاء من محدد النماذج', 'codex.effort': 'جهد الاستدلال الافتراضي', 'codex.providerDefault': 'افتراضي المزود',
+      'codex.context': 'ميزانية السياق (رموز)', 'codex.speed': 'السرعة', 'codex.standard': 'قياسية', 'codex.fast': 'سريعة', 'codex.saveModel': 'حفظ إعدادات النموذج',
+      'codex.independent': 'إظهار إدخال مستقل للحساب', 'codex.alias': 'اسم الحساب المستعار', 'codex.saveAccount': 'حفظ إعدادات الحساب',
+      'codex.manualId': 'معرّف النموذج اليدوي', 'codex.addManual': 'إضافة نموذج يدوي', 'codex.providerCatalog': 'استخدام قائمة المزود',
+      'codex.manualNote': 'تستخدم القائمة اليدوية النماذج التي تضيفها فقط. تظل القدرات غير المحددة مجهولة.',
     });
     Object.assign(en, managementEn);
+
+    function CodexModelSettings({ runtime, call, busy, t }) {
+      const models = [...new Map((runtime.catalogs || []).flatMap(c => c.models).map(model => [model.id, model])).values()];
+      const [selected, setSelected] = React.useState(models[0]?.id || '');
+      const [name, setName] = React.useState(''), [hidden, setHidden] = React.useState(false), [effort, setEffort] = React.useState('');
+      const [context, setContext] = React.useState(''), [speed, setSpeed] = React.useState('standard');
+      const [manualId, setManualId] = React.useState(''), [manualName, setManualName] = React.useState('');
+      const model = models.find(model => model.id === selected);
+      const pref = runtime.preferences?.models?.[selected];
+      React.useEffect(() => {
+        setName(pref?.name || ''); setHidden(!!pref?.hidden); setEffort(pref?.defaultEffort || '');
+        setContext(pref?.contextWindow || ''); setSpeed(pref?.speed || 'standard');
+      }, [selected, JSON.stringify(pref)]);
+      const field = (label, element) => h('label', null, t('codex.' + label), element);
+      return h('div', null,
+        models.length > 0 && h('form', { className: 'majed-codex-form', 'data-codex-model-settings': true, onSubmit: event => {
+          event.preventDefault(); call('configure', { settings: { model: selected, name, hidden, defaultEffort: effort || null, contextWindow: context ? Number(context) : null, speed } });
+        } },
+        field('model', h('select', { value: selected, onChange: event => setSelected(event.target.value) }, ...models.map(model => h('option', { key: model.id, value: model.id }, model.name || model.id)))),
+        field('modelName', h('input', { value: name, maxLength: 128, onChange: event => setName(event.target.value) })),
+        field('hidden', h('input', { type: 'checkbox', checked: hidden, onChange: event => setHidden(event.target.checked) })),
+        field('effort', h('select', { value: effort, onChange: event => setEffort(event.target.value) }, h('option', { value: '' }, t('codex.providerDefault')),
+          ...(model?.reasoning?.efforts || []).map(e => h('option', { key: e.id, value: e.id }, e.name)))),
+        field('context', h('input', { type: 'number', min: 1, max: model?.maxContextWindow || model?.contextWindow, value: context, placeholder: model?.contextWindow ? String(model.contextWindow) : '', onChange: event => setContext(event.target.value) })),
+        field('speed', h('select', { value: speed, onChange: event => setSpeed(event.target.value) }, h('option', { value: 'standard' }, t('codex.standard')), model?.fastTier && h('option', { value: 'fast' }, t('codex.fast')))),
+        h('button', { type: 'submit', className: 'majed-management-refresh', disabled: busy }, t('codex.saveModel'))),
+        h('form', { className: 'majed-codex-form', onSubmit: event => {
+          event.preventDefault(); if (!manualId) return;
+          const current = runtime.preferences?.manualModels || [];
+          call('configure', { settings: { manualModels: [...current.filter(m => m.id !== manualId), { id: manualId, name: manualName || manualId }] } });
+        } }, h('p', null, t('codex.manualNote')),
+        field('manualId', h('input', { value: manualId, maxLength: 512, onChange: event => setManualId(event.target.value) })),
+        field('modelName', h('input', { value: manualName, maxLength: 128, onChange: event => setManualName(event.target.value) })),
+        h('button', { type: 'submit', className: 'majed-management-refresh', disabled: busy || !manualId }, t('codex.addManual')),
+        h('button', { type: 'button', className: 'majed-management-refresh', disabled: busy, onClick: () => call('configure', { settings: { manualModels: null } }) }, t('codex.providerCatalog'))));
+    }
+    function CodexAccountSettings({ account, preferences, call, busy, t }) {
+      const [alias, setAlias] = React.useState(preferences?.alias || ''), [independent, setIndependent] = React.useState(!!preferences?.independentEntry);
+      return h('form', { className: 'majed-codex-form', onSubmit: event => { event.preventDefault(); call('configure', { settings: { account: account.id, alias, independentEntry: independent } }); } },
+        h('label', null, t('codex.alias'), h('input', { value: alias, maxLength: 128, onChange: event => setAlias(event.target.value) })),
+        h('label', null, h('input', { type: 'checkbox', checked: independent, onChange: event => setIndependent(event.target.checked) }), t('codex.independent')),
+        h('button', { type: 'submit', className: 'majed-management-refresh', disabled: busy }, t('codex.saveAccount')));
+    }
 
     function CodexAccountsSection({ ctx, t }) {
       const [value, setValue] = React.useState({ enabled: false, state: 'disabled', accounts: [] });
@@ -244,6 +299,9 @@ window.__ModuleLoader__.load({
       return h('div', { 'data-majed-codex': true, dir: t('management.direction') },
         h('h3', null, t('codex.title')), h('p', null, t('codex.description')),
         h('div', { className: 'majed-management-controls' }, button('enable', value.enabled ? 'disable' : 'enable', { enabled: !value.enabled }), button('status', 'status')),
+        value.enabled && h('div', { className: 'majed-management-controls' }, button('runtime', value.runtimeEnabled ? 'modelsDisable' : 'modelsEnable', { enabled: !value.runtimeEnabled }, !value.runtimeAvailable),
+          value.runtimeEnabled && button('catalog', 'catalog')),
+        value.runtimeEnabled && value.runtime && h(CodexModelSettings, { runtime: value.runtime, call, busy, t }),
         value.enabled && h('div', { className: 'majed-management-controls' }, button('begin', 'begin', {}, pending),
           pending && button('cancel', 'cancel')),
         pending && h('div', null, authorizeUrl && h('a', { href: authorizeUrl, target: '_blank', rel: 'noreferrer noopener' }, t('codex.open')),
@@ -252,7 +310,8 @@ window.__ModuleLoader__.load({
         h('p', { role: failure ? 'alert' : 'status', 'aria-live': 'polite' }, t('codex.' + (failure ? 'error' : busy ? 'working' : status))),
         ...(value.accounts || []).map(account => h('div', { key: account.id }, h('p', null, account.label),
           h('p', null, t('codex.' + account.state)), h('div', { className: 'majed-management-controls' },
-            button('refresh', 'refresh', { account: account.id }), button('default', 'default', { account: account.id }, account.default), button('remove', 'remove', { account: account.id })))));
+            button('refresh', 'refresh', { account: account.id }), button('default', 'default', { account: account.id }, account.default), button('remove', 'remove', { account: account.id })),
+          value.runtimeEnabled && h(CodexAccountSettings, { account, preferences: value.runtime?.preferences?.accounts?.[account.id], call, busy, t }))));
     }
 
     const approvalLabels = {
@@ -364,6 +423,9 @@ window.__ModuleLoader__.load({
 .majed-management__title{margin:0 0 .5em 0;font:var(--dsw-font-s-18);color:var(--dsw-alias-label-primary)}
 .majed-management p{margin-block:1em}
 .majed-management-controls{display:flex;flex-wrap:wrap;align-items:center;gap:1em}
+.majed-codex-form{display:grid;gap:.75em;margin-block:1em;min-width:0}
+.majed-codex-form label{display:flex;flex-wrap:wrap;align-items:center;gap:.5em;min-width:0}
+.majed-codex-form input,.majed-codex-form select{max-width:100%;min-width:0;font:inherit;color:inherit;background:var(--dsw-alias-bg-module-platform);border:1px solid var(--dsw-alias-border-l2)}
 .majed-management-refresh{font:inherit;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-module-platform);border:1px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md);padding:.5em 1em;white-space:normal}
 .majed-management-refresh:focus-visible{outline:2px solid var(--dsw-alias-label-primary);outline-offset:2px}
 .majed-management-refresh[aria-disabled="true"]{opacity:.5}

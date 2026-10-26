@@ -1,0 +1,36 @@
+{
+  "repository": "https://github.com/V1ki/dsh-plugin-subscriptions",
+  "commit": "9930c5ee5e3fa239db9031f47a0f6f30f7ffc443",
+  "version": "0.9.9",
+  "artifactSha256": "3dc136bff0a5e42be6dcfd12afb3a2a87719cf4bd2c4a977bba0dc08e6bf9b6d",
+  "files": [
+    {
+      "source": "lib/compat.js",
+      "sha256": "67ed1d15101612f88729fdad6848285fdbdde9ba8d07b16ce191fef7078d2e75"
+    },
+    {
+      "source": "lib/providers/codex.js",
+      "sha256": "4ee8650d6f6f6f556fdf8635a05041b7fccf805c56b8ddbd541a94434a4a0d77"
+    },
+    {
+      "source": "lib/providers/common.js",
+      "sha256": "3eec82f47976fa57403075e55b7d15c6090cf96bdc32c1fba97e61f4baba6666"
+    },
+    {
+      "source": "lib/providers/rate-limit.js",
+      "sha256": "0f092ad158bafa4505a3b72d819806cf581f925220d65a59eca8d31ebab82e9d"
+    },
+    {
+      "source": "lib/translate/responses.js",
+      "sha256": "f77f3a4a4ea4a7d5982978c314a7c5869fc3815299f5901bdcb97945fdbc7810"
+    },
+    {
+      "source": "lib/translate/resolved.js",
+      "sha256": "3cf4872062ba28aafebd38b52923ed33e9a726b7623e96edbf34a956caeb1783"
+    },
+    {
+      "source": "lib/translate/sse.js",
+      "sha256": "304b03ec6df90053361d781c9821089254da13b3e33e56e02afb2ebbaab17e1b"
+    }
+  ]
+}

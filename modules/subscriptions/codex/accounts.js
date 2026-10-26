@@ -11,6 +11,8 @@ export function createCodexAccounts({ path, fetch: fetchFn = globalThis.fetch, p
   let current, state = 'disconnected', disposed = false, starting, disposing = false;
   const lifecycle = new AbortController();
   const controllers = new Set();
+  const listeners = new Set();
+  const changed = () => { for (const listener of listeners) listener(); };
   function live() { if (disposed || disposing) throw fail('service_disposed'); }
   async function snapshot() {
     live(); const data = await store.load();
@@ -37,7 +39,7 @@ export function createCodexAccounts({ path, fetch: fetchFn = globalThis.fetch, p
           if (index < 0) data.accounts.push(record); else data.accounts[index] = record;
           data.default ||= id;
         }, { signal: controller.signal });
-        if (!entry.cancelled && !disposing && !disposed) state = 'connected';
+        if (!entry.cancelled && !disposing && !disposed) { state = 'connected'; changed(); }
       } catch { if (current === entry) state = entry.cancelled ? 'cancelled' : 'failed'; }
       finally { controllers.delete(controller); if (current === entry) current = undefined; }
     })();
@@ -72,10 +74,10 @@ export function createCodexAccounts({ path, fetch: fetchFn = globalThis.fetch, p
           if (!disposed && record?.revision === old.revision) Object.assign(record, { session, revision: randomUUID(), state: 'connected' });
         }, { signal: lifecycle.signal });
       } catch (error) {
-        if (!disposed && !disposing && error.code === 'reauthentication_required') await store.transaction(data => {
+        if (!disposed && !disposing && error.code === 'reauthentication_required') { await store.transaction(data => {
           const record = data.accounts.find(a => a.id === id);
           if (record?.revision === old.revision) { record.state = 'reauthentication_required'; record.revision = randomUUID(); }
-        }, { signal: lifecycle.signal });
+        }, { signal: lifecycle.signal }); changed(); }
         throw fail(error.code === 'reauthentication_required' ? error.code : 'refresh_failed');
       }
       return snapshot();
@@ -88,7 +90,20 @@ export function createCodexAccounts({ path, fetch: fetchFn = globalThis.fetch, p
       if (!data.accounts.some(a => a.id === id)) throw fail('account_not_found');
       if (remove) { data.accounts = data.accounts.filter(a => a.id !== id); if (data.default === id) data.default = data.accounts[0]?.id || null; }
       else data.default = id;
-    }, { signal: lifecycle.signal }); return snapshot();
+    }, { signal: lifecycle.signal }); changed(); return snapshot();
+  }
+  // Host-only runtime seam. These credentials never enter management snapshots.
+  async function session(id, { force = false, signal } = {}) {
+    live(); signal?.throwIfAborted();
+    let data = await store.load(); const key = id || data.default;
+    let account = data.accounts.find(a => a.id === key);
+    if (!account || account.state !== 'connected') throw fail('reauthentication_required');
+    if (force || account.session.expiresAt - now() < 300000) {
+      await refresh(key); data = await store.load(); account = data.accounts.find(a => a.id === key);
+    }
+    live(); signal?.throwIfAborted();
+    if (!account || account.state !== 'connected') throw fail('reauthentication_required');
+    return structuredClone(account.session);
   }
   async function dispose() {
     if (disposed || disposing) return;
@@ -98,6 +113,9 @@ export function createCodexAccounts({ path, fetch: fetchFn = globalThis.fetch, p
     disposed = true;
     for (const controller of controllers) controller.abort();
     await Promise.allSettled([...refreshes.values()]);
+    listeners.clear();
   }
-  return { snapshot, begin, complete, cancel, refresh, remove: id => mutate(id, true), setDefault: id => mutate(id, false), dispose };
+  return { snapshot, begin, complete, cancel, refresh, session,
+    subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
+    remove: id => mutate(id, true), setDefault: id => mutate(id, false), dispose };
 }
