@@ -68,13 +68,9 @@ export function apply(ctx) {
       const notify = () => {
         for (const invalidate of invalidators) invalidate();
         owner.emit('commands/change');
-        // rc.3's native '/' source caches by session and listens to this event.
-        // Refresh its session key without writing a preset event or changing
-        // composition. Undefined preserves a session with no explicit selection.
-        for (const session of owner.get('sessions')?.list() ?? []) {
-          const preset = session.header?.agentPreset;
-          owner.emit('agent-preset/selected', session.header.id, preset);
-        }
+        // Native rc.3's slash source does not listen to this truthful catalog
+        // event. Keep that cache-refresh seam explicitly unresolved; do not
+        // manufacture preset-selection/plugin-lifecycle notifications.
       };
       const handler = createHandler({ emit: notify }, core);
       const result = await handler(new Request('http://localhost/api/dsh-majed/skills' + (action === 'list' ? '?projectCwds=' + encodeURIComponent(projectCwds.join(',')) : ''), {

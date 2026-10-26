@@ -10,7 +10,7 @@ The serialized service rejects caller paths and resolves session/workspace selec
 
 Policy and trash now live under `DSH_HOME/majed/skills`, without reading or writing the reference-owned `skills-manager` store. Private directory/file modes are 0700/0600; writes use exclusive temporary files and atomic rename. Private-store and writable user-root symlinks reject. Source files retain their original invocation frontmatter. Manager enable restores source policy rather than granting invocation that the source denies. The original 1.2.6 `override === true` branch granted both flags; the new native consumer test failed before that branch was removed.
 
-Native registry controls invalidate after successful mutations. The unchanged rc.3 slash source caches by session and listens to `agent-preset/selected`, not `commands/change`; the compatibility notification refreshes each current session key without appending a preset-selection event or changing its composition. Default sessions without a legacy preset header also receive this refresh. Disabling the feature disposes its owned provider.
+Native registry controls invalidate after successful mutations. The unchanged rc.3 slash source caches by session and listens to preset-selection/plugin-lifecycle/reset events, not `commands/change` or Skills catalog changes. No supported direct invalidator is exposed by that source. The production service does not manufacture those unrelated events: the warmed slash cache therefore remains stale, even though the actual native model tool and current SessionSkillCatalog immediately enforce policy. Disabling the feature disposes its owned provider.
 
 ## Verification
 
@@ -20,7 +20,7 @@ Run the opt-in exact-host fixture with the existing approved `DSH_PROBE_NODE`, `
 
 ```sh
 node scripts/test-skills-product.mjs
-node scripts/test-skills-product.mjs --red-invalidation
+node scripts/test-skills-product.mjs --require-slash-refresh
 node scripts/test-skills-product.mjs --red-membership
 ```
 
@@ -28,7 +28,7 @@ Positive fixture: DSH **0.2.1-rc.3**, Electron Node **24.21.0**. Actual producti
 
 The fixture exercises actual Settings enable/create/toggle/trash/restore, actual native filesystem/SkillRegistry discovery, native ToolRuntime plus `dsh-tool-skill` execution/denial, and the unchanged native browser slash source backed by the unchanged `SessionSkillCatalog`. It covers duplicate-source project priority and disabled fallback, independent source invocation flags, scope/path rejection, collision/traversal/symlink escape, private modes, unchanged source, service restart and disposal. All owned listeners and public watcher handles close. Watcher counts vary with native filesystem event timing; the runner checks every captured handle rather than asserting one incidental count.
 
-Both sensitivity controls fail at the intended assertions: suppressing catalog-refresh delivery leaves the warmed slash menu visible after disable; detaching native workspace membership rejects the expected project request. Each failing run still closes all captured watchers/listeners. The original slash-cache assertion was red before the default-session invalidation fix.
+The required slash-refresh probe fails at its original assertion: the warmed menu remains visible after disable. This is an unmet criterion, not a successful compatibility workaround. The membership sensitivity control also fails at its intended project acceptance assertion. Both failing runs close all captured watchers/listeners.
 
 ## Remaining acceptance boundaries
 
