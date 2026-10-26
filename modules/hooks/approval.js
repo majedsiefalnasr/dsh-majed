@@ -87,7 +87,7 @@ export function applyCommandApproval(ctx, options = {}) {
   const now = options.now || Date.now;
   const directory = resolve(options.stateDirectory || join(process.env.DSH_HOME || join(homedir(), '.dsh'), 'majed', 'hooks'));
   const store = privateStore(directory);
-  async function operation(owner, input, signal) {
+  async function operation(owner, input, signal, receivedAt) {
     if (!enabled) return { enabled: false, executionAvailable: false, hooks: [] };
     if (disposed) reject('unavailable');
     if (!only(input, ['action', 'scope', 'sessionId', 'workspaceId', 'hook', 'id', 'nonce', 'phrase'])) reject('invalid_request');
@@ -157,7 +157,7 @@ export function applyCommandApproval(ctx, options = {}) {
         approvalExpiresAt = challenge.expiresAt;
         const review = await reviewEntry(entry);
         if (challenge.revision !== observed.revision || challenge.fingerprint !== review.fingerprint) reject('state_changed');
-        entry.approval = { fingerprint: review.fingerprint, receivedAt: now(), origin: 'unknown' };
+        entry.approval = { fingerprint: review.fingerprint, receivedAt, origin: 'unknown' };
       } else if (input.action === 'revoke') { entry.approval = null; pending.delete(challengeKey); }
       else if (input.action === 'remove') { next.entries.splice(index, 1); pending.delete(challengeKey); }
     }
@@ -179,6 +179,7 @@ export function applyCommandApproval(ctx, options = {}) {
     // Native Connection authenticates BrowserAuth/paired devices and requires
     // Owner before exact Fetch delivery. No client address/header grants origin.
     owner.connection.fetch.register({ path: APPROVAL_PATH, methods: ['POST'], requestBody: 'buffered', async fetch(request) {
+      const receivedAt = now();
       let rpcId;
       const send = value => Response.json(value, { headers: { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' } });
       try {
@@ -190,7 +191,7 @@ export function applyCommandApproval(ctx, options = {}) {
         if (!only(message, ['type', 'rpcId', 'method', 'payload']) || message.type !== 'client-request' || message.method !== APPROVAL_METHOD || typeof message.rpcId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(message.rpcId)) reject('invalid_request');
         rpcId = message.rpcId;
         const prior = writers.get(store.file) || Promise.resolve();
-        const task = prior.catch(() => {}).then(() => operation(owner, message.payload, request.signal));
+        const task = prior.catch(() => {}).then(() => operation(owner, message.payload, request.signal, receivedAt));
         writers.set(store.file, task);
         try { return send({ type: 'server-response', rpcId, result: { ok: true, value: await task } }); }
         finally { if (writers.get(store.file) === task) writers.delete(store.file); }
