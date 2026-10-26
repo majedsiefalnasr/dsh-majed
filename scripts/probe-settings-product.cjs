@@ -450,6 +450,17 @@ async function main() {
       await change('credential-action', 'remove'); await click('save');
       assert.equal(JSON.parse(fs.readFileSync(join(process.cwd(), 'judgment.json'), 'utf8')).credential, null);
       assert.equal(judgmentSends, 2);
+      await change('credential-action', 'replace'); await change('credential', 'fixture-judgment-value'); await click('save');
+      const namespace = [...registeredLocales].find(([, values]) => values.ar?.['management.direction'] === 'rtl')?.[0];
+      assert.ok(namespace);
+      dictionaries.set(namespace, registeredLocales.get(namespace).ar);
+      await act(async () => { localeRevision.set({ revision: 10 }); await settle(); });
+      assert.equal(panel().dir, 'rtl');
+      await act(async () => { field('consent').click(); await settle(); }); await click('validate');
+      assert.equal(judgmentSends, 3); assert.match(panel().textContent, /اكتمل اختبار الاتصال/);
+      assert.equal(field('credential').value, '');
+      dictionaries.set(namespace, registeredLocales.get(namespace).en);
+      await act(async () => { localeRevision.set({ revision: 11 }); await settle(); });
     }
     if (codexProbe) {
       await select('Subscriptions'); await act(settle);

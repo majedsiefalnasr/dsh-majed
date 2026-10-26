@@ -22,7 +22,10 @@ async function abortable(work, signal) {
 }
 
 async function responseBody(response, signal) {
-  if (Number(response.headers.get('content-length')) > 65536) throw fail('protocol_failed');
+  if (Number(response.headers.get('content-length')) > 65536) {
+    void response.body?.cancel().catch(() => {});
+    throw fail('protocol_failed');
+  }
   const reader = response.body?.getReader();
   if (!reader) throw fail('protocol_failed');
   const chunks = []; let size = 0;
@@ -128,7 +131,10 @@ export function createJudgmentService({ path, fetch: transport = globalThis.fetc
         return transport(url, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${config.credential}` },
           body, signal: combined, redirect: 'error' });
       }), combined);
-      if (!response.ok) throw fail('protocol_failed');
+      if (!response.ok) {
+        void response.body?.cancel().catch(() => {});
+        throw fail('protocol_failed');
+      }
       const raw = await responseBody(response, combined);
       const result = JSON.parse(raw); const answer = result.answers?.[name];
       if (typeof result.model !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}$/.test(result.model) || result.model.includes(config.credential) || answer?.type !== 'choice' || typeof answer.choice !== 'string' || !permittedChoices.has(answer.choice)) throw fail('protocol_failed');

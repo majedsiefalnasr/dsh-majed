@@ -90,6 +90,20 @@ test('credential replacement cannot silently remove an existing credential', asy
   assert.equal((await service.configure({ credential: { action: 'remove' } })).credentialConfigured, false);
 });
 
+test('failed or oversized judgment responses release their owned stream', async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'dsh-r15-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  let cancelled = 0, status = 401;
+  const service = createJudgmentService({ path: join(directory, 'judgment.json'), fetch: async () => new Response(new ReadableStream({ cancel() { cancelled++; } }), { status, headers: status === 200 ? { 'content-length': '1000000' } : {} }) });
+  t.after(() => service.dispose());
+  await service.configure({ protocol: 'systemone', address: 'https://judge.example', model: 'jev', credential: { action: 'replace', value: 'fixture-value' } });
+  await assert.rejects(service.validate({ consent: true }), { code: 'protocol_failed' });
+  assert.equal(cancelled, 1);
+  status = 200;
+  await assert.rejects(service.validate({ consent: true }), { code: 'protocol_failed' });
+  assert.equal(cancelled, 2);
+});
+
 test('a judgment completed after credential removal cannot validate stale settings', async t => {
   const directory = await mkdtemp(join(tmpdir(), 'dsh-r15-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
