@@ -100,5 +100,6 @@ test('plugin apply mounts tools hook through service injection and preserves fon
   apply({ inject(names, callback) { injections.push(names); if (names.length === 1 && names[0] === 'tools') callback({ on(name) { assert.equal(name, 'tools/execute'); hooks++; } }); } });
   assert.ok(injections.some(names => names.length === 1 && names[0] === 'tools'));
   assert.ok(injections.some(names => names.length === 1 && names[0] === 'webServer'));
+  assert.ok(injections.every(names => names.length === 1 && ['tools', 'webServer', 'connection'].includes(names[0])));
   assert.equal(hooks, 1);
 });
