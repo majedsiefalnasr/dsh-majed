@@ -39,3 +39,7 @@ The required slash-refresh probe fails at its original assertion: the warmed men
 - Runtime restart means service disposal/remount plus separately proved cold-process policy read, not an authorized installed desktop restart.
 
 These limits keep R11 open. This increment does not grant Cutover, activate installed modules, modify reference files, implement deferred catalogs/imports/updater, or claim live parity. Source identity and every adaptation remain in `modules/skills/PROVENANCE.md` and `vendor/UPSTREAM.json`.
+
+## Integrated verification
+
+R11 merged as `c49a21a`, then R15 as `1d71c5c`. The merged production bundle passes `npm test`: **471 passed, 0 failed**, plus the classification script's 166 assertions. The native Skills characterization and each separate production product probe (`--codex`, `--approval`, `--judgment`) exit zero with `checkpoint: complete` on rc.3. Skills closes all 19 captured watcher handles in this run; every probe closes its owned listeners. The mandatory `--require-slash-refresh` probe still exits nonzero at the warmed-cache assertion, with complete cleanup; this remains the explicit R11 acceptance gap. All 18 original dirty workspace files were hash-verified byte-identical after merging. No tracker issue was closed.
