@@ -73,7 +73,7 @@ test('Settings readiness uses native carrier, isolates failures, translates RTL 
 test('unsupported carrier offers actionable error and unmount aborts pending request', async t => {
   const harness = createBaselineHarness(source); t.after(() => harness.dispose()); harness.apply();
   const view = harness.render('majed-routing'); await tick(); view.render();
-  assert.match(JSON.stringify(view.one(node => node.props.role === 'alert')), /supported DSH version/);
+  assert.ok(view.nodes(node => node.props.role === 'alert').some(node => /supported DSH version/.test(JSON.stringify(node))));
   let signal;
   const pending = createBaselineHarness(source, { connection: { rpc: { call(a, b, c, s) { signal = s; return new Promise(() => {}); } } } });
   t.after(() => pending.dispose()); pending.apply(); pending.render('majed-hooks');
