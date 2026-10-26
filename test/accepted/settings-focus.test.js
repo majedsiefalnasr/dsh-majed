@@ -51,7 +51,7 @@ async function mount(t, { fallback = false } = {}) {
   plugin.apply(ctx);
   const root = createRoot(dom.window.document.querySelector('main'));
   const render = async module => act(async () => root.render(h(sections.get(`majed-${module}`), { t: ctx.locale.bind('majed') })));
-  await render('skills');
+  await render('mcp');
   const settle = async (enabled = false, failure) => act(async () => {
     const request = pending.shift();
     if (failure) request.reject(new Error(failure));
