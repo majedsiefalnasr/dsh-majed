@@ -193,7 +193,67 @@ window.__ModuleLoader__.load({
       'management.auth': 'يلزم وصول المالك. أعد فتح صفحة DSH الموثقة أو أعد إقران الجهاز البعيد ثم حدّث الحالة.',
       'management.unsupported': 'لا يوفر هذا المضيف وسيلة نقل الإعدادات. استخدم إصدار DSH مدعومًا.',
     };
+    Object.assign(managementEn, {
+      'codex.title': 'Codex account', 'codex.enable': 'Enable account management', 'codex.disable': 'Disable account management',
+      'codex.begin': 'Connect Codex', 'codex.complete': 'Complete login', 'codex.callback': 'Paste the full callback URL', 'codex.cancel': 'Cancel login',
+      'codex.open': 'Open Codex sign-in', 'codex.status': 'Refresh account status', 'codex.refresh': 'Refresh credentials', 'codex.remove': 'Remove account', 'codex.default': 'Use by default',
+      'codex.description': 'Enable account management to connect and retain Codex credentials privately on this host. This does not activate model dispatch or Auto routing.',
+      'codex.pending': 'Waiting for sign-in. Open the link on the host, or paste the full callback URL here from a remote device.',
+      'codex.disconnected': 'No Codex account connected.', 'codex.connected': 'Account connected.', 'codex.disabled': 'Account management is disabled.',
+      'codex.failed': 'Login failed or expired. Try connecting again.', 'codex.cancelled': 'Login cancelled.', 'codex.reauthentication_required': 'Sign in again to reconnect this account.',
+      'codex.error': 'Account operation failed. Refresh status or reconnect. No credential details are displayed.', 'codex.working': 'Working…',
+    });
+    Object.assign(managementAr, {
+      'codex.title': 'حساب Codex', 'codex.enable': 'تفعيل إدارة الحساب', 'codex.disable': 'تعطيل إدارة الحساب',
+      'codex.begin': 'ربط Codex', 'codex.complete': 'إكمال تسجيل الدخول', 'codex.callback': 'ألصق رابط العودة الكامل', 'codex.cancel': 'إلغاء تسجيل الدخول',
+      'codex.open': 'فتح تسجيل دخول Codex', 'codex.status': 'تحديث حالة الحساب', 'codex.refresh': 'تحديث بيانات الاعتماد', 'codex.remove': 'إزالة الحساب', 'codex.default': 'استخدامه افتراضيًا',
+      'codex.description': 'فعّل إدارة الحساب لربط بيانات اعتماد Codex وحفظها بخصوصية على هذا المضيف. لا يؤدي ذلك إلى تفعيل إرسال الطلبات للنماذج أو التوجيه التلقائي.',
+      'codex.pending': 'بانتظار تسجيل الدخول. افتح الرابط على المضيف أو ألصق رابط العودة الكامل هنا من جهاز بعيد.',
+      'codex.disconnected': 'لا يوجد حساب Codex متصل.', 'codex.connected': 'الحساب متصل.', 'codex.disabled': 'إدارة الحساب معطلة.',
+      'codex.failed': 'فشل تسجيل الدخول أو انتهت مهلته. حاول الربط مجددًا.', 'codex.cancelled': 'تم إلغاء تسجيل الدخول.', 'codex.reauthentication_required': 'سجّل الدخول مجددًا لإعادة ربط هذا الحساب.',
+      'codex.error': 'فشلت عملية الحساب. حدّث الحالة أو أعد الربط. لا تُعرض تفاصيل بيانات الاعتماد.', 'codex.working': 'جارٍ التنفيذ…',
+    });
     Object.assign(en, managementEn);
+
+    function CodexAccountsSection({ ctx, t }) {
+      const [value, setValue] = React.useState({ enabled: false, state: 'disabled', accounts: [] });
+      const [callback, setCallback] = React.useState('');
+      const [failure, setFailure] = React.useState(false), [busy, setBusy] = React.useState(false);
+      const active = React.useRef(null), mounted = React.useRef(true);
+      const call = async (action, payload = {}) => {
+        if (active.current) return;
+        const controller = new AbortController(); active.current = controller;
+        setBusy(true); setFailure(false);
+        const timer = setTimeout(() => controller.abort(), 35_000);
+        try {
+          const result = await ctx.connection.rpc.call('/api', 'majed/subscriptions/codex', { action, ...payload }, controller.signal);
+          if (!result.ok) throw new Error('account_operation_failed');
+          if (mounted.current && !controller.signal.aborted) {
+            setValue(previous => ({ ...result.value, accounts: result.value.accounts || previous.accounts || [] }));
+            if (action === 'complete' || action === 'cancel') setCallback('');
+          }
+        } catch { if (mounted.current && !controller.signal.aborted) setFailure(true); }
+        finally { clearTimeout(timer); active.current = null; if (mounted.current) setBusy(false); }
+      };
+      React.useEffect(() => { mounted.current = true; call('status'); return () => { mounted.current = false; active.current?.abort(); }; }, [ctx]);
+      const button = (action, label, payload, disabled = false) => h('button', { type: 'button', className: 'majed-management-refresh', 'data-codex-action': action, disabled: busy || disabled, onClick: () => call(action, payload) }, t('codex.' + label));
+      const pending = value.state === 'pending';
+      const status = ['failed', 'cancelled'].includes(value.loginState) ? value.loginState : value.state;
+      // Only an HTTPS authorize URL from the fixed provider can become a link.
+      const authorizeUrl = typeof value.authorizeUrl === 'string' && value.authorizeUrl.startsWith('https://auth.openai.com/oauth/authorize?') ? value.authorizeUrl : null;
+      return h('div', { 'data-majed-codex': true, dir: t('management.direction') },
+        h('h3', null, t('codex.title')), h('p', null, t('codex.description')),
+        h('div', { className: 'majed-management-controls' }, button('enable', value.enabled ? 'disable' : 'enable', { enabled: !value.enabled }), button('status', 'status')),
+        value.enabled && h('div', { className: 'majed-management-controls' }, button('begin', 'begin', {}, pending),
+          pending && button('cancel', 'cancel')),
+        pending && h('div', null, authorizeUrl && h('a', { href: authorizeUrl, target: '_blank', rel: 'noreferrer noopener' }, t('codex.open')),
+          h('label', null, t('codex.callback'), h('input', { type: 'text', value: callback, autoComplete: 'off', spellCheck: false, onChange: event => setCallback(event.target.value) })),
+          button('complete', 'complete', { callback }, !callback)),
+        h('p', { role: failure ? 'alert' : 'status', 'aria-live': 'polite' }, t('codex.' + (failure ? 'error' : busy ? 'working' : status))),
+        ...(value.accounts || []).map(account => h('div', { key: account.id }, h('p', null, account.label),
+          h('p', null, t('codex.' + account.state)), h('div', { className: 'majed-management-controls' },
+            button('refresh', 'refresh', { account: account.id }), button('default', 'default', { account: account.id }, account.default), button('remove', 'remove', { account: account.id })))));
+    }
 
     function ManagementSection({ ctx, module, t }) {
       const [value, setValue] = React.useState(null);
@@ -229,7 +289,8 @@ window.__ModuleLoader__.load({
           Switch ? h(Switch, { label: t('management.enable'), checked: value?.enabled ?? false, disabled: !value, onChange: next => refresh(!!next) })
             : h('label', null, h('input', { type: 'checkbox', checked: value?.enabled ?? false, disabled: !value, 'aria-disabled': busy || !value, onChange: event => refresh(event.target.checked) }), t('management.enable')),
           h('button', { type: 'button', className: 'majed-management-refresh', 'aria-disabled': busy, onClick: () => refresh() }, t('management.retry'))),
-        h('p', { role: error ? 'alert' : 'status', 'aria-live': 'polite', 'aria-busy': busy }, t('management.' + (error || (busy ? 'loading' : value?.state === 'ready' ? 'ready' : 'disabled')))));
+        h('p', { role: error ? 'alert' : 'status', 'aria-live': 'polite', 'aria-busy': busy }, t('management.' + (error || (busy ? 'loading' : value?.state === 'ready' ? 'ready' : 'disabled')))),
+        module === 'subscriptions' && h(CodexAccountsSection, { ctx, t }));
     }
 
     // ───────────────────────── settings rows ─────────────────────────

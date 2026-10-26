@@ -5,12 +5,13 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-assert.equal(process.argv.length, 2, 'Unknown options. This runner accepts no arguments.');
+const flags = process.argv.slice(2);
+assert.ok(flags.every(flag => flag === '--codex'), 'Unknown options. Only --codex is supported.');
 const { DSH_PROBE_NODE: executable, DSH_PROBE_RUNTIME: runtime, DSH_MOUNTED_DEPS: dependencies, DSH_PROBE_REMOTE: remote } = process.env;
 assert.ok(executable && runtime && dependencies && remote, 'Set the four DSH_PROBE_NODE/RUNTIME/REMOTE and DSH_MOUNTED_DEPS paths.');
 const parent = realpathSync(tmpdir()), home = realpathSync(mkdtempSync(join(parent, 'dsh-physical-carrier-')));
 try {
-  const result = spawnSync(executable, [fileURLToPath(new URL('./probe-settings-product.cjs', import.meta.url)), runtime, resolve(dependencies), remote], {
+  const result = spawnSync(executable, [fileURLToPath(new URL('./probe-settings-product.cjs', import.meta.url)), runtime, resolve(dependencies), remote, ...flags], {
     cwd: home, env: { HOME: home, DSH_HOME: home, TMPDIR: home, ELECTRON_RUN_AS_NODE: '1', DSH_PHYSICAL_CARRIER_PROBE: '1' },
     encoding: 'utf8', timeout: 25000, maxBuffer: 1024 * 1024,
   });

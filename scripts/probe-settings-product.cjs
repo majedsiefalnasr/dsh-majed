@@ -14,7 +14,8 @@ assert.equal(process.cwd(), process.env.HOME);
 assert.equal(process.env.DSH_HOME, process.env.HOME);
 assert.ok(basename(process.cwd()).startsWith('dsh-physical-carrier-'));
 const [base, deps, remoteFile, ...flags] = process.argv.slice(2);
-assert.ok(flags.every(x => ['--red-result', '--red-correlation', '--red-membership'].includes(x)));
+assert.ok(flags.every(x => ['--red-result', '--red-correlation', '--red-membership', '--codex'].includes(x)));
+const codexProbe = flags.includes('--codex');
 const dependencyRequire = createRequire(join(deps, '..', '__probe.cjs'));
 const req = name => dependencyRequire(join(deps, name));
 req.resolve = name => dependencyRequire.resolve(join(deps, name));
@@ -26,16 +27,23 @@ const http = require('node:http'), net = require('node:net');
 const realRequest = http.request, realServer = http.createServer;
 const realListen = net.Server.prototype.listen, realConnect = net.Socket.prototype.connect;
 const servers = [], ports = new Set(), owned = new WeakSet();
-let creating = false, requesting = 0, proxyCalls = 0, closedListeners = 0;
+let creating = false, oauthCreating = false, requesting = 0, proxyCalls = 0, closedListeners = 0;
+const oauthServers = new WeakSet();
 http.createServer = function(...args) {
-  assert.ok(creating && servers.length < 2, 'Only two public WebServer listeners permitted');
+  assert.ok((creating && servers.length < 2) || (codexProbe && oauthCreating && servers.length < 8), 'Only bounded owned WebServer/OAuth listeners permitted');
   const server = realServer.apply(this, args); owned.add(server); servers.push(server);
+  if (oauthCreating) oauthServers.add(server);
   server.once('close', () => closedListeners++);
   return server;
 };
 net.createServer = forbidden;
 net.Server.prototype.listen = function(port, host, ...rest) {
-  assert.ok(owned.has(this)); assert.equal(port, 0); assert.equal(host, '127.0.0.1');
+  assert.ok(owned.has(this));
+  if (oauthServers.has(this)) {
+    assert.ok(host === '127.0.0.1' || host === '::1'); assert.ok(port === 0 || ports.has(port));
+    const listener = rest.pop(), server = this;
+    rest.push(() => { ports.add(server.address().port); listener?.(); });
+  } else { assert.equal(port, 0); assert.equal(host, '127.0.0.1'); }
   return realListen.call(this, port, host, ...rest);
 };
 net.Socket.prototype.connect = function(...args) {
@@ -76,8 +84,10 @@ for (const dns of [require('node:dns'), require('node:dns/promises')]) {
 }
 // Node's literal bind lookup is satisfied synchronously without invoking DNS.
 require('node:dns').lookup = (host, options, callback) => {
-  assert.equal(host, '127.0.0.1'); assert.ok(creating);
-  (typeof options === 'function' ? options : callback)(null, host, 4);
+  assert.ok(host === '127.0.0.1' || (oauthCreating && host === '::1')); assert.ok(creating || oauthCreating);
+  const family = host === '::1' ? 6 : 4;
+  if (options?.all) callback(null, [{ address: host, family }]);
+  else (typeof options === 'function' ? options : callback)(null, host, family);
 };
 syncBuiltinESMExports();
 global.fetch = forbidden; global.WebSocket = forbidden;
@@ -219,12 +229,25 @@ async function main() {
     let remoteMode = false;
     const { apply: settingsHost } = await import('../lib/management/settings.js');
     const endpointFiber = await mount({ apply: settingsHost });
+    let codexFiber, codexMount, codexGrantCount = 0;
+    if (codexProbe) {
+      const { applyCodexAccounts } = await import('../modules/subscriptions/codex/native.js');
+      const idToken = 'header.' + Buffer.from(JSON.stringify({ email: 'fixture@example.test', 'https://api.openai.com/auth': { chatgpt_account_id: 'fixture-workspace' } })).toString('base64url') + '.signature';
+      codexMount = () => mount({ apply(context) { applyCodexAccounts(context, {
+        path: join(process.cwd(), 'codex-auth.json'), ports: [0], fetch: async (url, init) => {
+          assert.equal(url, 'https://auth.openai.com/oauth/token'); codexGrantCount++;
+          assert.ok(init.body.includes(codexGrantCount === 1 ? 'authorization_code' : 'refresh_token'));
+          return Response.json({ access_token: 'fixture-access', refresh_token: 'fixture-refresh', expires_in: 3600, id_token: idToken });
+        },
+      }); } });
+      codexFiber = await codexMount();
+    }
     const carrier = async (input, init) => {
-      assert.equal(input, 'api/majed/settings/status'); assert.equal(init.method, 'POST');
+      assert.ok(input === 'api/majed/settings/status' || (codexProbe && input === 'api/majed/subscriptions/codex')); assert.equal(init.method, 'POST');
       // Deliberate document base; no repair of native URL, RPC payload or headers.
       const url = new URL(input, document.baseURI);
       assert.equal(url.origin, remoteMode ? outer.getOrigin() : inner.getOrigin());
-      assert.equal(url.pathname, remoteMode ? '/remote' + endpoint : endpoint);
+      assert.equal(url.pathname, (remoteMode ? '/remote/' : '/') + input);
       physical.push(url.pathname);
       const response = await physicalFetch(url, { ...init, headers: { ...init.headers,
         ...((remoteMode ? pairingCookie : browserCookie) ? { cookie: remoteMode ? pairingCookie : browserCookie } : {}) } });
@@ -305,6 +328,36 @@ async function main() {
     pairingCookie = ''; await refresh(); assert.match(text(), /Owner access required/);
     pairingCookie = 'synthetic-device=synthetic-live'; await refresh(); assert.match(text(), /Service ready/);
     await select('MCP Manager'); await act(settle); assert.match(text(), /Readiness checks are disabled/);
+    if (codexProbe) {
+      await select('Subscriptions'); await act(settle);
+      const codexText = () => document.querySelector('[data-majed-codex]').textContent;
+      const codexClick = action => act(async () => { const button = document.querySelector(`[data-codex-action="${action}"]`); assert.ok(button); button.click(); await settle(); });
+      assert.match(codexText(), /Account management is disabled/);
+      await codexClick('enable'); assert.match(codexText(), /No Codex account connected/);
+      oauthCreating = true;
+      try { await codexClick('begin'); } finally { oauthCreating = false; }
+      assert.match(codexText(), /Waiting for sign-in/);
+      const authorize = new URL(document.querySelector('[data-majed-codex] a').href);
+      const callback = new URL(authorize.searchParams.get('redirect_uri'));
+      callback.searchParams.set('code', 'fixture-code'); callback.searchParams.set('state', authorize.searchParams.get('state'));
+      await act(async () => {
+        const input = document.querySelector('[data-majed-codex] input');
+        Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(input, callback.href);
+        input.dispatchEvent(new window.Event('input', { bubbles: true })); await settle();
+      });
+      await codexClick('complete'); assert.match(codexText(), /Account connected/);
+      assert.equal(codexGrantCount, 1); assert.equal(codexText().includes('fixture-access'), false);
+      await codexFiber.dispose(); codexFiber = await codexMount();
+      await codexClick('status'); assert.match(codexText(), /Account management is disabled/);
+      await codexClick('enable'); assert.match(codexText(), /fixture@example.test/);
+      await codexClick('refresh'); assert.equal(codexGrantCount, 2);
+      pairingCookie = ''; await codexClick('status'); assert.match(codexText(), /Account operation failed/);
+      pairingCookie = 'synthetic-device=synthetic-live'; await codexClick('status'); assert.match(codexText(), /Account connected/);
+      remoteMode = false; document.head.innerHTML = `<base href="${inner.getOrigin()}/">`;
+      browserCookie = ''; await codexClick('status'); assert.match(codexText(), /Account operation failed/);
+      browserCookie = cookie; await codexClick('status'); assert.match(codexText(), /Account connected/);
+      await codexFiber.dispose();
+    }
     const post = { method: 'POST', headers: { 'content-type': 'application/json', cookie }, body: JSON.stringify({ type: 'client-request', rpcId: 'scoped', method: 'majed/settings/status', payload: { module: 'skills', ...selectors } }) };
     const scoped = await physicalFetch(inner.getOrigin() + endpoint, post);
     assert.equal((await scoped.json()).result.value.scope, 'project');
@@ -328,10 +381,10 @@ async function main() {
       checks: ['actual production bundle mounted in native Settings; readiness enable + isolated module status',
         'production Fetch route over actual local and remote-prefixed HTTP using native RPC envelope',
         'local cookie and remote pairing denial; CSRF; body/method limits; authentic session/workspace membership',
-        'endpoint and mounted client disposed'],
+        'endpoint and mounted client disposed', ...(codexProbe ? ['Codex native mounted Settings enable/login/manual callback/protected temporary persistence/restart/refresh; local and paired-remote denial'] : [])],
       limitations: ['jsdom, explicit presentation primitives and locale adapters: NOT browser layout/focus/theme or live proof',
         'synthetic credentials/pairing/memory storage only; no installed state or operational auth',
-        'readiness only; no feature operations'] };
+        ...(codexProbe ? ['Codex fixture transport only; no real account login or model dispatch; no browser visual proof'] : ['readiness only; no feature operations'])] };
   } finally {
     const cleanupErrors = [];
     const clean = async callback => { try { await callback(); } catch (error) { cleanupErrors.push(error); } };
@@ -344,7 +397,7 @@ async function main() {
     assert.ok(servers.every(server => !server.listening));
     assert.equal(cleanupErrors.length, 0, 'All independent cleanup steps must succeed');
   }
-  assert.equal(closes, 1); assert.equal(closedListeners, 2);
+  assert.equal(closes, 1); assert.equal(closedListeners, codexProbe ? 4 : 2);
   assert.equal(host.get('webServer'), undefined); assert.equal(outerHost.get('webServer'), undefined);
   console.log(JSON.stringify({ ...report, listeners: servers.length, closedListeners, checkpoint: 'complete' }, null, 2));
 }
