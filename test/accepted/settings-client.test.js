@@ -37,7 +37,7 @@ test('Settings readiness and Refresh reach a sibling Cordis connection service',
   const readinessCalls = () => calls.filter(call => call.endpoint === 'majed/settings/status');
   assert.equal(readinessCalls().length, 1, 'initial readiness must send an RPC, not report unavailable');
   assert.equal(view.nodes(node => node.props.role === 'alert').length, 0);
-  await view.one(node => node.type === 'button' && node.children.includes('Refresh status')).props.onClick();
+  await view.one(node => node.type === 'button' && node.props.children?.includes('Refresh status')).props.onClick();
   await tick(); view.render();
   assert.equal(readinessCalls().length, 2, 'Refresh must send another RPC');
   for (const call of readinessCalls()) {
