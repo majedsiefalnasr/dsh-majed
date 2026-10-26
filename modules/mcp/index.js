@@ -51,7 +51,7 @@ function nativeConfig(row, reconnectOverride) {
   const { enabled, scope, timeout, instructionLimit, ...config } = row;
   return { ...config, ...(timeout === undefined ? {} : { toolCallTimeoutMs: timeout }), ...(instructionLimit === undefined ? {} : { maxInstructionBytes: instructionLimit }), failOnStartupError: true, reconnect: reconnectOverride || row.reconnect || { enabled: true, maxAttempts: 5 } };
 }
-export function createMcpManager(ctx, load = () => loadMcpClient(ctx)) {
+export function createMcpManager(ctx, load = () => loadMcpClient(ctx), moduleContext = ctx) {
   const queue = serial(); const mounted = new Map(); let rows = []; let definitions = []; let closed = false;
   async function unload() {
     for (const [name, record] of mounted) { await record.child.dispose(); mounted.delete(name); }
@@ -65,7 +65,7 @@ export function createMcpManager(ctx, load = () => loadMcpClient(ctx)) {
       view.status = 'probing';
       let child, probeScope, deadline;
       try {
-        const loader = ctx.get('loader');
+        const loader = moduleContext.get('loader');
         if (typeof loader?.import !== 'function') throw new Error('Native module loader unavailable.');
         const [{ createScope }, namespace] = await Promise.all([loader.import('@deepseek-ai/dsh-scope'), load()]);
         // The temporary native scope keeps probe registrations out of every

@@ -39,7 +39,7 @@ exports.mountNativeCarrier = async function(base, remoteFile) {
     register(route) { this.routes.push(route); return () => { this.routes.splice(this.routes.indexOf(route), 1); }; }
   }
   const ctx = new Context(); const fibers = [];
-  async function mount(plugin) { const fiber = ctx.plugin(plugin); fibers.push(fiber); await fiber; return fiber; }
+  async function mount(plugin, config) { const fiber = ctx.plugin(plugin, config); fibers.push(fiber); await fiber; return fiber; }
   await mount({ apply(ctx) { new MemoryCredentials(ctx); new MemoryWebServer(ctx); } });
   await mount({ inject: ['credentials'], apply: ctx => native.apply(ctx, { cookieMaxAgeDays: 1 }) });
   const connection = ctx.get('connection');

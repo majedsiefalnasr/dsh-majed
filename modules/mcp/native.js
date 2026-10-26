@@ -2,7 +2,7 @@ import { realpath, stat } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join, resolve, relative, isAbsolute } from 'node:path';
 import { createHash } from 'node:crypto';
-import { createMcpManager, validateServer, validateServers } from './index.js';
+import { createMcpManager, loadMcpClient, validateServer, validateServers } from './index.js';
 import { createMcpDefinitionStore } from './storage.js';
 import { mergeSecrets, object, serial } from '../managers/validation.js';
 import { resolveManagementScope } from '../../lib/management/scope.js';
@@ -74,7 +74,7 @@ export function createManagedMcpService(ctx, options = {}) {
     if (!workspace) return;
     const scope = await resolveManagementScope(services, { sessionId: agent.id, workspaceId: workspace.id }, agent.signal);
     if (!scope || disposed) return;
-    const manager = createMcpManager(agent.ctx), record = scopeRecord(scope.projectPath);
+    const manager = createMcpManager(agent.ctx, () => loadMcpClient(ctx), ctx), record = scopeRecord(scope.projectPath);
     agents.set(agent, { root: scope.projectPath, manager });
     await manager.replace(validateServers((await record.store.read()).servers));
   }
@@ -95,7 +95,7 @@ export function createManagedMcpService(ctx, options = {}) {
         const { env, headers, ...visible } = row;
         const views = managers.flatMap(manager => manager.snapshot().filter(value => value.serverName === row.serverName));
         const status = views.some(value => ['activation-failed', 'cleanup-failed'].includes(value.status)) ? views.find(value => ['activation-failed', 'cleanup-failed'].includes(value.status)).status : views[0]?.status;
-        return { ...visible, env: Object.fromEntries(Object.keys(env || {}).map(key => [key, '***'])), headers: Object.fromEntries(Object.keys(headers || {}).map(key => [key, '***'])), status: statusName(status), runtimeCount: views.filter(value => value.status === 'mounted').length };
+        return { ...visible, env: Object.fromEntries(Object.keys(env || {}).map(key => [key, '***'])), headers: Object.fromEntries(Object.keys(headers || {}).map(key => [key, '***'])), status: statusName(status), probe: views.find(value => value.probe)?.probe || null, runtimeCount: views.filter(value => value.status === 'mounted').length };
       }) };
   }
   function operation(payload, signal) {
