@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, realpath, readFile, stat, writeFile, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, realpath, readFile, stat, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createMcpDefinitionStore } from '../../modules/mcp/storage.js';
@@ -90,4 +90,54 @@ for (const operation of ['replace', 'probe']) test(`disposing during deferred na
   release({ apply() { starts++; } });
   await pending; await closing;
   assert.equal(starts, 0, 'Disposal must prevent native startup, rather than only clean it up afterward');
+});
+
+
+test('a saved unavailable stdio CWD fails only that server and remains manageable', async t => {
+  const root = await realpath(await mkdtemp(join(tmpdir(), 'majed-mcp-cwd-')));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const cwd = join(root, 'vanished'); await mkdir(cwd);
+  const store = createMcpDefinitionStore(join(root, 'global.json'));
+  await store.save({ servers: [
+    { serverName: 'bad', transport: 'stdio', command: 'controlled', cwd, enabled: true },
+    { serverName: 'healthy', transport: 'stdio', command: 'controlled', cwd: root, enabled: true },
+  ] });
+  await rm(cwd, { recursive: true });
+  // Controlled external native plugin boundary: no actual process is launched.
+  const active = new Set();
+  const ctx = { on() {}, get(name) { return name === 'loader' ? { import: async () => ({}) } : undefined; },
+    plugin(namespace, config) {
+      active.add(config.serverName);
+      return { then(resolve) { resolve(); }, async dispose() { active.delete(config.serverName); } };
+    } };
+  const { createManagedMcpService } = await import('../../modules/mcp/native.js');
+  const service = createManagedMcpService(ctx, { stateDirectory: root });
+  t.after(() => service.dispose());
+  await service.ready;
+  const call = (action, extra = {}) => service.operation({ action, scope: 'global', ...extra }, new AbortController().signal);
+  let view = await call('list');
+  assert.deepEqual(view.servers.map(row => [row.serverName, row.status]), [['bad', 'failed'], ['healthy', 'active']]);
+  assert.deepEqual([...active], ['healthy']);
+  await assert.rejects(call('probe', { serverName: 'bad' }));
+  assert.deepEqual([...active], ['healthy']);
+  view = await call('setEnabled', { serverName: 'bad', enabled: false });
+  assert.equal(view.servers[0].status, 'saved');
+  await call('setEnabled', { serverName: 'bad', enabled: true });
+  await mkdir(cwd);
+  view = await call('list');
+  assert.equal(view.servers[0].status, 'active');
+  await rm(cwd, { recursive: true });
+  view = await call('remove', { serverName: 'bad' });
+  assert.deepEqual(view.servers.map(row => row.serverName), ['healthy']);
+  assert.deepEqual([...active], ['healthy']);
+  await writeFile(join(root, 'global.json'), '{corrupt');
+  await assert.rejects(call('list'));
+  assert.equal(await readFile(join(root, 'global.json'), 'utf8'), '{corrupt');
+  await service.dispose();
+  const restarted = createManagedMcpService(ctx, { stateDirectory: root });
+  t.after(() => restarted.dispose());
+  await assert.rejects(restarted.ready);
+  await assert.rejects(restarted.operation({ action: 'remove', scope: 'global', serverName: 'healthy' }, new AbortController().signal));
+  assert.equal(await readFile(join(root, 'global.json'), 'utf8'), '{corrupt');
+
 });

@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import { createMcpManager, loadMcpClient, validateServer, validateServers } from './index.js';
 import { createMcpDefinitionStore } from './storage.js';
 import { mergeSecrets, object, serial } from '../managers/validation.js';
-import { resolveManagementScope } from '../../lib/management/scope.js';
+import { discoverManagementContexts, resolveManagementScope } from '../../lib/management/scope.js';
 
 export const MCP_METHOD = 'majed/mcp';
 export const MCP_PATH = '/api/' + MCP_METHOD;
@@ -37,20 +37,7 @@ export function createManagedMcpService(ctx, options = {}) {
     if (!scope) deny('invalid_scope');
     return scopeRecord(scope.projectPath);
   }
-  async function contexts(signal) {
-    const services = nativeServices();
-    if (Object.values(services).some(value => !value) || typeof services.workspaceRegistry.list !== 'function') return [];
-    const values = [];
-    for (const workspace of services.workspaceRegistry.list().slice(0, 64)) {
-      for (const sessionId of workspace.sessionIds.slice(0, 32)) {
-        if (!services.sessions.get(sessionId)) continue;
-        const selectors = { sessionId, workspaceId: workspace.id };
-        const resolved = await resolveManagementScope(services, selectors, signal);
-        if (resolved) { values.push({ ...selectors, label: resolved.projectPath }); break; }
-      }
-    }
-    return values;
-  }
+  const contexts = signal => discoverManagementContexts(nativeServices(), signal);
   async function validateCwd(server, root) {
     const row = validateServer(server);
     if (row.transport !== 'stdio') return row;
@@ -61,11 +48,27 @@ export function createManagedMcpService(ctx, options = {}) {
     if ((root && (remainder === '..' || remainder.startsWith('../') || isAbsolute(remainder))) || !(await stat(cwd)).isDirectory()) deny('invalid_scope');
     return { ...row, cwd };
   }
+  async function prepare(record, servers) {
+    // Schema/store failures remain fatal. Only per-server filesystem eligibility
+    // is isolated; never persist a disabled replacement for the Owner's row.
+    const rows = validateServers(servers), failed = new Set();
+    const prepared = await Promise.all(rows.map(async row => {
+      if (!row.enabled) return row;
+      try { return await validateCwd(row, record.root); }
+      catch (error) {
+        if (!['ENOENT', 'ENOTDIR', 'EACCES', 'EPERM', 'ELOOP', 'invalid_scope'].includes(error.code)) throw error;
+        failed.add(row.serverName);
+        return { ...row, enabled: false };
+      }
+    }));
+    record.failed = failed;
+    return prepared;
+  }
   async function reconcile(record, servers) {
     if (disposed) deny('unavailable');
     // Re-read definitions are untrusted too. A private file is not authority to
     // start a project process outside its currently canonical project root.
-    const prepared = await Promise.all(validateServers(servers).map(row => row.enabled ? validateCwd(row, record.root) : row));
+    const prepared = await prepare(record, servers);
     if (disposed) deny('unavailable');
     if (record.manager) await record.manager.replace(prepared);
     for (const value of agents.values()) if (value.root === record.root) { if (disposed) deny('unavailable'); await value.manager.replace(prepared); }
@@ -81,7 +84,7 @@ export function createManagedMcpService(ctx, options = {}) {
     const manager = createMcpManager(agent.ctx, () => loadMcpClient(ctx), ctx), record = scopeRecord(scope.projectPath);
     agents.set(agent, { root: scope.projectPath, manager });
     const rows = validateServers((await record.store.read()).servers);
-    const prepared = await Promise.all(rows.map(row => row.enabled ? validateCwd(row, scope.projectPath) : row));
+    const prepared = await prepare(record, rows);
     if (disposed) deny('unavailable');
     await manager.replace(prepared);
   }
@@ -102,7 +105,7 @@ export function createManagedMcpService(ctx, options = {}) {
         const { env, headers, ...visible } = row;
         const views = managers.flatMap(manager => manager.snapshot().filter(value => value.serverName === row.serverName));
         const status = views.some(value => ['activation-failed', 'cleanup-failed'].includes(value.status)) ? views.find(value => ['activation-failed', 'cleanup-failed'].includes(value.status)).status : views[0]?.status;
-        return { ...visible, env: Object.fromEntries(Object.keys(env || {}).map(key => [key, '***'])), headers: Object.fromEntries(Object.keys(headers || {}).map(key => [key, '***'])), status: record.root && row.enabled && managers.length === 0 ? 'awaiting-agent' : statusName(status), probe: views.find(value => value.probe)?.probe || null, runtimeCount: views.filter(value => value.status === 'mounted').length };
+        return { ...visible, env: Object.fromEntries(Object.keys(env || {}).map(key => [key, '***'])), headers: Object.fromEntries(Object.keys(headers || {}).map(key => [key, '***'])), status: status === 'cleanup-failed' ? status : record.failed?.has(row.serverName) ? 'failed' : record.root && row.enabled && managers.length === 0 ? 'awaiting-agent' : statusName(status), probe: views.find(value => value.probe)?.probe || null, runtimeCount: views.filter(value => value.status === 'mounted').length };
       }) };
   }
   function operation(payload, signal) {
@@ -142,6 +145,9 @@ export function createManagedMcpService(ctx, options = {}) {
         await reconcile(record, validateServers((await record.store.read()).servers));
         const managers = record.manager ? [record.manager] : [...agents.values()].filter(value => value.root === record.root).map(value => value.manager);
         if (!managers.length) deny('runtime_unavailable');
+        const target = validateServers((await record.store.read()).servers).find(row => row.serverName === payload.serverName);
+        if (!target) deny('not_found');
+        await validateCwd(target, record.root);
         for (const manager of managers) {
           if (payload.action === 'probe') await manager.probeServer(payload.serverName);
           else { await manager.reconnect(payload.serverName); await reconcile(record, validateServers((await record.store.read()).servers)); }

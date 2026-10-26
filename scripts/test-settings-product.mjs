@@ -7,6 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 const flags = process.argv.slice(2);
 assert.ok(flags.every(flag => ['--codex', '--codex-direct', '--approval', '--mcp', '--judgment'].includes(flag)), 'Unknown product proof option.');
+assert.ok(flags.length <= 1, 'Run one feature scenario per invocation: --codex, --codex-direct, --approval, --mcp or --judgment.');
 const { DSH_PROBE_NODE: executable, DSH_PROBE_RUNTIME: runtime, DSH_MOUNTED_DEPS: dependencies, DSH_PROBE_REMOTE: remote } = process.env;
 assert.ok(executable && runtime && dependencies && remote, 'Set the four DSH_PROBE_NODE/RUNTIME/REMOTE and DSH_MOUNTED_DEPS paths.');
 const parent = realpathSync(tmpdir()), home = realpathSync(mkdtempSync(join(parent, 'dsh-physical-carrier-')));
