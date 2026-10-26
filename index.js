@@ -4,12 +4,14 @@ import { apply as settings } from './lib/management/settings.js';
 import { registerSkills } from './modules/skills/index.js';
 import { AUTO_ROUTE_ID } from './modules/auto/index.js';
 import { applyCodexAccounts } from './modules/subscriptions/codex/native.js';
+import { applyManagedMcp } from './modules/mcp/native.js';
 
 export { AUTO_ROUTE_ID };
 
 export function apply(ctx, config = {}) {
   baseline(ctx);
   settings(ctx);
+  applyManagedMcp(ctx, config.managedMcp || {});
   applyCodexAccounts(ctx, config.codexAccounts || {});
   // Skills gate route and native management are opt-in: registerSkills gates on
   // explicit skills.enabled: true plus skills.standaloneDisabled: true conflict

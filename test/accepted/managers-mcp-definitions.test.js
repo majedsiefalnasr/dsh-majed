@@ -56,10 +56,9 @@ test('corrupt store is detected on read and does not clobber valid state', async
     // Corrupt the file externally.
     await writeFile(filePath, '{ not valid json', 'utf8');
     await assert.rejects(store.read(), { code: 'CORRUPT_STORE' });
-    // A subsequent valid save still works and replaces the corrupt file.
-    const next = await store.save({ servers: [{ serverName: 'two', transport: 'stdio', command: 'node', args: ['b.js'] }] });
-    assert.equal(next.servers.length, 1);
-    assert.equal((await store.read()).servers[0].serverName, 'two');
+    // A normal mutation cannot silently repair or overwrite corrupt state.
+    await assert.rejects(store.save({ servers: [{ serverName: 'two', transport: 'stdio', command: 'node', args: ['b.js'] }] }), { code: 'CORRUPT_STORE' });
+    assert.equal(await readFile(filePath, 'utf8'), '{ not valid json');
   });
 });
 
