@@ -135,7 +135,7 @@ export function applyCommandApproval(ctx, options = {}) {
     if (!enabled) return { enabled: false, executionAvailable: false, hooks: [] };
     if (disposed) reject('unavailable');
     if (!only(input, ['action', 'scope', 'sessionId', 'workspaceId', 'hook', 'id', 'nonce', 'phrase'])) reject('invalid_request');
-    const allowed = { list: [], save: ['hook'], review: ['id'], approve: ['id', 'nonce', 'phrase'], revoke: ['id'], remove: ['id'] };
+    const allowed = { list: [], history: [], save: ['hook'], review: ['id'], approve: ['id', 'nonce', 'phrase'], revoke: ['id'], remove: ['id'] };
     if (!Object.hasOwn(allowed, input.action) || !['user', 'project'].includes(input.scope)) reject('invalid_request');
     if (!only(input, ['action', 'scope', ...(input.scope === 'project' ? ['sessionId', 'workspaceId'] : []), ...allowed[input.action]])) reject('invalid_request');
     let root;
@@ -169,7 +169,9 @@ export function applyCommandApproval(ctx, options = {}) {
       }
       return values;
     }
-    const snapshot = async () => ({ enabled: true, executionAvailable: false, contexts: await contexts(), hooks: await Promise.all(next.entries.filter(entry => entry.scope === input.scope && entry.root === root).map(async entry => {
+    const execution = owner.get('commandHookExecution');
+    if (input.action === 'history') return { executionAvailable: !!execution, runs: execution?.history.snapshot() || [] };
+    const snapshot = async () => ({ enabled: true, executionAvailable: !!execution, contexts: await contexts(), hooks: await Promise.all(next.entries.filter(entry => entry.scope === input.scope && entry.root === root).map(async entry => {
       let valid = false;
       try { valid = !!entry.approval && entry.approval.fingerprint === (await reviewEntry(entry)).fingerprint; } catch {}
       return { hook: entry.hook, approval: entry.approval ? { receivedAt: entry.approval.receivedAt, origin: entry.approval.origin, valid } : null };
@@ -189,6 +191,7 @@ export function applyCommandApproval(ctx, options = {}) {
         for (const [key, item] of pending) if (item.expiresAt <= now()) pending.delete(key);
         if (pending.size >= 128 && !pending.has(challengeKey)) reject('too_many_reviews');
         const review = await reviewEntry(entry); const nonce = randomBytes(32).toString('hex');
+        if (execution) review.disclosure = 'Commands run on the DSH host as its OS user, outside a sandbox. Original local/remote origin is unknown. The explicit execution service is enabled.';
         const expiresAt = now() + 120000;
         pending.set(challengeKey, { nonce, fingerprint: review.fingerprint, revision: observed.revision, expiresAt });
         return { nonce, expiresAt, review };
