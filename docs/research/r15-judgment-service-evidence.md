@@ -12,7 +12,7 @@ State lives only in `DSH_HOME/majed/judgment.json` (fallback `~/.dsh/majed/judgm
 
 ## Protocol sources
 
-The old `judgment-fixture.test.js` literals describe a chat-shaped example and are not the production wire contract. The new client uses the actual named `state`/`questions` Choice and typed `answers` contracts from primary sources retrieved on 2026-10-25:
+The old `judgment-fixture.test.js` literal-only checks described a chat-shaped example and were removed in favor of the production service tests. The new client uses the actual named `state`/`questions` Choice and typed `answers` contracts from primary sources retrieved on 2026-10-25:
 
 - [TypeSafe System One schema](https://docs.typesafe.ai/api/system-one.md), SHA256 `5e6261f6f6212c6cf75fd55cc2856184b355a6400673b18314e85505e6219820`.
 - [OpenRouter Decisions schema](https://openrouter.ai/docs/api/api-reference/alphadecisions/submit-a-decisions-request.md), SHA256 `d2b2131e324d6165fa7412a424e166a2cf14c90af285df2af8ddcb32fad3f7d6`.

@@ -224,6 +224,7 @@ window.__ModuleLoader__.load({
       'judgment.configured': 'Credential configured. Smart remains disabled.', 'judgment.missing': 'Credential unavailable. Manual and deterministic routes remain usable.',
       'judgment.error': 'Judgment service unavailable or configuration invalid.', 'judgment.saved': 'Judgment settings saved. Smart remains disabled.',
       'judgment.tested': 'Connection test completed', 'judgment.requested': 'Requested model', 'judgment.actual': 'Actual model',
+      'judgment.inputTokens': 'Input tokens', 'judgment.outputTokens': 'Output tokens', 'judgment.cost': 'Reported cost',
     });
     Object.assign(managementAr, {
       'judgment.title': 'خدمة التقييم', 'judgment.description': 'إعداد خدمة تقييم مستقلة. الحفظ والاختبار لا يفعّلان التوجيه الذكي.',
@@ -234,6 +235,7 @@ window.__ModuleLoader__.load({
       'judgment.configured': 'تم إعداد بيانات الاعتماد. التوجيه الذكي معطّل.', 'judgment.missing': 'بيانات الاعتماد غير متاحة. تظل المسارات اليدوية والحتمية قابلة للاستخدام.',
       'judgment.error': 'خدمة التقييم غير متاحة أو الإعدادات غير صالحة.', 'judgment.saved': 'تم حفظ إعدادات التقييم. التوجيه الذكي معطّل.',
       'judgment.tested': 'اكتمل اختبار الاتصال', 'judgment.requested': 'النموذج المطلوب', 'judgment.actual': 'النموذج الفعلي',
+      'judgment.inputTokens': 'رموز الإدخال', 'judgment.outputTokens': 'رموز الإخراج', 'judgment.cost': 'التكلفة المبلغ عنها',
     });
 
     function JudgmentSection({ ctx, t }) {
@@ -270,7 +272,8 @@ window.__ModuleLoader__.load({
         h('p', { role: error ? 'alert' : 'status', 'aria-busy': busy }, t(error === 'unsupported' ? 'management.unsupported' : error ? 'judgment.error' : saved ? 'judgment.saved' : value?.credentialConfigured ? 'judgment.configured' : 'judgment.missing')),
         h('label', null, h('input', { type: 'checkbox', checked: consent, disabled: busy, 'data-judgment-field': 'consent', onChange: e => setConsent(e.target.checked) }), t('judgment.consent')),
         h('button', { type: 'button', className: 'majed-management-refresh', disabled: busy || !consent || !value?.credentialConfigured, 'data-judgment-action': 'validate', onClick: () => { if (!consent) return; setConsent(false); return call({ action: 'validate', consent: true }); } }, t('judgment.test')),
-        result ? h('p', { role: 'status', 'data-judgment-result': true }, t('judgment.tested') + '. ' + t('judgment.requested') + ': ' + result.requestedModel + '; ' + t('judgment.actual') + ': ' + result.actualModel) : null);
+        result ? h('p', { role: 'status', 'data-judgment-result': true }, t('judgment.tested') + '. ' + t('judgment.requested') + ': ' + result.requestedModel + '; ' + t('judgment.actual') + ': ' + result.actualModel,
+          ...['input_tokens', 'output_tokens', 'cost'].filter(key => typeof result.usage?.[key] === 'number').map(key => h('span', { key, style: { display: 'block' } }, t('judgment.' + ({ input_tokens: 'inputTokens', output_tokens: 'outputTokens', cost: 'cost' })[key]) + ': ' + result.usage[key]))) : null);
     }
 
     function CodexAccountsSection({ ctx, t }) {
