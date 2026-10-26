@@ -79,6 +79,50 @@ async function reviewEntry(entry) {
     disclosure: 'Commands run on the DSH host as its OS user, outside a sandbox. Original local/remote origin is unknown. Execution is unavailable.' };
 }
 
+/** Read-only runtime authority over the same definitions/Approval file as R13.
+ * Call only for an actual native Agent/event. No command or client path is accepted.
+ */
+export function createCommandExecutionAuthority(options, owner) {
+  const directory = resolve(options.stateDirectory || join(process.env.DSH_HOME || join(homedir(), '.dsh'), 'majed', 'hooks'));
+  const store = privateStore(directory);
+  const get = name => owner.get(name);
+  async function roots(agent, signal) {
+    signal.throwIfAborted();
+    const user = await realpath(options.userDirectory || homedir());
+    let project;
+    const sessionId = agent?.session?.header?.id;
+    const services = { sessions: get('sessions'), sessionPersistence: get('sessionPersistence'), workspaceRegistry: get('workspaceRegistry') };
+    if (sessionId && Object.values(services).every(Boolean)) {
+      for (const workspace of services.workspaceRegistry.list()) {
+        if (!workspace.sessionIds.includes(sessionId)) continue;
+        project = (await resolveManagementScope(services, { sessionId, workspaceId: workspace.id }, signal))?.projectPath;
+        if (project) break;
+      }
+    }
+    signal.throwIfAborted();
+    return { user, project };
+  }
+  return {
+    directory,
+    async list(agent, event, signal) {
+      const allowed = await roots(agent, signal);
+      const observed = await store.read();
+      return observed.value.entries.filter(entry => entry.root === allowed[entry.scope] && entry.hook.enabled && entry.hook.events.includes(event))
+        .map(entry => ({ ...entry, key: JSON.stringify([entry.scope, entry.root, entry.hook.id]), fingerprint: entry.approval?.fingerprint }));
+    },
+    async revalidate(agent, selected, signal) {
+      const allowed = await roots(agent, signal);
+      const observed = await store.read();
+      const entry = observed.value.entries.find(entry => entry.scope === selected.scope && entry.root === selected.root && entry.hook.id === selected.hook.id);
+      if (!entry || entry.root !== allowed[entry.scope] || !entry.hook.enabled || !entry.approval || entry.generation !== selected.generation) reject('invalid_approval');
+      const review = await reviewEntry(entry);
+      if (review.fingerprint !== selected.fingerprint || review.fingerprint !== entry.approval.fingerprint || (await store.read()).revision !== observed.revision) reject('invalid_approval');
+      signal.throwIfAborted();
+      return review;
+    },
+  };
+}
+
 /** Production consent workflow only. No process runner or hook event registration. */
 export function applyCommandApproval(ctx, options = {}) {
   const enabled = options.enabled === true;
