@@ -181,6 +181,13 @@ window.__ModuleLoader__.load({
       'management.error': 'Status unavailable. Check the connection and refresh. If it persists, verify the installed host/client versions.',
       'management.auth': 'Owner access required. Reopen the authenticated DSH page or pair this remote device again, then refresh.',
       'management.unsupported': 'This host does not provide the Settings transport. Use a supported DSH version.',
+      'skills.disabled': 'Skills are disabled.', 'skills.enabled': 'Skills are enabled.',
+      'skills.enable': 'Enable Skills; the standalone Skills Manager is disabled',
+      'skills.disable': 'Disable Skills management', 'skills.user': 'User Skills', 'skills.project': 'Project',
+      'skills.name': 'Name', 'skills.description': 'Description', 'skills.body': 'Instructions',
+      'skills.create': 'Create Skill', 'skills.inspect': 'View', 'skills.trash': 'Move to trash',
+      'skills.restore': 'Restore', 'skills.toggle': 'Enabled', 'skills.root': 'Source',
+      'skills.delete': 'Permanently delete', 'skills.confirmDelete': 'I confirm permanent deletion',
     };
     const managementAr = {
       'management.skills': 'مدير المهارات', 'management.mcp': 'مدير MCP', 'management.hooks': 'مدير الخطافات',
@@ -192,8 +199,84 @@ window.__ModuleLoader__.load({
       'management.error': 'الحالة غير متاحة. تحقق من الاتصال ثم حدّث الحالة. إن استمرت المشكلة، تحقق من توافق إصدارَي المضيف والواجهة.',
       'management.auth': 'يلزم وصول المالك. أعد فتح صفحة DSH الموثقة أو أعد إقران الجهاز البعيد ثم حدّث الحالة.',
       'management.unsupported': 'لا يوفر هذا المضيف وسيلة نقل الإعدادات. استخدم إصدار DSH مدعومًا.',
+      'skills.disabled': 'إدارة المهارات معطلة.', 'skills.enabled': 'إدارة المهارات مفعلة.',
+      'skills.enable': 'تفعيل المهارات؛ مدير المهارات المستقل معطل',
+      'skills.disable': 'تعطيل إدارة المهارات', 'skills.user': 'مهارات المستخدم', 'skills.project': 'المشروع',
+      'skills.name': 'الاسم', 'skills.description': 'الوصف', 'skills.body': 'التعليمات',
+      'skills.create': 'إنشاء مهارة', 'skills.inspect': 'عرض', 'skills.trash': 'نقل إلى سلة المحذوفات',
+      'skills.restore': 'استعادة', 'skills.toggle': 'مفعلة', 'skills.root': 'المصدر',
+      'skills.delete': 'حذف نهائي', 'skills.confirmDelete': 'أؤكد الحذف النهائي',
     };
     Object.assign(en, managementEn);
+
+    function SkillsSection({ ctx, t }) {
+      const [status, setStatus] = React.useState(null), [snapshot, setSnapshot] = React.useState(null);
+      const [trash, setTrash] = React.useState([]), [detail, setDetail] = React.useState(null);
+      const [error, setError] = React.useState(null), [busy, setBusy] = React.useState(false);
+      const [project, setProject] = React.useState(''), [root, setRoot] = React.useState('dsh');
+      const [name, setName] = React.useState(''), [description, setDescription] = React.useState(''), [body, setBody] = React.useState('');
+      const [deleteId, setDeleteId] = React.useState('');
+      const active = React.useRef(null);
+      const run = async (action = 'status', input = {}, scopeOverride) => {
+        if (active.current) return;
+        const controller = new AbortController(); active.current = controller;
+        const timer = setTimeout(() => controller.abort(), 6000);
+        setBusy(true); setError(null);
+        try {
+          const selected = scopeOverride === undefined ? status?.projects?.find(item => item.workspaceId === project) : scopeOverride;
+          const selectors = selected ? { sessionId: selected.sessionId, workspaceId: selected.workspaceId } : {};
+          const call = async (action, input = {}) => {
+            const result = await ctx.connection.rpc.call('/api', 'majed/skills', { action, input, ...selectors }, controller.signal);
+            if (!result.ok) throw new Error('operation');
+            return result.value;
+          };
+          if (action !== 'status') {
+            const result = await call(action, input);
+            if (action === 'detail') setDetail(result);
+          }
+          const next = await call('status');
+          const rows = next.enabled ? await call('list') : null;
+          const removed = next.enabled ? await call('listTrash') : [];
+          if (controller.signal.aborted || active.current !== controller) return;
+          setStatus(next); setSnapshot(rows); setTrash(removed);
+        } catch (failure) {
+          if (active.current === controller) setError(/HTTP (401|403)/.test(failure.message) ? 'auth' : 'error');
+        } finally {
+          clearTimeout(timer);
+          if (active.current === controller) { active.current = null; setBusy(false); }
+        }
+      };
+      React.useEffect(() => { run(); return () => { active.current?.abort(); active.current = null; }; }, [ctx]);
+      const button = (label, onClick, attrs = {}) => h('button', { type: 'button', className: 'majed-management-refresh', 'aria-disabled': busy, onClick, ...attrs }, t(label));
+      return h('section', { className: 'majed-management majed-skills', dir: t('management.direction'), 'aria-label': t('management.skills'), 'aria-busy': busy },
+        h('h2', { className: 'majed-management__title' }, t('management.skills')),
+        h('p', { role: error ? 'alert' : 'status' }, t(error ? 'management.' + error : 'skills.' + (status?.enabled ? 'enabled' : 'disabled'))),
+        button('management.retry', () => run(), { 'data-skills-refresh': '' }),
+        status && button(status.enabled ? 'skills.disable' : 'skills.enable', () => run('enable', { enabled: !status.enabled, confirm: true }), { 'data-skills-enable': '' }),
+        status?.enabled && h(React.Fragment, null,
+          h('label', null, t('skills.project'), h('select', { value: project, disabled: busy, 'data-skills-project': '', onChange: event => {
+            const value = event.target.value; setProject(value); setRoot('dsh'); setDetail(null);
+            run('status', {}, status.projects.find(item => item.workspaceId === value) ?? null);
+          } }, h('option', { value: '' }, t('skills.user')), ...(status.projects ?? []).map(item => h('option', { key: item.workspaceId, value: item.workspaceId }, item.title)))),
+          ...(snapshot?.roots ?? []).map(source => h('div', { key: source.key }, h('h3', null, source.label),
+            ...source.skills.map(skill => h('div', { key: skill.name, className: 'majed-management-controls' },
+              h('span', { dir: 'auto' }, skill.declaredName || skill.name),
+              button('skills.inspect', () => run('detail', { root: source.key, name: skill.name })),
+              source.toggleable && h('label', null, h('input', { type: 'checkbox', checked: skill.managerEnabled, disabled: busy,
+                'data-skills-toggle': skill.name, onChange: event => run('setEnabled', { root: source.key, name: skill.name, enabled: event.target.checked }) }), t('skills.toggle')),
+              source.mutable && button('skills.trash', () => run('trash', { root: source.key, name: skill.name }), { 'data-skills-trash': skill.name }))))),
+          detail && h('pre', { dir: 'auto' }, detail.body),
+          h('form', { onSubmit: event => { event.preventDefault(); run('create', { root, name, description, body }); } },
+            h('label', null, t('skills.root'), h('select', { value: root, disabled: busy, onChange: event => setRoot(event.target.value) },
+              ...(snapshot?.roots ?? []).filter(source => source.mutable).map(source => h('option', { key: source.key, value: source.key }, source.label)))),
+            ...[['name', name, setName], ['description', description, setDescription], ['body', body, setBody]].map(([key, value, set]) => h('label', { key }, t('skills.' + key),
+              h(key === 'body' ? 'textarea' : 'input', { value, required: true, disabled: busy, 'data-skills-field': key, onChange: event => set(event.target.value) }))),
+            h('button', { type: 'submit', disabled: busy, className: 'majed-management-refresh', 'data-skills-create': '' }, t('skills.create'))),
+          ...trash.map(item => h('div', { key: item.id, className: 'majed-management-controls' }, h('span', null, item.name),
+            button('skills.restore', () => run('restore', { id: item.id }), { 'data-skills-restore': item.id }),
+            h('label', null, h('input', { type: 'checkbox', checked: deleteId === item.id, disabled: busy, onChange: event => setDeleteId(event.target.checked ? item.id : '') }), t('skills.confirmDelete')),
+            deleteId === item.id && button('skills.delete', () => run('delete', { id: item.id, confirm: true }))))));
+    }
 
     function ManagementSection({ ctx, module, t }) {
       const [value, setValue] = React.useState(null);
@@ -241,6 +324,9 @@ window.__ModuleLoader__.load({
 .majed-management-refresh{font:inherit;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-module-platform);border:1px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md);padding:.5em 1em;white-space:normal}
 .majed-management-refresh:focus-visible{outline:2px solid var(--dsw-alias-label-primary);outline-offset:2px}
 .majed-management-refresh[aria-disabled="true"]{opacity:.5}
+.majed-skills form,.majed-skills label{display:grid;gap:.5em;margin-block:.5em;min-width:0}
+.majed-skills input,.majed-skills textarea,.majed-skills select{box-sizing:border-box;max-width:100%;font:inherit;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-module-platform);border:1px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md)}
+.majed-skills pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit}
 @media (max-width:420px){.majed-management-controls{flex-direction:column;align-items:stretch;gap:.5em}.majed-management-refresh{width:100%;justify-content:center}}
 
 .majed-row{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:16px 0;border-bottom:.5px solid var(--dsw-alias-border-l2)}
@@ -1886,7 +1972,7 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
         ctx.slots.inject('settings.section', () => {
           const stops = ['skills', 'mcp', 'hooks', 'subscriptions', 'routing'].map((module, index) => ctx.slots.register({
             name: 'settings.section', id: 'majed-' + module, order: 60 + index, locale: NS, label: () => ctx.locale.bind(NS)('management.' + module),
-          }, props => h(ManagementSection, { ...props, ctx, module })));
+          }, props => h(module === 'skills' ? SkillsSection : ManagementSection, { ...props, ctx, module })));
           return () => stops.reverse().forEach(stop => stop());
         });
 

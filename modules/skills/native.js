@@ -143,7 +143,7 @@ export function createHandler(handlerCtx, core) {
           return json({ ok: true, data: result });
         }
         if (action === 'detail') {
-          const detail = await detailFn(String(input.root || 'dsh'), String(input.name || ''));
+          const detail = await detailFn(String(input.root || 'dsh'), String(input.name || ''), { projectCwds: input.projectCwds });
           return json({ ok: true, data: detail });
         }
         if (action === 'create') {
