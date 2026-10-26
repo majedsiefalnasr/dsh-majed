@@ -5,6 +5,7 @@ import { apply as skills } from './modules/skills/service.js';
 import { AUTO_ROUTE_ID } from './modules/auto/index.js';
 import { applyJudgment } from './modules/judgment/native.js';
 import { applyCodexAccounts } from './modules/subscriptions/codex/native.js';
+import { applyManagedMcp } from './modules/mcp/native.js';
 import { applyCommandApproval } from './modules/hooks/approval.js';
 
 export { AUTO_ROUTE_ID };
@@ -12,6 +13,7 @@ export { AUTO_ROUTE_ID };
 export function apply(ctx, config = {}) {
   baseline(ctx);
   settings(ctx);
+  applyManagedMcp(ctx, config.managedMcp || {});
   skills(ctx);
   applyJudgment(ctx, config.judgment);
   applyCodexAccounts(ctx, config.codexAccounts || {});

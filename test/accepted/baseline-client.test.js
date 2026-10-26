@@ -10,6 +10,7 @@ import { createBaselineHarness, SETTINGS_KEY } from './helpers/baseline-client-h
 const source = await readFile(new URL('../../dist/client.js', import.meta.url), 'utf8');
 const expectedSlots = [
   ...['skills', 'mcp', 'hooks', 'subscriptions', 'routing'].map((module, index) => ['majed-' + module, 'settings.section', 60 + index]),
+  ['majed-codex-speed', 'conversation.input.right', 0],
   ['majed-ui-font-size', 'settings.general.item', 11.5],
   ['majed-font-source', 'settings.general.item', 11.6],
   ['majed-bidi', 'settings.general.item', 13],

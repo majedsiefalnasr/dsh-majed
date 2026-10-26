@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { createServer } from 'node:net';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm, stat, readFile, writeFile, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -139,4 +140,25 @@ test('disposing a pending login stays bounded when a provider transport ignores 
   const result = Promise.allSettled([signingIn]);
   await received; await service.dispose(); await result;
   await assert.rejects(readFile(config.path), { code: 'ENOENT' });
+});
+
+
+test('cancelling during callback listener startup closes that attempt and preserves the prior account', async t => {
+  const reservation = createServer();
+  await new Promise(resolve => reservation.listen(0, '127.0.0.1', resolve));
+  const port = reservation.address().port;
+  await new Promise(resolve => reservation.close(resolve));
+  const { service, config, calls } = await fixture(t, { ports: [port] });
+  await login(service);
+  const before = await readFile(config.path, 'utf8');
+  const opening = service.begin();
+  const cancelling = service.cancel();
+  await Promise.all([opening, cancelling]);
+  assert.equal((await service.snapshot()).loginState, 'cancelled');
+  await assert.rejects(fetch(`http://127.0.0.1:${port}/auth/callback?code=late&state=late`));
+  await assert.rejects(service.complete(`http://localhost:${port}/auth/callback?code=late&state=late`), /login_not_pending/);
+  assert.equal(calls.length, 1, 'A cancelled startup never exchanges a code');
+  assert.equal(await readFile(config.path, 'utf8'), before);
+  await login(service);
+  assert.equal((await service.snapshot()).loginState, 'connected', 'A new login is allowed after cancelled startup');
 });

@@ -3,7 +3,7 @@ import { join, resolve, relative, isAbsolute } from 'node:path';
 import { homedir } from 'node:os';
 import { createHash, randomBytes } from 'node:crypto';
 import { validateCommandHook } from './index.js';
-import { resolveManagementScope } from '../../lib/management/scope.js';
+import { discoverManagementContexts, resolveManagementScope } from '../../lib/management/scope.js';
 
 export const APPROVAL_METHOD = 'majed/hooks/approval';
 export const APPROVAL_PATH = '/api/' + APPROVAL_METHOD;
@@ -155,19 +155,7 @@ export function applyCommandApproval(ctx, options = {}) {
     const challengeKey = JSON.stringify([input.scope, root, id]);
     async function contexts() {
       const services = { sessions: owner.get('sessions'), sessionPersistence: owner.get('sessionPersistence'), workspaceRegistry: owner.get('workspaceRegistry') };
-      if (Object.values(services).some(value => !value) || typeof services.workspaceRegistry.list !== 'function') return [];
-      const values = [];
-      // One live native session per project supplies a supported, revalidated
-      // scope selector. Never infer context from private client viewing fields.
-      for (const workspace of services.workspaceRegistry.list().slice(0, 64)) {
-        for (const sessionId of workspace.sessionIds.slice(0, 32)) {
-          if (!services.sessions.get(sessionId)) continue;
-          const selectors = { sessionId, workspaceId: workspace.id };
-          const resolved = await resolveManagementScope(services, selectors, signal);
-          if (resolved) { values.push({ ...selectors, label: resolved.projectPath }); break; }
-        }
-      }
-      return values;
+      return discoverManagementContexts(services, signal);
     }
     const execution = owner.get('commandHookExecution');
     if (input.action === 'history') return { executionAvailable: !!execution, runs: execution?.history.snapshot() || [] };

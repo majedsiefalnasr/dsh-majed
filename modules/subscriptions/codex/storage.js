@@ -12,18 +12,18 @@ function validAccount(account) {
     && Number.isFinite(session.expiresAt);
 }
 // Majed owns this file exclusively. Never opens or migrates a reference store.
-export function createPrivateStore(path) {
+export function createPrivateStore(path, options = {}) {
   async function load() {
     try {
       const info = await lstat(path);
       if (!info.isFile() || info.isSymbolicLink() || (process.platform !== 'win32' && (info.mode & 0o077))) throw fail('unsafe_account_store');
       const data = JSON.parse(await readFile(path, 'utf8'));
-      if (data.version !== 1 || !Array.isArray(data.accounts) || !data.accounts.every(validAccount)
+      if (options.validate ? !options.validate(data) : (data.version !== 1 || !Array.isArray(data.accounts) || !data.accounts.every(validAccount)
         || new Set(data.accounts.map(a => a.id)).size !== data.accounts.length
-        || (data.default !== null && !data.accounts.some(a => a.id === data.default))) throw fail('corrupt_account_store');
+        || (data.default !== null && !data.accounts.some(a => a.id === data.default)))) throw fail('corrupt_account_store');
       return data;
     } catch (error) {
-      if (error.code === 'ENOENT') return { version: 1, accounts: [], default: null };
+      if (error.code === 'ENOENT') return options.empty ? options.empty() : { version: 1, accounts: [], default: null };
       throw fail(error.code === 'unsafe_account_store' ? error.code : 'corrupt_account_store');
     }
   }

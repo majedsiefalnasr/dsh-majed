@@ -1,11 +1,8 @@
 import { object, text, flag, maskedDictionary, fail, serial, scope, reconnect, timeout, instructionLimit, serverPath, MASKED_SECRET } from '../managers/validation.js';
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { ListToolsResultSchema } from '@modelcontextprotocol/sdk/types.js';
+import { isDeepStrictEqual } from 'node:util';
 export const SERVER_NAME = /^[A-Za-z0-9_-]{1,32}$/;
 export { MASKED_SECRET };
-/** Probe a saved connection once, then dispose it: bounded, disposable, side-effect free. */
+/** Bounded native handshake/list probe with isolated registrations and awaited disposal. Starts the configured process or HTTP connection. */
 export const PROBE_TIMEOUT_MS = 10_000;
 export function validateServer(value) {
   object(value, ['serverName', 'scope', 'enabled', 'transport', 'command', 'args', 'env', 'cwd', 'url', 'headers', 'reconnect', 'timeout', 'instructionLimit']);
@@ -45,50 +42,48 @@ export function validateServers(value = []) {
   return result;
 }
 // Named exports are the plugin namespace. A default export is deliberately not used.
-export async function loadMcpClient() { const mcpClient = await import('@deepseek-ai/dsh-mcp-client'); return mcpClient; }
-export function createMcpManager(ctx, load = loadMcpClient) {
-  const queue = serial(); const mounted = new Map(); let rows = []; let closed = false;
+export async function loadMcpClient(ctx) {
+  const loader = ctx?.get?.('loader');
+  if (typeof loader?.import !== 'function') throw new Error('Native module loader unavailable.');
+  return loader.import('@deepseek-ai/dsh-mcp-client');
+}
+function nativeConfig(row, reconnectOverride) {
+  const { enabled, scope, timeout, instructionLimit, ...config } = row;
+  return { ...config, ...(timeout === undefined ? {} : { toolCallTimeoutMs: timeout }), ...(instructionLimit === undefined ? {} : { maxInstructionBytes: instructionLimit }), failOnStartupError: true, reconnect: reconnectOverride || row.reconnect || { enabled: true, maxAttempts: 5 } };
+}
+export function createMcpManager(ctx, load = () => loadMcpClient(ctx), moduleContext = ctx) {
+  const queue = serial(); const mounted = new Map(), forced = new Set(); let rows = []; let definitions = []; let closed = false;
   async function unload() {
-    for (const [name, child] of mounted) { await child.dispose(); mounted.delete(name); }
-  }
-  function buildStdioEnv(row) {
-    const env = { ...process.env };
-    for (const [key, value] of Object.entries(row.env || {})) {
-      if (value === null || value === undefined) delete env[key];
-      else if (value !== MASKED_SECRET) env[key] = value;
-    }
-    return env;
-  }
-  async function probeTransport(row, signal) {
-    const transport = row.transport === 'stdio'
-      ? new StdioClientTransport({ command: row.command, args: [...row.args], env: buildStdioEnv(row), cwd: row.cwd })
-      : new StreamableHTTPClientTransport(new URL(row.url), { requestInit: { headers: row.headers || {}, signal, duplex: 'half' } });
-    const client = new Client({ name: 'dsh-majed-mcp-probe', version: '0.0.1' }, { capabilities: {} });
-    await client.connect(transport);
-    await client.request({ method: 'tools/list' }, ListToolsResultSchema);
-    return client;
+    for (const [name, record] of mounted) { await record.child.dispose(); mounted.delete(name); }
   }
   async function probeServer(serverName) {
     return queue(async () => {
       if (closed) throw new Error('Manager disposed.');
-      const row = rows.find(r => r.serverName === serverName);
+      const row = definitions.find(r => r.serverName === serverName);
       if (!row) throw new Error('Server not found.');
       const view = rows.find(r => r.serverName === serverName);
       view.status = 'probing';
-      let client;
+      let child, probeScope, deadline;
       try {
-        const controller = new AbortController();
-        const deadline = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
-        try {
-          client = await probeTransport(row, controller.signal);
-          view.status = 'connected';
-        } finally {
-          clearTimeout(deadline);
-        }
+        const loader = moduleContext.get('loader');
+        if (typeof loader?.import !== 'function') throw new Error('Native module loader unavailable.');
+        const [{ createScope }, namespace] = await Promise.all([loader.import('@deepseek-ai/dsh-scope'), load()]);
+        if (closed) throw new Error('Manager disposed.');
+        // The temporary native scope keeps probe registrations out of every
+        // real agent/global inventory; no SDK/runtime alternative is selected.
+        probeScope = createScope(ctx, {});
+        child = probeScope.ctx.plugin(namespace, nativeConfig(row, { enabled: false }));
+        const expired = new Promise((_, reject) => { deadline = setTimeout(() => reject(new Error('Probe deadline.')), PROBE_TIMEOUT_MS); });
+        await Promise.race([Promise.resolve(child), expired]);
+        view.probe = 'passed';
+        view.status = mounted.has(serverName) ? 'mounted' : 'probe-passed';
       } catch {
-        view.status = 'error';
+        view.probe = 'failed';
+        view.status = mounted.has(serverName) ? 'mounted' : 'probe-failed';
       } finally {
-        if (client) { try { await client.close(); } catch {} }
+        clearTimeout(deadline);
+        try { await child?.dispose(); await probeScope?.dispose(); }
+        catch { view.status = 'cleanup-failed'; throw new Error('MCP probe cleanup failed.'); }
       }
       return { ...view };
     });
@@ -97,31 +92,58 @@ export function createMcpManager(ctx, load = loadMcpClient) {
     replace: input => queue(async () => {
       if (closed) throw new Error('Manager disposed.');
       const next = validateServers(input);
-      // Await each old child's disposal before mounting any replacement.
-      await unload(); rows = next.map(row => ({ serverName: row.serverName, transport: row.transport, enabled: row.enabled, ...(row.transport === 'stdio' ? { command: row.command, args: [...row.args], ...(row.cwd ? { cwd: row.cwd } : {}) } : { url: row.url }), envCount: Object.keys(row.env || {}).length, headerCount: Object.keys(row.headers || {}).length, status: 'configured' }));
+      // Reconcile each connection independently; unrelated native instances and
+      // in-flight tool calls survive another definition's edit or failure.
+      for (const [name, record] of mounted) {
+        const replacement = next.find(row => row.serverName === name);
+        if (replacement?.enabled && isDeepStrictEqual(replacement, record.row)) continue;
+        try { await record.child.dispose(); mounted.delete(name); }
+        catch { const view = rows.find(row => row.serverName === name); if (view) view.status = 'cleanup-failed'; throw new Error('MCP cleanup failed. Replacement refused.'); }
+      }
+      const previous = rows, previousDefinitions = definitions;
+      definitions = next;
+      rows = next.map(row => {
+        const before = previous.find(value => value.serverName === row.serverName);
+        const unchanged = isDeepStrictEqual(previousDefinitions.find(value => value.serverName === row.serverName), row);
+        return { serverName: row.serverName, transport: row.transport, enabled: row.enabled, scope: row.scope, ...(row.transport === 'stdio' ? { command: row.command, args: [...row.args], ...(row.cwd ? { cwd: row.cwd } : {}) } : { url: row.url }), envKeys: Object.keys(row.env || {}), headerKeys: Object.keys(row.headers || {}), envCount: Object.keys(row.env || {}).length, headerCount: Object.keys(row.headers || {}).length, status: unchanged ? before?.status || 'configured' : 'configured', ...(unchanged && before?.probe ? { probe: before.probe } : {}) };
+      });
       for (const row of next) {
-        if (!row.enabled) continue;
+        if (!row.enabled || mounted.has(row.serverName)) continue;
         const view = rows.find(item => item.serverName === row.serverName);
+        if (view.status === 'activation-failed' && !forced.has(row.serverName)) continue;
+        forced.delete(row.serverName);
+        view.status = 'probing';
         let child;
         try {
           const namespace = await load();
-          const { enabled, ...config } = row;
-          child = ctx.plugin(namespace, { ...config, failOnStartupError: true, reconnect: { enabled: false } });
+          if (closed) break;
+          child = ctx.plugin(namespace, nativeConfig(row));
           await child;
-          mounted.set(row.serverName, child); view.status = 'mounted';
+          if (closed) { await child.dispose(); continue; }
+          mounted.set(row.serverName, { child, row }); view.status = 'mounted';
         } catch {
           view.status = 'activation-failed';
           if (child?.dispose) {
             try { await child.dispose(); }
-            catch { mounted.set(row.serverName, child); throw new Error('MCP child cleanup failed. Replacement refused.'); }
+            catch { mounted.set(row.serverName, { child, row }); view.status = 'cleanup-failed'; throw new Error('MCP child cleanup failed. Replacement refused.'); }
           }
         }
       }
       return rows.map(row => ({ ...row, ...(row.args ? { args: [...row.args] } : {}) }));
     }),
     probeServer,
+    reconnect: serverName => queue(async () => {
+      if (closed) throw new Error('Manager disposed.');
+      const record = mounted.get(serverName);
+      if (record) { await record.child.dispose(); mounted.delete(serverName); }
+      if (!definitions.some(row => row.serverName === serverName)) throw new Error('Server not found.');
+      forced.add(serverName);
+      const next = definitions.map(row => ({ ...row }));
+      // The next request's ordinary replace mounts only the missing generation.
+      return next;
+    }),
     snapshot: () => rows.map(row => ({ ...row, ...(row.args ? { args: [...row.args] } : {}) })),
-    dispose: () => queue(async () => { closed = true; await unload(); }),
+    dispose: () => { closed = true; return queue(unload); },
   };
 }
 export const mcpConfigFields = { servers: { type: 'array', default: [], description: 'Managed MCP servers; each server is disabled unless enabled is explicitly true.' } };

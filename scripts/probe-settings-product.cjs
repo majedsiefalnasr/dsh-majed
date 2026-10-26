@@ -14,9 +14,11 @@ assert.equal(process.cwd(), process.env.HOME);
 assert.equal(process.env.DSH_HOME, process.env.HOME);
 assert.ok(basename(process.cwd()).startsWith('dsh-physical-carrier-'));
 const [base, deps, remoteFile, ...flags] = process.argv.slice(2);
-assert.ok(flags.every(x => ['--red-result', '--red-correlation', '--red-membership', '--codex', '--approval', '--judgment'].includes(x)));
-const codexProbe = flags.includes('--codex');
+assert.ok(flags.every(x => ['--red-result', '--red-correlation', '--red-membership', '--codex', '--codex-direct', '--approval', '--mcp', '--judgment'].includes(x)));
+const codexDirect = flags.includes('--codex-direct');
+const codexProbe = flags.includes('--codex') || codexDirect;
 const approvalProbe = flags.includes('--approval');
+const mcpProbe = flags.includes('--mcp');
 const judgmentProbe = flags.includes('--judgment');
 const dependencyRequire = createRequire(join(deps, '..', '__probe.cjs'));
 const req = name => dependencyRequire(join(deps, name));
@@ -29,10 +31,10 @@ const http = require('node:http'), net = require('node:net');
 const realRequest = http.request, realServer = http.createServer;
 const realListen = net.Server.prototype.listen, realConnect = net.Socket.prototype.connect;
 const servers = [], ports = new Set(), owned = new WeakSet();
-let creating = false, oauthCreating = false, requesting = 0, proxyCalls = 0, closedListeners = 0;
+let creating = false, oauthCreating = false, mcpCreating = false, requesting = 0, proxyCalls = 0, closedListeners = 0;
 const oauthServers = new WeakSet();
 http.createServer = function(...args) {
-  assert.ok((creating && servers.length < 2) || (codexProbe && oauthCreating && servers.length < 8), 'Only bounded owned WebServer/OAuth listeners permitted');
+  assert.ok((creating && servers.length < 2) || (codexProbe && oauthCreating && servers.length < 8) || (mcpProbe && mcpCreating && servers.length < 9), 'Only bounded owned WebServer/OAuth/MCP listeners permitted');
   const server = realServer.apply(this, args); owned.add(server); servers.push(server);
   if (oauthCreating) oauthServers.add(server);
   server.once('close', () => closedListeners++);
@@ -80,13 +82,23 @@ for (const method of ['request', 'get', 'createServer']) require('node:https')[m
 require('node:tls').connect = forbidden;
 for (const method of ['createSocket']) require('node:dgram')[method] = forbidden;
 for (const method of ['send', 'bind', 'connect']) require('node:dgram').Socket.prototype[method] = forbidden;
-for (const name of ['spawn', 'spawnSync', 'exec', 'execSync', 'execFile', 'execFileSync', 'fork']) require('node:child_process')[name] = forbidden;
+const protocolChildren = [], protocolFixture = join(__dirname, 'fixture-managed-mcp.cjs');
+const processApi = require('node:child_process'), realSpawn = processApi.spawn;
+for (const name of ['spawn', 'spawnSync', 'exec', 'execSync', 'execFile', 'execFileSync', 'fork']) processApi[name] = forbidden;
+processApi.spawn = function(command, args, options) {
+  if (!mcpProbe || command !== process.execPath) return forbidden();
+  assert.deepEqual(args, [protocolFixture]);
+  assert.equal(options.cwd, process.cwd()); assert.equal(options.env.HOME, process.cwd());
+  assert.equal(options.env.ELECTRON_RUN_AS_NODE, '1'); assert.equal(options.env.DSH_MANAGED_MCP_FIXTURE, '1');
+  assert.ok(protocolChildren.length < 20);
+  const child = realSpawn(command, args, options); const closed = new Promise(resolve => child.once('close', resolve)); protocolChildren.push({ child, closed }); return child;
+};
 for (const dns of [require('node:dns'), require('node:dns/promises')]) {
   for (const key of Object.keys(dns)) if (typeof dns[key] === 'function') dns[key] = forbidden;
 }
 // Node's literal bind lookup is satisfied synchronously without invoking DNS.
 require('node:dns').lookup = (host, options, callback) => {
-  assert.ok(host === '127.0.0.1' || (oauthCreating && host === '::1')); assert.ok(creating || oauthCreating);
+  assert.ok(host === '127.0.0.1' || (oauthCreating && host === '::1')); assert.ok(creating || oauthCreating || mcpCreating);
   const family = host === '::1' ? 6 : 4;
   if (options?.all) callback(null, [{ address: host, family }]);
   else (typeof options === 'function' ? options : callback)(null, host, family);
@@ -99,7 +111,7 @@ function physicalFetch(input, init = {}) {
   assert.ok(ports.has(Number(url.port))); assert.equal(url.username, ''); assert.equal(url.password, '');
   assert.ok(Buffer.byteLength(init.body ?? '') <= 16384);
   return new Promise((resolve, reject) => {
-    const request = http.request(url, { method: init.method ?? 'GET', headers: init.headers, agent: false }, response => {
+    const request = http.request(url, { method: init.method ?? 'GET', headers: Object.fromEntries(new Headers(init.headers)), agent: false }, response => {
       const chunks = []; let bytes = 0;
       response.on('data', chunk => { bytes += chunk.length; if (bytes > 65536) response.destroy(Error('HTTP byte bound')); else chunks.push(chunk); });
       response.on('error', reject);
@@ -191,7 +203,7 @@ async function main() {
     finally { creating = false; }
     const server = context.get('webServer'); assert.ok(server.port > 0); ports.add(server.port); return server;
   };
-  let dom, ctx, unmount, report;
+  let dom, ctx, unmount, report, mcpServer, mcpUrl, httpMcpCalls = 0, httpMcpInitializations = 0, httpCredentialRequests = 0;
   let operations = 0, deliveries = 0, resolutions = 0, authCalls = 0;
   const physical = [], statuses = [];
   const endpoint = '/api/majed/settings/status';
@@ -203,6 +215,38 @@ async function main() {
       () => require('node:dns').resolve('example.invalid', () => {}),
       () => require('node:child_process').spawn('forbidden')]) assert.throws(attempt, /Physical carrier forbids unowned I\/O/);
     const inner = await mountServer(host), outer = await mountServer(outerHost);
+    if (mcpProbe) {
+      checkpoint = 'controlled-http-mcp';
+      mcpCreating = true;
+      try {
+        mcpServer = http.createServer(async (request, response) => {
+          if (request.headers.authorization) { assert.equal(request.headers.authorization, 'fixture-http-secret'); httpCredentialRequests++; }
+          if (request.method !== 'POST') { response.writeHead(request.method === 'DELETE' ? 200 : 405); response.end(); return; }
+          const chunks = []; let size = 0;
+          for await (const chunk of request) { size += chunk.length; assert.ok(size < 32768); chunks.push(chunk); }
+          const message = JSON.parse(Buffer.concat(chunks));
+          if (message.id === undefined) { response.writeHead(202); response.end(); return; }
+          let result;
+          if (message.method === 'initialize') { httpMcpInitializations++; result = { protocolVersion: message.params.protocolVersion, capabilities: { tools: {} }, serverInfo: { name: 'controlled-http', version: '1' } }; }
+          else if (message.method === 'tools/list') result = { tools: [{ name: 'echo', inputSchema: { type: 'object', properties: { mode: { type: 'string' } } } }] };
+          else if (message.method === 'tools/call') { httpMcpCalls++; result = { content: [{ type: 'text', text: 'fixture HTTP result' }] }; }
+          else { response.writeHead(400); response.end(); return; }
+          response.writeHead(200, { 'content-type': 'application/json', 'mcp-session-id': 'controlled-' + httpMcpInitializations });
+          response.end(JSON.stringify({ jsonrpc: '2.0', id: message.id, result }));
+        });
+        await new Promise(resolve => mcpServer.listen(0, '127.0.0.1', resolve));
+        ports.add(mcpServer.address().port); mcpUrl = 'http://127.0.0.1:' + mcpServer.address().port + '/mcp';
+      } finally { mcpCreating = false; }
+      global.fetch = (input, init) => { assert.equal(new URL(input).href, mcpUrl); return physicalFetch(input, init); };
+      host.baseUrl = pathToFileURL(base + '/').href;
+      const { Loader } = hostLoad('cordis-plugin-loader');
+      await mount({ apply(context) { new Loader(context); } });
+      class PromptSink extends Service {
+        constructor(context) { super(context, 'systemPrompt'); }
+        tools() { return () => {}; } section() { return () => {}; } getSectionOrder() { return 0; }
+      }
+      await mount(PromptSink); await mount(hostLoad('dsh-tools').ToolRuntime);
+    }
     await mount({ apply(owner) { new MemoryCredentials(owner); new MemoryStorage(owner); new MemoryPersistence(owner); } });
     await mount(SessionStore);
     await mount({ inject: ['storage'], apply(owner) {
@@ -232,10 +276,12 @@ async function main() {
     const { apply: settingsHost } = await import('../lib/management/settings.js');
     let endpointFiber, judgmentSends = 0;
     const mountEndpoint = async () => {
-      if (!approvalProbe && !judgmentProbe) return mount({ apply: settingsHost });
+      if (codexDirect) return;
+      if (!approvalProbe && !mcpProbe && !judgmentProbe) return mount({ apply: settingsHost });
       const { apply: productHost } = await import('../index.js');
       return mount({ apply: context => productHost(context, {
         hooksApproval: { enabled: approvalProbe, userDirectory: process.cwd(), stateDirectory: join(process.cwd(), 'approval-state') },
+        managedMcp: { enabled: mcpProbe, standaloneDisabled: true, userDirectory: process.cwd(), stateDirectory: join(process.cwd(), 'mcp-state') },
         judgment: { path: join(process.cwd(), 'judgment.json'), fetch: async (url, init) => {
           assert.ok(['https://judge.example/v1/systemone', 'https://judge.example/api/alpha/decisions'].includes(url));
           assert.equal(init.headers.authorization, 'Bearer fixture-judgment-value');
@@ -250,20 +296,45 @@ async function main() {
     };
     endpointFiber = await mountEndpoint();
     let codexFiber, codexMount, codexGrantCount = 0;
+    let directLlm, directCalls = [], activeCodexIdToken;
     if (codexProbe) {
       const { applyCodexAccounts } = await import('../modules/subscriptions/codex/native.js');
+      const { apply: productHost } = codexDirect ? await import('../index.js') : {};
+      if (codexDirect) {
+        host.baseUrl = pathToFileURL(base + '/').href;
+        await mount({ apply(context) { new (hostLoad('cordis-plugin-loader').Loader)(context); } });
+        assert.equal((await host.get('loader').import('@deepseek-ai/dsh-llm')).LlmAdapter, hostLoad('dsh-llm').LlmAdapter);
+        await mount(hostLoad('dsh-llm').LlmRuntime); directLlm = host.get('llm');
+      }
       const idToken = 'header.' + Buffer.from(JSON.stringify({ email: 'fixture@example.test', 'https://api.openai.com/auth': { chatgpt_account_id: 'fixture-workspace' } })).toString('base64url') + '.signature';
-      codexMount = () => mount({ apply(context) { applyCodexAccounts(context, {
+      activeCodexIdToken = idToken;
+      codexMount = async () => {
+        const configuration = {
         path: join(process.cwd(), 'codex-auth.json'), ports: [0], fetch: async (url, init) => {
+          if (codexDirect && url.startsWith('https://chatgpt.com/backend-api/codex/models')) return Response.json({ models: [{
+            slug: 'fixture-codex', display_name: 'Fixture Codex', context_window: init.headers['chatgpt-account-id'] === 'fixture-workspace' ? 120000 : 60000, max_context_window: 200000,
+            supported_reasoning_levels: [{ effort: 'low' }, { effort: 'high' }], default_reasoning_level: 'high', service_tiers: [{ id: 'priority' }],
+          }] });
+          if (codexDirect && url === 'https://chatgpt.com/backend-api/codex/responses') {
+            directCalls.push(JSON.parse(init.body));
+            assert.equal(init.headers.authorization, 'Bearer fixture-access'); assert.equal(init.headers['chatgpt-account-id'], 'fixture-workspace');
+            return new Response('data: ' + JSON.stringify({ type: 'response.output_text.delta', item_id: 'fixture-message', content_index: 0, delta: 'Native Codex response' }) + '\n\n'
+              + 'data: ' + JSON.stringify({ type: 'response.completed', response: { usage: { input_tokens: 7, output_tokens: 2 }, output: [] } }) + '\n\n', { headers: { 'content-type': 'text/event-stream' } });
+          }
           assert.equal(url, 'https://auth.openai.com/oauth/token'); codexGrantCount++;
-          assert.ok(init.body.includes(codexGrantCount === 1 ? 'authorization_code' : 'refresh_token'));
-          return Response.json({ access_token: 'fixture-access', refresh_token: 'fixture-refresh', expires_in: 3600, id_token: idToken });
+          const grant = init.headers['content-type'] === 'application/json' ? JSON.parse(init.body).grant_type : new URLSearchParams(init.body).get('grant_type');
+          assert.ok(codexDirect ? ['authorization_code', 'refresh_token'].includes(grant) : grant === (codexGrantCount === 1 ? 'authorization_code' : 'refresh_token'));
+          return Response.json({ access_token: 'fixture-access', refresh_token: 'fixture-refresh', expires_in: 3600, id_token: activeCodexIdToken });
         },
-      }); } });
+        };
+        const fiber = await mount({ apply(context) { if (codexDirect) productHost(context, { codexAccounts: configuration }); else applyCodexAccounts(context, configuration); } });
+        if (codexDirect) endpointFiber = fiber;
+        return fiber;
+      };
       codexFiber = await codexMount();
     }
     const carrier = async (input, init) => {
-      assert.ok(input === 'api/majed/settings/status' || input === 'api/majed/hooks/approval' || (codexProbe && input === 'api/majed/subscriptions/codex') || (judgmentProbe && input === 'api/majed/judgment/manage')); assert.equal(init.method, 'POST');
+      assert.ok(input === 'api/majed/settings/status' || input === 'api/majed/hooks/approval' || (codexProbe && input === 'api/majed/subscriptions/codex') || (mcpProbe && input === 'api/majed/mcp') || (judgmentProbe && input === 'api/majed/judgment/manage')); assert.equal(init.method, 'POST');
       // Deliberate document base; no repair of native URL, RPC payload or headers.
       const url = new URL(input, document.baseURI);
       assert.equal(url.origin, remoteMode ? outer.getOrigin() : inner.getOrigin());
@@ -348,6 +419,64 @@ async function main() {
     pairingCookie = ''; await refresh(); assert.match(text(), /Owner access required/);
     pairingCookie = 'synthetic-device=synthetic-live'; await refresh(); assert.match(text(), /Service ready/);
     await select('MCP Manager'); await act(settle); assert.match(text(), /Readiness checks are disabled/);
+    if (mcpProbe) {
+      checkpoint = 'mcp-native-settings-http';
+      remoteMode = false; document.head.innerHTML = `<base href="${inner.getOrigin()}/">`;
+      const panel = () => document.querySelector('[data-majed-mcp]');
+      const idle = async () => {
+        for (let attempt = 0; attempt < 80 && panel().querySelector('button')?.disabled; attempt++) await act(settle);
+        assert.equal(panel().querySelector('button')?.disabled, false, 'MCP Settings operation must settle');
+      };
+      const change = (name, value) => act(async () => {
+        const element = panel().querySelector(`[name="${name}"]`); assert.ok(element);
+        const prototype = element.tagName === 'SELECT' ? window.HTMLSelectElement.prototype : element.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
+        Object.getOwnPropertyDescriptor(prototype, 'value').set.call(element, value);
+        element.dispatchEvent(new window.Event(element.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })); await settle();
+      });
+      const click = async (label, server) => { await act(async () => {
+        const container = server ? panel().querySelector(`[data-mcp-server="${server}"]`) : panel(); assert.ok(container);
+        const button = [...container.querySelectorAll('button')].find(element => element.textContent === label); assert.ok(button, 'Missing MCP control: ' + label); button.click(); await settle();
+      }); await idle(); };
+      const submit = async () => { await act(async () => { panel().querySelector('[data-mcp-form]').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })); await settle(); }); await idle(); };
+      const credential = async (name, value) => {
+        await change('credentialName', name); await click('Add credential');
+        await act(async () => { const input = [...panel().querySelectorAll('input[type="password"]')].at(-1); Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(input, value); input.dispatchEvent(new window.Event('input', { bubbles: true })); await settle(); });
+      };
+      const nativeCall = name => host.tools.execute({ name: `mcp__${name}__echo`, arguments: { mode: 'hello' }, callId: 'settings-' + name, signal: new AbortController().signal });
+      await click('Add server'); await change('serverName', 'http'); await change('transport', 'streamable-http'); await change('url', mcpUrl); await credential('Authorization', 'fixture-http-secret'); await submit();
+      assert.match(panel().textContent, /Saved/); await click('Connect', 'http'); assert.match(panel().textContent, /Active native registration/);
+      assert.deepEqual((await nativeCall('http')).value, { content: [{ type: 'text', text: 'fixture HTTP result' }] });
+      await click('Reconnect', 'http'); assert.equal((await nativeCall('http')).isError, false);
+      await endpointFiber.dispose(); endpointFiber = await mountEndpoint();
+      await click('Refresh servers'); assert.match(panel().textContent, /Active native registration/);
+      await click('Disconnect', 'http'); assert.equal(host.tools.get('mcp__http__echo'), undefined); await click('Remove', 'http');
+      checkpoint = 'mcp-native-settings-stdio';
+      remoteMode = true; document.head.innerHTML = `<base href="${outer.getOrigin()}/remote/">`;
+      await click('Add server'); await change('serverName', 'stdio'); await change('command', process.execPath); await change('args', protocolFixture);
+      for (const [name, value] of [['DSH_MANAGED_MCP_FIXTURE', '1'], ['ELECTRON_RUN_AS_NODE', '1'], ['TOKEN', 'fixture-secret']]) {
+        await credential(name, value);
+      }
+      await submit(); assert.equal(panel().textContent.includes('fixture-secret'), false);
+      await click('Connect', 'stdio'); assert.match(panel().textContent, /Active native registration/);
+      assert.deepEqual((await nativeCall('stdio')).value, { content: [{ type: 'text', text: 'fixture MCP result' }] });
+      const registered = host.tools.get('mcp__stdio__echo');
+      await click('Test connection', 'stdio'); assert.equal(host.tools.get('mcp__stdio__echo'), registered);
+      assert.match(panel().textContent, /Last connection test: passed/);
+      await click('Disconnect', 'stdio'); await click('Remove', 'stdio');
+      checkpoint = 'mcp-native-arabic-admission';
+      const namespace = [...registeredLocales].find(([, values]) => values.ar?.['management.direction'] === 'rtl')?.[0]; assert.ok(namespace);
+      dictionaries.set(namespace, registeredLocales.get(namespace).ar); await act(async () => { localeRevision.set({ revision: 1 }); await settle(); });
+      await click('تحديث الخوادم'); assert.equal(document.querySelector('.majed-management').dir, 'rtl');
+      await click('إضافة خادم'); await change('serverName', 'arabic'); await change('transport', 'streamable-http'); await change('url', mcpUrl); await submit();
+      await click('اتصال', 'arabic'); assert.match(panel().textContent, /التسجيل الأصلي نشط/); assert.equal((await nativeCall('arabic')).isError, false);
+      pairingCookie = ''; await click('تحديث الخوادم'); assert.match(panel().textContent, /رُفضت العملية/);
+      pairingCookie = 'synthetic-device=synthetic-live'; await click('تحديث الخوادم');
+      remoteMode = false; document.head.innerHTML = `<base href="${inner.getOrigin()}/">`; browserCookie = '';
+      await click('تحديث الخوادم'); assert.match(panel().textContent, /رُفضت العملية/); browserCookie = cookie; await click('تحديث الخوادم');
+      await click('قطع الاتصال', 'arabic'); await click('إزالة', 'arabic');
+      assert.ok(httpMcpInitializations >= 3); assert.ok(httpMcpCalls >= 3); assert.ok(httpCredentialRequests >= 4);
+      dictionaries.set(namespace, registeredLocales.get(namespace).en); await act(async () => { localeRevision.set({ revision: 2 }); await settle(); });
+    }
     if (approvalProbe) {
       checkpoint = 'approval-native-settings';
       await select('Hooks Manager'); await act(settle);
@@ -475,7 +604,7 @@ async function main() {
       const callback = new URL(authorize.searchParams.get('redirect_uri'));
       callback.searchParams.set('code', 'fixture-code'); callback.searchParams.set('state', authorize.searchParams.get('state'));
       await act(async () => {
-        const input = document.querySelector('[data-majed-codex] input');
+        const input = document.querySelector('[data-codex-callback]');
         Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(input, callback.href);
         input.dispatchEvent(new window.Event('input', { bubbles: true })); await settle();
       });
@@ -485,12 +614,59 @@ async function main() {
       await codexClick('status'); assert.match(codexText(), /Account management is disabled/);
       await codexClick('enable'); assert.match(codexText(), /fixture@example.test/);
       await codexClick('refresh'); assert.equal(codexGrantCount, 2);
+      if (codexDirect) {
+        checkpoint = 'codex-native-direct';
+        assert.equal(directLlm.listProviders().length, 0, 'Login does not enable providers');
+        await codexClick('runtime');
+        assert.equal(directLlm.listProviders()[0].id, 'codex');
+        assert.match(codexText(), /Fixture Codex/);
+        const { createUserMessage } = hostLoad('dsh-llm');
+        const picker = load('dsh-client-ui-model-selection', { ...shared, '@deepseek-ai/dsh-client-ui-primitives': primitives });
+        const models = await directLlm.listModels('codex');
+        const initialSelection = { provider: 'codex', model: models[0].id };
+        const projected = stores.createSnapshotStore({ next: initialSelection });
+        const catalogValue = { groups: [{ id: 'codex', name: 'Codex (Subscription)', models: await Promise.all(models.map(async model => ({ ...model, ...(await directLlm.resolveModelInfo('codex', model.id)) }))) }], failures: [], default: initialSelection };
+        const catalog = { store: stores.createSnapshotStore({ value: catalogValue, status: 'ready', error: null }), load: async () => catalogValue,
+          reasoningFor: selection => catalogValue.groups[0].models.find(model => model.id === selection.model)?.reasoning };
+        const directory = new picker.ModelDirectory({ async selectModel({ sessionId, ...next }) { assert.equal(sessionId, 'fixture-direct-session'); projected.set({ next }); return { ok: true }; } },
+          'fixture-direct-session', () => true, catalog, projected, () => true);
+        try {
+          await directory.load(); await directory.select({ provider: 'codex', model: 'fixture-codex', reasoningEffort: 'low' });
+          const selection = directory.store.getSnapshot().current;
+          assert.equal(selection.model, 'fixture-codex');
+          const prepared = await directLlm.prepareCall(selection);
+          assert.equal(prepared.context.contextWindow, 120000);
+          activeCodexIdToken = 'header.' + Buffer.from(JSON.stringify({ email: 'second@example.test', 'https://api.openai.com/auth': { chatgpt_account_id: 'fixture-second-workspace' } })).toString('base64url') + '.signature';
+          oauthCreating = true;
+          try { await codexClick('begin'); } finally { oauthCreating = false; }
+          const secondAuthorize = new URL(document.querySelector('[data-majed-codex] a').href), secondCallback = new URL(secondAuthorize.searchParams.get('redirect_uri'));
+          secondCallback.searchParams.set('code', 'second-fixture-code'); secondCallback.searchParams.set('state', secondAuthorize.searchParams.get('state'));
+          await act(async () => {
+            const input = document.querySelector('[data-codex-callback]');
+            Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(input, secondCallback.href);
+            input.dispatchEvent(new window.Event('input', { bubbles: true })); await settle();
+          });
+          await codexClick('complete');
+          const accountState = await ctx.connection.rpc.call('/api', 'majed/subscriptions/codex', { action: 'status' });
+          const secondAccount = accountState.value.accounts.find(account => !account.default);
+          assert.ok(secondAccount);
+          assert.equal((await ctx.connection.rpc.call('/api', 'majed/subscriptions/codex', { action: 'default', account: secondAccount.id })).ok, true);
+          assert.equal((await directLlm.resolveModelInfo('codex', 'fixture-codex')).context.contextWindow, 60000);
+          assert.equal((await ctx.connection.rpc.call('/api', 'majed/subscriptions/codex', { action: 'setSpeed', sessionId: 'fixture-direct-session', tier: 'fast' })).ok, true);
+          const chunks = [];
+          for await (const chunk of prepared.stream({ ...prepared.config, sessionId: 'fixture-direct-session', messages: [createUserMessage({ content: [{ type: 'text', text: 'Controlled native request' }], source: { kind: 'user' } })] })) chunks.push(chunk);
+          assert.equal(chunks.filter(chunk => chunk.type === 'text-delta').map(chunk => chunk.text).join(''), 'Native Codex response');
+          assert.equal(chunks.at(-1).reason.kind, 'stop'); assert.equal(directCalls.length, 1); assert.equal(directCalls[0].reasoning.effort, 'low'); assert.equal(directCalls[0].service_tier, 'priority');
+          await codexClick('runtime'); assert.equal(directLlm.listProviders().length, 0);
+          await codexClick('runtime'); assert.equal(directLlm.listProviders().length, 1);
+        } finally { directory.dispose(); }
+      }
       pairingCookie = ''; await codexClick('status'); assert.match(codexText(), /Account operation failed/);
       pairingCookie = 'synthetic-device=synthetic-live'; await codexClick('status'); assert.match(codexText(), /Account connected/);
       remoteMode = false; document.head.innerHTML = `<base href="${inner.getOrigin()}/">`;
       browserCookie = ''; await codexClick('status'); assert.match(codexText(), /Account operation failed/);
       browserCookie = cookie; await codexClick('status'); assert.match(codexText(), /Account connected/);
-      await codexFiber.dispose();
+      if (!codexDirect) await codexFiber.dispose();
     }
     const post = { method: 'POST', headers: { 'content-type': 'application/json', cookie }, body: JSON.stringify({ type: 'client-request', rpcId: 'scoped', method: 'majed/settings/status', payload: { module: 'skills', ...selectors } }) };
     const scoped = await physicalFetch(inner.getOrigin() + endpoint, post);
@@ -515,10 +691,10 @@ async function main() {
       checks: [...(judgmentProbe ? ['judgment production Settings/configure/private restart/consented System One and Decisions requests; native local+paired denial; no Smart activation'] : []), 'actual production bundle mounted in native Settings; readiness enable + isolated module status',
         'production Fetch route over actual local and remote-prefixed HTTP using native RPC envelope',
         'local cookie and remote pairing denial; CSRF; body/method limits; authentic session/workspace membership',
-        'endpoint and mounted client disposed', ...(codexProbe ? ['Codex native mounted Settings enable/login/manual callback/protected temporary persistence/restart/refresh; local and paired-remote denial'] : []), ...(approvalProbe ? ['Command Approval production entry/native React Settings/native RPC over actual local/paired HTTP: user/project save/review/exact phrase/approve/revoke, persisted restart, Arabic RTL, authentication denial'] : [])],
+        'endpoint and mounted client disposed', ...(codexProbe ? ['Codex native mounted Settings enable/login/manual callback/protected temporary persistence/restart/refresh; local and paired-remote denial'] : []), ...(codexDirect ? ['Production Codex runtime activation, native ModelDirectory selection from actual adapter metadata, native prepared direct stream across a default-account change, session Fast, disable/re-enable without duplicate registration'] : []), ...(approvalProbe ? ['Command Approval production entry/native React Settings/native RPC over actual local/paired HTTP: user/project save/review/exact phrase/approve/revoke, persisted restart, Arabic RTL, authentication denial'] : []), ...(mcpProbe ? ['Native MCP Settings/native RPC/admitted physical local+paired HTTP: stdio/HTTP initialize/list/native call, reconnect/disconnect/remove/restart, secret entry/redaction, private probe, Arabic RTL/admission denial'] : [])],
       limitations: ['jsdom, explicit presentation primitives and locale adapters: NOT browser layout/focus/theme or live proof',
         'synthetic credentials/pairing/memory storage only; no installed state or operational auth',
-        ...(codexProbe ? ['Codex fixture transport only; no real account login or model dispatch; no browser visual proof'] : []), ...(approvalProbe ? ['Command consent only; no execution, operational state or browser layout proof'] : []), ...(!codexProbe && !approvalProbe && !judgmentProbe ? ['readiness only; no feature operations'] : [])] };
+        ...(codexProbe ? ['Codex fixture transport only; no real account login or live model dispatch; no browser visual proof'] : []), ...(codexDirect ? ['Native ModelDirectory uses fixture session projection and catalog projection from actual registered LLM metadata; no live session or browser picker geometry claim'] : []), ...(approvalProbe ? ['Command consent only; no execution, operational state or browser layout proof'] : []), ...(mcpProbe ? ['Controlled protocol fixtures only; no operational MCP server or installed state; project/permission tests in dedicated native MCP probe'] : []), ...(!codexProbe && !approvalProbe && !mcpProbe && !judgmentProbe ? ['readiness only; no feature operations'] : [])] };
   } finally {
     const cleanupErrors = [];
     const clean = async callback => { try { await callback(); } catch (error) { cleanupErrors.push(error); } };
@@ -527,13 +703,20 @@ async function main() {
     await clean(() => dom?.window.close());
     for (const fiber of fibers.reverse()) await clean(() => fiber.dispose());
     await clean(() => host.fiber.dispose()); await clean(() => outerHost.fiber.dispose());
+    if (mcpServer) await clean(() => new Promise((resolve, reject) => mcpServer.close(error => error ? reject(error) : resolve())));
+    for (const { child, closed } of protocolChildren) await clean(async () => {
+      let timer;
+      try { await Promise.race([closed, new Promise((_, reject) => { timer = setTimeout(() => reject(Error('Protocol child leaked')), 3000); })]); }
+      catch (error) { child.kill('SIGKILL'); await closed; throw error; }
+      finally { clearTimeout(timer); }
+    });
     assert.equal(closedListeners, servers.length, 'Every owned listener closed, including red controls');
     assert.ok(servers.every(server => !server.listening));
     assert.equal(cleanupErrors.length, 0, 'All independent cleanup steps must succeed');
   }
-  assert.equal(closes, 1); assert.equal(closedListeners, codexProbe ? 4 : 2);
+  assert.equal(closes, 1); assert.equal(closedListeners, 2 + (codexDirect ? 4 : codexProbe ? 2 : 0) + (mcpProbe ? 1 : 0));
   assert.equal(host.get('webServer'), undefined); assert.equal(outerHost.get('webServer'), undefined);
-  console.log(JSON.stringify({ ...report, listeners: servers.length, closedListeners, checkpoint: 'complete' }, null, 2));
+  console.log(JSON.stringify({ ...report, listeners: servers.length, closedListeners, ...(mcpProbe ? { protocolChildren: protocolChildren.length, closedChildren: protocolChildren.length, httpMcpInitializations, httpMcpCalls, httpCredentialRequests } : {}), checkpoint: 'complete' }, null, 2));
 }
 main().catch(error => {
   // Never print launch URLs, cookie values, requests or synthetic signing state.

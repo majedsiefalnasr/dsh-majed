@@ -53,3 +53,51 @@ for (const language of ['en', 'ar']) test(`native Settings exposes Codex enable/
   assert.ok(view.one(n => n.props['data-codex-action'] === 'cancel'));
   assert.ok(calls.some(c => c.channel === '/api' && c.method === 'majed/subscriptions/codex' && c.payload.action === 'begin'));
 });
+
+test('Subscriptions Settings separately enables native Codex dispatch and edits supported model settings', async t => {
+  const source = await readFile(new URL('../../dist/client.js', import.meta.url), 'utf8');
+  const calls = [];
+  const model = { id: 'fixture-codex', name: 'Fixture model', contextWindow: 120000, maxContextWindow: 200000, fastTier: true,
+    reasoning: { efforts: [{ id: 'low', name: 'Low' }, { id: 'high', name: 'High' }], defaultEffort: 'high' } };
+  const harness = createBaselineHarness(source, { connection: { rpc: { async call(channel, method, payload) {
+    calls.push({ method, payload });
+    if (method === 'majed/settings/status') return { ok: true, value: { module: payload.module, enabled: false, state: 'disabled' } };
+    return { ok: true, value: { enabled: true, state: 'connected', runtimeAvailable: true, runtimeEnabled: payload.action === 'runtime' || payload.action === 'configure', accounts: [],
+      runtime: { models: [model], catalogs: [{ account: 'fixture-account', source: 'discovered', models: [model] }], preferences: {} } } };
+  } } } });
+  t.after(() => harness.dispose()); harness.apply(); const view = harness.render('majed-subscriptions'); await tick(); view.render();
+  await view.one(n => n.props['data-codex-action'] === 'runtime').props.onClick(); await tick(); view.render();
+  assert.ok(view.one(n => n.props['data-codex-model-settings'] === true));
+  await view.one(n => n.props['data-codex-model-settings'] === true).props.onSubmit({ preventDefault() {} }); await tick(); view.render();
+  assert.ok(calls.some(c => c.payload.action === 'runtime' && c.payload.enabled === true));
+  assert.ok(calls.some(c => c.payload.action === 'configure' && c.payload.settings.model === 'fixture-codex'));
+});
+
+test('the Codex composer and /fast contribution control the same supported session speed and dispose cleanly', async t => {
+  const source = await readFile(new URL('../../dist/client.js', import.meta.url), 'utf8');
+  let tier = 'standard', command, unregisters = 0;
+  const harness = createBaselineHarness(source, { connection: { rpc: { async call(channel, method, payload) {
+    assert.equal(method, 'majed/subscriptions/codex'); assert.equal(payload.sessionId, 'session-a');
+    if (payload.action === 'setSpeed') tier = payload.tier;
+    return { ok: true, value: { runtimeEnabled: true, tier, fastModels: ['fixture-codex'] } };
+  } } } });
+  let context;
+  harness.apply((plugin, fixtures) => {
+    context = { ...fixtures, get(name) {
+      if (name === 'modelDirectories') return { directoryFor: () => ({ load: async () => ({ current: { provider: 'codex', model: 'fixture-codex' } }) }) };
+      if (name === 'commandUi') return { register(value) { command = value; return () => { command = undefined; unregisters++; }; } };
+    }, inject(names, callback) { if (names[0] === 'commandUi') callback(context); } };
+    return plugin.apply(context);
+  });
+  t.after(() => harness.dispose());
+  assert.equal(command, undefined, 'disabled or unknown runtime does not claim /fast');
+  const view = harness.render('majed-codex-speed', { sessionId: 'session-a' }); await tick(); view.render();
+  assert.equal(command.name, 'fast'); assert.equal(typeof command.description, 'function');
+  await view.one(n => n.props['data-codex-speed'] === true).props.onChange({ target: { value: 'fast' } }); view.render();
+  assert.equal(view.one(n => n.props['data-codex-speed'] === true).props.value, 'fast');
+  const choices = await command.ui.options({ sessionId: 'session-a' });
+  assert.equal(choices.find(c => c.id === 'fast').active, true);
+  await command.ui.onSelect({ id: 'standard' }, { sessionId: 'session-a' });
+  assert.equal(tier, 'standard');
+  harness.dispose(); assert.equal(unregisters, 1); assert.equal(harness.timers.size, 0);
+});
