@@ -164,6 +164,24 @@ test('judgment management refuses malformed RPC identifiers before saving any cr
   await assert.rejects(stat(join(directory, 'judgment.json')), { code: 'ENOENT' });
 });
 
+test('cancelled judgment releases a response returned later by an uncooperative transport', async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'dsh-r15-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  let release, started, cancellations = 0;
+  const received = new Promise(resolve => { started = resolve; });
+  const service = createJudgmentService({ path: join(directory, 'judgment.json'), fetch: () => {
+    started(); return new Promise(resolve => { release = resolve; });
+  } });
+  t.after(() => service.dispose());
+  await service.configure({ protocol: 'systemone', address: 'https://judge.example', model: 'jev', credential: { action: 'replace', value: 'fixture-value' } });
+  const controller = new AbortController();
+  const checked = assert.rejects(service.validate({ consent: true, signal: controller.signal }), { code: 'cancelled' });
+  await received; controller.abort(); await checked;
+  release(new Response(new ReadableStream({ cancel() { cancellations++; } })));
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(cancellations, 1);
+});
+
 test('an in-flight judgment cannot gain choices that were absent from its dispatched request', async t => {
   const directory = await mkdtemp(join(tmpdir(), 'dsh-r15-'));
   t.after(() => rm(directory, { recursive: true, force: true }));

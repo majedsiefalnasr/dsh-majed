@@ -130,6 +130,14 @@ export function createJudgmentService({ path, fetch: transport = globalThis.fetc
         live(); combined.throwIfAborted();
         return transport(url, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${config.credential}` },
           body, signal: combined, redirect: 'error' });
+      }).then(response => {
+        // A transport may ignore abort and finish after the caller has left.
+        // Retain ownership of that late response instead of leaking its body.
+        if (combined.aborted) {
+          void response.body?.cancel().catch(() => {});
+          throw fail('cancelled');
+        }
+        return response;
       }), combined);
       if (!response.ok) {
         void response.body?.cancel().catch(() => {});

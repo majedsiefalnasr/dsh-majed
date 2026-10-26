@@ -19,6 +19,14 @@ The old `judgment-fixture.test.js` literal-only checks described a chat-shaped e
 
 These identify the inspected documentation bytes, not a live service/version guarantee. No upstream implementation code or new dependency was copied.
 
+## Dependency-safe cancellation increment — 2026-10-26
+
+Read-only live GitHub inspection found R02 / #55 and R03 / #57 open, with #55 still a native blocker of #57. Neither issue has comments granting a coding exception. R02's local evidence retains native session persistence, visual and live acceptance limitations; no dependency acceptance is inferred. R15 / #54 has no native blockers. This increment therefore fixes required bounded transport cleanup in the existing R15 workflow rather than starting blocked Claude implementation or activating Auto/Smart.
+
+At the already approved controlled-provider transport seam, a transport ignoring cancellation returned a Response after the validation promise had rejected. Its body was never cancelled. The regression first failed with `0 !== 1`; the transport completion handler now cancels that late body exactly once. Cancellation stays prompt and there is no retry, inference, credential access or protocol change.
+
+Commands: `node --test test/accepted/judgment-service.test.js test/accepted/judgment-ui.test.js` passes all 14 tests; `npm test` exits 0 (the final suite reports 498 tests). The first focused invocation could not resolve Cordis in the isolated worktree; the worktree then reused the existing main checkout's node_modules through an untracked symlink, without installing dependencies. The native mounted product proof below is historical and was not rerun for this transport-only increment. Browser/desktop/remote/live acceptance and tracker closure remain unclaimed.
+
 ## Verification
 
 `node --test test/accepted/judgment-service.test.js test/accepted/judgment-ui.test.js` exercises protected temporary persistence/restart, native production registration/RPC envelopes, explicit consent, protocol/model/usage handling, deadline, non-string and caller-mutated Choice rejection, stale credential removal, no send after disposal, strict RPC identifier validation, explicit credential removal and owned response-stream cleanup. English and Arabic UI fixtures verify direction, per-test consent and empty credential fields. New defects were reproduced red before their corresponding fixes; these portable hook/slot fixtures are not native admission or browser geometry proof.
