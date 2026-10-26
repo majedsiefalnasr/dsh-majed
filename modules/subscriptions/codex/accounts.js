@@ -12,7 +12,7 @@ export function createCodexAccounts({ path, fetch: fetchFn = globalThis.fetch, p
   const lifecycle = new AbortController();
   const controllers = new Set();
   const listeners = new Set();
-  const changed = () => { for (const listener of listeners) listener(); };
+  const changed = event => { for (const listener of listeners) listener(event); };
   function live() { if (disposed || disposing) throw fail('service_disposed'); }
   async function snapshot() {
     live(); const data = await store.load();
@@ -83,10 +83,10 @@ export function createCodexAccounts({ path, fetch: fetchFn = globalThis.fetch, p
           if (!disposed && record?.revision === old.revision) Object.assign(record, { session, revision: randomUUID(), state: 'connected' });
         }, { signal: lifecycle.signal });
       } catch (error) {
-        if (!disposed && !disposing && error.code === 'reauthentication_required') { await store.transaction(data => {
+        if (!disposed && !disposing && error.code === 'reauthentication_required') { let revoked = false; await store.transaction(data => {
           const record = data.accounts.find(a => a.id === id);
-          if (record?.revision === old.revision) { record.state = 'reauthentication_required'; record.revision = randomUUID(); }
-        }, { signal: lifecycle.signal }); changed(); }
+          if (record?.revision === old.revision) { revoked = true; changed({ revoked: id }); record.state = 'reauthentication_required'; record.revision = randomUUID(); }
+        }, { signal: lifecycle.signal }); changed(revoked ? { revoked: id } : undefined); }
         throw fail(error.code === 'reauthentication_required' ? error.code : 'refresh_failed');
       }
       return snapshot();
@@ -97,9 +97,9 @@ export function createCodexAccounts({ path, fetch: fetchFn = globalThis.fetch, p
   async function mutate(id, remove) {
     live(); await store.transaction(data => {
       if (!data.accounts.some(a => a.id === id)) throw fail('account_not_found');
-      if (remove) { data.accounts = data.accounts.filter(a => a.id !== id); if (data.default === id) data.default = data.accounts[0]?.id || null; }
+      if (remove) { changed({ revoked: id }); data.accounts = data.accounts.filter(a => a.id !== id); if (data.default === id) data.default = data.accounts[0]?.id || null; }
       else data.default = id;
-    }, { signal: lifecycle.signal }); changed(); return snapshot();
+    }, { signal: lifecycle.signal }); changed(remove ? { revoked: id } : undefined); return snapshot();
   }
   // Host-only runtime seam. These credentials never enter management snapshots.
   async function session(id, { force = false, signal } = {}) {
