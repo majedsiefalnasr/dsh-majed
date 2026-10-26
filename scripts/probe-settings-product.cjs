@@ -14,8 +14,9 @@ assert.equal(process.cwd(), process.env.HOME);
 assert.equal(process.env.DSH_HOME, process.env.HOME);
 assert.ok(basename(process.cwd()).startsWith('dsh-physical-carrier-'));
 const [base, deps, remoteFile, ...flags] = process.argv.slice(2);
-assert.ok(flags.every(x => ['--red-result', '--red-correlation', '--red-membership', '--codex'].includes(x)));
+assert.ok(flags.every(x => ['--red-result', '--red-correlation', '--red-membership', '--codex', '--approval'].includes(x)));
 const codexProbe = flags.includes('--codex');
+const approvalProbe = flags.includes('--approval');
 const dependencyRequire = createRequire(join(deps, '..', '__probe.cjs'));
 const req = name => dependencyRequire(join(deps, name));
 req.resolve = name => dependencyRequire.resolve(join(deps, name));
@@ -228,7 +229,13 @@ async function main() {
     const disposeRemote = remote.makeRemoteApiRoutes({ service, port: () => inner.port, auth }).map(route => outer.register(route));
     let remoteMode = false;
     const { apply: settingsHost } = await import('../lib/management/settings.js');
-    const endpointFiber = await mount({ apply: settingsHost });
+    let endpointFiber;
+    const mountEndpoint = async () => {
+      if (!approvalProbe) return mount({ apply: settingsHost });
+      const { apply: productHost } = await import('../index.js');
+      return mount({ apply: context => productHost(context, { hooksApproval: { enabled: true, userDirectory: process.cwd(), stateDirectory: join(process.cwd(), 'approval-state') } }) });
+    };
+    endpointFiber = await mountEndpoint();
     let codexFiber, codexMount, codexGrantCount = 0;
     if (codexProbe) {
       const { applyCodexAccounts } = await import('../modules/subscriptions/codex/native.js');
@@ -243,7 +250,7 @@ async function main() {
       codexFiber = await codexMount();
     }
     const carrier = async (input, init) => {
-      assert.ok(input === 'api/majed/settings/status' || (codexProbe && input === 'api/majed/subscriptions/codex')); assert.equal(init.method, 'POST');
+      assert.ok(input === 'api/majed/settings/status' || (codexProbe && input === 'api/majed/subscriptions/codex') || (approvalProbe && input === 'api/majed/hooks/approval')); assert.equal(init.method, 'POST');
       // Deliberate document base; no repair of native URL, RPC payload or headers.
       const url = new URL(input, document.baseURI);
       assert.equal(url.origin, remoteMode ? outer.getOrigin() : inner.getOrigin());
@@ -279,9 +286,9 @@ async function main() {
       transport: { fetch: carrier, openStream: forbidden } });
     assert.equal(typeof ctx.connection.rpc.open, 'function');
     const events = new Map();
-    const dictionaries = new Map();
+    const dictionaries = new Map(), registeredLocales = new Map();
     const localeRevision = stores.createSnapshotStore({ revision: 0 });
-    const locale = { register(ns, values) { dictionaries.set(ns, values.en); return () => dictionaries.delete(ns); },
+    const locale = { register(ns, values) { dictionaries.set(ns, values.en); registeredLocales.set(ns, values); return () => { dictionaries.delete(ns); registeredLocales.delete(ns); }; },
       bind: ns => key => dictionaries.get(ns)?.[key] ?? key, getSnapshot: localeRevision.getSnapshot, subscribe: localeRevision.subscribe };
     ctx.reflect.provide('remote', { $host: { isLoopback: true }, $on(name, fn) { events.set(name, fn); return () => events.delete(name); },
       settings: { async describe() { return { ok: true, value: { namespaces: [{ ns: 'fixture-manager' }] } }; } } });
@@ -328,6 +335,70 @@ async function main() {
     pairingCookie = ''; await refresh(); assert.match(text(), /Owner access required/);
     pairingCookie = 'synthetic-device=synthetic-live'; await refresh(); assert.match(text(), /Service ready/);
     await select('MCP Manager'); await act(settle); assert.match(text(), /Readiness checks are disabled/);
+    if (approvalProbe) {
+      checkpoint = 'approval-native-settings';
+      await select('Hooks Manager'); await act(settle);
+      const panel = () => document.querySelector('[data-majed-approval]');
+      const change = (name, value) => act(async () => {
+        const element = panel().querySelector(`[name="${name}"]`); assert.ok(element);
+        const prototype = element.tagName === 'SELECT' ? window.HTMLSelectElement.prototype : element.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
+        Object.getOwnPropertyDescriptor(prototype, 'value').set.call(element, value);
+        element.dispatchEvent(new window.Event(element.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })); await settle();
+      });
+      const click = label => act(async () => { const button = [...panel().querySelectorAll('button')].find(element => element.textContent === label); assert.ok(button, 'Missing Approval control'); button.click(); await settle(); });
+      const submit = form => act(async () => { const element = panel().querySelector(`[data-approval-form="${form}"]`); assert.ok(element); element.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })); await settle(); });
+      const contextKey = JSON.stringify(['fixture-session', workspace.id]);
+      // Actual native registry scope options enter through production Fetch/RPC.
+      assert.ok([...panel().querySelectorAll('[name="scope"] option')].some(option => option.value === contextKey));
+      for (const mode of ['local', 'remote']) {
+        remoteMode = mode === 'remote'; document.head.innerHTML = `<base href="${remoteMode ? outer.getOrigin() + '/remote/' : inner.getOrigin() + '/'}">`;
+        await click('Refresh saved commands');
+        await change('scope', contextKey);
+        await change('id', 'native-' + mode); await change('command', 'printf controlled');
+        await submit('definition'); assert.match(panel().textContent, /Needs review/);
+        await click('Review command');
+        assert.match(panel().textContent, /RUN AS DSH USER/); assert.match(panel().textContent, /"origin": "unknown"/);
+        await change('confirmation', 'RUN AS DSH USER'); await submit('confirmation');
+        assert.match(panel().textContent, /Approved/);
+        await endpointFiber.dispose(); endpointFiber = await mountEndpoint();
+        await click('Refresh saved commands'); assert.match(panel().textContent, /Approved/);
+        await click('Revoke Approval'); assert.match(panel().textContent, /Needs review/);
+        await click('Remove command');
+      }
+      checkpoint = 'approval-native-arabic';
+      const namespace = [...registeredLocales].find(([, values]) => values.ar?.['management.direction'] === 'rtl')?.[0];
+      assert.ok(namespace, 'Production Arabic dictionary registered');
+      dictionaries.set(namespace, registeredLocales.get(namespace).ar);
+      await act(async () => { localeRevision.set({ revision: 1 }); await settle(); });
+      await click('تحديث الأوامر المحفوظة');
+      assert.equal(document.querySelector('.majed-management').dir, 'rtl');
+      await change('scope', 'user'); await change('id', 'native-arabic'); await change('command', 'printf controlled');
+      await submit('definition'); await click('مراجعة الأمر');
+      await change('confirmation', 'RUN AS DSH USER'); await submit('confirmation');
+      assert.match(panel().textContent, /تمت الموافقة/);
+      await click('إلغاء الموافقة'); assert.match(panel().textContent, /يحتاج إلى مراجعة/);
+      fs.writeFileSync(join(process.cwd(), 'controlled.sh'), 'printf controlled\n');
+      await change('id', 'native-file'); await change('source', 'file'); await change('command', 'controlled.sh');
+      await submit('definition');
+      // Select a particular saved definition rather than depend on row order.
+      await act(async () => {
+        const row = [...panel().querySelectorAll('strong')].find(element => element.textContent === 'native-file').parentElement;
+        [...row.querySelectorAll('button')].find(element => element.textContent === 'مراجعة الأمر').click(); await settle();
+      });
+      assert.match(panel().querySelector('[data-approval-form="confirmation"]').textContent, /controlled\.sh/);
+      assert.match(panel().querySelector('[data-approval-form="confirmation"]').textContent, /"fingerprint"/);
+      await click('إلغاء المراجعة');
+      const state = JSON.parse(fs.readFileSync(join(process.cwd(), 'approval-state/commands.json'), 'utf8'));
+      assert.ok(state.entries.every(entry => entry.approval === null));
+      dictionaries.set(namespace, registeredLocales.get(namespace).en);
+      await act(async () => { localeRevision.set({ revision: 2 }); await settle(); });
+      checkpoint = 'approval-native-admission-denial';
+      pairingCookie = ''; await click('Refresh saved commands'); assert.match(panel().textContent, /request was refused/);
+      pairingCookie = 'synthetic-device=synthetic-live'; await click('Refresh saved commands');
+      remoteMode = false; document.head.innerHTML = `<base href="${inner.getOrigin()}/">`;
+      browserCookie = ''; await click('Refresh saved commands'); assert.match(panel().textContent, /request was refused/);
+      browserCookie = cookie; await click('Refresh saved commands');
+    }
     if (codexProbe) {
       await select('Subscriptions'); await act(settle);
       const codexText = () => document.querySelector('[data-majed-codex]').textContent;
@@ -381,10 +452,10 @@ async function main() {
       checks: ['actual production bundle mounted in native Settings; readiness enable + isolated module status',
         'production Fetch route over actual local and remote-prefixed HTTP using native RPC envelope',
         'local cookie and remote pairing denial; CSRF; body/method limits; authentic session/workspace membership',
-        'endpoint and mounted client disposed', ...(codexProbe ? ['Codex native mounted Settings enable/login/manual callback/protected temporary persistence/restart/refresh; local and paired-remote denial'] : [])],
+        'endpoint and mounted client disposed', ...(codexProbe ? ['Codex native mounted Settings enable/login/manual callback/protected temporary persistence/restart/refresh; local and paired-remote denial'] : []), ...(approvalProbe ? ['Command Approval production entry/native React Settings/native RPC over actual local/paired HTTP: user/project save/review/exact phrase/approve/revoke, persisted restart, Arabic RTL, authentication denial'] : [])],
       limitations: ['jsdom, explicit presentation primitives and locale adapters: NOT browser layout/focus/theme or live proof',
         'synthetic credentials/pairing/memory storage only; no installed state or operational auth',
-        ...(codexProbe ? ['Codex fixture transport only; no real account login or model dispatch; no browser visual proof'] : ['readiness only; no feature operations'])] };
+        ...(codexProbe ? ['Codex fixture transport only; no real account login or model dispatch; no browser visual proof'] : []), ...(approvalProbe ? ['Command consent only; no execution, operational state or browser layout proof'] : []), ...(!codexProbe && !approvalProbe ? ['readiness only; no feature operations'] : [])] };
   } finally {
     const cleanupErrors = [];
     const clean = async callback => { try { await callback(); } catch (error) { cleanupErrors.push(error); } };

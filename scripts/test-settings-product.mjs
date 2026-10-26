@@ -6,7 +6,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 const flags = process.argv.slice(2);
-assert.ok(flags.every(flag => flag === '--codex'), 'Unknown options. Only --codex is supported.');
+assert.ok(flags.every(flag => ['--codex', '--approval'].includes(flag)), 'Unknown options. Only --codex/--approval are supported.');
 const { DSH_PROBE_NODE: executable, DSH_PROBE_RUNTIME: runtime, DSH_MOUNTED_DEPS: dependencies, DSH_PROBE_REMOTE: remote } = process.env;
 assert.ok(executable && runtime && dependencies && remote, 'Set the four DSH_PROBE_NODE/RUNTIME/REMOTE and DSH_MOUNTED_DEPS paths.');
 const parent = realpathSync(tmpdir()), home = realpathSync(mkdtempSync(join(parent, 'dsh-physical-carrier-')));
