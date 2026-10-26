@@ -52,7 +52,7 @@ function nativeConfig(row, reconnectOverride) {
   return { ...config, ...(timeout === undefined ? {} : { toolCallTimeoutMs: timeout }), ...(instructionLimit === undefined ? {} : { maxInstructionBytes: instructionLimit }), failOnStartupError: true, reconnect: reconnectOverride || row.reconnect || { enabled: true, maxAttempts: 5 } };
 }
 export function createMcpManager(ctx, load = () => loadMcpClient(ctx), moduleContext = ctx) {
-  const queue = serial(); const mounted = new Map(); let rows = []; let definitions = []; let closed = false;
+  const queue = serial(); const mounted = new Map(), forced = new Set(); let rows = []; let definitions = []; let closed = false;
   async function unload() {
     for (const [name, record] of mounted) { await record.child.dispose(); mounted.delete(name); }
   }
@@ -99,12 +99,18 @@ export function createMcpManager(ctx, load = () => loadMcpClient(ctx), moduleCon
         try { await record.child.dispose(); mounted.delete(name); }
         catch { const view = rows.find(row => row.serverName === name); if (view) view.status = 'cleanup-failed'; throw new Error('MCP cleanup failed. Replacement refused.'); }
       }
-      const previous = rows;
+      const previous = rows, previousDefinitions = definitions;
       definitions = next;
-      rows = next.map(row => ({ serverName: row.serverName, transport: row.transport, enabled: row.enabled, scope: row.scope, ...(row.transport === 'stdio' ? { command: row.command, args: [...row.args], ...(row.cwd ? { cwd: row.cwd } : {}) } : { url: row.url }), envKeys: Object.keys(row.env || {}), headerKeys: Object.keys(row.headers || {}), envCount: Object.keys(row.env || {}).length, headerCount: Object.keys(row.headers || {}).length, status: mounted.has(row.serverName) ? previous.find(value => value.serverName === row.serverName)?.status || 'mounted' : 'configured' }));
+      rows = next.map(row => {
+        const before = previous.find(value => value.serverName === row.serverName);
+        const unchanged = isDeepStrictEqual(previousDefinitions.find(value => value.serverName === row.serverName), row);
+        return { serverName: row.serverName, transport: row.transport, enabled: row.enabled, scope: row.scope, ...(row.transport === 'stdio' ? { command: row.command, args: [...row.args], ...(row.cwd ? { cwd: row.cwd } : {}) } : { url: row.url }), envKeys: Object.keys(row.env || {}), headerKeys: Object.keys(row.headers || {}), envCount: Object.keys(row.env || {}).length, headerCount: Object.keys(row.headers || {}).length, status: unchanged ? before?.status || 'configured' : 'configured', ...(unchanged && before?.probe ? { probe: before.probe } : {}) };
+      });
       for (const row of next) {
         if (!row.enabled || mounted.has(row.serverName)) continue;
         const view = rows.find(item => item.serverName === row.serverName);
+        if (view.status === 'activation-failed' && !forced.has(row.serverName)) continue;
+        forced.delete(row.serverName);
         view.status = 'probing';
         let child;
         try {
@@ -128,6 +134,8 @@ export function createMcpManager(ctx, load = () => loadMcpClient(ctx), moduleCon
       if (closed) throw new Error('Manager disposed.');
       const record = mounted.get(serverName);
       if (record) { await record.child.dispose(); mounted.delete(serverName); }
+      if (!definitions.some(row => row.serverName === serverName)) throw new Error('Server not found.');
+      forced.add(serverName);
       const next = definitions.map(row => ({ ...row }));
       // The next request's ordinary replace mounts only the missing generation.
       return next;

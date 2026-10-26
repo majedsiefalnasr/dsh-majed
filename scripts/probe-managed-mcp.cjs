@@ -75,11 +75,23 @@ async function main() {
     const before = carrier.ctx.tools.get(tool);
     const bad = await call('save', { server: { ...server, serverName: 'bad', args: [fixture, '--bad'], reconnect: { enabled: false } } }, 'remote');
     assert.equal(bad.servers.find(row => row.serverName === 'bad').status, 'failed'); assert.equal(carrier.ctx.tools.get(tool), before);
+    const badStarts = children.length; await call('list'); assert.equal(children.length, badStarts, 'Status refresh must not restart a failed server');
     await call('remove', { serverName: 'bad' });
     await call('reconnect', { serverName: server.serverName }, 'remote'); assert.equal((await invoke('hello')).isError, false);
+    const connected = carrier.ctx.tools.get(tool);
+    await invoke('disconnect');
+    for (let attempt = 0; attempt < 30 && carrier.ctx.tools.get(tool) === connected; attempt++) await new Promise(resolve => setTimeout(resolve, 100));
+    assert.notEqual(carrier.ctx.tools.get(tool), connected, 'Native bounded reconnect must replace its tool generation');
+    assert.equal((await invoke('hello')).isError, false);
     await call('setEnabled', { serverName: server.serverName, enabled: false }); assert.equal(carrier.ctx.tools.get(tool), undefined);
     checkpoint = 'project-scope';
     const selectors = { scope: 'project', sessionId: 'project-agent', workspaceId: workspace.id };
+    const beforeInvalidScope = children.length;
+    for (const payload of [{ ...selectors, workspaceId: 'foreign', action: 'save', server }, { ...selectors, action: 'save', server: { ...server, cwd: home } }]) {
+      const rejected = await carrier.send('/api/majed/mcp', { type: 'client-request', method: 'majed/mcp', rpcId: 'invalid-' + ++rpc, payload }, 'remote');
+      assert.equal(rejected.status, 200); assert.equal(rejected.body.result.ok, false); assert.equal(rejected.body.result.error.code, 'invalid_scope');
+    }
+    assert.equal(children.length, beforeInvalidScope, 'Rejected scope/cwd must not start a process');
     const projectState = await call('save', { ...selectors, server: { ...server, serverName: 'scoped' } }, 'remote');
     assert.equal(projectState.servers[0].status, 'active');
     const { scopeOf } = load('dsh-scope');
@@ -94,6 +106,14 @@ async function main() {
     assert.equal(carrier.ctx.tools.get('mcp__scoped__echo', scopeOf(agent.agent.ctx)), undefined);
     await agent.dispose(); await other.dispose();
     console.log(JSON.stringify({ runtime: carrier.runtime, checks: ['public native Loader namespace identity', 'production admitted local/paired save/discovery/native tool calls/permission/cancellation/image/error', 'bad-server isolation/tool-list refresh/reconnect/disable', 'actual native agent project scope/CWD isolation', 'persisted restart/remove'], children: children.length, limits: ['Synthetic memory signing/pair registry and HTTP carrier; no installed state/provider inference.', 'HTTP MCP and actual native mounted Settings acceptance run separately.'] }, null, 2));
-  } finally { await carrier.dispose(); for (const { child, closed } of children) { if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL'); await closed; } }
+  } finally {
+    await carrier.dispose();
+    for (const { child, closed } of children) {
+      let timer;
+      try { await Promise.race([closed, new Promise((_, reject) => { timer = setTimeout(() => reject(Error('Owned protocol child did not close')), 3000); })]); }
+      catch (error) { child.kill('SIGKILL'); await closed; throw error; }
+      finally { clearTimeout(timer); }
+    }
+  }
 }
 main().catch(error => { console.error('Managed MCP proof failed at ' + checkpoint + ': ' + (error.code || error.name) + ': ' + error.message); process.exitCode = 1; });

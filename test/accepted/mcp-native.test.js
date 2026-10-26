@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { createMcpDefinitionStore } from '../../modules/mcp/storage.js';
 import { Context } from '@deepseek-ai/cordis';
 import { apply } from '../../index.js';
+import { createMcpManager } from '../../modules/mcp/index.js';
 
 test('private MCP updates serialize across store instances, protect permissions and preserve corrupt state', async t => {
   const root = await realpath(await mkdtemp(join(tmpdir(), 'majed-mcp-')));
@@ -20,7 +21,24 @@ test('private MCP updates serialize across store instances, protect permissions 
   assert.equal(await readFile(file, 'utf8'), '{bad state');
 });
 
-test('production MCP management preserves masked secrets and isolates disabled startup', async t => {
+test('plugin cleanup failure refuses a replacement generation until the old registration closes', async () => {
+  // Explicit external Cordis plugin-boundary failure; exact native lifecycle is
+  // exercised separately by the opt-in stdio/HTTP probes.
+  const visible = new Map(); let failClose = true;
+  const manager = createMcpManager({ plugin(namespace, config) {
+    assert.equal(visible.has(config.serverName), false, 'No overlapping owner may register');
+    visible.set(config.serverName, config.command);
+    return { then(resolve) { resolve(); }, async dispose() { if (failClose) throw new Error('Controlled disposal failure'); visible.delete(config.serverName); } };
+  } }, async () => ({}));
+  const server = { serverName: 'one', transport: 'stdio', command: 'first', enabled: true };
+  await manager.replace([server]);
+  await assert.rejects(manager.replace([{ ...server, command: 'second' }]));
+  assert.equal(visible.get('one'), 'first'); assert.equal(manager.snapshot()[0].status, 'cleanup-failed');
+  failClose = false; await manager.replace([{ ...server, command: 'second' }]);
+  assert.equal(visible.get('one'), 'second'); await manager.dispose(); assert.equal(visible.size, 0);
+});
+
+test('production MCP management saves inert definitions and preserves masked secrets', async t => {
   const root = await realpath(await mkdtemp(join(tmpdir(), 'majed-mcp-')));
   t.after(() => rm(root, { recursive: true, force: true }));
   const ctx = new Context(); let route;
@@ -42,4 +60,16 @@ test('production MCP management preserves masked secrets and isolates disabled s
   const stored = JSON.parse(await readFile(join(root, 'global.json'), 'utf8'));
   assert.deepEqual(stored.servers[0].env, { TOKEN: 'fixture-secret' });
   assert.equal((await call('list')).value.servers[0].status, 'saved');
+});
+
+test('disabled production MCP composition opens no store and needs no native loader or tools', async t => {
+  const root = await realpath(await mkdtemp(join(tmpdir(), 'majed-mcp-')));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const ctx = new Context(); let route;
+  ctx.provide('connection', { fetch: { register(value) { if (value.path === '/api/majed/mcp') route = value; } } });
+  const fiber = ctx.plugin({ apply: context => apply(context, { managedMcp: { enabled: false, stateDirectory: join(root, 'unopened') } }) });
+  await fiber; t.after(() => fiber.dispose());
+  const response = await route.fetch(new Request('http://fixture/api/majed/mcp', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'client-request', rpcId: 'disabled', method: 'majed/mcp', payload: { action: 'save', scope: 'global' } }) }));
+  assert.equal((await response.json()).result.value.enabled, false);
+  await assert.rejects(stat(join(root, 'unopened')), { code: 'ENOENT' });
 });
