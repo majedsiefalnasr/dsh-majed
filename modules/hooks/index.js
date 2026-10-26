@@ -50,7 +50,7 @@ export function validateWatchedFiles(value) {
   return [...value];
 }
 export function validateCommandHook(input = {}) {
-  object(input, ['id', 'events', 'command', 'source', 'enabled', 'env', 'matcher', 'cwd', 'shell', 'limits', 'watchedFiles']);
+  object(input, ['id', 'events', 'command', 'source', 'enabled', 'env', 'matcher', 'cwd', 'shell', 'limits', 'watchedFiles', 'async', 'onError', 'contextBytes', 'subagents', 'statusMessage']);
   const id = text(input.id, 128);
   if (!Array.isArray(input.events) || input.events.length === 0 || input.events.length > 16) fail();
   for (const event of input.events) if (!HOOK_EVENTS.includes(event)) fail();
@@ -63,7 +63,24 @@ export function validateCommandHook(input = {}) {
   const shell = validateShell(input.shell);
   const limits = validateLimits(input.limits);
   const watchedFiles = validateWatchedFiles(input.watchedFiles);
-  return Object.freeze({ id, events: [...input.events], command, source: input.source, enabled, env, matcher, cwd, shell, limits, watchedFiles });
+  // Optional fields remain absent for old definitions: normalizing new defaults
+  // into those records would silently invalidate existing exact-content Approval.
+  const advanced = {};
+  for (const name of ['async', 'subagents']) if (input[name] !== undefined) {
+    if (typeof input[name] !== 'boolean') fail();
+    advanced[name] = input[name];
+  }
+  if (input.onError !== undefined) {
+    if (!['continue', 'block'].includes(input.onError)) fail();
+    if (input.onError === 'block' && (input.async === true || input.events.includes('PostCompact'))) fail();
+    advanced.onError = input.onError;
+  }
+  if (input.contextBytes !== undefined) {
+    if (!Number.isSafeInteger(input.contextBytes) || input.contextBytes < 1 || input.contextBytes > 262144) fail();
+    advanced.contextBytes = input.contextBytes;
+  }
+  if (input.statusMessage !== undefined) advanced.statusMessage = text(input.statusMessage, 256);
+  return Object.freeze({ id, events: [...input.events], command, source: input.source, enabled, env, matcher, cwd, shell, limits, watchedFiles, ...advanced });
 }
 export function validateCommandHooks(input) {
   if (!Array.isArray(input)) fail();
