@@ -10,6 +10,10 @@ export function createFixtureFetch() {
     async fetch(url, options = {}) {
       if (url === TOKEN && options.method === 'POST') {
         counts.token++;
+        const form = new URLSearchParams(options.body);
+        if (form.get('grant_type') === 'authorization_code' && form.get('code') === 'SYNTHETIC-FIXTURE-FAIL') {
+          return Response.json({ error: 'invalid_grant' }, { status: 400 });
+        }
         const identity = { email: 'synthetic-codex@example.test', 'https://api.openai.com/auth': { chatgpt_account_id: 'synthetic-fixture-workspace', chatgpt_user_id: 'synthetic-fixture-user' } };
         return Response.json({ access_token: 'SYNTHETIC-FIXTURE-NOT-A-CREDENTIAL', refresh_token: 'SYNTHETIC-FIXTURE-REFRESH', expires_in: 3600,
           id_token: 'synthetic.' + Buffer.from(JSON.stringify(identity)).toString('base64url') + '.not-signed' });

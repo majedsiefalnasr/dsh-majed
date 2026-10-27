@@ -42,6 +42,29 @@ The lead reports stock rc3 browser verification using the isolated fixture profi
 
 The lead then closed the browser and gracefully stopped the launcher (host exit zero), restarted the same owned temporary profile, reopened the new private startup URL, enabled account management and observed the retained synthetic account. Refresh credentials completed; enabling models exposed the catalog again. No second response was sent after restart. Both host jobs were collected/stopped with graceful child exit zero; browser close exited zero. These are lead observations, not independent reviewer test results. No auth URL, state, token, auth-store content or log is reproduced here.
 
+Subsequent lead report (2026-10-27): restarted the same owned temporary profile again, enabled management and models, and observed the retained synthetic account and catalog. The native picker was already `Synthetic Codex — fixture onlyLow`; waiting for an initial `Select model` locator timed out because that selection was restored, not because model loading failed. Sending a synthetic prompt using the restored selection produced exactly `SYNTHETIC CODEX FIXTURE: no provider inference occurred.` Browser `mna` closed with exit zero. Owned host job `bash-e98c3c76cc4345d9` reported `Fixture host exited: 0` and was collected/stopped. This is reported controlled stock-browser evidence only, not independently rerun here, no real provider or installed state, and not proof of socket absence.
+
+## Next lead batch: deterministic native auth states
+
+Candidate adds one synthetic control at the existing injected fetch seam: completing an authorization-code grant with code `SYNTHETIC-FIXTURE-FAIL` returns HTTP 400 `invalid_grant`. No endpoint, production hook, credential override or new admission path is added. Other synthetic login and refresh behavior is unchanged. The regression first failed (`connected` instead of `failed`), then passed through the actual account service. Pending and cancellation require no new control.
+
+Use a **new candidate-owned run** because existing retained runs are intentionally bound to their original checkout. Lead only (worker did not launch host/browser):
+
+    cd '/Users/majedsiefalnasr/Documents/Work/DeepSeek Harness/dsh-codex-retained-native'
+    node scripts/build-baseline.mjs
+    node --test scripts/codex-fixture.test.mjs
+    node scripts/codex-fixture/launch.mjs new
+
+Open the new private startup URL locally, then native Settings → General → Codex account → Enable account management. Perform this exact sequence before creating an account:
+
+1. Click **Connect Codex**; assert `Waiting for sign-in. Open the link on the host, or paste the full callback URL here from a remote device.` is visible. Do not open the external sign-in link. Click **Cancel login**; assert `Login cancelled.` and no synthetic account. Refresh account status and verify cancellation remains.
+2. Click **Connect Codex** again. Read the current authorize link href locally; construct the full callback URL from its unchanged `redirect_uri` and `state`, setting only `code=SYNTHETIC-FIXTURE-FAIL`. Fill `input[data-codex-callback]`, click **Complete login**; assert `Login failed or expired. Try connecting again.` and no account. This is token-exchange failure, not wrong-state rejection.
+3. Switch the native locale to Arabic; repeat pending/cancel/failure. Assert `بانتظار تسجيل الدخول. افتح الرابط على المضيف أو ألصق رابط العودة الكامل هنا من جهاز بعيد.`, `تم إلغاء تسجيل الدخول.`, and `فشل تسجيل الدخول أو انتهت مهلته. حاول الربط مجددًا.` respectively; inspect the native Settings RTL direction. Use a fresh generated state each attempt. Do not report Arabic passing based on strings existing in source.
+4. Return to English; complete a fresh attempt with `SYNTHETIC-FIXTURE-CODE`. Enable models; verify the synthetic account/catalog and response still succeed after failed/cancelled attempts. If the picker is already selected, reuse that selected button rather than wait for `Select model`. Record observed pending/failure/cancel/connected UI separately from service tests.
+5. Close browser, Ctrl-C launcher and collect exit. Read only aggregate `Synthetic fixture counters:` locally from the owned log: failure plus success requires two token requests; pending/cancel must add none; denied should remain zero. Stock background activity is outside these counters. Finally run `lsof -nP -a -p "$(< '<owned-run>/host.pid')" -iTCP -sTCP:LISTEN`; exit 1 with no output means no listening sockets for that recorded PID. Do not reproduce private startup URLs, callback states, tokens or store/log bodies.
+
+Worker validation: focused fixture tests 5/5; full `npm test` 506/506, legacy runner 166/166, exit zero after linking the existing main-checkout dependencies (no installation). Initial full-suite run failed due to absent candidate dependencies (`@deepseek-ai/cordis`, `fflate`); linking existing dependencies fixed it. No host/browser launch, operational access, tracker mutation, push or integration merge occurred. Changes are testing-only and do not add shipped user-visible behavior.
+
 ## Remaining acceptance
 
-A new synthetic response after retained-profile restart, explicit retained model-preference/Standard/Fast checks, and a final recorded-PID listening-socket absence check remain unverified. Graceful exit is not reported as a socket absence check. No real-provider authentication/inference, desktop installed-profile parity, paired-remote parity, operational cutover or full-spec completion is established. Keep the tracker open; integration remains the lead's separately reviewed decision.
+Explicit retained model-preference/Standard/Fast checks, native pending/cancelled/failed states in English and Arabic/RTL, and a final recorded-PID listening-socket absence check remain unverified. Graceful exit is not reported as a socket absence check. No real-provider authentication/inference, desktop installed-profile parity, paired-remote parity, operational cutover or full-spec completion is established. Keep the tracker open; integration remains the lead's separately reviewed decision.

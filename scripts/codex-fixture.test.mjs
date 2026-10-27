@@ -46,6 +46,28 @@ test('real account service consumes synthetic callback and retains identity afte
   assert.equal(transport.counters().token, 1);
 });
 
+test('synthetic failure code fails login and cancellation leaves the store empty', async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'majed-codex-failure-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const transport = createFixtureFetch();
+  const service = createCodexAccounts({ path: join(directory, 'auth.json'), ports: [0], fetch: transport.fetch });
+  t.after(() => service.dispose());
+  const attempt = await service.begin();
+  assert.equal((await service.snapshot()).loginState, 'pending');
+  const authorize = new URL(attempt.authorizeUrl);
+  const callback = new URL(authorize.searchParams.get('redirect_uri'));
+  callback.searchParams.set('state', authorize.searchParams.get('state'));
+  callback.searchParams.set('code', 'SYNTHETIC-FIXTURE-FAIL');
+  const failed = await service.complete(callback.href);
+  assert.equal(failed.loginState, 'failed');
+  assert.deepEqual(failed.accounts, []);
+  await service.begin();
+  const cancelled = await service.cancel();
+  assert.equal(cancelled.loginState, 'cancelled');
+  assert.deepEqual(cancelled.accounts, []);
+  assert.deepEqual(transport.counters(), { token: 1, catalog: 0, responses: 0, denied: 0 });
+});
+
 test('launcher rejects arbitrary retained paths and invalid arguments before spawning a host', () => {
   for (const args of [['restart', '/'], ['new', '/tmp'], ['unknown']]) {
     const result = spawnSync(process.execPath, ['scripts/codex-fixture/launch.mjs', ...args], { encoding: 'utf8' });
