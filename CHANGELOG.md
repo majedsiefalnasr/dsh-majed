@@ -7,6 +7,9 @@ All notable changes to `dsh-majed` are documented here. The format follows
 
 ## [Unreleased]
 
+### Documentation
+- R11 cold standing-preset source characterization records an unsupported distinct-registry selection/registration contract: cold native catalogs select the host registry while preset leases expose only a read scope and disposal, not the standing isolated registry's authorized registration context. No production behavior changed; cold preset, warmed slash and live acceptance remain unverified.
+
 ### Fixed
 - Source-only follow-up: connected passive Codex account snapshots no longer mount account settings without authoritative runtime preferences; manual full status restores those controls. Unmount cancellation settles owned work and clears its timer even when transport ignores abort, retaining controller-identity fencing. Added UNRUN source candidates for nondefault preferences, exact English/Arabic original errors, no-deadline unmount settlement and manual-status replacement before old transport release. No test, syntax, build, browser, host or live validation was performed.
 - Source candidate: Codex Settings reconciles rejected credential refreshes through a strictly validated passive mode on the existing public status RPC, omitting runtime discovery/session acquisition. Mounted timeout metadata fails closed even if transport ignores abort, without an aborted requery or late-result publication; the original sanitized error is retained. Source regressions for rejected envelopes/transports, timeout/late/unmount and native passive-mode validation are UNRUN and need validation because the required OS sandbox is unavailable (`sandbox_apply: Operation not permitted`). No red/green, build, native browser/new-reauth or live acceptance is claimed.
