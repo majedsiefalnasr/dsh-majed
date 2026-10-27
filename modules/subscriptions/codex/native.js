@@ -51,8 +51,10 @@ export function applyCodexAccounts(ctx, config = {}) {
         const input = await message(request);
         if (!object(input) || !keys(input, ['type', 'rpcId', 'method', 'payload']) || input.type !== 'client-request' || input.method !== CODEX_ACCOUNTS_METHOD || typeof input.rpcId !== 'string' || !/^[\w-]{1,128}$/.test(input.rpcId)) throw error('invalid_request');
         rpcId = input.rpcId; const p = input.payload;
-        if (!object(p) || !keys(p, ['action', 'enabled', 'callback', 'account', 'settings', 'sessionId', 'tier']) || !['status', 'enable', 'runtime', 'catalog', 'configure', 'speed', 'setSpeed', 'begin', 'complete', 'cancel', 'refresh', 'remove', 'default'].includes(p.action)) throw error('invalid_request');
-        if (['status', 'catalog', 'begin', 'cancel'].includes(p.action) && !keys(p, ['action'])) throw error('invalid_request');
+        if (!object(p) || !keys(p, ['action', 'enabled', 'callback', 'account', 'settings', 'sessionId', 'tier', 'mode']) || !['status', 'enable', 'runtime', 'catalog', 'configure', 'speed', 'setSpeed', 'begin', 'complete', 'cancel', 'refresh', 'remove', 'default'].includes(p.action)) throw error('invalid_request');
+        if (p.action === 'status' && (!keys(p, ['action', 'mode']) || ('mode' in p && p.mode !== 'passive'))) throw error('invalid_request');
+        if (p.action !== 'status' && 'mode' in p) throw error('invalid_request');
+        if (['catalog', 'begin', 'cancel'].includes(p.action) && !keys(p, ['action'])) throw error('invalid_request');
         if (['enable', 'runtime'].includes(p.action) && (typeof p.enabled !== 'boolean' || !keys(p, ['action', 'enabled']))) throw error('invalid_request');
         if (p.action === 'configure' && (!object(p.settings) || !keys(p, ['action', 'settings']))) throw error('invalid_request');
         if (['speed', 'setSpeed'].includes(p.action) && (typeof p.sessionId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(p.sessionId)
@@ -112,7 +114,7 @@ export function applyCodexAccounts(ctx, config = {}) {
           else if (p.action === 'default') value = await service.setDefault(p.account);
           else value = await service.snapshot();
           value = { enabled: true, ...value, runtimeAvailable: !!llm && !!loader, runtimeEnabled: !!runtime,
-            ...(runtime && !['speed', 'setSpeed'].includes(p.action) ? { runtime: await runtime.snapshot() } : {}) };
+            ...(runtime && p.mode !== 'passive' && !['speed', 'setSpeed'].includes(p.action) ? { runtime: await runtime.snapshot() } : {}) };
         }
         return json({ type: 'server-response', rpcId, result: { ok: true, value } });
       } catch (failure) {

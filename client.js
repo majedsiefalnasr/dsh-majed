@@ -466,19 +466,46 @@ window.__ModuleLoader__.load({
         if (active.current) return;
         const controller = new AbortController(); active.current = controller;
         setBusy(true); setFailure(false);
-        const timer = setTimeout(() => controller.abort(), 35_000);
+        const current = () => mounted.current && active.current === controller;
+        const failClosed = () => setValue(previous => ({ ...previous, state: 'error', runtime: null,
+          accounts: previous.accounts.map(account => ({ ...account, state: 'error' })) }));
+        let expire;
+        const deadline = new Promise((_, reject) => { expire = () => { controller.abort(); reject(new Error('account_timeout')); }; });
+        const timer = setTimeout(expire, 35_000);
+        // Settle owned work even when the transport ignores cancellation.
+        let expireCancellation;
+        const cancellation = new Promise((_, reject) => { expireCancellation = () => reject(new Error('account_cancelled')); });
+        const cancel = () => { clearTimeout(timer); expireCancellation(); };
+        controller.signal.addEventListener('abort', cancel, { once: true });
         try {
-          const result = await ctx.connection.rpc.call('/api', 'majed/subscriptions/codex', { action, ...payload }, controller.signal);
+          const result = await Promise.race([ctx.connection.rpc.call('/api', 'majed/subscriptions/codex', { action, ...payload }, controller.signal), deadline, cancellation]);
           if (!result.ok) throw Object.assign(new Error('account_operation_failed'), { code: result.error?.code });
-          if (mounted.current && !controller.signal.aborted) {
+          if (current() && !controller.signal.aborted) {
             observeCodexRuntime(result.value.runtimeEnabled);
             setValue(previous => ({ ...result.value, accounts: result.value.accounts || previous.accounts || [] }));
             if (action === 'complete' || action === 'cancel') setCallback('');
           }
-        } catch (error) { if (mounted.current && !controller.signal.aborted) setFailure(error.code === 'runtime_unavailable' ? 'runtimeUnavailable' : 'error'); }
-        finally { clearTimeout(timer); active.current = null; if (mounted.current) setBusy(false); }
+        } catch (error) {
+          if (current()) {
+            setFailure(error.code === 'runtime_unavailable' ? 'runtimeUnavailable' : 'error');
+            if (action === 'refresh') {
+              // A rejected grant can still commit reauthentication-required state.
+              // Hide stale actionable metadata while querying the public snapshot;
+              // never retry the credential grant or replace its sanitized error.
+              failClosed();
+              if (!controller.signal.aborted) try {
+                const snapshot = await Promise.race([ctx.connection.rpc.call('/api', 'majed/subscriptions/codex', { action: 'status', mode: 'passive' }, controller.signal), deadline, cancellation]);
+                if (snapshot.ok && current() && !controller.signal.aborted) {
+                  observeCodexRuntime(snapshot.value.runtimeEnabled);
+                  setValue({ ...snapshot.value, runtime: null });
+                }
+              } catch { /* Retain the original sanitized error and fail-closed metadata. */ }
+            }
+          }
+        }
+        finally { clearTimeout(timer); controller.signal.removeEventListener('abort', cancel); if (active.current === controller) { active.current = null; if (mounted.current) setBusy(false); } }
       };
-      React.useEffect(() => { mounted.current = true; call('status'); return () => { mounted.current = false; active.current?.abort(); }; }, [ctx]);
+      React.useEffect(() => { mounted.current = true; call('status'); return () => { mounted.current = false; active.current?.abort(); active.current = null; }; }, [ctx]);
       const button = (action, label, payload, disabled = false) => h('button', { type: 'button', className: 'majed-management-refresh', 'data-codex-action': action, disabled: busy || disabled, onClick: () => call(action, payload) }, t('codex.' + label));
       const pending = value.state === 'pending';
       const status = ['failed', 'cancelled'].includes(value.loginState) ? value.loginState : value.state;
@@ -498,8 +525,8 @@ window.__ModuleLoader__.load({
         h('p', { role: failure ? 'alert' : 'status', 'aria-live': 'polite' }, t('codex.' + (failure || (busy ? 'working' : status)))),
         ...(value.accounts || []).map(account => h('div', { key: account.id }, h('p', null, account.label),
           h('p', null, t('codex.' + account.state)), h('div', { className: 'majed-management-controls' },
-            button('refresh', 'refresh', { account: account.id }), button('default', 'default', { account: account.id }, account.default), button('remove', 'remove', { account: account.id })),
-          value.runtimeEnabled && h(CodexAccountSettings, { account, preferences: value.runtime?.preferences?.accounts?.[account.id], call, busy, t }))));
+            button('refresh', 'refresh', { account: account.id }, account.state === 'error'), button('default', 'default', { account: account.id }, account.default || account.state !== 'connected'), button('remove', 'remove', { account: account.id })),
+          value.runtimeEnabled && value.runtime && account.state === 'connected' && h(CodexAccountSettings, { account, preferences: value.runtime?.preferences?.accounts?.[account.id], call, busy, t }))));
     }
 
     const approvalLabels = {
