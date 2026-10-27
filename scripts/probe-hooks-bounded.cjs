@@ -26,6 +26,36 @@ async function main() {
     const results = await engine.run('SessionStart', agent, new AbortController().signal);
     assert.equal(await fs.readFile(root + '/marker', 'utf8'), 'synthetic'); assert.equal(results[0].status, 'completed');
     await fs.unlink(root + '/marker');
+    hook.command = 'printf reviewed > /scratch/marker\r\n'; await approve();
+    assert.equal((await engine.run('SessionStart', agent, new AbortController().signal))[0].status, 'completed');
+    assert.equal(await fs.readFile(root + '/marker', 'utf8'), 'reviewed');
+    await fs.unlink(root + '/marker');
+    for (const stream of ['stdout', 'stderr']) {
+      hook.command = `head -c 70000 /dev/zero${stream === 'stderr' ? ' >&2' : ''}`; await approve();
+      assert.equal((await engine.run('SessionStart', agent, new AbortController().signal))[0].status, 'error', `${stream} overflow must not complete`);
+    }
+    for (const status of ['timeout', 'cancelled']) {
+      hook.command = 'printf started > /scratch/running; sleep 20; printf escaped > /scratch/late';
+      hook.limits = { timeout: 1000, output: 65536 }; await approve();
+      const controller = new AbortController();
+      const pending = engine.run('SessionStart', agent, controller.signal);
+      // Observe actual native execution before cancellation, rather than cancelling selection.
+      for (let attempt = 0; ; attempt++) {
+        try { await fs.stat(root + '/running'); break; } catch (error) {
+          if (error.code !== 'ENOENT' || attempt >= 100) throw error;
+          await new Promise(resolve => setTimeout(resolve, 10));
+        }
+      }
+      if (status === 'cancelled') controller.abort();
+      assert.equal((await pending)[0].status, status);
+      await assert.rejects(fs.stat(root + '/late'), { code: 'ENOENT' });
+      await fs.unlink(root + '/running');
+      hook.command = 'printf reusable > /scratch/reused'; await approve();
+      assert.equal((await engine.run('SessionStart', agent, new AbortController().signal))[0].status, 'completed');
+      assert.equal(await fs.readFile(root + '/reused', 'utf8'), 'reusable'); await fs.unlink(root + '/reused');
+    }
+    delete hook.limits;
+    hook.command = 'printf synthetic > /scratch/marker; cat';
     const original = ctx.subprocess.resolveExecutable.bind(ctx.subprocess);
     for (const change of ['revoke', 'watch', 'cwd']) {
       await approve();
@@ -50,7 +80,26 @@ async function main() {
     await assert.rejects(fs.stat(root + '/marker'), { code: 'ENOENT' });
     for (const event of ['UserPromptSubmit', 'PreToolUse', 'PostToolUse', 'PermissionRequest', 'Stop', 'PostCompact']) assert.deepEqual(await engine.run(event, agent, new AbortController().signal), []);
     assert.deepEqual(await createBoundedSessionStart(ctx, {}).run('SessionStart', agent, new AbortController().signal), []);
-    console.log('PASS production Approval -> bounded authority -> native subprocess; revoke/watch/store replacement immediately before spawn; activation off; six events inert. Synthetic SessionStart only; no native guard or lifecycle claim.');
+    await call('remove', { id: hook.id });
+    await fs.mkdir(root + '/project-a'); await fs.mkdir(root + '/project-b');
+    const header = { id: agent.session.header.id, cwd: root + '/project-a' };
+    const workspace = { id: 'project-fixture', path: root + '/project-a', sessionIds: [header.id] };
+    ctx.provide('sessions', { get: id => id === header.id ? { header } : undefined });
+    ctx.provide('sessionPersistence', { stat: async () => undefined });
+    ctx.provide('workspaceRegistry', { list: () => [workspace], get: id => id === workspace.id ? workspace : undefined });
+    const selectors = { scope: 'project', sessionId: header.id, workspaceId: workspace.id };
+    delete hook.watchedFiles;
+    await call('save', { ...selectors, hook });
+    const projectReview = await call('review', { ...selectors, id: hook.id });
+    await call('approve', { ...selectors, id: hook.id, nonce: projectReview.nonce, phrase: 'RUN AS DSH USER' });
+    assert.equal((await engine.run('SessionStart', agent, new AbortController().signal))[0].status, 'completed');
+    await fs.unlink(root + '/marker');
+    ctx.subprocess.resolveExecutable = async (...args) => { const resolved = await original(...args); header.cwd = root + '/project-b'; return resolved; };
+    assert.equal((await engine.run('SessionStart', agent, new AbortController().signal))[0].status, 'skipped');
+    await assert.rejects(fs.stat(root + '/marker'), { code: 'ENOENT' });
+    ctx.subprocess.resolveExecutable = original;
+    assert.deepEqual(await engine.run('SessionStart', agent, new AbortController().signal), []);
+    console.log('PASS CRLF reviewed bytes; stdout/stderr overflow; native timeout/cancellation and slot reuse; project canonical mismatch rejected. PASS production Approval -> bounded authority -> native subprocess; revoke/watch/store replacement immediately before spawn; activation off; six events inert. Synthetic SessionStart only; no native guard or lifecycle claim.');
   } finally { await ctx.fiber.dispose(); }
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

@@ -28,12 +28,13 @@ export function createBoundedSessionStart(owner, options = {}) {
             const review = await authority.revalidate(agent, entry, combined);
             combined.throwIfAborted();
             // No await between the final authority check and native spawn.
-            handle = owner.subprocess.spawn({ argv: [executable, '--noprofile', '--norc', '-c', hook.command], cwd: review.cwd,
+            handle = owner.subprocess.spawn({ argv: [executable, '--noprofile', '--norc', '-c', review.command], cwd: review.cwd,
               env: { BASH_ENV: undefined, ENV: undefined, NODE_OPTIONS: undefined, DSH_HOOK_ACTIVE: '1' },
               stdio: { stdin: { data: JSON.stringify({ hook_event_name: 'SessionStart', session_id: agent.session.header.id }) + '\n' }, stdout: { maxBytes: Math.min(hook.limits?.output ?? 65536, 65536) }, stderr: { maxBytes: 65536 } }, graceMs: 500, signal: combined });
             const outcome = await handle.done;
-            const output = handle.collected.stdout.readFrom(0);
-            results.push({ status: deadline.signal.aborted ? 'timeout' : signal.aborted ? 'cancelled' : outcome.exitCode === 0 && !output.lossy ? 'completed' : 'error' });
+            const stdout = handle.collected.stdout.readFrom(0);
+            const stderr = handle.collected.stderr.readFrom(0);
+            results.push({ status: deadline.signal.aborted ? 'timeout' : signal.aborted ? 'cancelled' : outcome.exitCode === 0 && !stdout.lossy && !stderr.lossy ? 'completed' : 'error' });
           } catch { results.push({ status: signal.aborted ? 'cancelled' : deadline.signal.aborted ? 'timeout' : 'skipped' }); }
           finally {
             clearTimeout(timer);

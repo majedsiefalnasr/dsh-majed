@@ -8,6 +8,7 @@ All notable changes to `dsh-majed` are documented here. The format follows
 ## [Unreleased]
 
 ### Bounded R14 candidate
+- Review follow-up executes the revalidated, CRLF-normalized reviewed command rather than the stored raw command, and classifies loss on either bounded output stream as an error. Offline native regressions cover reviewed bytes, independent stdout/stderr overflow, timeout, cancellation, slot reuse and exact project canonical-scope rejection. No production activation or additional events are introduced.
 - Dormant synthetic SessionStart seam reads production Command Approval authority and runs an approved inline Bash command through native subprocess, with immediate pre-spawn revocation, watched-byte and canonical-cwd checks. Activation remains off; no production event registration, native tool-guard, other-event, installed-state or full R14 acceptance is claimed.
 
 ### Fixed
