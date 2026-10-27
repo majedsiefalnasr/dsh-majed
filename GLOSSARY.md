@@ -9,7 +9,7 @@ A Settings section of dsh-majed through which the owner manages one kind of capa
 _Avoid_: Console, panel, dashboard
 
 **Reference plugin**:
-An installed third-party plugin kept only to test against and learn from, to be deleted once dsh-majed covers its features.
+A third-party plugin used as a source of behavior and implementation examples for dsh-majed. It need not be installed; an installed reference is removed by the Owner only after the agreed replacement criteria are met.
 _Avoid_: Dependency, companion
 
 **Cutover**:

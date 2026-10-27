@@ -3,6 +3,8 @@ status: accepted
 ---
 # Management admission and Command hook Approval provenance have independent gates
 
+**2026-10-25 amendment:** [ADR 0009](./0009-allow-unknown-command-approval-origin.md) supersedes the requirement below that verified original local/remote provenance must block Command Approval/execution. Authenticated Owner admission and exact-content Approval remain required; unverifiable origin is recorded as `unknown`. The account below records the original decision, not the current locality requirement.
+
 On 2026-10-23 the Owner approved splitting T02A into management admission (T02A) and trusted Command hook Approval provenance (T02E). The inspected native Fetch contract preserves Owner admission but does not preserve trustworthy original local/remote provenance through the paired remote proxy. Keeping both requirements in the shared Settings prerequisite unnecessarily blocked Skills, MCP and inert Hook editing; weakening provenance or assuming loopback meant local would instead weaken the accepted command-execution contract.
 
 T02A retains its actual Settings/client, local/remote Owner admission, authenticated session/project, native Skills invalidation and official MCP lifecycle proof requirements. T03 and its ordinary management descendants still wait for T02A to pass. T02E is independently blocked by T01; T10 now requires both T09 and T02E. All other native dependencies remain unchanged. No proof is completed by this split, and no parent specification issue is rewritten or closed.

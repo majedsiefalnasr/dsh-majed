@@ -1,5 +1,7 @@
 # T02E / #47: original Approval provenance is unsupported
 
+**Requirement amended 2026-10-25:** The source finding below remains evidence that original locality is unavailable at the inspected seam. [ADR 0009](../adr/0009-allow-unknown-command-approval-origin.md) supersedes its execution-blocking recommendation: authenticated Owner admission and exact-command Approval remain mandatory; unverifiable origin may be `unknown`. The revised T02E still needs admission/audit evidence; this historical assessment does not pass it or authorize execution.
+
 Assessment date: 2026-10-24. Base: `51c2246`; branch: `feat/t02e-provenance-assessment`.
 
 ## Decision and boundary

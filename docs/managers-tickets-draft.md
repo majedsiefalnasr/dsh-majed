@@ -1,6 +1,18 @@
+> Historical plan/publication record. Current workflow issues #48–#74 were verified on 2026-10-25T18:50:42.852772+00:00. Use [the published workflow index](manager-workflow-tickets/README.md) for current issue IDs and dependencies. Earlier publication/frontier statements below are historical.
+
 # Managers, integrated subscriptions and Auto — draft execution tickets
 
-**Status: APPROVED FOR PUBLICATION — NOT AN IMPLEMENTATION OR OPERATIONAL AUTHORIZATION.**
+**Local amendment — 2026-10-25:** [ADR 0009](./adr/0009-allow-unknown-command-approval-origin.md) revises T02E and T10 below to allow truthful `unknown` Approval origin while preserving authenticated Owner admission and exact-command Approval. This supersedes older locality requirements in historical approval notes. GitHub issues/dependencies have not been updated by this edit; publication reconciliation is pending. No amended proof is marked complete.
+
+**MCP runtime amendment — 2026-10-25:** The Owner approved [ADR 0010](./adr/0010-allow-mcp-sdk-through-public-dsh-apis.md). T08 prefers the native DSH client and may use a Majed-owned official MCP SDK client through verified public DSH APIs for required capabilities the native client cannot provide. Keep T08's existing dependencies and scope. Native-client feasibility results do not prove an SDK alternative; T08 must supply that additional runtime evidence before using it. No published ticket or dependency was changed by this local amendment.
+
+**Status: historical approved ticket decomposition with accepted local amendments; revised provider-workflow decomposition is pending. Not an implementation or operational authorization.**
+
+### Approved delivery amendment — 2026-10-25
+
+The Owner approved the [end-to-end-first subscription delivery order](./managers-scope-revision.md#integration-approach): one provider's Settings/auth/refresh/durable state/restart/catalog/direct-dispatch workflow, then remaining provider workflows, multi-account/pool behavior and deterministic Auto integration. Production composition belongs in the first workflow. The eight proposed component-first slices are superseded as a delivery sequence. Keep all required subscription/media/search, Smart, child and advisory acceptance obligations and explicit deferred dispositions.
+
+The existing T/D IDs below remain traceability/evidence references, not a newly reconciled graph for this delivery order. Before creating or changing execution tickets, map inherited acceptance to bounded workflow slices, inspect existing ticket/code evidence, and preserve documented dependencies until an explicit replacement graph is prepared. Do not reopen, close or duplicate issues based solely on a summary or this scheduling approval. D06–D10 / #42–#46 remain untouched. Neither this local update nor earlier publication consent performs a GitHub write.
 
 On 2026-10-22, the Owner approved **34 execution slices**, **10 deferred follow-ups**, their blocking edges, the expanded first-release/deferred scope and testing seams, and publication of the expanded specification and tickets to GitHub. Independent feasibility and rollback-readiness slices avoid false dependencies. T/D IDs remain stable planning references, not GitHub issue numbers; the publication ledger maps them to actual issues. This approval authorizes documentation and issue publication only, not implementation, operational account access, installed-state changes or Cutover.
 
@@ -81,17 +93,17 @@ T04 produces the versioned, row-level Parity list. The following allocation is i
 - Keep management admission distinct from Command hook Approval provenance (T02E). Passing this gate does not issue an Approval challenge, approve a hook or authorize execution; server-side command Approval/execution remain unavailable until T02E and T10 pass.
 - Record public seams, exact host version, positive/negative tests and unsupported results. Failure pauses only the affected path for Owner review; no operational state or real service call is authorized.
 
-### T02E — Prove trusted Command hook Approval provenance
+### T02E — Prove authenticated Command hook Approval admission and truthful origin
 
-**What it delivers:** An independently reproducible trusted server-side local/remote source contract for exact Command hook Approval, or an explicit unsupported result that keeps command Approval/execution unavailable. Owner-approved split on 2026-10-23; see ADR 0008. This is required first-release scope, not a deferral or a local-only policy.
+**What it delivers:** An independently reproducible authenticated Owner admission contract for Command hook Approval, with truthful original-origin auditing. The Owner's interim 2026-10-25 decision in ADR 0009 permits `unknown` where original locality is unverifiable. Both local and paired-remote Approval remain required; the earlier source assessment does not pass this revised proof.
 
 **Blocked by:** T01.
 
 **Acceptance criteria:**
 
-- Prove original local/remote provenance through supported public admission/transport contracts for both paths, bound to the admitted Owner request and reviewed content/canonical scope. A client label, Origin, shared Owner Peer or loopback proxy hop is not evidence of original locality.
-- Test forged labels, missing/invalid/stale attestation, replay, scope substitution and paired-proxy rewriting with actual supported services and controlled fixtures; distinguish isolated automated results from live evidence. Preserve server time, nonce, typed confirmation, content fingerprint and native guard requirements in T10.
-- If unsupported, stop and report. Command Approval and execution must fail closed server-side (including challenge/approve/run/test/event paths); no imported Approval or fallback runner. Settings, basic Skills, MCP and inert Hook editing may proceed only after their own gates, with no implied approval or live shared-store edit authorization. No host patch, operational state access, command execution or service consumption is authorized by this proof ticket.
+- Prove native authenticated Owner admission for both local and paired-remote Approval paths through supported public contracts. Bind Approval to the admitted operation, reviewed content and canonical scope in T10. A client label, Origin, shared Owner Peer or loopback proxy hop is not evidence of original locality.
+- Record `local` or `remote` only with trustworthy server-side evidence; otherwise record `unknown`. Test forged labels and proxy rewriting cannot manufacture verified locality. Missing or invalid optional origin evidence yields `unknown`; missing/invalid Owner admission or Approval rejects. Cover server time, nonce expiry/replay, typed confirmation, content fingerprint, scope substitution and native guard requirements in T10; distinguish fixtures from live evidence.
+- Report unsupported admission/Approval contracts and pause the affected path. Unverifiable original locality alone is an accepted limitation, not an execution blocker. Command surfaces remain unavailable until their amended proof and execution requirements are implemented and verified; no imported Approval or fallback runner bypass. This proof does not authorize operational state access, command execution, host patches, live shared-store edits or service consumption.
 
 ### T02B — Prove native Auto metadata and coherent preparation
 
@@ -191,15 +203,15 @@ T04 produces the versioned, row-level Parity list. The following allocation is i
 
 ### T08 — Run and observe isolated MCP connections
 
-**What it delivers:** A saved MCP server becomes an actual official-client connection with independently visible lifecycle, test/reconnect controls and invocable tools.
+**What it delivers:** A saved MCP server becomes an actual connection with independently visible lifecycle, test/reconnect controls and invocable tools. Prefer the native DSH client; an official MCP SDK alternative may be owned by Majed through verified public DSH APIs under ADR 0010.
 
 **Blocked by:** T02A, T07.
 
 **Acceptance criteria:**
 
-- Real Cordis fixture tests prove stdio and controlled streamable HTTP startup, tools/list, tool invocation, hot reconcile, enable/disable, teardown and restart restoration, one isolated lifecycle fiber per server.
+- Real Cordis fixture tests prove stdio and controlled streamable HTTP startup, tools/list, tool invocation, hot reconcile, enable/disable, teardown and restart restoration, with an isolated lifecycle per managed server. Preserve native-client coverage. For a selected SDK alternative, prove exact-host public tool/session integration, native permission enforcement, scoped visibility, normalized results, cancellation and applicable auth/refresh behavior separately; existing native-client proof does not cover it.
 - Connection probe uses a bounded disposable lifecycle; UI distinguishes saved/probing/connected/error state, and status refresh works remotely. Failure or cancellation of one server does not stop another Manager/server.
-- Prevent duplicate server/tool ownership, stale fibers and leaked processes; test server failure/reconnect/disposal. Per-tool restrictions and config-ingest/handoff features are not smuggled into this ticket.
+- Prevent duplicate server/tool ownership, stale fibers and leaked processes; native and SDK clients cannot concurrently own the same managed connection. Test server failure/reconnect/disposal and dispose-before-replacement, including cleanup failure. Keep private storage and authenticated management; automatic profile takeover is not an SDK integration requirement. Per-tool restrictions and config-ingest/handoff features retain their existing scope dispositions.
 
 ### T09 — Edit compatible Command hook definitions inertly
 
@@ -221,7 +233,7 @@ T04 produces the versioned, row-level Parity list. The following allocation is i
 
 **Acceptance criteria:**
 
-- Server-issued single-use, expiring nonce binds exact reviewed content hash, source and canonical scope; server checks the phrase. Test missing/stale/replayed nonce, edit/watch-file changes, scope substitution and change while queued. Trusted provenance/time distinguishes local versus remote Approval without trusting a client-supplied label.
+- Server-issued single-use, expiring nonce binds exact reviewed content hash, definition source and canonical scope; server checks the phrase. Test missing/stale/replayed nonce, edit/watch-file changes, scope substitution and change while queued. Preserve authenticated Owner admission and server receipt time. Original local/remote origin is separately audited as verified `local`/`remote`, or `unknown` when unverifiable, under ADR 0009; client labels cannot manufacture verified origin. Unknown origin alone does not reject an otherwise valid Approval.
 - Real harmless fixtures prove approved-only dispatch for all seven required events, stdin-only event JSON, bounded timeout/output/concurrency, cancellation/process cleanup, recursion/duplicate-event protection and interrupted-run handling. No event data is shell-interpolated.
 - Commands run as the host OS user, not in a claimed sandbox. Strict supported output handling cannot grant native permissions; native guards still run. Run log/errors redact secrets. Revocation/edit invalidation and remote approval/execution both have negative and positive automated coverage; actual live proof remains T29.
 

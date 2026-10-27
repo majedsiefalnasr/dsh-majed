@@ -1,5 +1,7 @@
 # Management admission and Approval provenance: installed-source preparation
 
+**Requirement amended 2026-10-25:** [ADR 0009](../adr/0009-allow-unknown-command-approval-origin.md) supersedes the mandatory original-locality requirement and related execution-blocking recommendations below. Keep the source findings; record unverifiable origin as `unknown` while retaining authenticated Owner admission and exact-command Approval. This report does not pass the amended T02E or establish live acceptance.
+
 Status: **preparatory research only for [T02A / #4](https://github.com/majedsiefalnasr/dsh-majed/issues/4)**. This research began while [T01 / #3](https://github.com/majedsiefalnasr/dsh-majed/issues/3) was open. Subsequent review accepted T01 at its [local automated baseline boundary](<../BASELINE.md#L43-L49>); exact-host and live gates remain separate. This report neither implements nor completes T02A, changes installed state, nor authorizes an operational test or cutover.
 
 ## Owner-approved gate split — 2026-10-23
