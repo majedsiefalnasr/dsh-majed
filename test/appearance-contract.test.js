@@ -25,8 +25,10 @@ test('appearance reacts to lazily loaded manager styles and cleans up', () => {
   assert.ok(source.includes('headObserver.disconnect(); bodyObserver.disconnect()'));
 });
 
-test('Settings slice visual contract: 18px heading, modal overflow guard, narrow viewport stacking', () => {
-  assert.ok(source.includes('font:var(--dsw-font-s-18)'), '18px typography used for Settings section heading');
+test('Settings slice uses native body and heading tokens, modal overflow guard, narrow viewport stacking', () => {
+  assert.match(source, /\.majed-management\{[^}]*font:var\(--dsw-font-s-14\)/, 'Manager body selects native Settings typography rather than inheriting an unspecified slot parent');
+  assert.match(source, /\.majed-management__title\{[^}]*font:var\(--dsw-font-m-18\)/, 'Manager heading uses a token defined by native DSH');
+  assert.ok(!source.includes('--dsw-font-s-18'), 'the nonexistent s-18 token cannot silently invalidate the heading font');
   assert.ok(source.includes('.majed-management__title'), 'Settings section title element rendered');
   assert.ok(source.includes('overflow:auto'), 'modal overflow guard on Settings section');
   assert.ok(source.includes('@media (max-width:'), 'narrow viewport stacking media query');
