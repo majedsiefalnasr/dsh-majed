@@ -1,0 +1,855 @@
+{
+  "schema_version": 1,
+  "purpose": "Preservation, not acceptance or integration",
+  "publication_status": "pending-exact-remote-verification",
+  "original_branches": [
+    {
+      "branch": "feat/codex-dispatch-revocation",
+      "sha": "e43fa5b2674b35afc162752a842d660aa10384b0",
+      "remote_branch": "feat/codex-dispatch-revocation",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "feat/codex-fixture-refresh-reauth",
+      "sha": "a45948e7c45d24218261213a3fab0b7efbe8f740",
+      "remote_branch": "feat/codex-fixture-refresh-reauth",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "feat/codex-preferences-observations",
+      "sha": "cf21655d5141166502a86bc46fd272fd8593890f",
+      "remote_branch": "feat/codex-preferences-observations",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "feat/managers",
+      "sha": "c1762226dbf161983b4d540a524892f38cb09027",
+      "remote_branch": "feat/managers",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "feat/r01-codex",
+      "sha": "bd1f029b29213b726aa151087e72b05ccb527006",
+      "remote_branch": "feat/r01-codex",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "feat/r02-codex-direct",
+      "sha": "d414d6c5324d4f15cd7f22be1302d64ec4dda4a3",
+      "remote_branch": "feat/r02-codex-direct",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "feat/r09-skills",
+      "sha": "5f427e3c280858c338aaf637649b943ad86a4c1d",
+      "remote_branch": "feat/r09-skills",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "feat/r10-native-evidence",
+      "sha": "608cf447789474c498ec789622b30b9c18c26bc0",
+      "remote_branch": "feat/r10-native-evidence",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "feat/r11-active-agent-policy",
+      "sha": "a45d62093be51f9848f84cdc0925d2347694f20e",
+      "remote_branch": "feat/r11-active-agent-policy",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "feat/r11-skills-native",
+      "sha": "308e7d8dfade6c52cc73261241d83126cd72a9f5",
+      "remote_branch": "feat/r11-skills-native",
+      "ancestor_of_product_integration": false,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "feat/r11-unicode-preservation",
+      "sha": "230e02a122f9f8a5cff87da3822a064b8712739d",
+      "remote_branch": "feat/r11-unicode-preservation",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "feat/r12-mcp-native",
+      "sha": "75b66774d8fe2170bb6776c77971da27c8980b7b",
+      "remote_branch": "feat/r12-mcp-native",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "feat/r13-approval",
+      "sha": "e4755e44421ce8e99b807e07f23320e22d7670bb",
+      "remote_branch": "feat/r13-approval",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "feat/r14-bounded-runner",
+      "sha": "c2d07e98a0475b0bd64e5e2dfa07c641e525700e",
+      "remote_branch": "feat/r14-bounded-runner",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "feat/r14-hooks-execution",
+      "sha": "d78b0c9c951a2f003a4948dfa97f88bb62408ba9",
+      "remote_branch": "feat/r14-hooks-execution",
+      "ancestor_of_product_integration": false,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "feat/r15-judgment",
+      "sha": "1e3d430e2420b6d3dea1858cc730d77c91816ef2",
+      "remote_branch": "feat/r15-judgment",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "feat/t02a-carrier-effects",
+      "sha": "211f6ca91704365fbbb8559043d23add09f5e6c4",
+      "remote_branch": "feat/t02a-carrier-effects",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "feat/t02a-mcp",
+      "sha": "e28fe6a826d61b6e07a3de3a31dd3b37d322a0fa",
+      "remote_branch": "feat/t02a-mcp",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "feat/t02a-mounted-settings",
+      "sha": "02a680b354fc8f27a8c5c48a7bc8dd9322706731",
+      "remote_branch": "feat/t02a-mounted-settings",
+      "ancestor_of_product_integration": false,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "feat/t02a-mounted-transport",
+      "sha": "fc968309d62192e6eefd73eb58c52e05ccbc12aa",
+      "remote_branch": "feat/t02a-mounted-transport",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "feat/t02a-physical-carrier",
+      "sha": "bbc33da928bb8869523021293b3a876343d4badb",
+      "remote_branch": "feat/t02a-physical-carrier",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "feat/t02a-remote",
+      "sha": "05810629b00f9fcfbcde60c50cc918ab358c234f",
+      "remote_branch": "feat/t02a-remote",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "feat/t02a-scope",
+      "sha": "6c587d0e31a7ae4c6c76c50401418ca73d429dee",
+      "remote_branch": "feat/t02a-scope",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "feat/t02a-scoped-remote-proof",
+      "sha": "0b058c3d0631c6688d468a605274092e4cd888e1",
+      "remote_branch": "feat/t02a-scoped-remote-proof",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "feat/t02a-settings",
+      "sha": "d3c53aa09d2a1277468db1dd5e2bb590ba558ee0",
+      "remote_branch": "feat/t02a-settings",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "feat/t02d-parent-delivery",
+      "sha": "b85509f04996fbb870ae2b5e07707e594f1004cd",
+      "remote_branch": "feat/t02d-parent-delivery",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "feat/t02d-tool-preflight",
+      "sha": "df39d3940703246821cf18addcc2d5511fbe76a5",
+      "remote_branch": "feat/t02d-tool-preflight",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "feat/t02e-provenance-assessment",
+      "sha": "d88a046c84b7b7c0d4f2a0959da1eee1f378eb6e",
+      "remote_branch": "feat/t02e-provenance-assessment",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "feat/t03-authenticated-settings",
+      "sha": "4543f30d511f287a3eb69d11a5b3f04ba7f55562",
+      "remote_branch": "feat/t03-authenticated-settings",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "feat/t08-mcp-connections",
+      "sha": "7809b651c6b0c56c073aaf4f75f188168623cc11",
+      "remote_branch": "feat/t08-mcp-connections",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "feat/t09-hooks-inert",
+      "sha": "7b1818a9ee8af94a3bdd18ade66923059b3fd1a0",
+      "remote_branch": "feat/t09-hooks-inert",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "feat/t12-subscription-routing",
+      "sha": "7b1818a9ee8af94a3bdd18ade66923059b3fd1a0",
+      "remote_branch": "feat/t12-subscription-routing",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "feat/t15-catalogs-preferences",
+      "sha": "d623addb7ac3b76c1a79f7abc8c3a4ff779a8bc4",
+      "remote_branch": "feat/t15-catalogs-preferences",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "feat/t18-search-attachments",
+      "sha": "4536734d1e591a5fbab0f22d51b84b35d2ae2caa",
+      "remote_branch": "feat/t18-search-attachments",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "feat/t20-video-polling",
+      "sha": "fc75f0dc1f0291c10d94366f13ed2130b5887291",
+      "remote_branch": "feat/t20-video-polling",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "feat/t21-auto-enrollment",
+      "sha": "4536734d1e591a5fbab0f22d51b84b35d2ae2caa",
+      "remote_branch": "feat/t21-auto-enrollment",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "feat/t24-judgment-service",
+      "sha": "7b1818a9ee8af94a3bdd18ade66923059b3fd1a0",
+      "remote_branch": "feat/t24-judgment-service",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "feat/t28m-cutover-rollback",
+      "sha": "4536734d1e591a5fbab0f22d51b84b35d2ae2caa",
+      "remote_branch": "feat/t28m-cutover-rollback",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "feat/t28s-subscription-cutover",
+      "sha": "b6bf70444eb6f460c4757d034bb60a034752d635",
+      "remote_branch": "feat/t28s-subscription-cutover",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "fix/managers-wave-review",
+      "sha": "6f67321fc3b14e65a68f011160c9872bfd1fe9bf",
+      "remote_branch": "fix/managers-wave-review",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "fix/native-typography-diagnosis",
+      "sha": "c2192fc51d9fa78727fd5db7da42d8fcb25ce5f0",
+      "remote_branch": "fix/native-typography-diagnosis",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "fix/r15-late-response-cleanup",
+      "sha": "39875bca0603e497ec5f85e2c8e2bed4124e8426",
+      "remote_branch": "fix/r15-late-response-cleanup",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "fix/refresh-account-snapshot",
+      "sha": "41cb92fb79bb6e71a4b457f18ef3544f8f5d26ec",
+      "remote_branch": "fix/refresh-account-snapshot",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "fix/t03-arabic-catalog",
+      "sha": "f9f67fbb7db173cfc8f5106887dc633eedeef1d4",
+      "remote_branch": "fix/t03-arabic-catalog",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "fix/t03-native-connection-injection",
+      "sha": "396e08ecb133ac74f0266d4083fcbc1f27900389",
+      "remote_branch": "fix/t03-native-connection-injection",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "fix/t03-readiness-focus",
+      "sha": "597ccf707d8f6668e6debd9f017ba1ddb7df5443",
+      "remote_branch": "fix/t03-readiness-focus",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "main",
+      "sha": "b53018050f918e901084153cc735b6df055246c6",
+      "remote_branch": "checkpoint/20261027-local-main",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "proof/codex-retained-native-followup",
+      "sha": "1ded476e645897856f7a586de3332769ac69cfcd",
+      "remote_branch": "proof/codex-retained-native-followup",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "proof/r01-r02-browser-preflight-retry",
+      "sha": "fd4e0f135048d0b6acb959aeb96f7ced587a9622",
+      "remote_branch": "proof/r01-r02-browser-preflight-retry",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "proof/r10-pending-cancel",
+      "sha": "90be50b0ad95153dda61fefec054a2fb1ea6d376",
+      "remote_branch": "proof/r10-pending-cancel",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "r11-cold-preset-contract",
+      "sha": "d39bcc41c109dce1a4f5130b302b32aa465687ea",
+      "remote_branch": "r11-cold-preset-contract",
+      "ancestor_of_product_integration": false,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "r11-distinct-preset-registry",
+      "sha": "1d077c83c122a65d2d332318a1927064161e0c32",
+      "remote_branch": "r11-distinct-preset-registry",
+      "ancestor_of_product_integration": false,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "r14-native-guard-candidate",
+      "sha": "c1762226dbf161983b4d540a524892f38cb09027",
+      "remote_branch": "r14-native-guard-candidate",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "test/codex-public-fixture",
+      "sha": "193642e10370a54e1024140f311148c60d6adecc",
+      "remote_branch": "test/codex-public-fixture",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "test/management-suite",
+      "sha": "6149a13f93a726e2152ce752e7e10928b2ef2df7",
+      "remote_branch": "test/management-suite",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "test/t02a-scoped-remote",
+      "sha": "6ba650fdcfd28509ba1004996c0bf9ad9ffca750",
+      "remote_branch": "test/t02a-scoped-remote",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "test/t02d-advisory-inventory",
+      "sha": "bb80b704dcc04f6a4dad5a3f5f76250343cf6320",
+      "remote_branch": "test/t02d-advisory-inventory",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "test/t02d-permission-ownership",
+      "sha": "d3fa6072ba5a39d03c3ada61fb7fbbce3157f66a",
+      "remote_branch": "test/t02d-permission-ownership",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    },
+    {
+      "branch": "test/t02d-positive-preset",
+      "sha": "f74f38e2332c986e59f22de0144d666baefe9615",
+      "remote_branch": "test/t02d-positive-preset",
+      "ancestor_of_product_integration": true,
+      "acceptance": "ancestry-is-not-acceptance"
+    }
+  ],
+  "worktrees": [
+    {
+      "path": "/Users/majedsiefalnasr/Documents/Work/DeepSeek Harness/dsh-majed",
+      "head": "c1762226dbf161983b4d540a524892f38cb09027",
+      "branch": "refs/heads/feat/managers",
+      "preserved_files": [
+        {
+          "status": " M",
+          "path": "AGENTS.md",
+          "disposition": "preserve",
+          "sha256": "cee89d95c9ce1e0f907304f80c989e2dcb43b47ac5bf9bb11527a64350ae6585"
+        },
+        {
+          "status": " M",
+          "path": "GLOSSARY.md",
+          "disposition": "preserve",
+          "sha256": "d1f6ec151ac4ead5e81e262c899241717dbe4418cfdce1a41bee3e12f0b8a773"
+        },
+        {
+          "status": " M",
+          "path": "docs/PARITY.md",
+          "disposition": "preserve",
+          "sha256": "cb3183f1ac1f48a5b671ed5f10a29e7b8ac72105ab586874acfb805a453867e8"
+        },
+        {
+          "status": " M",
+          "path": "docs/adr/0003-managers-store-definitions-in-private-files.md",
+          "disposition": "preserve",
+          "sha256": "05df47dfee4ef4990e410bf9a0dc95f382bff0f6adca4f2846b964d0889d4f5e"
+        },
+        {
+          "status": " M",
+          "path": "docs/adr/0008-separate-management-admission-from-command-approval-provenance.md",
+          "disposition": "preserve",
+          "sha256": "dda12ce346dc17ea2beb3ae47f7aad7cbdd981b83efc7fca28b0e04098f985d1"
+        },
+        {
+          "status": " M",
+          "path": "docs/managers-spec.md",
+          "disposition": "preserve",
+          "sha256": "7ebd2aa376ccbee601fd15fc89d44ca847e7e17f3e3cf54adb6d8bdefcc193f8"
+        },
+        {
+          "status": " M",
+          "path": "docs/managers-tickets-draft.md",
+          "disposition": "preserve",
+          "sha256": "2db3f8144533646dcf04b45d251eb95ddd0f2f6ecaf01daea4b6684b17ed9408"
+        },
+        {
+          "status": " M",
+          "path": "docs/managers-tickets-published.md",
+          "disposition": "preserve",
+          "sha256": "c2c2db31ba9b18c982aee70c01c12258a0857705fba035fea5a3919e1c869284"
+        },
+        {
+          "status": " M",
+          "path": "docs/research/management-approval-provenance.md",
+          "disposition": "preserve",
+          "sha256": "f5fa23537d2aa3fd967379a17b273b86942bc5f103164cddce0d11fe23e92b5d"
+        },
+        {
+          "status": " M",
+          "path": "docs/research/t02e-provenance-assessment.md",
+          "disposition": "preserve",
+          "sha256": "f78facfbe90e9c7807fce2c6b2d61c09aaaec1d4817e8db80f3b920c1d30f191"
+        },
+        {
+          "status": "??",
+          "path": "docs/adr/0009-allow-unknown-command-approval-origin.md",
+          "disposition": "preserve",
+          "sha256": "6d359185a09f99b0e7854a3372c1cc0a83fa91df6d1b49e27200f6d8b5b99284"
+        },
+        {
+          "status": "??",
+          "path": "docs/adr/0010-allow-mcp-sdk-through-public-dsh-apis.md",
+          "disposition": "preserve",
+          "sha256": "4faa3f38f77c0a35d0941c62b16004512bbd6d3dc7b52d2421dae8e25bba0463"
+        },
+        {
+          "status": "??",
+          "path": "docs/ai/current-work.md",
+          "disposition": "preserve",
+          "sha256": "84dc6d6d850978d87298f68f2f110ca193c5602cc2ef3abedbb86c18dd57e4a6"
+        },
+        {
+          "status": "??",
+          "path": "docs/ai/rules/execution-policy.md",
+          "disposition": "preserve",
+          "sha256": "359d605951b6cbd9feba99dabce5cd8af7c1facf5781d91f64a33582551fbad4"
+        },
+        {
+          "status": "??",
+          "path": "docs/ai/rules/scope-control.md",
+          "disposition": "preserve",
+          "sha256": "4d15d55606dd4c42f30692a5ff32075f139c34a33d357661074853414e45fa00"
+        },
+        {
+          "status": "??",
+          "path": "docs/manager-workflow-tickets/README.md",
+          "disposition": "preserve",
+          "sha256": "7c67c93360c7670f4dad340b4a13131b235f540bec87177a2ab58be32fd73696"
+        },
+        {
+          "status": "??",
+          "path": "docs/manager-workflow-tickets/graph.json",
+          "disposition": "preserve",
+          "sha256": "a6a3e83102c2061e46a91c01c43d4814087df85303f639874ade9827acf7c6d3"
+        },
+        {
+          "status": "??",
+          "path": "docs/manager-workflow-tickets/reconciliation.md",
+          "disposition": "preserve",
+          "sha256": "f790eaf4b75848f300cc84e5ceb0be0e9e7da4a303e468dac999223b7b970372"
+        },
+        {
+          "status": "??",
+          "path": "docs/manager-workflow-tickets/review.md",
+          "disposition": "preserve",
+          "sha256": "7a1382d9253c04433a7e11f41a312d9e3e04ee79118878b9643f3cf9c57c2679"
+        },
+        {
+          "status": "??",
+          "path": "docs/manager-workflow-tickets/tracker-baseline.json",
+          "disposition": "preserve",
+          "sha256": "47008ec7006e3c756bb89ff2002995800e2bdc410d20d811506d8626fecac96b"
+        },
+        {
+          "status": "??",
+          "path": "docs/managers-scope-revision.md",
+          "disposition": "preserve",
+          "sha256": "efd2e44f3bda84bde10af3dc2c24adbbefc5f434cd325bc3042a803eae6ff092"
+        },
+        {
+          "status": "??",
+          "path": "docs/research/owner-approved-acceptance-deferrals.md",
+          "disposition": "preserve",
+          "sha256": "2f1ecf8b9089de9901f973f918aebf0bbbb3a9f6eda4cd49afee32dd169892f6"
+        },
+        {
+          "status": "??",
+          "path": "scripts/export-manager-issue-context.py",
+          "disposition": "preserve",
+          "sha256": "2527b1aa0316975bb4b6d56fcac305cd17833e7693a843a40382e11201f61b7d"
+        }
+      ],
+      "excluded_path_count": 0
+    },
+    {
+      "path": "/Users/majedsiefalnasr/Documents/Work/DeepSeek Harness/dsh-codex-fixture",
+      "head": "193642e10370a54e1024140f311148c60d6adecc",
+      "branch": "refs/heads/test/codex-public-fixture",
+      "preserved_files": [],
+      "excluded_path_count": 0
+    },
+    {
+      "path": "/Users/majedsiefalnasr/Documents/Work/DeepSeek Harness/dsh-codex-preferences-observations",
+      "head": "cf21655d5141166502a86bc46fd272fd8593890f",
+      "branch": "refs/heads/feat/codex-preferences-observations",
+      "preserved_files": [],
+      "excluded_path_count": 0
+    },
+    {
+      "path": "/Users/majedsiefalnasr/Documents/Work/DeepSeek Harness/dsh-codex-retained-native",
+      "head": "1ded476e645897856f7a586de3332769ac69cfcd",
+      "branch": "refs/heads/proof/codex-retained-native-followup",
+      "preserved_files": [],
+      "excluded_path_count": 0
+    },
+    {
+      "path": "/Users/majedsiefalnasr/Documents/Work/DeepSeek Harness/dsh-codex-revocation",
+      "head": "e43fa5b2674b35afc162752a842d660aa10384b0",
+      "branch": "refs/heads/feat/codex-dispatch-revocation",
+      "preserved_files": [],
+      "excluded_path_count": 0
+    },
+    {
+      "path": "/Users/majedsiefalnasr/Documents/Work/DeepSeek Harness/dsh-fixture-refresh-reauth",
+      "head": "a45948e7c45d24218261213a3fab0b7efbe8f740",
+      "branch": "refs/heads/feat/codex-fixture-refresh-reauth",
+      "preserved_files": [],
+      "excluded_path_count": 0
+    },
+    {
+      "path": "/Users/majedsiefalnasr/Documents/Work/DeepSeek Harness/dsh-majed-browser-preflight-retry",
+      "head": "fd4e0f135048d0b6acb959aeb96f7ced587a9622",
+      "branch": "refs/heads/proof/r01-r02-browser-preflight-retry",
+      "preserved_files": [
+        {
+          "status": "??",
+          "path": "docs/research/r01-r02-native-acceptance-worker-2026-10-27.md",
+          "disposition": "preserve",
+          "sha256": "3be58b01281eb80ce388b58e945d43f407db125a6649b5b88631f45b823ab93e"
+        },
+        {
+          "status": "??",
+          "path": "docs/research/r01-r02-native-browser-preflight-retry-2026-10-27.md",
+          "disposition": "preserve",
+          "sha256": "75fd7e0fdc1c593aaccffc8840b937fb37968a02d19aeafbd79c49f34215fea9"
+        }
+      ],
+      "excluded_path_count": 404
+    },
+    {
+      "path": "/Users/majedsiefalnasr/Documents/Work/DeepSeek Harness/dsh-majed-r01",
+      "head": "bd1f029b29213b726aa151087e72b05ccb527006",
+      "branch": "refs/heads/feat/r01-codex",
+      "preserved_files": [],
+      "excluded_path_count": 0
+    },
+    {
+      "path": "/Users/majedsiefalnasr/Documents/Work/DeepSeek Harness/dsh-majed-r02",
+      "head": "d414d6c5324d4f15cd7f22be1302d64ec4dda4a3",
+      "branch": "refs/heads/feat/r02-codex-direct",
+      "preserved_files": [],
+      "excluded_path_count": 0
+    },
+    {
+      "path": "/Users/majedsiefalnasr/Documents/Work/DeepSeek Harness/dsh-majed-r09",
+      "head": "5f427e3c280858c338aaf637649b943ad86a4c1d",
+      "branch": "refs/heads/feat/r09-skills",
+      "preserved_files": [],
+      "excluded_path_count": 0
+    },
+    {
+      "path": "/Users/majedsiefalnasr/Documents/Work/DeepSeek Harness/dsh-majed-r10",
+      "head": "608cf447789474c498ec789622b30b9c18c26bc0",
+      "branch": "refs/heads/feat/r10-native-evidence",
+      "preserved_files": [],
+      "excluded_path_count": 0
+    },
+    {
+      "path": "/Users/majedsiefalnasr/Documents/Work/DeepSeek Harness/dsh-majed-r10-pending-cancel",
+      "head": "90be50b0ad95153dda61fefec054a2fb1ea6d376",
+      "branch": "refs/heads/proof/r10-pending-cancel",
+      "preserved_files": [],
+      "excluded_path_count": 0
+    },
+    {
+      "path": "/Users/majedsiefalnasr/Documents/Work/DeepSeek Harness/dsh-majed-r11",
+      "head": "308e7d8dfade6c52cc73261241d83126cd72a9f5",
+      "branch": "refs/heads/feat/r11-skills-native",
+      "preserved_files": [],
+      "excluded_path_count": 0
+    },
+    {
+      "path": "/Users/majedsiefalnasr/Documents/Work/DeepSeek Harness/dsh-majed-r11-registry",
+      "head": "1d077c83c122a65d2d332318a1927064161e0c32",
+      "branch": "refs/heads/r11-distinct-preset-registry",
+      "preserved_files": [
+        {
+          "status": " M",
+          "path": "CHANGELOG.md",
+          "disposition": "preserve",
+          "sha256": "cb2c8fe95ba60492090d0530f3302e5a867ac8bb50af0d4884819a9ffb364f65"
+        },
+        {
+          "status": " M",
+          "path": "docs/research/r11-active-agent-fixture.md",
+          "disposition": "preserve",
+          "sha256": "0ee8a0595e9c829bb059558ebd8eb4d528951f57ce1202ff0acfb580afc8f8b9"
+        },
+        {
+          "status": " M",
+          "path": "scripts/probe-skills-product.cjs",
+          "disposition": "preserve",
+          "sha256": "c56fba14f7884a13de6798739b778da2f93d6b2c60adb520db122c0be043fe09"
+        },
+        {
+          "status": " M",
+          "path": "scripts/test-skills-product.mjs",
+          "disposition": "preserve",
+          "sha256": "ed43d3d91c062d9eebf64f77b2fd7fe7756ecd4d0b9ca4fce2d1b7a49a6904ec"
+        }
+      ],
+      "excluded_path_count": 0
+    },
+    {
+      "path": "/Users/majedsiefalnasr/Documents/Work/DeepSeek Harness/dsh-majed-r11-unicode",
+      "head": "230e02a122f9f8a5cff87da3822a064b8712739d",
+      "branch": "refs/heads/feat/r11-unicode-preservation",
+      "preserved_files": [],
+      "excluded_path_count": 0
+    },
+    {
+      "path": "/Users/majedsiefalnasr/Documents/Work/DeepSeek Harness/dsh-majed-r12",
+      "head": "75b66774d8fe2170bb6776c77971da27c8980b7b",
+      "branch": "refs/heads/feat/r12-mcp-native",
+      "preserved_files": [],
+      "excluded_path_count": 0
+    },
+    {
+      "path": "/Users/majedsiefalnasr/Documents/Work/DeepSeek Harness/dsh-majed-r13",
+      "head": "e4755e44421ce8e99b807e07f23320e22d7670bb",
+      "branch": "refs/heads/feat/r13-approval",
+      "preserved_files": [],
+      "excluded_path_count": 0
+    },
+    {
+      "path": "/Users/majedsiefalnasr/Documents/Work/DeepSeek Harness/dsh-majed-r14",
+      "head": "d78b0c9c951a2f003a4948dfa97f88bb62408ba9",
+      "branch": "refs/heads/feat/r14-hooks-execution",
+      "preserved_files": [],
+      "excluded_path_count": 0
+    },
+    {
+      "path": "/Users/majedsiefalnasr/Documents/Work/DeepSeek Harness/dsh-majed-r14-native-guard",
+      "head": "c1762226dbf161983b4d540a524892f38cb09027",
+      "branch": "refs/heads/r14-native-guard-candidate",
+      "preserved_files": [],
+      "excluded_path_count": 0
+    },
+    {
+      "path": "/Users/majedsiefalnasr/Documents/Work/DeepSeek Harness/dsh-majed-r15",
+      "head": "1e3d430e2420b6d3dea1858cc730d77c91816ef2",
+      "branch": "refs/heads/feat/r15-judgment",
+      "preserved_files": [],
+      "excluded_path_count": 0
+    },
+    {
+      "path": "/Users/majedsiefalnasr/Documents/Work/DeepSeek Harness/dsh-majed-r15-late-response",
+      "head": "39875bca0603e497ec5f85e2c8e2bed4124e8426",
+      "branch": "refs/heads/fix/r15-late-response-cleanup",
+      "preserved_files": [],
+      "excluded_path_count": 0
+    },
+    {
+      "path": "/Users/majedsiefalnasr/Documents/Work/DeepSeek Harness/dsh-majed-refresh-snapshot",
+      "head": "41cb92fb79bb6e71a4b457f18ef3544f8f5d26ec",
+      "branch": "refs/heads/fix/refresh-account-snapshot",
+      "preserved_files": [],
+      "excluded_path_count": 0
+    },
+    {
+      "path": "/Users/majedsiefalnasr/Documents/Work/DeepSeek Harness/dsh-majed-review-fixes",
+      "head": "6f67321fc3b14e65a68f011160c9872bfd1fe9bf",
+      "branch": "refs/heads/fix/managers-wave-review",
+      "preserved_files": [],
+      "excluded_path_count": 0
+    },
+    {
+      "path": "/Users/majedsiefalnasr/Documents/Work/DeepSeek Harness/dsh-majed-t02a-mounted-settings",
+      "head": "02a680b354fc8f27a8c5c48a7bc8dd9322706731",
+      "branch": "refs/heads/feat/t02a-mounted-settings",
+      "preserved_files": [],
+      "excluded_path_count": 0
+    },
+    {
+      "path": "/Users/majedsiefalnasr/Documents/Work/DeepSeek Harness/dsh-majed-t02a-scope",
+      "head": "6c587d0e31a7ae4c6c76c50401418ca73d429dee",
+      "branch": "refs/heads/feat/t02a-scope",
+      "preserved_files": [],
+      "excluded_path_count": 1
+    },
+    {
+      "path": "/Users/majedsiefalnasr/Documents/Work/DeepSeek Harness/dsh-majed-typography-diagnosis",
+      "head": "c2192fc51d9fa78727fd5db7da42d8fcb25ce5f0",
+      "branch": "refs/heads/fix/native-typography-diagnosis",
+      "preserved_files": [],
+      "excluded_path_count": 11
+    },
+    {
+      "path": "/Users/majedsiefalnasr/Documents/Work/DeepSeek Harness/dsh-majed/.agents/worktrees/feat/r11-active-agent-policy",
+      "head": "a45d62093be51f9848f84cdc0925d2347694f20e",
+      "branch": "refs/heads/feat/r11-active-agent-policy",
+      "preserved_files": [],
+      "excluded_path_count": 0
+    },
+    {
+      "path": "/Users/majedsiefalnasr/Documents/Work/DeepSeek Harness/dsh-r11-cold-preset",
+      "head": "d39bcc41c109dce1a4f5130b302b32aa465687ea",
+      "branch": "refs/heads/r11-cold-preset-contract",
+      "preserved_files": [],
+      "excluded_path_count": 0
+    },
+    {
+      "path": "/Users/majedsiefalnasr/Documents/Work/DeepSeek Harness/dsh-r14-bounded-runner",
+      "head": "c2d07e98a0475b0bd64e5e2dfa07c641e525700e",
+      "branch": "refs/heads/feat/r14-bounded-runner",
+      "preserved_files": [],
+      "excluded_path_count": 0
+    }
+  ],
+  "snapshot_refs": [
+    {
+      "branch": "checkpoint/20261027-original-planning-wip",
+      "sha": "bef6b9c3e767d77d50dbf0039fa727edb3ec05a5",
+      "parent": "89e32473b375b3246ad64984157f273aa0daf61e",
+      "files": [
+        "GLOSSARY.md",
+        "docs/PARITY.md",
+        "docs/adr/0003-managers-store-definitions-in-private-files.md",
+        "docs/adr/0008-separate-management-admission-from-command-approval-provenance.md",
+        "docs/managers-spec.md",
+        "docs/managers-tickets-draft.md",
+        "docs/managers-tickets-published.md",
+        "docs/research/management-approval-provenance.md",
+        "docs/research/t02e-provenance-assessment.md",
+        "docs/adr/0009-allow-unknown-command-approval-origin.md",
+        "docs/adr/0010-allow-mcp-sdk-through-public-dsh-apis.md",
+        "docs/manager-workflow-tickets/README.md",
+        "docs/manager-workflow-tickets/graph.json",
+        "docs/manager-workflow-tickets/reconciliation.md",
+        "docs/manager-workflow-tickets/review.md",
+        "docs/manager-workflow-tickets/tracker-baseline.json",
+        "docs/managers-scope-revision.md",
+        "docs/research/owner-approved-acceptance-deferrals.md",
+        "scripts/export-manager-issue-context.py"
+      ],
+      "status": "preserved-not-accepted"
+    },
+    {
+      "branch": "checkpoint/20261027-historical-browser-reports",
+      "sha": "6d5084dbca76e1e963067ae819ba0cb60d1078cf",
+      "parent": "fd4e0f135048d0b6acb959aeb96f7ced587a9622",
+      "files": [
+        "docs/research/r01-r02-native-acceptance-worker-2026-10-27.md",
+        "docs/research/r01-r02-native-browser-preflight-retry-2026-10-27.md"
+      ],
+      "status": "preserved-not-accepted"
+    },
+    {
+      "branch": "checkpoint/20261027-r11-native-switch-red-wip",
+      "sha": "d3689192a632567ba29bb073177360bb3689d2f6",
+      "parent": "1d077c83c122a65d2d332318a1927064161e0c32",
+      "files": [
+        "CHANGELOG.md",
+        "docs/research/r11-active-agent-fixture.md",
+        "scripts/probe-skills-product.cjs",
+        "scripts/test-skills-product.mjs"
+      ],
+      "status": "preserved-not-accepted"
+    }
+  ],
+  "policy_commit": "89e32473b375b3246ad64984157f273aa0daf61e",
+  "integration_note": "feat/managers advances only with scoped checkpoint documentation; exact published tip is recorded in current work."
+}
