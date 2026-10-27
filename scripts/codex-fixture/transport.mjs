@@ -5,8 +5,10 @@ const RESPONSES = 'https://chatgpt.com/backend-api/codex/responses';
 const frame = data => `data: ${JSON.stringify(data)}\n\n`;
 export function createFixtureFetch() {
   const counts = { token: 0, catalog: 0, responses: 0, denied: 0 };
+  const settings = { speed: { standard: 0, fast: 0, other: 0 }, reasoning: { absent: 0, low: 0, high: 0, other: 0 }, malformed: 0 };
   return {
     counters: () => ({ ...counts }),
+    observations: () => structuredClone(settings),
     async fetch(url, options = {}) {
       if (url === TOKEN && options.method === 'POST') {
         counts.token++;
@@ -25,6 +27,14 @@ export function createFixtureFetch() {
       }
       if (url === RESPONSES && options.method === 'POST') {
         counts.responses++;
+        // Parse transiently; retain only fixed buckets, never arbitrary values or payloads.
+        try {
+          const body = JSON.parse(options.body);
+          if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('invalid fixture body');
+          settings.speed[body.service_tier === undefined ? 'standard' : body.service_tier === 'priority' ? 'fast' : 'other']++;
+          const effort = body.reasoning?.effort;
+          settings.reasoning[effort === undefined ? 'absent' : effort === 'low' || effort === 'high' ? effort : 'other']++;
+        } catch { settings.malformed++; }
         return new Response(frame({ type: 'response.output_text.delta', item_id: 'synthetic-message', content_index: 0, delta: 'SYNTHETIC CODEX FIXTURE: no provider inference occurred.' })
           + frame({ type: 'response.completed', response: { usage: { input_tokens: 7, output_tokens: 3 }, output: [] } }), { headers: { 'content-type': 'text/event-stream' } });
       }
