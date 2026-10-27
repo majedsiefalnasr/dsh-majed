@@ -3,17 +3,29 @@ const TOKEN = 'https://auth.openai.com/oauth/token';
 const CATALOG = 'https://chatgpt.com/backend-api/codex/models?client_version=0.153.4';
 const RESPONSES = 'https://chatgpt.com/backend-api/codex/responses';
 const frame = data => `data: ${JSON.stringify(data)}\n\n`;
-export function createFixtureFetch() {
+export function createFixtureFetch({ scenario } = {}) {
+  if (scenario !== undefined && scenario !== 'refresh-invalid-grant') throw new Error('unknown fixture scenario');
+  let rejectRefresh = scenario === 'refresh-invalid-grant';
+  const auth = { authorizationCode: 0, refresh: 0, invalidGrant: 0 };
   const counts = { token: 0, catalog: 0, responses: 0, denied: 0 };
   const settings = { speed: { standard: 0, fast: 0, other: 0 }, reasoning: { absent: 0, low: 0, high: 0, other: 0 }, malformed: 0 };
   return {
     counters: () => ({ ...counts }),
+    authObservations: () => ({ ...auth }),
     observations: () => structuredClone(settings),
     async fetch(url, options = {}) {
       if (url === TOKEN && options.method === 'POST') {
         counts.token++;
-        const form = new URLSearchParams(options.body);
-        if (form.get('grant_type') === 'authorization_code' && form.get('code') === 'SYNTHETIC-FIXTURE-FAIL') {
+        // Production exchanges are form encoded; refresh grants are JSON.
+        const json = options.headers?.['content-type'] === 'application/json' ? JSON.parse(options.body) : undefined;
+        const form = json ? new URLSearchParams(json) : new URLSearchParams(options.body);
+        const grant = form.get('grant_type');
+        if (grant === 'authorization_code') auth.authorizationCode++;
+        if (grant === 'refresh_token') auth.refresh++;
+        const refreshFailure = grant === 'refresh_token' && rejectRefresh;
+        if (refreshFailure) rejectRefresh = false;
+        if (refreshFailure || (grant === 'authorization_code' && form.get('code') === 'SYNTHETIC-FIXTURE-FAIL')) {
+          auth.invalidGrant++;
           return Response.json({ error: 'invalid_grant' }, { status: 400 });
         }
         const identity = { email: 'synthetic-codex@example.test', 'https://api.openai.com/auth': { chatgpt_account_id: 'synthetic-fixture-workspace', chatgpt_user_id: 'synthetic-fixture-user' } };

@@ -62,6 +62,9 @@ test('real account service consumes synthetic callback and retains identity afte
   const restarted = createCodexAccounts(config); t.after(() => restarted.dispose());
   assert.equal((await restarted.snapshot()).accounts[0].label, 'synthetic-codex@example.test');
   assert.equal(transport.counters().token, 1);
+  await restarted.refresh((await restarted.snapshot()).accounts[0].id);
+  assert.equal((await restarted.snapshot()).state, 'connected');
+  assert.deepEqual(transport.authObservations(), { authorizationCode: 1, refresh: 1, invalidGrant: 0 });
 });
 
 test('synthetic failure code fails login and cancellation leaves the store empty', async t => {
@@ -127,8 +130,61 @@ test('production native runtime retains explicit preferences and emits observed 
   assert.equal(transport.counters().responses, 3); assert.equal(transport.counters().denied, 0);
 });
 
+test('opt-in refresh invalid_grant retains identity, revokes native dispatch and reconnects through PKCE', async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'majed-codex-reauth-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const transport = createFixtureFetch({ scenario: 'refresh-invalid-grant' });
+  const accounts = createCodexAccounts({ path: join(directory, 'auth.json'), ports: [0], fetch: transport.fetch });
+  t.after(() => accounts.dispose());
+  const connect = async () => {
+    const attempt = await accounts.begin(), authorize = new URL(attempt.authorizeUrl);
+    assert.match(authorize.searchParams.get('code_challenge'), /^[A-Za-z0-9_-]{43}$/);
+    const callback = new URL(authorize.searchParams.get('redirect_uri'));
+    callback.searchParams.set('state', authorize.searchParams.get('state'));
+    callback.searchParams.set('code', 'SYNTHETIC-FIXTURE-CODE');
+    return accounts.complete(callback.href);
+  };
+  const initial = (await connect()).accounts[0];
+  const root = new Context(); await root.plugin(LlmRuntime); t.after(() => root.fiber.dispose());
+  const runtime = await createCodexRuntime({ accounts, llm: root.llm, llmModule, path: join(directory, 'catalog.json'), fetch: transport.fetch });
+  t.after(() => runtime.dispose());
+  const prepare = () => root.llm.prepareCall({ provider: 'codex', model: 'synthetic-codex' });
+  const send = async prepared => {
+    const chunks = [];
+    for await (const chunk of prepared.stream({ ...prepared.config, messages: [], sessionId: 'fixture-reauth' })) chunks.push(chunk);
+    assert.equal(chunks.filter(c => c.type === 'text-delta').map(c => c.text).join(''), 'SYNTHETIC CODEX FIXTURE: no provider inference occurred.');
+    assert.equal(chunks.at(-1).reason.kind, 'stop');
+  };
+  assert.ok((await root.llm.listModels('codex')).some(m => m.id === 'synthetic-codex'));
+  await send(await prepare());
+  const held = await prepare();
+  const assertBlocked = async prepared => {
+    const chunks = [];
+    for await (const chunk of prepared.stream({ ...prepared.config, messages: [] })) chunks.push(chunk);
+    assert.equal(chunks.at(-1).reason.kind, 'error');
+    assert.equal(chunks.some(chunk => chunk.type === 'text-delta'), false);
+  };
+  await assert.rejects(accounts.refresh(initial.id), { code: 'reauthentication_required' });
+  const revoked = await accounts.snapshot();
+  assert.equal(revoked.state, 'reauthentication_required');
+  assert.deepEqual(revoked.accounts.map(a => [a.id, a.label, a.state, a.default]), [[initial.id, initial.label, 'reauthentication_required', true]]);
+  assert.deepEqual(await root.llm.listModels('codex'), []);
+  await assertBlocked(held);
+  await assert.rejects(prepare());
+  assert.equal(transport.counters().responses, 1);
+  const recovered = await connect();
+  assert.equal(recovered.state, 'connected');
+  assert.deepEqual(recovered.accounts.map(a => [a.id, a.label, a.state]), [[initial.id, initial.label, 'connected']]);
+  assert.ok((await root.llm.listModels('codex')).some(m => m.id === 'synthetic-codex'));
+  await send(await prepare());
+  await accounts.refresh(initial.id); // Failure is one-shot for this owned transport.
+  assert.deepEqual(transport.authObservations(), { authorizationCode: 2, refresh: 2, invalidGrant: 1 });
+  assert.equal(transport.counters().responses, 2);
+  assert.equal(transport.counters().denied, 0);
+});
+
 test('launcher rejects arbitrary retained paths and invalid arguments before spawning a host', () => {
-  for (const args of [['restart', '/'], ['new', '/tmp'], ['unknown']]) {
+  for (const args of [['restart', '/'], ['new', '/tmp'], ['new-reauth', '/tmp'], ['new-reauth', '--scenario=other'], ['unknown']]) {
     const result = spawnSync(process.execPath, ['scripts/codex-fixture/launch.mjs', ...args], { encoding: 'utf8' });
     assert.notEqual(result.status, 0);
     assert.doesNotMatch(result.stdout, /Owned fixture run:/);

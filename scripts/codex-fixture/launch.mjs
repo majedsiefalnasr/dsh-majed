@@ -9,19 +9,20 @@ const temp = await realpath(tmpdir());
 const electron = '/Applications/DeepSeek Harness.app/Contents/MacOS/DeepSeek Harness';
 const cli = '/Applications/DeepSeek Harness.app/Contents/Resources/app.asar/dsh/node_modules/@deepseek-ai/dsh/lib/bin.js';
 const [mode, supplied, ...extra] = process.argv.slice(2);
-if (extra.length || !['new', 'restart'].includes(mode) || (mode === 'new' && supplied) || (mode === 'restart' && !supplied)) throw new Error('usage: launch.mjs new | restart <owned-run>');
+if (extra.length || !['new', 'new-reauth', 'restart'].includes(mode) || (mode !== 'restart' && supplied) || (mode === 'restart' && !supplied)) throw new Error('usage: launch.mjs new | new-reauth | restart <owned-run>');
+const scenario = mode === 'new-reauth' ? 'refresh-invalid-grant' : undefined;
 let run;
-if (mode === 'new') {
+if (mode !== 'restart') {
   run = await mkdtemp(join(temp, 'majed-codex-browser-'));
   for (const leaf of ['home', 'dsh', 'tmp', 'work', 'cache', 'plugin']) await mkdir(join(run, leaf), { mode: 0o700 });
-  await writeFile(join(run, 'owner.json'), JSON.stringify({ version: 1, root, run }), { mode: 0o600 });
+  await writeFile(join(run, 'owner.json'), JSON.stringify({ version: 1, root, run, ...(scenario ? { scenario } : {}) }), { mode: 0o600 });
   const pkg = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
   // Keep the actual Majed metadata, name, exports and browser payload. Only the
   // temporary host entry is composed; no replacement browser implementation.
   await writeFile(join(run, 'plugin', 'package.json'), JSON.stringify(pkg), { mode: 0o600 });
   for (const leaf of ['dist', 'locale', 'fonts', 'icon.svg', 'client.js', 'modules']) await symlink(join(root, leaf), join(run, 'plugin', leaf));
   await readFile(join(root, 'dist/client.js')); // Missing build is a hard failure.
-  const entry = `import { apply as product } from ${JSON.stringify(pathToFileURL(join(root, 'index.js')).href)};\nimport { createFixtureFetch } from ${JSON.stringify(pathToFileURL(join(root, 'scripts/codex-fixture/transport.mjs')).href)};\nconst transport = createFixtureFetch();\nexport function apply(ctx) { product(ctx, { codexAccounts: { fetch: transport.fetch, ports: [0], path: ${JSON.stringify(join(run, 'dsh/fixture-auth.json'))}, catalogPath: ${JSON.stringify(join(run, 'dsh/fixture-catalog.json'))} } }); ctx.effect(() => () => { console.info('Synthetic fixture counters:', JSON.stringify(transport.counters())); console.info('Synthetic fixture wire settings:', JSON.stringify(transport.observations())); }, 'fixture counters'); }\n`;
+  const entry = `import { apply as product } from ${JSON.stringify(pathToFileURL(join(root, 'index.js')).href)};\nimport { createFixtureFetch } from ${JSON.stringify(pathToFileURL(join(root, 'scripts/codex-fixture/transport.mjs')).href)};\nconst transport = createFixtureFetch(${JSON.stringify(scenario ? { scenario } : {})});\nexport function apply(ctx) { product(ctx, { codexAccounts: { fetch: transport.fetch, ports: [0], path: ${JSON.stringify(join(run, 'dsh/fixture-auth.json'))}, catalogPath: ${JSON.stringify(join(run, 'dsh/fixture-catalog.json'))} } }); ctx.effect(() => () => { console.info('Synthetic fixture counters:', JSON.stringify(transport.counters())); console.info('Synthetic fixture wire settings:', JSON.stringify(transport.observations())); console.info('Synthetic fixture auth counts:', JSON.stringify(transport.authObservations())); }, 'fixture counters'); }\n`;
   await writeFile(join(run, 'plugin/index.js'), entry, { mode: 0o600 });
   const disabled = ['session-telemetry-otel', 'desktop-product-telemetry', 'product-analytics', 'session-title-llm', 'llm-pi-ai', 'llm-deepseek', 'llm-deepseek-account'];
   await writeFile(join(run, 'fixture.patch.yml'), disabled.map(id => `- id: ${id}\n  disabled: true\n`).join('') + `- insert:\n    - id: majed\n      name: ${JSON.stringify(join(run, 'plugin/index.js'))}\n`, { mode: 0o600 });
