@@ -132,12 +132,18 @@ function createReactFixture() {
     let props = initialProps;
     let tree;
     let unmounted = false;
+    const cleanup = instance => { for (const state of instance.cells) state.cleanup?.(); };
+    let visited;
     function resolve(node, path, pending) {
       if (node == null || typeof node !== 'object') return node;
       if (Array.isArray(node)) return node.map((n, i) => resolve(n, `${path}.${i}`, pending));
       if (typeof node.type === 'function') {
         let instance = instances.get(path);
-        if (!instance) { instance = { cells: [] }; instances.set(path, instance); }
+        if (instance && (instance.type !== node.type || instance.key !== node.props.key)) {
+          cleanup(instance); instances.delete(path); instance = null;
+        }
+        if (!instance) { instance = { cells: [], type: node.type, key: node.props.key }; instances.set(path, instance); }
+        visited.add(path);
         current = { cells: instance.cells, index: 0, pending };
         let output;
         try { output = node.type(node.props); } finally { current = null; }
@@ -150,7 +156,9 @@ function createReactFixture() {
         assert.equal(unmounted, false);
         props = nextProps;
         const pending = [];
+        visited = new Set();
         tree = resolve(React.createElement(Component, props), 'root', pending);
+        for (const [path, instance] of instances) if (!visited.has(path)) { cleanup(instance); instances.delete(path); }
         pending.forEach((fn) => fn());
         return view;
       },
@@ -169,7 +177,7 @@ function createReactFixture() {
       unmount() {
         if (unmounted) return;
         unmounted = true;
-        for (const instance of instances.values()) for (const state of instance.cells) state.cleanup?.();
+        for (const instance of instances.values()) cleanup(instance);
       },
     };
     return view.render();

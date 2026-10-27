@@ -16,7 +16,10 @@ test('native passive account status skips runtime discovery and grants and valid
   const root = new Context(), routes = new Map(); let imports = 0, fetches = 0, registrations = 0, adapter;
   root.provide('connection', { fetch: { register(route) { routes.set(route.path, route); } } });
   root.provide('llm', { prepareCall() {}, registerAdapter(providers, value) { registrations++; adapter = value; return Object.assign(() => {}, { replace() {} }); } });
-  root.provide('loader', { async import() { imports++; return llmModule; } });
+  // The cached host package predates the public prepared-call capability. Model
+  // that capability explicitly; production still gates both host contracts.
+  class PreparedAdapter extends llmModule.LlmAdapter { prepareCall() {} }
+  root.provide('loader', { async import() { imports++; return { ...llmModule, LlmAdapter: PreparedAdapter }; } });
   const fiber = root.plugin(applyCodexAccounts, { path: join(directory, 'auth.json'), fetch: async () => { fetches++; throw new Error('unexpected_network'); } });
   await fiber; t.after(() => root.fiber.dispose());
   const route = routes.get('/api/majed/subscriptions/codex');
@@ -25,7 +28,7 @@ test('native passive account status skips runtime discovery and grants and valid
   }))).json()).result;
   await call({ action: 'enable', enabled: true });
   const activated = await call({ action: 'runtime', enabled: true });
-  assert.equal(activated.ok, true);
+  assert.equal(activated.ok, true, JSON.stringify(activated));
   const before = { imports, fetches, registrations };
   // Fault the runtime boundary, then seed an expired retained identity:
   // passive status must neither discover models nor refresh its session.

@@ -48,14 +48,15 @@ for (const language of ['en', 'ar']) test(`transient refresh keeps connected pas
     accounts: [{ id: 'retained', label: 'fixture@example.test', state: 'connected' }],
     runtime: { catalogs: [], preferences: { accounts: { retained: { alias: 'Nondefault alias', independentEntry: true } } } } };
   const harness = createBaselineHarness(source, { language, connection: { rpc: { async call(channel, method, payload) {
-    if (method === 'majed/settings/status') return { ok: true, value: { enabled: false } };
+    if (method === 'majed/settings/status') return { ok: true, value: { module: payload.module, enabled: false, state: 'disabled' } };
     calls.push(payload);
     if (payload.action === 'refresh') return { ok: false, error: { code: 'runtime_unavailable' } };
     return { ok: true, value: payload.mode === 'passive' ? { ...connected, runtime: undefined } : connected };
   } } } });
   t.after(() => harness.dispose()); harness.apply();
   const view = harness.render('majed-subscriptions'); await tick(); view.render();
-  const alias = () => view.nodes(n => n.type === 'input' && n.props.maxLength === 128);
+  const alias = () => view.nodes(n => n.type === 'label' && n.props.children?.includes(language === 'ar' ? 'اسم الحساب المستعار' : 'Account alias'))
+    .flatMap(label => label.props.children.filter(n => n?.type === 'input'));
   assert.equal(alias()[0].props.value, 'Nondefault alias');
   assert.ok(view.one(n => n.type === 'input' && n.props.type === 'checkbox' && n.props.checked === true));
   await view.one(n => n.props['data-codex-action'] === 'refresh').props.onClick(); await tick(); view.render();
@@ -77,7 +78,7 @@ for (const statusFailure of ['envelope', 'transport']) test(`failed reconciliati
   const source = await readFile(new URL('../../client.js', import.meta.url), 'utf8');
   const calls = [];
   const harness = createBaselineHarness(source, { connection: { rpc: { async call(channel, method, payload) {
-    if (method === 'majed/settings/status') return { ok: true, value: { enabled: false } };
+    if (method === 'majed/settings/status') return { ok: true, value: { module: payload.module, enabled: false, state: 'disabled' } };
     calls.push(payload.action);
     if (calls.length === 1) return { ok: true, value: { enabled: true, state: 'connected', accounts: [{ id: 'retained', label: 'fixture@example.test', state: 'connected' }], runtimeEnabled: true, runtime: { catalogs: [{ models: [{ id: 'fixture-model' }] }] } } };
     if (statusFailure === 'transport') throw new Error('private-provider-detail');
@@ -100,7 +101,7 @@ for (const phase of ['refresh', 'reconcile', 'unmount']) test(`refresh ${phase} 
     accounts: [{ id: 'retained', label: 'fixture@example.test', state: 'connected' }],
     runtime: { catalogs: [{ models: [{ id: 'fixture-model' }] }], preferences: {} } };
   const harness = createBaselineHarness(source, { connection: { rpc: { call(channel, method, payload, abort) {
-    if (method === 'majed/settings/status') return Promise.resolve({ ok: true, value: { enabled: false } });
+    if (method === 'majed/settings/status') return Promise.resolve({ ok: true, value: { module: payload.module, enabled: false, state: 'disabled' } });
     calls.push(payload);
     if (calls.length === 1) return Promise.resolve({ ok: true, value: connected });
     if (phase === 'reconcile' && payload.action === 'refresh') return Promise.resolve({ ok: false, error: { code: 'runtime_unavailable' } });
