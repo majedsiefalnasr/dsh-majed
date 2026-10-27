@@ -475,7 +475,25 @@ window.__ModuleLoader__.load({
             setValue(previous => ({ ...result.value, accounts: result.value.accounts || previous.accounts || [] }));
             if (action === 'complete' || action === 'cancel') setCallback('');
           }
-        } catch (error) { if (mounted.current && !controller.signal.aborted) setFailure(error.code === 'runtime_unavailable' ? 'runtimeUnavailable' : 'error'); }
+        } catch (error) {
+          if (mounted.current && !controller.signal.aborted) {
+            setFailure(error.code === 'runtime_unavailable' ? 'runtimeUnavailable' : 'error');
+            if (action === 'refresh') {
+              // A rejected grant can still commit reauthentication-required state.
+              // Hide stale actionable metadata while querying the public snapshot;
+              // never retry the credential grant or replace its sanitized error.
+              setValue(previous => ({ ...previous, state: 'error', runtime: null,
+                accounts: previous.accounts.map(account => ({ ...account, state: 'error' })) }));
+              try {
+                const current = await ctx.connection.rpc.call('/api', 'majed/subscriptions/codex', { action: 'status' }, controller.signal);
+                if (current.ok && mounted.current && !controller.signal.aborted) {
+                  observeCodexRuntime(current.value.runtimeEnabled);
+                  setValue(current.value);
+                }
+              } catch { /* Retain the bounded error and non-actionable snapshot. */ }
+            }
+          }
+        }
         finally { clearTimeout(timer); active.current = null; if (mounted.current) setBusy(false); }
       };
       React.useEffect(() => { mounted.current = true; call('status'); return () => { mounted.current = false; active.current?.abort(); }; }, [ctx]);
@@ -498,8 +516,8 @@ window.__ModuleLoader__.load({
         h('p', { role: failure ? 'alert' : 'status', 'aria-live': 'polite' }, t('codex.' + (failure || (busy ? 'working' : status)))),
         ...(value.accounts || []).map(account => h('div', { key: account.id }, h('p', null, account.label),
           h('p', null, t('codex.' + account.state)), h('div', { className: 'majed-management-controls' },
-            button('refresh', 'refresh', { account: account.id }), button('default', 'default', { account: account.id }, account.default), button('remove', 'remove', { account: account.id })),
-          value.runtimeEnabled && h(CodexAccountSettings, { account, preferences: value.runtime?.preferences?.accounts?.[account.id], call, busy, t }))));
+            button('refresh', 'refresh', { account: account.id }, account.state === 'error'), button('default', 'default', { account: account.id }, account.default || account.state !== 'connected'), button('remove', 'remove', { account: account.id })),
+          value.runtimeEnabled && account.state === 'connected' && h(CodexAccountSettings, { account, preferences: value.runtime?.preferences?.accounts?.[account.id], call, busy, t }))));
     }
 
     const approvalLabels = {
