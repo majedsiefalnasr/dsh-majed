@@ -7,6 +7,9 @@ All notable changes to `dsh-majed` are documented here. The format follows
 
 ## [Unreleased]
 
+### Bounded R14 candidate
+- Dormant synthetic SessionStart seam reads production Command Approval authority and runs an approved inline Bash command through native subprocess, with immediate pre-spawn revocation, watched-byte and canonical-cwd checks. Activation remains off; no production event registration, native tool-guard, other-event, installed-state or full R14 acceptance is claimed.
+
 ### Fixed
 - Source-only follow-up: connected passive Codex account snapshots no longer mount account settings without authoritative runtime preferences; manual full status restores those controls. Unmount cancellation settles owned work and clears its timer even when transport ignores abort, retaining controller-identity fencing. Added UNRUN source candidates for nondefault preferences, exact English/Arabic original errors, no-deadline unmount settlement and manual-status replacement before old transport release. No test, syntax, build, browser, host or live validation was performed.
 - Source candidate: Codex Settings reconciles rejected credential refreshes through a strictly validated passive mode on the existing public status RPC, omitting runtime discovery/session acquisition. Mounted timeout metadata fails closed even if transport ignores abort, without an aborted requery or late-result publication; the original sanitized error is retained. Source regressions for rejected envelopes/transports, timeout/late/unmount and native passive-mode validation are UNRUN and need validation because the required OS sandbox is unavailable (`sandbox_apply: Operation not permitted`). No red/green, build, native browser/new-reauth or live acceptance is claimed.
