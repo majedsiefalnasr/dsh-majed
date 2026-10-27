@@ -18,6 +18,23 @@ Production retains the Agent-context overlay and adds the selected-registry over
 
 This proves the distinct-registry selection seam using an explicit service adapter, not actual native preset composition/mounting, a provider turn, cold standing presets, or warmed native slash invalidation. No operational HOME, provider account or host implementation is modified. Existing reproduction pointers below are source-only, and every run uses the runner-owned temporary HOME. Context7 lookup was unavailable because the ordinary npm cache is not writable (`EPERM`); no cache ownership change or escalation was attempted. Public tracing semantics were inspected in the installed Cordis dependency and verified by the native fixture.
 
+## Native same-Agent switch blocker (2026-10-26)
+
+Candidate `1d077c8` remains unmerged and does not cover native preset changes. The new opt-in `node scripts/test-skills-product.mjs --require-native-preset-switch` uses the installed public Loader and AgentPresetRegistry, registers two genuine isolated compositions with separate native SkillRegistry instances and native filesystem providers, selects A on the actual blank Agent, disables the Skill through the existing Manager workflow, then selects B. It asserts unchanged Agent identity and changed selected registry before asking the actual current SessionSkillCatalog for disabled-policy enforcement. This is not the earlier serviceFor adapter: no serviceFor replacement or manufactured selection event is used.
+
+The run exits 1 at `native-same-agent-preset-switch-policy`: `Same live Agent native A-to-B catalog must preserve disabled Manager policy`, `1 !== 0`. Cleanup closes 3/3 watchers. An initial invalid selectedDefault fixture configuration failed validation before composition; it was corrected by omitting the optional volatile field and is not policy evidence.
+
+Read-only installed source establishes why an ordered asynchronous event reconciliation is not a truthful enforcement boundary:
+
+- `dsh-agent-preset-registry/lib/index.js:654-665` rebinds the scope parent and changes the binding before awaiting old-generation collection. There is no public before-rebind hook or awaited observer here.
+- `dsh-agent-preset-registry/lib/index.js:734-741` awaits mount and then synchronously emits `tools/change`, without awaiting listener promises. This path also exposes a newly bound registry before the notification.
+- `dsh-agent-preset-registry/lib/index.js:750-768` serializes native selections per session, awaits recompose, then appends `agent-preset/selected`. It does not serialize plugin reconciliation or catalog reads.
+- `dsh-agent-preset-registry/lib/index.js:458-460` forwards the logged selection from `session/event` through another synchronous emit, with `(session.id, event.data.agentPreset)` arguments. This is post-binding, not Agent publication.
+- `cordis/lib/index.js:258-281` snapshots listeners in registration order and invokes them without waiting for returned promises. Prepending does not make an asynchronous Agent plugin mount an awaited barrier, and throwing does not roll back the native binding.
+- `dsh-api-session-controller/lib/index.js:2377-2386` independently resolves the current live Agent's serviceFor registry and lists it; it joins no selection/reconciliation barrier.
+
+Consequently no production patch is made: a selected-event/tools-change listener plus queued fiber teardown/mount could eventually converge but cannot establish policy before every admitted catalog observation, nor atomically roll back native selection on registration failure. Public tracing remains validated; it does not supply this missing lifecycle barrier. A host-supported awaited pre-publication/rebind boundary or catalog policy interception would be needed before claiming the requested enforcement, concurrency, rollback and disposal contract. No host patch, standing-preset mutation, private interception, manufactured event or operational/provider access is authorized or performed. R11 cold standing presets, warmed slash and operational live acceptance remain open. No fix candidate is committed because the native regression is red. The unchanged production suite still passes 498/498 tests and classification 166/166. The existing static `--require-active-policy` adapter fixture exits 0 with 8/8 watchers and 2/2 listeners closed; `git diff --check` passes. These green gates do not supersede the genuine native switch red.
+
 ## Reproduction
 
 From this worktree, use the existing source-only dependency pointers:

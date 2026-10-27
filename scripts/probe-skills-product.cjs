@@ -14,7 +14,7 @@ assert.equal(process.cwd(), process.env.HOME);
 assert.equal(process.env.DSH_HOME, process.env.HOME);
 assert.ok(basename(process.cwd()).startsWith('dsh-physical-carrier-'));
 const [base, deps, remoteFile, ...flags] = process.argv.slice(2);
-assert.ok(flags.every(x => ['--require-slash-refresh', '--red-membership', '--require-active-policy'].includes(x)));
+assert.ok(flags.every(x => ['--require-slash-refresh', '--red-membership', '--require-active-policy', '--require-native-preset-switch'].includes(x)));
 const dependencyRequire = createRequire(join(deps, '..', '__probe.cjs'));
 const req = name => dependencyRequire(join(deps, name));
 req.resolve = name => dependencyRequire.resolve(join(deps, name));
@@ -298,11 +298,35 @@ const endpoint = '/api/majed/skills';
     assert.ok(nativeHandle.agent.ctx.get('skills'), 'Actual Agent resolves native registry');
     // Public preset-selection seam: a deliberately distinct native registry.
     // The actual Agent retains its root skills context; the catalog must not use it.
+    const nativeSwitch = flags.includes('--require-native-preset-switch');
+    let switchedSkills;
+    if (nativeSwitch) {
+      await mount({ apply(owner) {
+        const loader = new (hostLoad('cordis-plugin-loader').Loader)(owner);
+        loader.builtins['fixture-skills'] = { apply(child) {
+          new skillModule.SkillRegistry(child);
+          child.plugin({ inject: ['skills'], apply(scope) {
+            hostLoad('dsh-skill-filesystem').apply(scope, { dshHome: process.env.HOME,
+              agentsHome: join(process.env.HOME, '.agents'), watch: false });
+          } });
+        } };
+      } });
+      const presetFiber = host.plugin(hostLoad('dsh-agent-preset-registry').AgentPresetRegistry,
+        { default: 'fixture-a' });
+      fibers.push(presetFiber); await presetFiber;
+      for (const id of ['fixture-a', 'fixture-b']) {
+        const unregister = await host.agentPresets.register({ id, plugins: [
+          { name: 'cordis:fixture-skills', isolate: { skills: true } },
+        ] });
+        host.effect(() => unregister);
+      }
+      await host.agentPresets.select(nativeHandle.agent, 'fixture-a');
+    }
     const presetContext = host.isolate('skills');
     await mount({ apply(owner) { new skillModule.SkillRegistry(owner); } }, presetContext);
     const presetSkills = presetContext.get('skills');
     assert.notEqual(presetSkills, nativeHandle.agent.ctx.get('skills'));
-    await mount({ apply(owner) {
+    if (!nativeSwitch) await mount({ apply(owner) {
       class Presets extends Service {
         constructor(ctx) { super(ctx, 'agentPresets'); }
         serviceFor(agent, name) {
@@ -459,6 +483,19 @@ const endpoint = '/api/majed/skills';
         false, 'Actual Agent scoped duplicate must not bypass disabled Manager policy');
       assert.equal((await host.sessionSkillCatalog.list({ sessionId: nativeHandle.agent.id })).skills.length,
         0, 'Actual live Agent native user catalog respects Manager policy');
+    }
+    if (nativeSwitch) {
+      checkpoint = 'native-same-agent-preset-switch-policy';
+      const original = host.agents.get(nativeHandle.agent.id);
+      const previous = host.agentPresets.serviceFor(original, 'skills');
+      assert.equal((await host.sessionSkillCatalog.list({ sessionId: original.id })).skills.length,
+        0, 'Genuine native preset A catalog respects disabled policy before switching');
+      await host.agentPresets.select(original, 'fixture-b');
+      assert.equal(host.agents.get(original.id), original, 'Native selection preserves Agent identity');
+      switchedSkills = host.agentPresets.serviceFor(original, 'skills');
+      assert.notEqual(switchedSkills, previous, 'Native preset mount selects a distinct registry');
+      assert.equal((await host.sessionSkillCatalog.list({ sessionId: original.id })).skills.length,
+        0, 'Same live Agent native A-to-B catalog must preserve disabled Manager policy');
     }
     const disabled = await readSkill(project);
     assert.equal(disabled.invocation.modelInvocable, false);

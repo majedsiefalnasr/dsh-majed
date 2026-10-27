@@ -7,6 +7,9 @@ All notable changes to `dsh-majed` are documented here. The format follows
 
 ## [Unreleased]
 
+### Known limitations
+- R11 native blank-Agent preset switching remains blocked: a new opt-in actual preset mount/select A-to-B regression fails disabled-policy catalog enforcement on the same Agent. Native notifications follow rebinding and do not await asynchronous listeners; no production event workaround or fix claim is included. Cold/slash/live acceptance remains open.
+
 ### Fixed
 - Active-Agent Skills policy also registers in the registry explicitly selected by public `agentPresets.serviceFor`, using public scoped tracing and the Agent-owned lifecycle fiber. A distinct native registry regression exercises the actual SessionSkillCatalog; cold standing presets, actual preset composition and warmed slash refresh remain unproved. No host or operational state changes are made.
 - Skills policy now owns a matching overlay in each active Agent context, including Agents already present at enablement. Exact-identity lifecycle registrations and invalidators are removed on Agent disposal, feature disable and service teardown; partial startup rolls back. An isolated actual-Agent scoped-duplicate regression passes, with lifecycle doubles covering identity reuse and rollback. Distinct preset-owned registries, cold standing presets and warmed native slash refresh remain outside this proof; no operational live claim is made.
