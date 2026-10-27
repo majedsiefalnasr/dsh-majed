@@ -6,6 +6,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createCodexAccounts } from '../modules/subscriptions/codex/accounts.js';
 import { createFixtureFetch } from './codex-fixture/transport.mjs';
+import { Context } from '@deepseek-ai/cordis';
+import { LlmRuntime } from '@deepseek-ai/dsh-llm';
+import * as llmModule from '@deepseek-ai/dsh-llm';
+import { createCodexRuntime } from '../modules/subscriptions/codex/runtime.js';
 
 test('fixture refuses all URLs except exact token, catalog and Responses endpoints', async () => {
   const { fetch, counters } = createFixtureFetch();
@@ -24,6 +28,20 @@ test('fixture returns labelled synthetic identity, catalog and terminal SSE', as
   const sse = await (await fetch('https://chatgpt.com/backend-api/codex/responses', { method: 'POST' })).text();
   assert.match(sse, /response.completed/); assert.match(sse, /no provider inference occurred/);
   assert.deepEqual(counters(), { token: 1, catalog: 1, responses: 1, denied: 0 });
+});
+
+test('fixture observes only fixed wire setting aggregates without retaining request data', async () => {
+  const transport = createFixtureFetch();
+  const send = body => transport.fetch('https://chatgpt.com/backend-api/codex/responses', { method: 'POST', body: JSON.stringify(body) });
+  await send({ input: 'PRIVATE-SENTINEL', reasoning: { effort: 'high' } });
+  await send({ service_tier: 'priority', reasoning: { effort: 'low' } });
+  await send({ service_tier: 'PRIVATE-SENTINEL', reasoning: { effort: 'PRIVATE-SENTINEL' } });
+  await transport.fetch('https://chatgpt.com/backend-api/codex/responses', { method: 'POST', body: '{malformed' });
+  const expected = { speed: { standard: 1, fast: 1, other: 1 }, reasoning: { absent: 0, low: 1, high: 1, other: 1 }, malformed: 1 };
+  assert.deepEqual(transport.observations(), expected);
+  const detached = transport.observations(); detached.speed.fast = 99;
+  assert.deepEqual(transport.observations(), expected);
+  assert.doesNotMatch(JSON.stringify(transport.observations()), /PRIVATE-SENTINEL/);
 });
 
 test('real account service consumes synthetic callback and retains identity after service restart', async t => {
@@ -66,6 +84,47 @@ test('synthetic failure code fails login and cancellation leaves the store empty
   assert.equal(cancelled.loginState, 'cancelled');
   assert.deepEqual(cancelled.accounts, []);
   assert.deepEqual(transport.counters(), { token: 1, catalog: 0, responses: 0, denied: 0 });
+});
+
+test('production native runtime retains explicit preferences and emits observed Standard/Fast wire settings', async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'majed-codex-prefs-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const transport = createFixtureFetch();
+  const accounts = createCodexAccounts({ path: join(directory, 'auth.json'), ports: [0], fetch: transport.fetch });
+  t.after(() => accounts.dispose());
+  const attempt = await accounts.begin(), authorize = new URL(attempt.authorizeUrl);
+  const callback = new URL(authorize.searchParams.get('redirect_uri'));
+  callback.searchParams.set('state', authorize.searchParams.get('state')); callback.searchParams.set('code', 'SYNTHETIC-FIXTURE-CODE');
+  await accounts.complete(callback.href);
+  const root = new Context(); await root.plugin(LlmRuntime); t.after(() => root.fiber.dispose());
+  const config = { accounts, llm: root.llm, llmModule, path: join(directory, 'catalog.json'), fetch: transport.fetch };
+  let runtime = await createCodexRuntime(config); t.after(() => runtime.dispose());
+  const account = (await accounts.snapshot()).accounts[0].id;
+  await runtime.configure({ account, independentEntry: true, alias: 'Fixture pinned' });
+  await runtime.configure({ model: 'synthetic-codex', name: 'Fixture retained', defaultEffort: 'high', contextWindow: 64000 });
+  const pinned = (await root.llm.listModels('codex')).find(model => model.id.startsWith('~account:'));
+  assert.equal(pinned.name, 'Fixture pinned · Fixture retained');
+  assert.ok((await runtime.speed('fixture-prefs')).fastModels.includes(pinned.id));
+  const send = async effort => {
+    const chunks = [];
+    const prepared = await root.llm.prepareCall({ provider: 'codex', model: pinned.id, ...(effort === undefined ? {} : { reasoningEffort: effort }) });
+    assert.equal(prepared.context.contextWindow, 64000);
+    assert.equal(prepared.config.reasoningEffort, effort ?? 'high');
+    for await (const chunk of prepared.stream({ ...prepared.config, sessionId: 'fixture-prefs', messages: [] })) chunks.push(chunk);
+    assert.equal(chunks.filter(c => c.type === 'text-delta').map(c => c.text).join(''), 'SYNTHETIC CODEX FIXTURE: no provider inference occurred.');
+    assert.equal(chunks.at(-1).reason.kind, 'stop');
+  };
+  await send();
+  await runtime.setSpeed('fixture-prefs', 'fast'); await send('low');
+  await runtime.dispose(); runtime = await createCodexRuntime(config);
+  const info = await root.llm.resolveModelInfo('codex', pinned.id);
+  assert.equal(info.name, 'Fixture pinned · Fixture retained');
+  assert.equal(info.reasoning.defaultEffort, 'high'); assert.equal(info.context.contextWindow, 64000);
+  assert.equal((await runtime.speed('fixture-prefs')).tier, 'standard');
+  assert.equal((await runtime.snapshot()).autoEnrolled, false);
+  await send();
+  assert.deepEqual(transport.observations(), { speed: { standard: 2, fast: 1, other: 0 }, reasoning: { absent: 0, low: 1, high: 2, other: 0 }, malformed: 0 });
+  assert.equal(transport.counters().responses, 3); assert.equal(transport.counters().denied, 0);
 });
 
 test('launcher rejects arbitrary retained paths and invalid arguments before spawning a host', () => {
