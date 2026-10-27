@@ -1,7 +1,8 @@
 {
   "schema_version": 1,
   "purpose": "Preservation, not acceptance or integration",
-  "publication_status": "pending-exact-remote-verification",
+  "publication_status": "62-refs-published-and-exact-remote-shas-verified",
+  "verified_initial_integration_tip": "c0d8b1ec9be91ff65b9c2c16a5ee91bcc83a3b79",
   "original_branches": [
     {
       "branch": "feat/codex-dispatch-revocation",

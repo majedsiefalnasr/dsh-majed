@@ -35,6 +35,6 @@ Only the two project-owned historical reports from the preflight worktree are sn
 
 ## Verification and next gate
 
-At ledger creation: operating-rule commit and all three snapshot refs exist locally; snapshot content hashes match the audit, and documentation/candidate whitespace checks pass. Remote publication and exact-SHA readback are still pending and must be recorded in current work before declaring checkpoint completion.
+Completed: 62 explicit non-forced refs were published in one atomic push and every remote SHA was read back and compared with its local source. Initial published integration tip: `c0d8b1ec9be91ff65b9c2c16a5ee91bcc83a3b79`. Remote `main` remains `d6fe0e33517003ec9837a72005788f2153d685bb`. All three snapshot commits and the rules commit are remotely reachable. The 25 original non-policy WIP files still match their audit SHA-256; no original WIP was reset, merged, deleted or removed from its checkout. Documentation/candidate whitespace checks pass. This verification record is a subsequent documentation-only update, not a new product revision claim.
 
 After remote verification, the next allowed task is a source- and tracker-backed feature inventory: capability, entry point, activation, revision/environment/scenario, evidence level and remaining gaps. Owner design discussion follows that inventory; historical objectives do not reopen implementation.
