@@ -44,9 +44,17 @@ The lead then closed the browser and gracefully stopped the launcher (host exit 
 
 Subsequent lead report (2026-10-27): restarted the same owned temporary profile again, enabled management and models, and observed the retained synthetic account and catalog. The native picker was already `Synthetic Codex — fixture onlyLow`; waiting for an initial `Select model` locator timed out because that selection was restored, not because model loading failed. Sending a synthetic prompt using the restored selection produced exactly `SYNTHETIC CODEX FIXTURE: no provider inference occurred.` Browser `mna` closed with exit zero. Owned host job `bash-e98c3c76cc4345d9` reported `Fixture host exited: 0` and was collected/stopped. This is reported controlled stock-browser evidence only, not independently rerun here, no real provider or installed state, and not proof of socket absence.
 
-## Next lead batch: deterministic native auth states
+## Deterministic native auth states
 
 Candidate adds one synthetic control at the existing injected fetch seam: completing an authorization-code grant with code `SYNTHETIC-FIXTURE-FAIL` returns HTTP 400 `invalid_grant`. No endpoint, production hook, credential override or new admission path is added. Other synthetic login and refresh behavior is unchanged. The regression first failed (`connected` instead of `failed`), then passed through the actual account service. Pending and cancellation require no new control.
+
+### Lead observations (reported, not independently rerun; 2026-10-27)
+
+The lead used a fresh candidate-owned temporary profile in the stock browser. In English, the native pending state showed the exact expected `Waiting for sign-in. Open the link on the host, or paste the full callback URL here from a remote device.` message; cancelling showed `Login cancelled.`. On a fresh attempt, submitting `SYNTHETIC-FIXTURE-FAIL` with the original generated state produced `Login failed or expired. Try connecting again.` and no synthetic account.
+
+The lead switched the native locale to Arabic and waited for the service's settled state; a transient disabled initial render was not treated as a defect. Repeated pending and cancellation showed `بانتظار تسجيل الدخول. افتح الرابط على المضيف أو ألصق رابط العودة الكامل هنا من جهاز بعيد.` and `تم إلغاء تسجيل الدخول.`. A failed token exchange with the original generated state showed `فشل تسجيل الدخول أو انتهت مهلته. حاول الربط مجددًا.`. The native Settings panel's computed direction was RTL.
+
+A fresh English attempt using `SYNTHETIC-FIXTURE-CODE` then showed the connected synthetic account. The browser was closed with exit zero; the fixture host received SIGTERM and exited gracefully with status zero. The recorded host PID check, `lsof -nP -a -p PID -iTCP -sTCP:LISTEN`, returned exit 1 and no output, indicating no listening sockets for that PID at the time of the check. Aggregate disposal counters were token 3, catalog 0, responses 0, denied 0: two failed exchanges and one successful exchange; pending/cancelled attempts added no token exchange. These counters do not establish absence of stock-host outbound activity. No synthetic response was sent in this run; the earlier post-restart response evidence above remains separate. The reported native bilingual pending/cancel/failure/recovery sequence and recorded-PID socket check are controlled observations, not independent reviewer results. They do not establish retained Standard/Fast preferences, wider visual acceptance, remote/live parity, or full R01/R02 completion.
 
 Use a **new candidate-owned run** because existing retained runs are intentionally bound to their original checkout. Lead only (worker did not launch host/browser):
 
@@ -67,4 +75,4 @@ Worker validation: focused fixture tests 5/5; full `npm test` 506/506, legacy ru
 
 ## Remaining acceptance
 
-Explicit retained model-preference/Standard/Fast checks, native pending/cancelled/failed states in English and Arabic/RTL, and a final recorded-PID listening-socket absence check remain unverified. Graceful exit is not reported as a socket absence check. No real-provider authentication/inference, desktop installed-profile parity, paired-remote parity, operational cutover or full-spec completion is established. Keep the tracker open; integration remains the lead's separately reviewed decision.
+Retained model-preference/Standard/Fast checks and wider visual acceptance remain unverified. Native pending/cancelled/failed states in English and Arabic/RTL, connected recovery after those attempts, and the recorded-PID listening-socket absence check are reported controlled observations, not independently rerun. No real-provider authentication/inference, desktop installed-profile parity, paired-remote parity, operational cutover or full-spec completion is established. Keep the tracker open; integration remains the lead's separately reviewed decision.
