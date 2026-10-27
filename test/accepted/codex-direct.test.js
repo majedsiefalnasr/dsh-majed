@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { Context } from '@deepseek-ai/cordis';
@@ -9,6 +9,44 @@ import * as llmModule from '@deepseek-ai/dsh-llm';
 import { createCodexAccounts } from '../../modules/subscriptions/codex/accounts.js';
 import { createCodexRuntime } from '../../modules/subscriptions/codex/runtime.js';
 import { apply as product } from '../../index.js';
+import { applyCodexAccounts } from '../../modules/subscriptions/codex/native.js';
+
+test('native passive account status skips runtime discovery and grants and validates mode strictly', async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'dsh-passive-')); t.after(() => rm(directory, { recursive: true, force: true }));
+  const root = new Context(), routes = new Map(); let imports = 0, fetches = 0, registrations = 0, adapter;
+  root.provide('connection', { fetch: { register(route) { routes.set(route.path, route); } } });
+  root.provide('llm', { prepareCall() {}, registerAdapter(providers, value) { registrations++; adapter = value; return Object.assign(() => {}, { replace() {} }); } });
+  root.provide('loader', { async import() { imports++; return llmModule; } });
+  const fiber = root.plugin(applyCodexAccounts, { path: join(directory, 'auth.json'), fetch: async () => { fetches++; throw new Error('unexpected_network'); } });
+  await fiber; t.after(() => root.fiber.dispose());
+  const route = routes.get('/api/majed/subscriptions/codex');
+  const call = async payload => (await (await route.fetch(new Request('http://fixture' + route.path, {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'client-request', rpcId: 'fixture', method: 'majed/subscriptions/codex', payload }),
+  }))).json()).result;
+  await call({ action: 'enable', enabled: true });
+  const activated = await call({ action: 'runtime', enabled: true });
+  assert.equal(activated.ok, true);
+  const before = { imports, fetches, registrations };
+  // Fault the runtime boundary, then seed an expired retained identity:
+  // passive status must neither discover models nor refresh its session.
+  const original = adapter.listModels;
+  adapter.listModels = () => { throw new Error('unexpected_runtime_snapshot'); };
+  assert.equal((await call({ action: 'status' })).ok, false);
+  await writeFile(join(directory, 'auth.json'), JSON.stringify({ version: 1, default: 'a'.repeat(64), accounts: [
+    { id: 'a'.repeat(64), revision: 'fixture', state: 'connected', session: { accessToken: 'expired-fixture', refreshToken: 'fixture-refresh', accountId: 'fixture', label: 'fixture@example.test', expiresAt: 1 } },
+  ] }), { mode: 0o600 });
+  const passive = await call({ action: 'status', mode: 'passive' });
+  assert.equal(passive.ok, true); assert.equal(passive.value.runtimeEnabled, true);
+  assert.equal('runtime' in passive.value, false); assert.equal(passive.value.accounts[0].id, 'a'.repeat(64));
+  assert.doesNotMatch(JSON.stringify(passive), /expired-fixture|fixture-refresh/);
+  assert.deepEqual({ imports, fetches, registrations }, before);
+  adapter.listModels = original;
+  for (const payload of [{ action: 'status', mode: null }, { action: 'status', mode: false }, { action: 'status', mode: 'active' },
+    { action: 'status', mode: {} }, { action: 'status', mode: 'passive', account: 'a'.repeat(64) }, { action: 'begin', mode: 'passive' }]) {
+    assert.equal((await call(payload)).error.code, 'invalid_request');
+  }
+  assert.deepEqual({ imports, fetches, registrations }, before);
+});
 
 const jwt = data => 'header.' + Buffer.from(JSON.stringify(data)).toString('base64url') + '.signature';
 const idToken = jwt({ email: 'fixture@example.test', 'https://api.openai.com/auth': { chatgpt_account_id: 'workspace-one', chatgpt_user_id: 'user-one' } });

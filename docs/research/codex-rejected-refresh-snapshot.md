@@ -1,27 +1,23 @@
 # Rejected Codex refresh snapshot candidate
 
-Baseline: `37af216956967da8ea31b675b07dab8a62b9c6b9`. No installed state, account credentials, browser, host worker or live provider was used.
+Source revision before this follow-up: `59973f09` (abbreviated). This is a source-only candidate, not a validated release.
 
 ## Diagnosis
 
-The account service persists `reauthentication_required` after a permanent grant rejection and publishes its host-only subscription before/after persistence (`modules/subscriptions/codex/accounts.js`). The direct runtime subscribes to invalidate native registration and fence dispatch (`modules/subscriptions/codex/runtime.js`). This is not a browser Settings snapshot notification. The native management route returns only a sanitized failed RPC envelope when refresh throws (`modules/subscriptions/codex/native.js`). The browser catch previously changed only the error message, retaining its prior connected account/runtime snapshot. No source contract requires that stale state to remain until a manual status action; it contradicts truthful UI state and the explicit bounded acceptance request.
+A permanent refresh rejection can persist reauthentication-required account state while the native RPC returns a sanitized error. The browser retained connected metadata when its abort deadline fired. In addition, ordinary status is not passive: native status decorates the account snapshot with runtime.snapshot(), whose available()/listModels() paths can discover catalogs and acquire account sessions, potentially causing grants. It is not safe error reconciliation.
 
-## Approved seam and regression
+## Candidate contract
 
-The requested actual client integration seam is the built production browser bundle, mounted through the existing Settings harness and exercised by its rendered Refresh credentials button against the public RPC contract. Controlled responses represent both failed envelopes and rejected RPC promises. This is not a live/native browser or actual host-state notification proof.
+The existing public native RPC accepts `{ action: 'status', mode: 'passive' }`. Only this literal optional mode on status is admitted; other values, extra fields and mode on other actions reject. It returns the existing account service snapshot and runtime availability/enabled flags but never calls runtime.snapshot() or includes a runtime catalog. Normal explicit status retains its existing behavior.
 
-Red on baseline: all four English/Arabic and envelope/transport cases failed because calls were `['status', 'refresh']`, not `['status', 'refresh', 'status']`. Green asserts retained identity, translated reauthentication state, absent stale catalog form, visible sanitized alert, RTL, disabled default action and no credential replay. Two further failed-requery cases assert stale connected metadata is absent and refresh/default actions are disabled.
+A failed explicit refresh immediately clears runtime controls and marks retained account metadata non-actionable. Before the operation deadline it may make one passive status call using the same signal and deadline. The original sanitized operation error remains visible. On timeout, Promise.race settles even if transport ignores abort; mounted metadata fails closed and no aborted status requery is started. Late transport settlement cannot publish state. Controller identity fences old completions across cleanup/new requests. No credential grant is replayed by reconciliation.
 
-## Change
+## Source regression candidates — UNRUN
 
-Only a failed explicit credential refresh gets one public status requery, within the existing abort controller, busy guard and overall timeout. It does not resend refresh, clear the original sanitized error, add an API or change admission. Stale runtime metadata is cleared during reconciliation; if status fails, identity is retained with bounded unknown/error presentation, not a connected assertion. Non-connected account settings/default selection are not actionable. Removal and explicit status recovery remain available.
+The refresh Settings regressions read source client.js rather than a stale generated bundle. Cases cover English/Arabic rejected envelopes and transports, failed reconciliation, refresh timeout, reconciliation timeout, late success and unmount. The native passive-mode regression enables the runtime, faults adapter.listModels to distinguish ordinary from passive status, counts fetch/import/registration calls, and checks strict mode rejection. It seeds an expired retained identity and asserts no additional fetch/grant and no leaked synthetic credentials; these assertions are not execution evidence.
 
-## Direct review
+All new/modified tests are UNRUN. No red/green result, syntax/type check, build, accepted suite, browser, host, live provider or operational confirmation is claimed. Prior execution was blocked by `sandbox-exec` / `sandbox_apply: Operation not permitted`; the required OS sandbox is unavailable. This follow-up deliberately made no execution or sandbox retry. Trusted git diff/check/status and a hooks-disabled source commit are the only command validation permitted.
 
-Standards: direct review against AGENTS.md, public-only plugin ownership, English project content, user-visible changelog and narrow-diff/Fowler smell baseline. No hard violations or material smell findings. No nested reviewer was launched, as explicitly prohibited.
+## Required later validation
 
-Spec: direct review against the bounded request and managers-spec.md truthful state/admission requirements. Requery uses existing safe status action; the host snapshot does not call refresh or grant. Host admission, revocation fencing and storage are unchanged. Original mutation errors stay visible. Shared timeout/signal and mounted checks cover the requery. Native visual/operational evidence is not claimed. R01/R02 remain open.
-
-## Browser confirmation still required
-
-Under separately authorized fixture/native browser execution, use the existing `new-reauth` scenario in English and Arabic. Connect the synthetic account, enable models, verify connected identity/catalog, then click Refresh credentials once. Without clicking Refresh account status, verify the bounded operation error remains, retained account identity shows sign-in-again state and old catalog/account configuration is absent. Inspect fixture grant counters for exactly one invalid refresh and no additional credential grant. Confirm RTL, keyboard/status recovery and reconnect. Repeat with status RPC denied/unavailable: no stale connected/default/catalog action should remain; restore status access and explicitly refresh status. No browser worker was launched for this candidate.
+In an authorized working OS sandbox: execute focused source regressions and nearest accepted gates, validate test-fixture compatibility, build the production client and repeat mounted coverage against that artifact. Add/execute expired retained-account passive-status grant counters and connected-account runtime discovery counters. Confirm native fixture/new-reauth English/Arabic behavior, original sanitized alert retention, timeout recovery, unmount/late settlement, manual status recovery and reconnect. No installed state or original dirty main was modified. R01/R02 and native visual/operational acceptance remain open.
