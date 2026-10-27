@@ -667,8 +667,8 @@ window.__ModuleLoader__.load({
 
     // ───────────────────────── settings rows ─────────────────────────
     const ROW_CSS = `
-.majed-management{min-width:0;max-width:100%;overflow-wrap:anywhere;overflow:auto;max-height:min(100dvh,75vh);color:var(--dsw-alias-label-primary);font:inherit;text-align:start}
-.majed-management__title{margin:0 0 .5em 0;font:var(--dsw-font-s-18);color:var(--dsw-alias-label-primary)}
+.majed-management{min-width:0;max-width:100%;overflow-wrap:anywhere;overflow:auto;max-height:min(100dvh,75vh);color:var(--dsw-alias-label-primary);font:var(--dsw-font-s-14);text-align:start}
+.majed-management__title{margin:0 0 .5em 0;font:var(--dsw-font-m-18);color:var(--dsw-alias-label-primary)}
 .majed-management p{margin-block:1em}
 .majed-management-controls{display:flex;flex-wrap:wrap;align-items:center;gap:1em}
 .majed-codex-form{display:grid;gap:.75em;margin-block:1em;min-width:0}
