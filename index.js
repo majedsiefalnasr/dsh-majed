@@ -7,6 +7,7 @@ import { applyJudgment } from './modules/judgment/native.js';
 import { applyCodexAccounts } from './modules/subscriptions/codex/native.js';
 import { applyManagedMcp } from './modules/mcp/native.js';
 import { applyCommandApproval } from './modules/hooks/approval.js';
+import { applyCommandMode } from './modules/command-mode/index.js';
 
 export { AUTO_ROUTE_ID };
 
@@ -18,6 +19,7 @@ export function apply(ctx, config = {}) {
   applyJudgment(ctx, config.judgment);
   applyCodexAccounts(ctx, config.codexAccounts || {});
   applyCommandApproval(ctx, config.hooksApproval || {});
+  applyCommandMode(ctx);
   // Deterministic Auto routing is opt-in and explicitly enabled; no automatic
   // activation here. The Auto core (candidate enrollment, eligibility filtering,
   // priority selection with session stickiness, bounded failover budget) is
