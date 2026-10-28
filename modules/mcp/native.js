@@ -1,8 +1,8 @@
 import { realpath, stat } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join, resolve, relative, isAbsolute } from 'node:path';
-import { createHash } from 'node:crypto';
-import { createMcpManager, loadMcpClient, validateServer, validateServers } from './index.js';
+import { createHash, createHmac, randomBytes } from 'node:crypto';
+import { PROBE_TIMEOUT_MS, createMcpManager, loadMcpClient, validateServer, validateServers } from './index.js';
 import { createMcpDefinitionStore } from './storage.js';
 import { mergeSecrets, object, serial } from '../managers/validation.js';
 import { discoverManagementContexts, resolveManagementScope } from '../../lib/management/scope.js';
@@ -10,6 +10,10 @@ import { discoverManagementContexts, resolveManagementScope } from '../../lib/ma
 export const MCP_METHOD = 'majed/mcp';
 export const MCP_PATH = '/api/' + MCP_METHOD;
 const deny = code => { throw Object.assign(new Error(code), { code }); };
+const revisionKey = randomBytes(32);
+// Opaque per-process token over the store revision, bound to the scope and store identity so a token never
+// validates against another scope; it fences stale writes but is not a digest of stored secrets.
+const token = (record, revision) => createHmac('sha256', revisionKey).update(JSON.stringify([record.root || 'global', record.file, revision])).digest('hex');
 const identifier = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value);
 const statusName = value => ({ configured: 'saved', mounted: 'active', 'activation-failed': 'failed', 'cleanup-failed': 'cleanup-failed', 'probe-passed': 'probe-passed', 'probe-failed': 'probe-failed', probing: 'probing' })[value] || 'saved';
 
@@ -20,8 +24,8 @@ export function createManagedMcpService(ctx, options = {}) {
   function scopeRecord(root) {
     const key = root || 'global';
     if (!scopes.has(key)) {
-      const file = root ? 'project-' + createHash('sha256').update(root).digest('hex') + '.json' : 'global.json';
-      scopes.set(key, { root, store: createMcpDefinitionStore(join(directory, file)), manager: root ? null : createMcpManager(ctx) });
+      const name = root ? 'project-' + createHash('sha256').update(root).digest('hex') + '.json' : 'global.json', file = join(directory, name);
+      scopes.set(key, { root, file, store: createMcpDefinitionStore(file), manager: root ? null : createMcpManager(ctx) });
     }
     return scopes.get(key);
   }
@@ -98,26 +102,29 @@ export function createManagedMcpService(ctx, options = {}) {
   });
   ready.catch(() => {});
   async function snapshot(record, signal) {
-    const servers = validateServers((await record.store.read()).servers);
+    const observed = await record.store.observe(), servers = validateServers(observed.value.servers);
     const managers = record.manager ? [record.manager] : [...agents.values()].filter(value => value.root === record.root).map(value => value.manager);
-    return { enabled: true, runtime: 'native', scope: record.root ? 'project' : 'global', contexts: await contexts(signal),
+    return { enabled: true, runtime: 'native', scope: record.root ? 'project' : 'global', revision: token(record, observed.revision), probeDeadlineMs: PROBE_TIMEOUT_MS, contexts: await contexts(signal),
       servers: servers.map(row => {
         const { env, headers, ...visible } = row;
         const views = managers.flatMap(manager => manager.snapshot().filter(value => value.serverName === row.serverName));
         const status = views.some(value => ['activation-failed', 'cleanup-failed'].includes(value.status)) ? views.find(value => ['activation-failed', 'cleanup-failed'].includes(value.status)).status : views[0]?.status;
-        return { ...visible, env: Object.fromEntries(Object.keys(env || {}).map(key => [key, '***'])), headers: Object.fromEntries(Object.keys(headers || {}).map(key => [key, '***'])), status: status === 'cleanup-failed' ? status : record.failed?.has(row.serverName) ? 'failed' : record.root && row.enabled && managers.length === 0 ? 'awaiting-agent' : statusName(status), probe: views.find(value => value.probe)?.probe || null, runtimeCount: views.filter(value => value.status === 'mounted').length };
+        return { ...visible, env: Object.fromEntries(Object.keys(env || {}).map(key => [key, '***'])), headers: Object.fromEntries(Object.keys(headers || {}).map(key => [key, '***'])), status: status === 'cleanup-failed' ? status : record.failed?.has(row.serverName) ? 'failed' : record.root && row.enabled && managers.length === 0 ? 'awaiting-agent' : statusName(status), probe: views.find(value => value.probe)?.probe || null, lastResult: views.find(value => value.lastResult)?.lastResult || null, runtimeCount: views.filter(value => value.status === 'mounted').length };
       }) };
   }
   function operation(payload, signal) {
     return queue(async () => {
       await ready;
       if (disposed) deny('unavailable');
-      object(payload, ['action', 'scope', 'sessionId', 'workspaceId', 'server', 'originalName', 'serverName', 'enabled']);
+      object(payload, ['action', 'scope', 'sessionId', 'workspaceId', 'server', 'originalName', 'serverName', 'enabled', 'revision']);
       if (!['list', 'save', 'remove', 'setEnabled', 'reconnect', 'probe'].includes(payload.action)) deny('invalid_request');
       const record = await boundScope(payload, signal);
       signal.throwIfAborted();
       if (['save', 'remove', 'setEnabled'].includes(payload.action)) {
-        const saved = await record.store.update(async current => {
+        const saved = await record.store.update(async (current, revision) => {
+          // Edits, removals and toggles must name the revision the client last saw; a stale
+          // or missing one is refused before any definition or credential changes.
+          if ((payload.action !== 'save' || payload.originalName !== undefined) && payload.revision !== token(record, revision)) deny('stale_revision');
           const servers = validateServers(current.servers);
           const name = payload.action === 'save' ? payload.originalName : payload.serverName;
           const index = servers.findIndex(row => row.serverName === name);
@@ -125,7 +132,11 @@ export function createManagedMcpService(ctx, options = {}) {
             if (payload.originalName !== undefined && index < 0) deny('not_found');
             const previous = servers[index];
             if (previous && previous.transport !== payload.server?.transport && (Object.keys(previous.env || {}).length || Object.keys(previous.headers || {}).length)) deny('credential_transport_change');
-            const row = await validateCwd({ ...payload.server, scope: record.root ? 'project' : 'global', enabled: payload.server?.enabled ?? previous?.enabled ?? false,
+            // A blank "replace" value is a blank form, not intent: refuse instead of erasing a stored secret.
+            for (const [stored, sent] of [[previous?.env, payload.server?.env], [previous?.headers, payload.server?.headers]]) {
+              if (sent && typeof sent === 'object') for (const [key, val] of Object.entries(sent)) if (val === '' && stored && Object.hasOwn(stored, key)) deny('invalid_request');
+            }
+            const row = await validateCwd({ ...payload.server, scope: record.root ? 'project' : 'global', enabled: previous ? payload.server?.enabled ?? previous.enabled : false, // a NEW definition is never started by a save
               env: payload.server?.transport === 'stdio' ? mergeSecrets(previous?.env, payload.server?.env) : undefined,
               headers: payload.server?.transport === 'streamable-http' ? mergeSecrets(previous?.headers, payload.server?.headers) : undefined }, record.root);
             if (servers.some((value, position) => position !== index && value.serverName === row.serverName)) deny('duplicate_name');
@@ -185,7 +196,7 @@ export function applyManagedMcp(ctx, config = {}) {
         if (!service) deny('runtime_unavailable');
         return respond({ ok: true, value: await service.operation(message.payload, request.signal) });
       } catch (error) {
-        const codes = ['invalid_request', 'invalid_scope', 'scope_unavailable', 'not_found', 'duplicate_name', 'credential_transport_change', 'runtime_unavailable', 'ownership_acknowledgement_required'];
+        const codes = ['invalid_request', 'invalid_scope', 'scope_unavailable', 'not_found', 'duplicate_name', 'credential_transport_change', 'stale_revision', 'runtime_unavailable', 'ownership_acknowledgement_required'];
         const code = codes.includes(error.code) ? error.code : 'unavailable';
         return respond({ ok: false, error: { code, message: code, details: {} } });
       }

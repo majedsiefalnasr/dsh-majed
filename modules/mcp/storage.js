@@ -44,10 +44,10 @@ export function createMcpDefinitionStore(filePath) {
     const prior = writers.get(file) || Promise.resolve();
     const task = prior.catch(() => {}).then(async () => {
       const observed = await observe();
-      return commit(observed, await change(structuredClone(observed.value)));
+      return commit(observed, await change(structuredClone(observed.value), observed.revision));
     });
     writers.set(file, task);
     return task.finally(() => { if (writers.get(file) === task) writers.delete(file); });
   }
-  return { read: async () => (await observe()).value, update, save: config => update(() => config), dispose() { disposed = true; } };
+  return { read: async () => (await observe()).value, observe, update, save: config => update(() => config), dispose() { disposed = true; } };
 }
