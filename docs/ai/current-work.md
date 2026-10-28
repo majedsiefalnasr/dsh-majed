@@ -57,6 +57,12 @@ Owner decision (answer to the coverage/priority question): real-mobile notificat
 - **Not met:** acceptance criterion 2 (Owner action → admitted transport → actual consumer → visible outcome): module is not mounted, no route/UI/picker/persistence; fake LLM service only; seam public contract unverified (source-read rc.3); mobile deferred to Owner. #96 stays OPEN.
 - Next ready: #97 M01, #103 H01, #50 A01a, #51 K01, #48 R01 (claimed).
 
+### M01 scoped MCP lifecycle — 2026-10-28 (PARTIAL)
+
+- #97 `[M01]` claimed. Sole implementer `workflow-d6b4dac5c9304a19` (`claude`) `96fb5df`, correction `workflow-8474bdda1a4a4096` `b5a366b`, merged `90ebf05`: always-disabled new saves, stale-write `revision` fence (scoped HMAC token) on edit/remove/enable/disable, `probeDeadlineMs` and per-server `lastResult` (not liveness), empty-string credential replace rejected, cleanup-failure path fixed (shadowed `record` helper renamed), ToolRuntime/registry characterization tests for disable/remove/guard denial. 15 new/changed tests; full suite 612/612, classifier 166/166. Evidence: [M01 research](../research/m01-mcp-lifecycle-2026-10-28.md).
+- **Not met:** clause (a) combined global/project override/fallback visibility (no proven cross-scope tool-name resolution contract); revision is a per-process token; `modules/managers/index.js` MCP upsert path is unmounted and unfenced; controlled fixtures only, no real browser/installed/paired proof; mobile deferred to Owner. #97 stays OPEN.
+- Next ready: #103 H01, #50 A01a, #51 K01, #48 R01 (claimed).
+
 ### Completed final-cleanup contract — 2026-10-28
 
 The Owner approved preserving useful unique work and removing the four previously protected auxiliary worktrees and obsolete test artifacts. Direct Lead, bounded housekeeping only. Both browser research reports and all four modified R11 files matched remotely verified checkpoint blobs byte-for-byte; no WIP merge or acceptance occurred. Four reviewed nonprivate setup documents were preserved with a SHA-256 manifest in [historical test setup](../research/cleanup-preserved-2026-10-28/README.md), published non-forced as `497df0287dff997fd54346c339d8f86a9a11390f`, with exact remote readback before removal.
