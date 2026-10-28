@@ -31,7 +31,11 @@ export function createNativeApiReferences(ctx, options = {}) {
   const service = options.llm || ctx?.llm;
   if (!service || typeof service.listProviders !== 'function' || typeof service.listModels !== 'function') throw new Error('Native LLM service is unavailable.');
   const prefs = new Map(); // key -> { provider, model, alias?, visible, default }
-  for (const p of options.preferences ?? []) prefs.set(key(p.provider, p.model), normalize(p));
+  for (const p of options.preferences ?? []) {
+    const next = normalize(p);
+    if (next.default) for (const other of prefs.values()) other.default = false; // last default wins, as in setPreference
+    prefs.set(key(p.provider, p.model), next);
+  }
   let providers = [];
   let failed = new Set(); // provider ids whose listing could not be read
   let disposed = false;
@@ -51,7 +55,16 @@ export function createNativeApiReferences(ctx, options = {}) {
   }
 
   async function load() {
-    const eligible = service.listProviders().filter(p => !exclude.has(p.id));
+    let eligible;
+    try {
+      eligible = service.listProviders().filter(p => !exclude.has(p.id));
+    } catch {
+      // The provider list itself is unreadable: keep the previous providers, mark all unreadable.
+      if (disposed) return;
+      providers = providers.map(p => ({ id: p.id, name: p.name, models: [], error: 'list-failed' }));
+      failed = new Set(providers.map(p => p.id));
+      return;
+    }
     const read = await Promise.all(eligible.map(readProvider));
     if (disposed) return;
     failed = new Set(read.filter(p => p.error).map(p => p.id));
@@ -61,7 +74,7 @@ export function createNativeApiReferences(ctx, options = {}) {
   /** Serialized refresh: concurrent triggers coalesce into one rerun. */
   function refresh() {
     if (disposed) return Promise.resolve();
-    if (running) return pending ??= running.then(() => { pending = undefined; return refresh(); });
+    if (running) return pending ??= running.catch(() => {}).then(() => { pending = undefined; return refresh(); });
     running = load().finally(() => { running = undefined; });
     return running;
   }
@@ -108,7 +121,7 @@ export function createNativeApiReferences(ctx, options = {}) {
       const next = normalize({ ...current, ...change });
       if (next.default) for (const other of prefs.values()) if (other !== current) other.default = false;
       prefs.set(key(provider, model), next);
-      return next;
+      return { ...next };
     },
     /** Serializable Owner preferences only; never provider configuration. */
     preferences() { return [...prefs.values()].map(p => ({ ...p })); },

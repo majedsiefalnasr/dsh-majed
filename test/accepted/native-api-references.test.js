@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Context } from '@deepseek-ai/cordis';
-import { createNativeApiReferences } from '../../modules/catalog/native-api.js';
+import { createNativeApiReferences, SUBSCRIPTION_PROVIDER_IDS } from '../../modules/catalog/native-api.js';
+import { PROVIDER_IDS } from '../../modules/subscriptions/wire.js';
+import { AUTO_ROUTE_ID } from '../../modules/auto/index.js';
 
 const SECRET = 'sk-test-SECRET-0123456789';
 
@@ -216,4 +218,84 @@ test('a refresh in flight at disposal does not publish its result', async t => {
   release();
   await pendingRefresh;
   assert.ok(find(refs.snapshot(), 'visio', 'visio-plain'), 'snapshot was not replaced after disposal');
+});
+
+test('every subscription brand and the Auto id is excluded, and the exclusion list is pinned to the wire ids', async t => {
+  assert.deepEqual([...SUBSCRIPTION_PROVIDER_IDS], [...PROVIDER_IDS, 'opencode', AUTO_ROUTE_ID]);
+  assert.deepEqual([...SUBSCRIPTION_PROVIDER_IDS].sort(), ['antigravity', 'claude', 'codex', 'copilot', AUTO_ROUTE_ID, 'grok', 'opencode'].sort());
+  const initial = { acme: catalog().acme };
+  for (const id of SUBSCRIPTION_PROVIDER_IDS) initial[id] = { name: id, models: [{ id: 'm' }] };
+  const { refs, calls } = mount(t, initial);
+  await refs.refresh();
+  assert.deepEqual(refs.snapshot().providers.map(p => p.id), ['acme']);
+  assert.deepEqual(calls.listModels, ['acme']);
+  for (const id of SUBSCRIPTION_PROVIDER_IDS) assert.deepEqual(await refs.select(id, 'm'), { ok: false, reason: 'not-eligible' }, id);
+});
+
+test('concurrent refreshes coalesce into a bounded number of reads and end with the final state', async t => {
+  const { refs, calls, state } = mount(t, { acme: catalog().acme });
+  const a = refs.refresh();
+  state.set('visio', catalog().visio);
+  const b = refs.refresh();
+  const c = refs.refresh();
+  await Promise.all([a, b, c]);
+  await refs.idle();
+  assert.ok(calls.listProviders <= 2, `listProviders called ${calls.listProviders} times`);
+  assert.deepEqual(refs.snapshot().providers.map(p => p.id), ['acme', 'visio']);
+});
+
+test('a refresh whose provider listing throws recovers on the next refresh and idle resolves', async t => {
+  const { refs, calls, llm } = mount(t, catalog());
+  await refs.refresh();
+  const real = llm.listProviders;
+  let thrown = 0;
+  llm.listProviders = () => { thrown += 1; throw new Error(`down ${SECRET}`); };
+  await refs.refresh().catch(() => {});
+  await Promise.race([refs.idle(), new Promise((_, reject) => setTimeout(() => reject(new Error('idle never resolved')), 500))]);
+  assert.equal(thrown, 1);
+  let snap = refs.snapshot();
+  assert.deepEqual(snap.providers.map(p => p.id), ['acme', 'visio'], 'previous providers are kept');
+  assert.ok(snap.providers.every(p => p.error === 'list-failed'));
+  assert.ok(!JSON.stringify(snap).includes(SECRET));
+  llm.listProviders = real;
+  await refs.refresh();
+  await Promise.race([refs.idle(), new Promise((_, reject) => setTimeout(() => reject(new Error('idle never resolved')), 500))]);
+  snap = refs.snapshot();
+  assert.ok(snap.providers.every(p => !p.error));
+  assert.deepEqual(snap.providers.map(p => p.id), ['acme', 'visio']);
+  assert.ok(calls.listProviders >= 2);
+});
+
+test('a throwing listing during a coalesced rerun does not wedge later refreshes', async t => {
+  const { refs, llm } = mount(t, catalog());
+  const real = llm.listProviders;
+  let first = true;
+  llm.listProviders = () => { if (first) { first = false; throw new Error('once'); } return real(); };
+  const a = refs.refresh();
+  const b = refs.refresh();
+  await Promise.all([a.catch(() => {}), b.catch(() => {})]);
+  await Promise.race([refs.idle(), new Promise((_, reject) => setTimeout(() => reject(new Error('idle never resolved')), 500))]);
+  await refs.refresh();
+  assert.deepEqual(refs.snapshot().providers.map(p => p.id), ['acme', 'visio']);
+});
+
+test('constructor preferences with several defaults normalize to a single default', async t => {
+  const { refs } = mount(t, catalog(), { preferences: [
+    { provider: 'acme', model: 'acme-text', default: true },
+    { provider: 'visio', model: 'visio-1', default: true },
+  ] });
+  await refs.refresh();
+  assert.equal(refs.preferences().filter(p => p.default).length, 1);
+  assert.equal(refs.usable().filter(m => m.default).length, 1);
+});
+
+test('setPreference returns a detached copy', async t => {
+  const { refs } = mount(t, catalog());
+  await refs.refresh();
+  const returned = refs.setPreference('acme', 'acme-text', { alias: 'A' });
+  returned.alias = 'mutated';
+  returned.default = true;
+  assert.equal(refs.preferences()[0].alias, 'A');
+  assert.equal(refs.preferences()[0].default, false);
+  assert.equal(find(refs.snapshot(), 'acme', 'acme-text').alias, 'A');
 });
