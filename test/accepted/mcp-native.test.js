@@ -114,7 +114,8 @@ test('a saved unavailable stdio CWD fails only that server and remains manageabl
   const service = createManagedMcpService(ctx, { stateDirectory: root });
   t.after(() => service.dispose());
   await service.ready;
-  const call = (action, extra = {}) => service.operation({ action, scope: 'global', ...extra }, new AbortController().signal);
+  let revision;
+  const call = async (action, extra = {}) => { const view = await service.operation({ action, scope: 'global', revision, ...extra }, new AbortController().signal); revision = view.revision; return view; };
   let view = await call('list');
   assert.deepEqual(view.servers.map(row => [row.serverName, row.status]), [['bad', 'failed'], ['healthy', 'active']]);
   assert.deepEqual([...active], ['healthy']);
@@ -137,7 +138,7 @@ test('a saved unavailable stdio CWD fails only that server and remains manageabl
   const restarted = createManagedMcpService(ctx, { stateDirectory: root });
   t.after(() => restarted.dispose());
   await assert.rejects(restarted.ready);
-  await assert.rejects(restarted.operation({ action: 'remove', scope: 'global', serverName: 'healthy' }, new AbortController().signal));
+  await assert.rejects(restarted.operation({ action: 'remove', scope: 'global', serverName: 'healthy', revision }, new AbortController().signal));
   assert.equal(await readFile(join(root, 'global.json'), 'utf8'), '{corrupt');
 
 });
