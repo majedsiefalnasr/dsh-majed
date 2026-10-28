@@ -174,13 +174,18 @@ export function selectAuto({ registry, session, budget, request, now = Date.now(
   // Manual model selection exits Auto for this session.
   if (session.manual === true) return { candidate: undefined, effort: undefined, reason: 'manual' };
 
+  // The finite distinct-candidate budget gates every path, including stickiness and
+  // reselection: a spent budget or an already-attempted candidate never re-dispatches.
+  const hasBudget = !budget || typeof budget.remaining !== 'function' || budget.remaining() > 0;
+  const fresh = c => !budget || typeof budget.attempted !== 'function' || !budget.attempted(c.id);
+
   // Explicit apply-and-reselect updates this session: honor the reselected
   // route if eligible, then clear the flag. Later dispatches resume normal
   // priority selection and stickiness.
   if (session.reselected === true) {
     session.setReselected(false);
     const cur = session.current && session.current.route ? registry.get(session.current.route) : undefined;
-    if (cur && eligible.some(c => c.id === cur.id) && !session.isRevoked(cur.id)) {
+    if (cur && hasBudget && fresh(cur) && eligible.some(c => c.id === cur.id) && !session.isRevoked(cur.id)) {
       return { candidate: cur, effort: session.current.effort || cur.defaultEffort, reason: 'selected' };
     }
     // Reselected route unavailable or revoked: fall through to normal selection.
@@ -190,7 +195,7 @@ export function selectAuto({ registry, session, budget, request, now = Date.now(
   // candidate recovers, unless the route is unavailable.
   if (session.current && session.current.route && session.current.route !== 'auto') {
     const cur = registry.get(session.current.route);
-    if (cur && eligible.some(c => c.id === cur.id) && !session.isRevoked(cur.id)) {
+    if (cur && hasBudget && fresh(cur) && eligible.some(c => c.id === cur.id) && !session.isRevoked(cur.id)) {
       return { candidate: cur, effort: session.current.effort || cur.defaultEffort, reason: 'sticky' };
     }
     // Current route no longer eligible or revoked: fall through to re-selection.

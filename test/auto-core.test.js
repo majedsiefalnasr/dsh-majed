@@ -262,3 +262,36 @@ test('session.clear resets revocation', () => {
   session.clear();
   assert.equal(session.isRevoked('some/route'), false);
 });
+
+// A01a (#50): the finite distinct-candidate budget must hold on every selection path,
+// including session stickiness and apply-and-reselect, not only on priority selection.
+function twoCandidates() {
+  const reg = createRegistry();
+  reg.add(candidate({ priority: 10 }));
+  reg.add({ ...candidate(), provider: 'p2', account: 'a2', model: 'm2', priority: 5 });
+  return reg;
+}
+
+test('selectAuto never repeats a failed sticky candidate inside a failover cycle', () => {
+  const reg = twoCandidates();
+  const session = createSession();
+  session.setRoute('prov-a/acc-a/model-a', 'medium');
+  const budget = createBudget(3);
+  assert.equal(budget.record('prov-a/acc-a/model-a'), true); // the sticky route was attempted and failed
+  const sel = selectAuto({ registry: reg, session, budget, request: {} });
+  assert.equal(sel.reason, 'selected');
+  assert.equal(sel.candidate.id, 'p2/a2/m2');
+});
+
+test('selectAuto stops with exhausted instead of a sticky or reselected 4th candidate', () => {
+  const reg = twoCandidates();
+  const budget = createBudget(1);
+  budget.record('someone-else/acc/model'); // the one allowed distinct attempt is already spent
+  const sticky = createSession();
+  sticky.setRoute('prov-a/acc-a/model-a', 'medium');
+  assert.equal(selectAuto({ registry: reg, session: sticky, budget, request: {} }).reason, 'exhausted');
+  const reselected = createSession();
+  reselected.setRoute('prov-a/acc-a/model-a', 'medium');
+  reselected.setReselected(true);
+  assert.equal(selectAuto({ registry: reg, session: reselected, budget, request: {} }).reason, 'exhausted');
+});
