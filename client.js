@@ -1908,36 +1908,31 @@ window.__ModuleLoader__.load({
       '--dsh-claude-font-serif', '--dsh-claude-font-prose', '--dsh-claude-font-brand',
     ];
     const priorFontValues = new Map();
+    const lastFontValues = new Map();
     function applyFontFamily(s) {
       const style = document.body && document.body.style;
       if (!style) return;
       const stack = fontStackFor(s.fontSource);
       if (BUNDLED_FONTS[s.fontSource]) ensureFontFaces(s.fontSource); else removeFontFaces();
       for (const name of FONT_VARS) {
+        const value = style.getPropertyValue(name), priority = style.getPropertyPriority(name);
+        const owned = lastFontValues.has(name) && value === lastFontValues.get(name) && priority === 'important';
         if (stack !== null) {
-          if (style.getPropertyValue(name) !== stack || style.getPropertyPriority(name) !== 'important') {
-            // Keep the latest native/theme write, not a stale value captured before
-            // a theme change. Switching between our own stacks must not replace it.
-            if (!priorFontValues.has(name) || !ownedValues().has(style.getPropertyValue(name))) priorFontValues.set(name, {
-              value: style.getPropertyValue(name), priority: style.getPropertyPriority(name),
-            });
-            style.setProperty(name, stack, 'important');
-          }
+          // Only the last actual write is ours; a theme can use any supported stack.
+          // Switching our selected family must not replace the remembered native value.
+          if (!owned) priorFontValues.set(name, { value, priority });
+          if (value !== stack || priority !== 'important') style.setProperty(name, stack, 'important');
+          lastFontValues.set(name, style.getPropertyValue(name));
         } else {
           const prior = priorFontValues.get(name);
-          if (prior && style.getPropertyPriority(name) === 'important' && ownedValues().has(style.getPropertyValue(name))) {
+          if (prior && owned) {
             if (prior.value) style.setProperty(name, prior.value, prior.priority);
             else style.removeProperty(name);
           }
           priorFontValues.delete(name);
+          lastFontValues.delete(name);
         }
       }
-    }
-    /** Every value this plugin may have written, so "DSH default" removes only our own overrides. */
-    function ownedValues() {
-      const set = new Set([SYSTEM_FONT_STACK]);
-      for (const k of Object.keys(BUNDLED_FONTS)) set.add(fontStackFor(k));
-      return set;
     }
 
     // ───────────────────────── RTL: persian-rtl chat CSS + genui mirroring ───

@@ -186,6 +186,56 @@ test('family reset returns to the latest theme value after external theme change
   assert.deepEqual(view.saved(), { ...retained, fontSource: 'dsh' });
 });
 
+const systemThemeStack = '-apple-system-body, ui-sans-serif, -apple-system, system-ui, "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol"';
+
+for (const action of ['reset', 'disposal']) for (const priority of ['', 'important']) {
+  test(`family ${action} restores an external System stack after Inter reasserts (${priority || 'normal'})`, async t => {
+    const view = await mount(t, { stored: { ...retained, fontSource: 'dsh' } });
+    const style = view.document.body.style;
+    await view.chooseFamily('Inter');
+    await view.interact(() => style.setProperty('--dsw-font-family', systemThemeStack, priority));
+    assert.match(style.getPropertyValue('--dsw-font-family'), /^"Inter Majed",/);
+    assert.equal(style.getPropertyPriority('--dsw-font-family'), 'important');
+    if (action === 'reset') await view.interact(() => view.user.click(view.button('Reset app font')));
+    else await view.dispose();
+    assert.equal(style.getPropertyValue('--dsw-font-family'), systemThemeStack);
+    assert.equal(style.getPropertyPriority('--dsw-font-family'), priority);
+    if (action === 'reset') assert.equal(view.familyLabel(), 'DSH default');
+  });
+}
+
+test('Inter to Roboto selection preserves the native theme for later reset', async t => {
+  const view = await mount(t, { stored: { ...retained, fontSource: 'dsh' } });
+  await view.chooseFamily('Inter');
+  assert.match(view.document.body.style.getPropertyValue('--dsw-font-family'), /^"Inter Majed",/);
+  await view.chooseFamily('Roboto');
+  assert.equal(view.familyLabel(), 'Roboto');
+  assert.equal(view.saved().fontSource, 'roboto');
+  assert.match(view.document.body.style.getPropertyValue('--dsw-font-family'), /^"Roboto Majed",/);
+  await view.interact(() => view.user.click(view.button('Reset app font')));
+  assert.equal(view.document.body.style.getPropertyValue('--dsw-font-family'), 'InitialThemeFont');
+});
+
+for (const action of ['reset', 'disposal']) for (const priority of ['', 'important']) {
+  test(`family ${action} preserves an external write before observer processing (${priority || 'normal'})`, async t => {
+    const view = await mount(t, { stored: retained });
+    const style = view.document.body.style;
+    await view.interact(() => {
+      style.setProperty('--dsw-font-family', systemThemeStack, priority);
+      style.setProperty('--dsh-claude-font-prose', 'LatestThemeProse', priority);
+      // Same synchronous turn: neither a microtask nor the observer runs before
+      // the mounted reset event / public plugin disposal.
+      if (action === 'reset') view.button('Reset app font').click();
+      else return view.dispose();
+    });
+    assert.equal(style.getPropertyValue('--dsw-font-family'), systemThemeStack);
+    assert.equal(style.getPropertyPriority('--dsw-font-family'), priority);
+    assert.equal(style.getPropertyValue('--dsh-claude-font-prose'), 'LatestThemeProse');
+    assert.equal(style.getPropertyPriority('--dsh-claude-font-prose'), priority);
+    assert.equal(style.getPropertyValue('--dsw-font-family-brand'), '', 'still-owned variables restore their prior absence');
+  });
+}
+
 test('mounted size reset immediately restores 14 without resetting family, direction or other profile preferences', async t => {
   const view = await mount(t, { stored: retained });
   assert.equal(view.row('ui-font-size').querySelector('.majed-value').textContent, '18');

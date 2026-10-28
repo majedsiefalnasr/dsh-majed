@@ -64,6 +64,20 @@ Before final verification: `git merge --no-edit integration/current-scope-202610
 
 `git diff --check` passed. Scoped diff review confirmed only E01 client behavior, focused test and evidence/changelog updates; generated dist/cache/dependency artifacts remain uncommitted.
 
+## Independent Spec P2 follow-up — matching-stack theme ownership
+
+Candidate under review: `28c3ed174b8458c005101b3d27b931e828317f7b`. The independent Standards review passed; the Spec review identified only this P2. The bounded follow-up uses the same approved built-client mounted Settings → real preference store → appearance DOM seam; no new seam, host/private interception or nested delegation.
+
+Reproduced mechanism: `ownedValues()` classified every possible plugin stack as owned. Starting from `InitialThemeFont`, selecting Inter, then externally writing the exact System stack caused the observer to reassert Inter without retaining System. Reset and disposal consequently restored `InitialThemeFont`, not the latest external theme. Normal and `important` priorities both reproduced.
+
+RED command: `npm run build && node --test --test-name-pattern='external System stack after Inter' test/accepted/e01-preferences.test.js`. All four matching cases failed (exit 1): actual `InitialThemeFont`; expected `-apple-system-body, ui-sans-serif, -apple-system, system-ui, "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol"`.
+
+Narrow fix: track the last applied value separately for each font variable, and recognize ownership only when that value and the plugin's `important` priority still match. Remember a differing external value/priority before reasserting the selected family. Restore remembered native values only over still-owned declarations, leaving newer external declarations intact even before observer processing. Inter → Roboto remains a legitimate plugin-owned transition and does not replace the remembered native value. An external rewrite indistinguishable from the current applied value/priority cannot be identified by this DOM-state comparison; no broader write interception is introduced.
+
+GREEN focused command: `npm run build && node --test test/accepted/e01-preferences.test.js`: 18/18 pass, no failures/skips. The four reproductions pass after the ownership change; supplementary mounted checks preserve Inter → Roboto → reset and same-turn external writes before reset/disposal, at both priorities, including independent font-variable cleanup. All assertions observe mounted controls, saved preferences or actual appearance DOM, not source text/private helpers. The previously documented jsdom priority adapter and live-evidence limits remain unchanged.
+
+Before final reporting, `git merge --no-edit integration/current-scope-20261028` returned `Already up to date.`; the integration tip remains `d41d4e3df21ac1bb1fd716e13ebe67097fa43a56`. Plain `npm test` passed 532/532 Node tests with zero failures, cancellations, skips or todos, plus 166/166 classification checks. `git diff --check` passed. The existing dependency symlink is preserved; no install, config/operational change, credential/provider probe, browser/restart, tracker write, push or merge into integration was performed. Changes are limited to the client, this mounted test, this evidence record and the changelog. The approved route remains `codex` / `gpt-6.1-sol`; no price-ranking claim is made.
+
 ## Unresolved acceptance and next action
 
 The browser prerequisite was already unavailable (`bsk session start failed: no browser is currently connected`); it was not retried or bypassed. Actual installed native Settings, desktop/browser/mobile geometry, font loading/glyph rendering, competing real theme styles and paired-remote profile behavior remain unverified. The synthetic profile test is not real paired acceptance. No unsupported public seam was invented or host patched.
