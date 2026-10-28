@@ -163,6 +163,110 @@ test('per-setting notification resets are immediate, isolated and never request 
   assert.equal(view.notifications.length, 1);
 });
 
+test('unchanged completion reset preserves delivered and queued interventions and their session navigation', async t => {
+  const view = await mount(t);
+  await view.emit(approval('delivered'));
+  const delivered = view.notifications[0];
+  view.emitNow(approval('queued'));
+  act(() => view.button('Reset completion notifications').click());
+  assert.notEqual(delivered.closed, true, 'unrelated unchanged reset leaves delivered intervention open');
+  await view.interact(async () => {});
+  assert.equal(view.notifications.length, 2, 'unrelated unchanged reset leaves queued intervention eligible');
+  await view.interact(() => view.notifications[1].onclick());
+  assert.deepEqual(view.navigation, ['target']);
+  assert.equal(view.requests(), 0);
+});
+
+test('completion toggle and reset leave delivered and queued interventions available', async t => {
+  const view = await mount(t);
+  await view.emit(approval('delivered'));
+  view.emitNow(approval('during-toggle'));
+  act(() => view.button('Notify on completion').click());
+  assert.notEqual(view.notifications[0].closed, true, 'completion toggle does not close intervention');
+  await view.interact(async () => {});
+  assert.equal(view.notifications.length, 2, 'completion toggle does not cancel queued intervention');
+  view.emitNow(approval('during-reset'));
+  act(() => view.button('Reset completion notifications').click());
+  assert.ok(view.notifications.every(n => !n.closed), 'completion reset does not close interventions');
+  await view.interact(async () => {});
+  assert.equal(view.notifications.length, 3, 'completion reset does not cancel queued intervention');
+  await view.interact(() => view.notifications[2].onclick());
+  assert.deepEqual(view.navigation, ['target']);
+  assert.equal(view.requests(), 0);
+});
+
+test('action toggle and reset leave delivered and queued completions available', async t => {
+  const view = await mount(t);
+  await view.emit({ running: true });
+  await view.emit({ running: false });
+  await view.emit({ running: true });
+  view.emitNow({ running: false });
+  act(() => view.button('Notify when action is needed').click());
+  assert.notEqual(view.notifications[0].closed, true, 'action toggle does not close completion');
+  await view.interact(async () => {});
+  assert.equal(view.notifications.length, 2, 'action toggle does not cancel queued completion');
+  await view.emit({ running: true });
+  view.emitNow({ running: false });
+  act(() => view.button('Reset action notifications').click());
+  assert.ok(view.notifications.every(n => !n.closed), 'action reset does not close completions');
+  await view.interact(async () => {});
+  assert.equal(view.notifications.length, 3, 'action reset does not cancel queued completion');
+  await view.interact(() => view.notifications[2].onclick());
+  assert.deepEqual(view.navigation, ['target']);
+  assert.equal(view.requests(), 0);
+});
+
+test('unchanged action and private-title resets preserve the current intervention', async t => {
+  const view = await mount(t);
+  await view.emit(approval('delivered'));
+  view.emitNow(approval('queued'));
+  act(() => view.button('Reset action notifications').click());
+  act(() => view.button('Reset notification title').click());
+  act(() => view.button('Reset system notifications').click());
+  assert.notEqual(view.notifications[0].closed, true, 'already-private default reset is not a privacy revocation');
+  await view.interact(async () => {});
+  assert.equal(view.notifications.length, 2, 'unchanged own-control resets do not cancel queued delivery');
+  assert.equal(view.notifications[1].title, 'DeepSeek Harness');
+  assert.equal(view.requests(), 0);
+});
+
+test('disabling completion closes only completion and fences queued delivery even if immediately reset', async t => {
+  const view = await mount(t);
+  await view.emit({ running: true });
+  await view.emit({ running: false });
+  const completion = view.notifications[0];
+  await view.emit(approval('still-needed'));
+  const intervention = view.notifications[1];
+  await view.emit({ running: true });
+  view.emitNow({ running: false });
+  act(() => view.button('Notify on completion').click());
+  act(() => view.button('Reset completion notifications').click());
+  await view.interact(async () => {});
+  assert.equal(completion.closed, true, 'affected delivered completion closes');
+  assert.notEqual(intervention.closed, true, 'unrelated delivered intervention stays open');
+  assert.equal(view.notifications.length, 2, 'disable then reset never revives queued completion');
+  await view.emit({ running: false });
+  assert.equal(view.notifications.length, 2, 'claimed completion never replays');
+  await view.dispose();
+  assert.equal(intervention.closed, true, 'disposal still closes remaining alerts');
+});
+
+test('in-app intervention survives unrelated completion controls but its own disable removes it', async t => {
+  const view = await mount(t, { constructorFails: true });
+  await view.emit(approval());
+  const alert = view.document.querySelector('[data-majed-notification]');
+  assert.ok(alert);
+  await click(view, 'Notify on completion');
+  await click(view, 'Reset completion notifications');
+  assert.equal(view.document.querySelector('[data-majed-notification]'), alert, 'same fallback survives unrelated changes');
+  await click(view, 'Open session');
+  assert.deepEqual(view.navigation, ['target']);
+  await view.emit(approval('next'));
+  await click(view, 'Notify when action is needed');
+  assert.equal(view.document.querySelector('[data-majed-notification]'), null, 'affected fallback is removed');
+  assert.equal(view.requests(), 0);
+});
+
 for (const scenario of [
   { name: 'unsupported', supported: false, expected: /Unsupported here/ },
   { name: 'insecure', secure: false, expected: /not served over HTTPS/ },

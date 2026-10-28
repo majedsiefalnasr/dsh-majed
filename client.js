@@ -54,10 +54,18 @@ window.__ModuleLoader__.load({
       get: () => state,
       subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
       set(patch) {
-        if (['notifyMode', 'notifyDone', 'notifyAction', 'notifyTitle'].some((key) => Object.hasOwn(patch, key))) {
+        const changed = (key) => Object.hasOwn(patch, key) && (key === 'notifyTitle' ? (patch[key] === true) !== (state[key] === true) : patch[key] !== state[key]);
+        if (changed('notifyMode') || changed('notifyTitle')) {
           notificationGeneration++;
           notificationFallback?.remove(); notificationFallback = null;
-          live.forEach((n) => { try { n.close(); } catch (_) {} }); live.clear();
+          live.forEach((control, n) => { try { n.close(); } catch (_) {} }); live.clear();
+        } else {
+          for (const control of ['notifyDone', 'notifyAction']) {
+            if (!changed(control)) continue;
+            notificationControlGeneration[control]++;
+            if (notificationFallback?.dataset.control === control) { notificationFallback.remove(); notificationFallback = null; }
+            live.forEach((owner, n) => { if (owner === control) { try { n.close(); } catch (_) {} live.delete(n); } });
+          }
         }
         state = { ...state, ...patch };
         try { localStorage.setItem(STORE_KEY, JSON.stringify({ ...state, autoApprove: Object.fromEntries(Object.entries(state.autoApprove || {}).filter(([, v]) => v === 'safe')) })); } catch (_) {}
@@ -877,6 +885,7 @@ window.__ModuleLoader__.load({
     // ───────────────────────── system notifications ─────────────────────────
     let appCtx = null;
     let notificationGeneration = 0;
+    const notificationControlGeneration = { notifyDone: 0, notifyAction: 0 };
     const fmt = (str, vars) => String(str).replace(/\{(\w+)\}/g, (_, k) => (vars && vars[k] != null ? vars[k] : ''));
 
     /** Capabilities of THIS browser/webview, used both to pick a delivery path and to explain failures. */
@@ -907,10 +916,10 @@ window.__ModuleLoader__.load({
       if (mode === 'always') return true;
       return !appFocused();
     }
-    const live = new Set();
-    async function notify({ title, body, sessionId, tag, fromGesture, isCurrent = () => true }) {
-      const generation = notificationGeneration;
-      const active = () => appCtx !== null && generation === notificationGeneration && isCurrent() && (!!fromGesture || shouldNotify());
+    const live = new Map();
+    async function notify({ title, body, sessionId, tag, control, fromGesture, isCurrent = () => true }) {
+      const generation = notificationGeneration, controlGeneration = notificationControlGeneration[control];
+      const active = () => appCtx !== null && generation === notificationGeneration && controlGeneration === notificationControlGeneration[control] && isCurrent() && (!!fromGesture || shouldNotify());
       if (!active()) return;
       const permitted = await ensurePermission(!!fromGesture);
       if (!active()) return;
@@ -920,7 +929,7 @@ window.__ModuleLoader__.load({
         // companion plugin. Platforms forbidding it use the navigable in-app alert.
         try {
           const n = new Notification(title, options);
-          live.add(n);
+          live.set(n, control);
           n.onclose = () => live.delete(n);
           n.onclick = () => {
             try { window.focus(); } catch (_) {}
@@ -931,15 +940,16 @@ window.__ModuleLoader__.load({
         } catch (_) { /* e.g. "Illegal constructor" on Android: fall through */ }
       }
       // No competing audio/haptics or DND bypass. This is not OS delivery.
-      showNotificationFallback(title, body, sessionId);
+      showNotificationFallback(title, body, sessionId, control);
     }
     let notificationFallback = null;
-    function showNotificationFallback(title, body, sessionId) {
+    function showNotificationFallback(title, body, sessionId, control) {
       if (!document.body) return;
       notificationFallback?.remove();
       const node = document.createElement('div');
       node.className = 'majed-row';
       node.setAttribute('data-majed-notification', '');
+      if (control) node.dataset.control = control;
       node.setAttribute('role', 'status');
       node.setAttribute('aria-live', 'polite');
       const text = document.createElement('span');
@@ -998,10 +1008,10 @@ window.__ModuleLoader__.load({
           if (!notificationPrevious) continue; // first snapshot = baseline
           const cfg = store.get();
           if (newAction && cfg.notifyAction && shouldNotify()) {
-            notify({ title: titleOf(id), body: pending.text, sessionId: id, tag: `${id}:action`,
+            notify({ title: titleOf(id), body: pending.text, sessionId: id, tag: `${id}:action`, control: 'notifyAction',
               isCurrent: () => mounted.current && describePending(latest.current.get(id)?.pendingInteraction, t)?.key === pending.key });
           } else if (before?.running && st.running === false && !st.pendingInteraction && cfg.notifyDone && shouldNotify()) {
-            notify({ title: titleOf(id), body: t('notify.msg.done'), sessionId: id, tag: `${id}:done`,
+            notify({ title: titleOf(id), body: t('notify.msg.done'), sessionId: id, tag: `${id}:done`, control: 'notifyDone',
               isCurrent: () => mounted.current && notificationPrevious?.get(id)?.run === run && latest.current.get(id)?.running === false && !latest.current.get(id)?.pendingInteraction });
           }
         }
@@ -2421,7 +2431,7 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
         observeCodexRuntime(false);
         ctx.effect(() => () => observeCodexRuntime(false), 'dsh-majed: Codex runtime observation');
         appCtx = ctx;
-        ctx.effect(() => () => { notificationGeneration++; notificationPrevious = null; notificationEvents.clear(); notificationFallback?.remove(); notificationFallback = null; appCtx = null; live.forEach((n) => { try { n.close(); } catch (_) {} }); live.clear(); }, 'dsh-majed: notification cleanup');
+        ctx.effect(() => () => { notificationGeneration++; notificationPrevious = null; notificationEvents.clear(); notificationFallback?.remove(); notificationFallback = null; appCtx = null; live.forEach((control, n) => { try { n.close(); } catch (_) {} }); live.clear(); }, 'dsh-majed: notification cleanup');
         ctx.effect(() => ctx.locale.register(NS, { zh, en, ar: { ...en, ...managementAr } }), 'dsh-majed: dictionaries');
         ctx.effect(() => {
           // Older hosts may register dictionaries without exposing a language catalog.
