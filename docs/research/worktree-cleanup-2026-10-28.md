@@ -48,13 +48,19 @@ These are historical removed paths, not links to existing files. All paths are r
 
 Per-target pre-removal `du -sk` readings totalled 802,708 KiB. This is not a measured free-space increase and is not presented as one.
 
-## Protected directories and remaining work
+## Final disposition of the four initially protected checkouts
 
-- [Active integration](../../): original working files and shared dependencies retained.
-- [Browser preflight](../../../dsh-majed-browser-preflight-retry/): untracked research and isolated runtime/private artifacts; retained without reading credentials.
-- [R11 registry](../../../dsh-majed-r11-registry/): four modified source/research files; preserved checkpoint is not permission to discard them.
-- [T02a scope](../../../dsh-majed-t02a-scope/): untracked source-inspection note retained.
-- [Typography diagnosis](../../../dsh-majed-typography-diagnosis/): isolated runtime/private artifacts and untracked configuration; retained without reading credentials.
-- Other unregistered fixture/dependency/reference/report directories: retained; names alone do not establish disposability.
+The Owner subsequently approved preserving useful unique work and removing these four obsolete directories. Removed historical paths (relative to the same workspace root):
 
-Any later cleanup of protected directories requires content-safe disposition and explicit authority. This task is complete, not an implementation restart. No product tests were necessary or rerun for documentation and worktree housekeeping; historical test counts remain historical. Installed desktop, paired remote and live-provider acceptance are unchanged.
+- `dsh-majed-browser-preflight-retry`: two research reports matched remote checkpoint `6d5084dbca76e1e963067ae819ba0cb60d1078cf` byte-for-byte. Reviewed startup handoff/launch/overlay preserved separately; extracted vendor copies and isolated private test profiles discarded without inspecting private contents.
+- `dsh-majed-r11-registry`: all four modified files matched remote WIP checkpoint `d3689192a632567ba29bb073177360bb3689d2f6` byte-for-byte. Known failing native-switch regression preserved, not merged or accepted.
+- `dsh-majed-t02a-scope`: original branch remotely preserved; the untracked 147,273-byte note is a reproducible native session-persistence source extraction, not authored analysis, and was discarded.
+- `dsh-majed-typography-diagnosis`: branch remotely preserved; reviewed browser overlay preserved separately, vendor diagnosis assets/builds and obsolete isolated private test state discarded.
+
+[Preservation record and manifest](cleanup-preserved-2026-10-28/README.md) identify the exact remote checkpoints and four reviewed nonprivate setup copies. Preservation commit `497df0287dff997fd54346c339d8f86a9a11390f` was pushed non-forced and exact-matched to `origin/feat/managers` before removal. No credential values, session bodies or private logs were read or published; filesystem deletion is not remote token revocation.
+
+Process inspection initially required wider permission, granted for the exact read-only check. Four remaining directory holders were Git fsmonitor daemons, not test hosts; they were stopped through `git fsmonitor--daemon stop`. A redundant stop safely aborted the first deletion guard because the daemon was already absent; no deletion occurred on that failed guard. The corrected guard verified no target files open, exact absolute targets, remote preservation and byte hashes, then `git -c core.fsmonitor=false worktree remove --force` succeeded for each. No symlink target was removed.
+
+Postchecks passed: all four paths absent, exactly one registered worktree (active integration), all local branch/tag refs unchanged by removal, shared dependencies and original untracked export helper unchanged. Combined with the first pass, 29 auxiliary worktrees were removed. Remote main remains `d6fe0e33517003ec9837a72005788f2153d685bb`. Other unregistered fixture/dependency/reference/report directories remain outside this approval.
+
+This completes housekeeping, not an implementation restart. Product tests were not rerun; historical counts remain historical. Installed desktop, paired remote and live-provider acceptance are unchanged.

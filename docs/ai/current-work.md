@@ -10,7 +10,15 @@ Updated: 2026-10-28. This is the resume entry point, not a feature specification
 - The historical Codex-first implementation objective and old ticket frontier do not authorize resuming implementation during this reset.
 - The Owner requested reusable rules for future additions, improvements and removals, with skill routing adapted from `/ask-matt` and an explicit final `/implement` or `/implement-spec` stage. The current reset still follows the full six-stage route; shorter routes apply only when separately agreed for later bounded work.
 
-## Current phase: documentation published and safe obsolete-worktree cleanup complete; awaiting Owner implementation/priorities decision
+## Current phase: all authorized auxiliary worktree cleanup complete; awaiting Owner priorities/implementation decision
+
+### Completed final-cleanup contract — 2026-10-28
+
+The Owner approved preserving useful unique work and removing the four previously protected auxiliary worktrees and obsolete test artifacts. Direct Lead, bounded housekeeping only. Both browser research reports and all four modified R11 files matched remotely verified checkpoint blobs byte-for-byte; no WIP merge or acceptance occurred. Four reviewed nonprivate setup documents were preserved with a SHA-256 manifest in [historical test setup](../research/cleanup-preserved-2026-10-28/README.md), published non-forced as `497df0287dff997fd54346c339d8f86a9a11390f`, with exact remote readback before removal.
+
+Removed all four named checkouts after absolute-target validation and a no-open-files check. The only holders were Git fsmonitor daemons, stopped through Git before removal; no running test host was stopped. A redundant stop reported that the monitor was already absent, so the guard was corrected without deletion on failure. Initial sandbox denial of process inspection was retried with explicit wider approval; no secret/session/log contents were read or copied. Discarded only reviewed reproducible vendor extracts, generated artifacts and obsolete isolated test state. Deletion does not establish credential revocation.
+
+Postcheck: one registered worktree (active integration) remains; all four paths absent; all branch/tag refs unchanged by removal; shared dependencies and original untracked export helper intact; remote main unchanged. No feature implementation, provider traffic, installed state or tracker mutation; product tests not rerun. See [cleanup ledger](../research/worktree-cleanup-2026-10-28.md) for exact checkpoints and limits. No blocker remains. Next allowed action: report completion and await the Owner's priority/implementation decision; unrelated unregistered directories remain outside this authorization.
 
 ### Completed preservation/cleanup contract — 2026-10-28
 
@@ -20,7 +28,7 @@ Removed 25 clean obsolete auxiliary worktrees only after verifying each absolute
 
 Direct Lead execution stayed within documentation, authorized Git publication and verified obsolete checkout removal; no feature implementation, candidate merge, installed changes, credential access, provider use or tracker mutation. One prepublication preservation check correctly stopped on then-unpublished `421e484`; publication resolved it, and removal/postchecks passed. No investigation blocker remains. Product tests were not rerun for this housekeeping task; previous counts remain historical.
 
-Next allowed action: report the completed publication/cleanup and await the Owner's priorities/implementation decision. Keep the four dirty/private/ambiguous auxiliary directories and other unregistered directories pending separate disposition. Broader implementation and operations remain frozen; this completed contract and historical goals do not authorize resuming the ticket graph.
+The four directories retained at this first pass were subsequently removed under the separately approved final-cleanup contract above. Other unregistered directories remain outside this cleanup. Broader implementation and operations remain frozen; completed housekeeping and historical goals do not authorize resuming the ticket graph.
 
 ### Design decisions and open frontier — 2026-10-27
 
