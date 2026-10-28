@@ -223,12 +223,12 @@ export function createBaselineHarness(source, { stored, extension, confirm = tru
   const openedSessions = [];
   const modules = [];
   const imports = [];
-  const window = {
+  const window = Object.assign(new EventTargetFixture(), {
     __ModuleLoader__: { load(module) { modules.push(module); } },
     isSecureContext: true,
     confirm(message) { confirms.push(message); return typeof confirm === 'function' ? confirm(message) : confirm; },
     focus() {},
-  };
+  });
   if (extension !== undefined) window.__dshMajed = extension;
   const { React, mount } = createReactFixture();
   const primitives = { Menu: 'fixture-menu' };
