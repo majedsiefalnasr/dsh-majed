@@ -10,6 +10,10 @@ export const APPROVAL_PATH = '/api/' + APPROVAL_METHOD;
 const PHRASE = 'RUN AS DSH USER';
 const BUNDLE_KIND = 'dsh-majed-hooks';
 const MAX_BYTES = 262144;
+const MAX_ENTRIES = 128;
+// An exported bundle must fit one import request: at most 32 hooks, and well under the 32768-byte Fetch body limit.
+const MAX_BUNDLE_HOOKS = 32;
+const MAX_BUNDLE_BYTES = 24576;
 const writers = new Map();
 // Process-scoped HMAC key: a revision is only valid for the entry bytes this process observed.
 const revisionKey = randomBytes(32);
@@ -31,7 +35,7 @@ function privateStore(directory) {
     } catch (error) { if (error.code === 'ENOENT') return { revision: null, value: { version: 1, entries: [] } }; throw error; }
     let value;
     try { value = JSON.parse(raw); } catch { reject('store_unavailable'); }
-    if (!only(value, ['version', 'entries']) || value.version !== 1 || !Array.isArray(value.entries) || value.entries.length > 128) reject('store_unavailable');
+    if (!only(value, ['version', 'entries']) || value.version !== 1 || !Array.isArray(value.entries) || value.entries.length > MAX_ENTRIES) reject('store_unavailable');
     const seen = new Set();
     for (const entry of value.entries) {
       if (!only(entry, ['scope', 'root', 'hook', 'generation', 'approval', 'trashedAt']) || !['user', 'project'].includes(entry.scope) || typeof entry.root !== 'string' || !isAbsolute(entry.root) || typeof entry.generation !== 'string' || (entry.trashedAt !== undefined && !Number.isSafeInteger(entry.trashedAt))) reject('store_unavailable');
@@ -44,7 +48,8 @@ function privateStore(directory) {
   }
   async function save(observed, value, signal) {
     const raw = JSON.stringify(value);
-    if (Buffer.byteLength(raw) > MAX_BYTES) reject('store_full');
+    // Never write a file that read() would refuse: trash entries count toward the cap.
+    if (value.entries.length > MAX_ENTRIES || Buffer.byteLength(raw) > MAX_BYTES) reject('store_full');
     await mkdir(directory, { recursive: true, mode: 0o700 });
     if ((await lstat(directory)).isSymbolicLink()) reject('store_unavailable');
     const temporary = join(directory, '.commands-' + randomBytes(16).toString('hex'));
@@ -166,15 +171,23 @@ export function applyCommandApproval(ctx, options = {}) {
     // Bundles carry definition content only: no consent, activation, revision, generation or env values.
     const bundleItems = () => {
       const bundle = input.bundle;
-      if (!only(bundle, ['version', 'kind', 'hooks']) || bundle.version !== 1 || bundle.kind !== BUNDLE_KIND || !Array.isArray(bundle.hooks) || bundle.hooks.length > 32) reject('invalid_request');
+      if (!only(bundle, ['version', 'kind', 'hooks']) || bundle.version !== 1 || bundle.kind !== BUNDLE_KIND || !Array.isArray(bundle.hooks) || bundle.hooks.length > MAX_BUNDLE_HOOKS) reject('invalid_request');
+      const seen = new Set();
       return bundle.hooks.map(raw => {
         try {
           const hook = validateCommandHook({ ...raw, enabled: false });
-          return { hook, id: hook.id, status: scoped.some(item => item.hook.id === hook.id) ? 'exists' : 'new' };
+          // Only the first occurrence of an id in a bundle is importable; later ones are duplicates.
+          const repeated = seen.has(hook.id); seen.add(hook.id);
+          return { hook, id: hook.id, status: scoped.some(item => item.hook.id === hook.id) ? 'exists' : repeated ? 'duplicate' : 'new' };
         } catch { return { id: object(raw) && typeof raw.id === 'string' ? raw.id.slice(0, 128) : '', status: 'invalid' }; }
       });
     };
-    if (input.action === 'export') return { bundle: { version: 1, kind: BUNDLE_KIND, hooks: scoped.filter(item => !item.trashedAt).map(item => ({ ...item.hook, enabled: false })) } };
+    if (input.action === 'export') {
+      const bundle = { version: 1, kind: BUNDLE_KIND, hooks: scoped.filter(item => !item.trashedAt).map(item => ({ ...item.hook, enabled: false })) };
+      // Refuse rather than emit a bundle that import cannot accept.
+      if (bundle.hooks.length > MAX_BUNDLE_HOOKS || Buffer.byteLength(JSON.stringify(bundle)) > MAX_BUNDLE_BYTES) reject('bundle_too_large');
+      return { bundle };
+    }
     if (input.action === 'previewImport') return { items: bundleItems().map(({ id, status }) => ({ id, status })) };
     if (input.action === 'save') {
       // A saved definition is always a disabled draft; activation is a separate action.
@@ -190,7 +203,7 @@ export function applyCommandApproval(ctx, options = {}) {
       const items = bundleItems();
       if (items.some(item => item.status === 'invalid')) reject('invalid_request');
       const fresh = items.filter(item => item.status === 'new');
-      if (next.entries.length + fresh.length > 128) reject('store_full');
+      if (next.entries.length + fresh.length > MAX_ENTRIES) reject('store_full');
       for (const item of fresh) next.entries.push({ scope: input.scope, root, hook: item.hook, generation: randomBytes(16).toString('hex'), approval: null });
     } else {
       if (!entry || (input.action === 'restore' || input.action === 'purge' ? !entry.trashedAt : entry.trashedAt)) reject('not_found');
@@ -199,7 +212,7 @@ export function applyCommandApproval(ctx, options = {}) {
         // A copy carries content only: never consent, activation or the source generation.
         const copy = validateCommandHook({ ...entry.hook, id: input.newId, enabled: false });
         if (next.entries.some(item => item.scope === input.scope && item.root === root && item.hook.id === copy.id)) reject('exists');
-        if (next.entries.length >= 128) reject('store_full');
+        if (next.entries.length >= MAX_ENTRIES) reject('store_full');
         next.entries.push({ scope: input.scope, root, hook: copy, generation: randomBytes(16).toString('hex'), approval: null });
       } else if (input.action === 'setEnabled') {
         if (typeof input.enabled !== 'boolean') reject('invalid_request');
@@ -239,6 +252,8 @@ export function applyCommandApproval(ctx, options = {}) {
       const scope = await resolveManagementScope({ sessions: owner.get('sessions'), sessionPersistence: owner.get('sessionPersistence'), workspaceRegistry: owner.get('workspaceRegistry') }, input, signal);
       if (scope?.projectPath !== root) reject('state_changed');
     }
+    // Enabling is gated on a valid Approval: recheck watched bytes/cwd after the asynchronous scope check too.
+    if (input.action === 'setEnabled' && input.enabled && entry.approval?.fingerprint !== (await reviewEntry(entry)).fingerprint) reject('state_changed');
     if (disposed) reject('unavailable');
     await store.save(observed, next, signal);
     return snapshot();
@@ -266,7 +281,7 @@ export function applyCommandApproval(ctx, options = {}) {
         try { return send({ type: 'server-response', rpcId, result: { ok: true, value: await task } }); }
         finally { if (writers.get(store.file) === task) writers.delete(store.file); }
       } catch (error) {
-        const codes = ['invalid_request', 'invalid_scope', 'scope_unavailable', 'invalid_approval', 'state_changed', 'not_found', 'too_many_reviews', 'store_full', 'stale_revision', 'exists'];
+        const codes = ['invalid_request', 'invalid_scope', 'scope_unavailable', 'invalid_approval', 'state_changed', 'not_found', 'too_many_reviews', 'store_full', 'stale_revision', 'exists', 'bundle_too_large'];
         const code = codes.includes(error.code) ? error.code : 'unavailable';
         return send({ type: 'server-response', rpcId, result: { ok: false, error: { code, message: code, details: {} } } });
       }

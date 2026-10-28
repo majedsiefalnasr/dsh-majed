@@ -134,3 +134,34 @@ test('native Settings registration drives review, phrase confirmation and revoke
   await button('Revoke Approval').props.onClick(); await settle();
   assert.equal((await service.call('list', { scope: 'user' })).value.hooks[0].approval, null);
 });
+
+test('Settings edit that changes the hook id is a new entry: it never sends the old entry revision', async t => {
+  const root = await fixture(t); const service = await mount(t, root);
+  await service.call('save', { scope: 'user', hook });
+  const source = await readFile(new URL('../../dist/client.js', import.meta.url), 'utf8');
+  const saves = [];
+  const harness = createBaselineHarness(source, { connection: { rpc: { async call(channel, method, payload) {
+    if (method === 'majed/settings/status') return { ok: true, value: { module: 'hooks', enabled: false, state: 'disabled' } };
+    const { action, ...input } = payload;
+    if (action === 'save') saves.push(input);
+    return service.call(action, input);
+  } } } });
+  t.after(() => harness.dispose()); harness.apply(); const view = harness.render('majed-hooks');
+  const settle = async () => { await new Promise(resolve => setTimeout(resolve, 25)); view.render(); };
+  const button = label => view.one(node => node.type === 'button' && node.props.children.includes(label));
+  await settle();
+  await button('Edit command').props.onClick(); view.render();
+  view.one(node => node.type === 'input' && node.props.name === 'id').props.onChange({ target: { value: 'renamed' } }); view.render();
+  const form = () => view.one(node => node.type === 'form' && node.props['data-approval-form'] === 'definition');
+  form().props.onSubmit({ preventDefault() {} }); await settle();
+  assert.equal(saves.length, 1); assert.equal(saves[0].hook.id, 'renamed');
+  assert.equal(saves[0].revision, undefined);
+  assert.deepEqual((await service.call('list', { scope: 'user' })).value.hooks.map(item => item.hook.id).sort(), ['example', 'renamed']);
+  // Renaming onto an id that exists is refused by the route, never overwritten with the old revision.
+  // The list is ordered by save time: the original 'example' entry is first.
+  await view.nodes(node => node.type === 'button' && node.props.children.includes('Edit command'))[0].props.onClick(); view.render();
+  view.one(node => node.type === 'input' && node.props.name === 'id').props.onChange({ target: { value: 'renamed' } }); view.render();
+  form().props.onSubmit({ preventDefault() {} }); await settle();
+  assert.equal(saves.length, 2); assert.equal(saves[1].revision, undefined);
+  assert.equal((await service.call('list', { scope: 'user' })).value.hooks.find(item => item.hook.id === 'renamed').hook.command, 'printf hello');
+});

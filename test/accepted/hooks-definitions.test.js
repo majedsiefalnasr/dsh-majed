@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, realpath, writeFile, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, realpath, writeFile, readFile, rm } from 'node:fs/promises';
+import { writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Context } from '@deepseek-ai/cordis';
@@ -10,6 +11,7 @@ import { apply } from '../../index.js';
 async function mount(t, root, options = {}) {
   const ctx = new Context(); let route;
   ctx.provide('connection', { fetch: { register(value) { if (value.path === '/api/majed/hooks/approval') route = value; } } });
+  for (const [name, service] of Object.entries(options.services || {})) ctx.provide(name, service);
   const fiber = ctx.plugin({ apply(ctx) { apply(ctx, { hooksApproval: { enabled: true, stateDirectory: join(root, 'state'), userDirectory: root, ...options } }); } });
   await fiber; t.after(() => fiber.dispose());
   const call = async (action, input = {}) => {
@@ -62,7 +64,7 @@ test('draft, Approval and activation are distinct; disable keeps valid consent, 
   item = await service.find('example');
   await service.call('save', { hook: { ...hook, command: 'printf edited' }, revision: item.revision });
   item = await service.find('example'); assert.equal(item.state, 'draft'); assert.equal(item.hook.enabled, false); assert.equal(item.approval, null);
-  assert.equal((await service.call('executionAvailable' in {} ? 'list' : 'list')).value.executionAvailable, false);
+  assert.equal((await service.call('list')).value.executionAvailable, false);
 });
 
 test('duplicate and reversible removal never carry consent: copies and restores return as unapproved disabled drafts', async t => {
@@ -124,4 +126,138 @@ test('export excludes consent and secrets; import previews first and lands unapp
   assert.equal((await other.call('previewImport', { bundle: forged })).value.items[0].status, 'invalid');
   assert.equal((await other.call('import', { bundle: forged })).error.code, 'invalid_request');
   assert.equal(await other.find('forged'), undefined);
+});
+
+// Native-shaped project services: each entry is { id, cwd } and becomes one session in one workspace.
+function projects(entries) {
+  const sessions = new Map(entries.map(entry => [entry.id, { header: { id: 'session-' + entry.id, cwd: entry.cwd } }]));
+  const workspaces = new Map(entries.map(entry => [entry.id, { id: 'workspace-' + entry.id, path: entry.cwd, sessionIds: ['session-' + entry.id] }]));
+  const select = id => ({ scope: 'project', sessionId: 'session-' + id, workspaceId: 'workspace-' + id });
+  return { select, observe: { sessions: { get: id => sessions.get(id.replace('session-', '')) } }, services: {
+    sessions: { get: id => sessions.get(id.replace('session-', '')) }, sessionPersistence: { async stat() {} },
+    workspaceRegistry: { get: id => workspaces.get(id.replace('workspace-', '')), list: () => [...workspaces.values()] } } };
+}
+
+test('import and preview treat a repeated id inside one bundle as a duplicate and never write two entries', async t => {
+  const root = await fixture(t); const service = await mount(t, root);
+  const bundle = { version: 1, kind: 'dsh-majed-hooks', hooks: [{ ...hook, id: 'twin' }, { ...hook, id: 'twin', command: 'printf other' }, { ...hook, id: 'solo' }] };
+  const preview = await service.call('previewImport', { bundle });
+  assert.deepEqual(preview.value.items.map(entry => [entry.id, entry.status]), [['twin', 'new'], ['twin', 'duplicate'], ['solo', 'new']]);
+  assert.equal((await service.call('import', { bundle })).ok, true);
+  const listed = (await service.call('list')).value.hooks;
+  assert.deepEqual(listed.map(item => item.hook.id).sort(), ['solo', 'twin']);
+  assert.equal(listed.find(item => item.hook.id === 'twin').hook.command, 'printf hello');
+  // The store stays readable: every later operation still works.
+  assert.equal((await service.approve('twin')).ok, true);
+  assert.equal((await service.call('save', { hook: { ...hook, id: 'later' } })).ok, true);
+  const raw = JSON.parse(await readFile(join(root, 'state', 'commands.json'), 'utf8'));
+  assert.equal(new Set(raw.entries.map(entry => entry.hook.id)).size, raw.entries.length);
+  // A repeated id that already exists in the store is never importable either.
+  const again = await service.call('previewImport', { bundle: { ...bundle, hooks: [{ ...hook, id: 'twin' }, { ...hook, id: 'twin' }] } });
+  assert.ok(again.value.items.every(entry => entry.status !== 'new'));
+});
+
+test('save refuses the 129th entry (trash counts) and the store stays readable', async t => {
+  const root = await fixture(t); const service = await mount(t, root);
+  for (let index = 0; index < 128; index++) assert.equal((await service.call('save', { hook: { ...hook, id: 'h' + index } })).ok, true, 'h' + index);
+  const refused = await service.call('save', { hook: { ...hook, id: 'overflow' } });
+  assert.equal(refused.ok, false); assert.equal(refused.error.code, 'store_full');
+  assert.equal((await service.call('list')).value.hooks.length, 128);
+  // Overwriting an existing entry does not grow the store and still works at the cap.
+  assert.equal((await service.call('save', { hook: { ...hook, id: 'h0', command: 'printf edited' }, revision: (await service.find('h0')).revision })).ok, true);
+  // A trashed entry still occupies a slot until it is purged.
+  const removed = await service.call('remove', { id: 'h1', revision: (await service.find('h1')).revision });
+  assert.equal((await service.call('save', { hook: { ...hook, id: 'overflow' } })).error.code, 'store_full');
+  assert.equal((await service.call('purge', { id: 'h1', revision: removed.value.trash[0].revision })).ok, true);
+  assert.equal((await service.call('save', { hook: { ...hook, id: 'overflow' } })).ok, true);
+  assert.equal(JSON.parse(await readFile(join(root, 'state', 'commands.json'), 'utf8')).entries.length, 128);
+});
+
+test('export never produces a bundle that import cannot accept, at the count and size boundaries', async t => {
+  const root = await fixture(t); const service = await mount(t, root); const other = await mount(t, await fixture(t));
+  for (let index = 0; index < 32; index++) await service.call('save', { hook: { ...hook, id: 'b' + index } });
+  const exported = await service.call('export', {});
+  assert.equal(exported.ok, true); assert.equal(exported.value.bundle.hooks.length, 32);
+  assert.equal((await other.call('import', { bundle: exported.value.bundle })).ok, true);
+  assert.equal((await other.call('list')).value.hooks.length, 32);
+  await service.call('save', { hook: { ...hook, id: 'b32' } });
+  const refused = await service.call('export', {});
+  assert.equal(refused.ok, false); assert.equal(refused.error.code, 'bundle_too_large');
+  // Size boundary: the whole import request must fit the 32768-byte Fetch body limit.
+  const big = await mount(t, await fixture(t)); const target = await mount(t, await fixture(t));
+  for (let index = 0; index < 7; index++) await big.call('save', { hook: { ...hook, id: 'big' + index, command: 'x'.repeat(3000) } });
+  const fits = await big.call('export', {});
+  assert.equal(fits.ok, true);
+  assert.equal((await target.call('import', { bundle: fits.value.bundle })).ok, true);
+  await big.call('save', { hook: { ...hook, id: 'big7', command: 'x'.repeat(3000) } });
+  assert.equal((await big.call('export', {})).error.code, 'bundle_too_large');
+});
+
+test('every revision-fenced action refuses a stale revision, including revoke, remove and purge', async t => {
+  const root = await fixture(t); const service = await mount(t, root);
+  await service.call('save', { hook }); await service.approve('example');
+  let item = await service.find('example');
+  for (const action of ['revoke', 'remove', 'setEnabled', 'duplicate', 'save']) {
+    const input = action === 'save' ? { hook } : { id: 'example', ...(action === 'setEnabled' ? { enabled: false } : {}), ...(action === 'duplicate' ? { newId: 'copy' } : {}) };
+    assert.equal((await service.call(action, { ...input, revision: 'stale' })).error.code, 'stale_revision', action);
+    assert.equal((await service.call(action, input)).error.code, 'stale_revision', action + ' without revision');
+  }
+  // Refusals changed nothing: the Approval is still valid and the entry is still listed.
+  item = await service.find('example'); assert.equal(item.approval.valid, true);
+  const removed = await service.call('remove', { id: 'example', revision: item.revision });
+  assert.equal(removed.ok, true);
+  assert.equal((await service.call('restore', { id: 'example', revision: 'stale' })).error.code, 'stale_revision');
+  assert.equal((await service.call('purge', { id: 'example', revision: 'stale' })).error.code, 'stale_revision');
+  assert.equal((await service.call('purge', { id: 'example' })).error.code, 'stale_revision');
+  assert.equal((await service.call('list')).value.trash.length, 1);
+  assert.equal((await service.call('purge', { id: 'example', revision: removed.value.trash[0].revision })).ok, true);
+});
+
+test('a revision from another scope or project root never fences a same-id entry', async t => {
+  const root = await fixture(t);
+  const a = join(root, 'a'); const b = join(root, 'b');
+  await Promise.all([mkdir(a), mkdir(b)]);
+  const setup = projects([{ id: 'a', cwd: a }, { id: 'b', cwd: b }]);
+  const service = await mount(t, root, { services: setup.services });
+  const scopes = { user: { scope: 'user' }, a: setup.select('a'), b: setup.select('b') };
+  const revisions = {};
+  for (const [name, scope] of Object.entries(scopes)) {
+    assert.equal((await service.call('save', { ...scope, hook })).ok, true);
+    revisions[name] = (await service.call('list', scope)).value.hooks[0].revision;
+  }
+  assert.equal(new Set(Object.values(revisions)).size, 3);
+  for (const [target, foreign] of [['a', 'user'], ['a', 'b'], ['b', 'a'], ['user', 'b']]) {
+    for (const [action, extra] of [['revoke', {}], ['remove', {}], ['setEnabled', { enabled: false }], ['duplicate', { newId: 'copy' }], ['save', { hook }]]) {
+      const input = action === 'save' ? { hook, revision: revisions[foreign] } : { id: 'example', revision: revisions[foreign], ...extra };
+      assert.equal((await service.call(action, { ...scopes[target], ...input })).error.code, 'stale_revision', `${action} ${target} with ${foreign} revision`);
+    }
+  }
+  // The matching revision still works, and only in its own scope.
+  assert.equal((await service.call('remove', { ...scopes.a, id: 'example', revision: revisions.a })).ok, true);
+  for (const name of ['user', 'b']) assert.equal((await service.call('list', scopes[name])).value.hooks.length, 1);
+});
+
+test('enabling re-reviews the watched bytes after the asynchronous scope check', async t => {
+  const root = await fixture(t); const project = join(root, 'p'); await mkdir(project);
+  await writeFile(join(project, 'watched.txt'), 'reviewed bytes');
+  const setup = projects([{ id: 'p', cwd: project }]);
+  let reads = 0; let armed = false; let fired = false;
+  const sessions = { get(id) {
+    // One scope resolution reads the session three times; the fourth read is the post-work scope check.
+    if (armed && ++reads === 4) { fired = true; writeFileSync(join(project, 'watched.txt'), 'changed during enable'); }
+    return setup.services.sessions.get(id);
+  } };
+  const service = await mount(t, root, { services: { ...setup.services, sessions } });
+  const scope = setup.select('p');
+  await service.call('save', { ...scope, hook: { ...hook, watchedFiles: ['watched.txt'] } });
+  const challenge = (await service.call('review', { ...scope, id: 'example' })).value;
+  assert.equal((await service.call('approve', { ...scope, id: 'example', nonce: challenge.nonce, phrase: 'RUN AS DSH USER' })).ok, true);
+  const item = (await service.call('list', scope)).value.hooks[0];
+  armed = true;
+  const result = await service.call('setEnabled', { ...scope, id: 'example', enabled: true, revision: item.revision });
+  assert.equal(fired, true);
+  assert.equal(result.error?.code, 'state_changed');
+  armed = false;
+  const after = (await service.call('list', scope)).value.hooks[0];
+  assert.equal(after.hook.enabled, false); assert.equal(after.state, 'draft');
 });
