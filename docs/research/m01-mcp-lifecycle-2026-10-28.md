@@ -32,6 +32,13 @@ All line numbers refer to the base commit, before this change. Status: SATISFIED
 
 ## What changed
 
+- Correction round (same ticket): the `record` helper in `modules/mcp/index.js` was shadowed by the loop
+  variable in `replace`, so a disposal failure threw `TypeError: record is not a function` instead of
+  `MCP cleanup failed. Replacement refused.` and never set `lastResult`; the helper is now `noteResult`.
+  The revision token is now bound to scope root and store file (`token(record, revision)` in
+  `modules/mcp/native.js`), so a token from one store is refused by another even with identical or empty
+  content. A `replace` credential sent as an empty string for a stored key is refused with `invalid_request`
+  (a blank form must not erase a secret; removal stays the explicit `null`). New keys may still be added.
 - `modules/mcp/native.js`: a NEW definition is always stored disabled (a save never starts software); the
   snapshot carries an opaque per-process HMAC `revision` over the store revision (not a digest of secrets);
   `save` with `originalName`, `remove` and `setEnabled` must send the last-seen `revision` or fail with
@@ -73,6 +80,35 @@ fixture `test/fixtures/mcp-stdio.cjs`.
 | `node test/classify.test.cjs` | 166/166 |
 | `git diff --check` | exit 0 |
 | `node scripts/test-managed-mcp.mjs` | NOT run: `DSH_PROBE_NODE`, `DSH_PROBE_RUNTIME`, `DSH_PROBE_REMOTE` are not set and locating them would require reading installed state |
+
+## Correction-round RED / GREEN
+
+| Fix | Test | RED | GREEN |
+| --- | --- | --- | --- |
+| Cleanup-failure path | `plugin cleanup failure refuses a replacement generation ...` (message and `lastResult` asserted) | exit 1, `record is not a function` instead of the intended message | exit 0 |
+| Scoped revision token | `a revision token from one scope store is refused by another store with identical content` | exit 1, tokens equal for identical content | exit 0 |
+| Blank replace credential | `a replace credential with an empty value is refused ...` | exit 1, `[true, undefined]` instead of `[false, 'invalid_request']` | exit 0 |
+| Remove keeps unrelated server | `characterization: enable, disable and remove ...` now enables both servers | rewritten test, no production change (the original was vacuous: `two` was never enabled) | exit 0 |
+| Concurrent same-revision saves | `characterization: two parallel saves ...` | characterization, already GREEN (store serialization) | exit 0 |
+
+Tests named `characterization:` document existing behavior and had no RED. After this round: `npm test` exit 0, 612/612 (609 + 3 new), classifier 166/166, `git diff --check` exit 0.
+
+## Known limitations and scope notes
+
+- The `modules/managers` MCP `upsertServer` path (`modules/managers/index.js`, `modules/managers/client.js`) is
+  unmounted: nothing in `index.js` or `lib/` creates that service, only its own tests call it. If it were
+  ever wired it would bypass the stale-revision fence and the new-definitions-start-disabled clause (c),
+  because it takes `enabled` from the caller and has no revision check. It is out of this ticket's seam.
+- `snapshot` picks `lastResult` and `probe` from the first manager that has one (`views.find(...)` in
+  `modules/mcp/native.js`). For a project scope with several agent managers the displayed result is
+  therefore arbitrary (first attached agent), not an aggregate; failed or cleanup-failed status is the
+  only field that is aggregated across managers.
+- `client-bundle.js` is a generated file (`scripts/build-client.mjs`, not part of `npm run build`, which only
+  copies `client.js` to the untracked `dist/`). It is tracked but was last committed in `c77ba26`; earlier
+  `client.js` changes (e.g. `96fb5df`, `2c010dd`) did not regenerate it, and the package test asserts it is not
+  shipped. It was therefore not regenerated here. This round makes no `client.js` change.
+- The Arabic strings in the `ManagedMcpSection` dictionary are the existing convention (every key has an
+  English default and an Arabic value); the `lastResult` value follows it and was not changed.
 
 ## Still unmet
 

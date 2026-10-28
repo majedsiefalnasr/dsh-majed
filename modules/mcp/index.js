@@ -54,7 +54,7 @@ function nativeConfig(row, reconnectOverride) {
 export function createMcpManager(ctx, load = () => loadMcpClient(ctx), moduleContext = ctx) {
   const queue = serial(); const mounted = new Map(), forced = new Set(); let rows = []; let definitions = []; let closed = false;
   // Truthful record of the last attempt only; status refreshes never touch it.
-  const record = (view, action, outcome) => { view.lastResult = { action, outcome, at: new Date().toISOString() }; };
+  const noteResult = (view, action, outcome) => { view.lastResult = { action, outcome, at: new Date().toISOString() }; };
   async function unload() {
     for (const [name, record] of mounted) { await record.child.dispose(); mounted.delete(name); }
   }
@@ -77,15 +77,15 @@ export function createMcpManager(ctx, load = () => loadMcpClient(ctx), moduleCon
         child = probeScope.ctx.plugin(namespace, nativeConfig(row, { enabled: false }));
         const expired = new Promise((_, reject) => { deadline = setTimeout(() => reject(new Error('Probe deadline.')), PROBE_TIMEOUT_MS); });
         await Promise.race([Promise.resolve(child), expired]);
-        view.probe = 'passed'; record(view, 'probe', 'passed');
+        view.probe = 'passed'; noteResult(view, 'probe', 'passed');
         view.status = mounted.has(serverName) ? 'mounted' : 'probe-passed';
       } catch {
-        view.probe = 'failed'; record(view, 'probe', 'failed');
+        view.probe = 'failed'; noteResult(view, 'probe', 'failed');
         view.status = mounted.has(serverName) ? 'mounted' : 'probe-failed';
       } finally {
         clearTimeout(deadline);
         try { await child?.dispose(); await probeScope?.dispose(); }
-        catch { view.status = 'cleanup-failed'; record(view, 'probe', 'cleanup-failed'); throw new Error('MCP probe cleanup failed.'); }
+        catch { view.status = 'cleanup-failed'; noteResult(view, 'probe', 'cleanup-failed'); throw new Error('MCP probe cleanup failed.'); }
       }
       return { ...view };
     });
@@ -100,7 +100,7 @@ export function createMcpManager(ctx, load = () => loadMcpClient(ctx), moduleCon
         const replacement = next.find(row => row.serverName === name);
         if (replacement?.enabled && isDeepStrictEqual(replacement, record.row)) continue;
         try { await record.child.dispose(); mounted.delete(name); }
-        catch { const view = rows.find(row => row.serverName === name); if (view) { view.status = 'cleanup-failed'; record(view, 'disconnect', 'cleanup-failed'); } throw new Error('MCP cleanup failed. Replacement refused.'); }
+        catch { const view = rows.find(row => row.serverName === name); if (view) { view.status = 'cleanup-failed'; noteResult(view, 'disconnect', 'cleanup-failed'); } throw new Error('MCP cleanup failed. Replacement refused.'); }
       }
       const previous = rows, previousDefinitions = definitions;
       definitions = next;
@@ -122,12 +122,12 @@ export function createMcpManager(ctx, load = () => loadMcpClient(ctx), moduleCon
           child = ctx.plugin(namespace, nativeConfig(row));
           await child;
           if (closed) { await child.dispose(); continue; }
-          mounted.set(row.serverName, { child, row }); view.status = 'mounted'; record(view, 'connect', 'passed');
+          mounted.set(row.serverName, { child, row }); view.status = 'mounted'; noteResult(view, 'connect', 'passed');
         } catch {
-          view.status = 'activation-failed'; record(view, 'connect', 'failed');
+          view.status = 'activation-failed'; noteResult(view, 'connect', 'failed');
           if (child?.dispose) {
             try { await child.dispose(); }
-            catch { mounted.set(row.serverName, { child, row }); view.status = 'cleanup-failed'; record(view, 'connect', 'cleanup-failed'); throw new Error('MCP child cleanup failed. Replacement refused.'); }
+            catch { mounted.set(row.serverName, { child, row }); view.status = 'cleanup-failed'; noteResult(view, 'connect', 'cleanup-failed'); throw new Error('MCP child cleanup failed. Replacement refused.'); }
           }
         }
       }

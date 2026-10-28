@@ -69,7 +69,7 @@ test('a stale or blank edit is refused with a conflict and never erases credenti
   assert.deepEqual((await call('remove', { serverName: 'guarded', revision: edited.value.revision })).value.servers, []);
 });
 
-test('enable, disable and remove act through the real ToolRuntime while secrets and other definitions survive', async t => {
+test('characterization: enable, disable and remove act through the real ToolRuntime while secrets and other definitions survive', async t => {
   const { call, stored, stdio, invoke, ctx } = await mount(t);
   let view = (await call('save', { server: { ...stdio('one'), env: { TOKEN: 'one-secret' } } })).value;
   view = (await call('save', { revision: undefined, server: stdio('two') })).value;
@@ -81,12 +81,21 @@ test('enable, disable and remove act through the real ToolRuntime while secrets 
   assert.equal(view.servers[0].status, 'saved');
   assert.equal((await invoke('mcp__one__echo')).isError, true, 'disabled definition accepts no new call');
   assert.deepEqual((await stored()).servers[0].env, { TOKEN: 'one-secret' }, 'disable retains stored credentials');
+  // Enable BOTH, then remove only 'one': 'two' must stay registered and callable.
+  view = (await call('setEnabled', { serverName: 'two', enabled: true, revision: view.revision })).value;
+  view = (await call('setEnabled', { serverName: 'one', enabled: true, revision: view.revision })).value;
+  assert.deepEqual(view.servers.map(row => [row.serverName, row.status]), [['one', 'active'], ['two', 'active']]);
+  assert.ok(ctx.tools.get('mcp__one__echo') && ctx.tools.get('mcp__two__echo'), 'both tools are registered before the removal');
   view = (await call('remove', { serverName: 'one', revision: view.revision })).value;
-  assert.deepEqual(view.servers.map(row => row.serverName), ['two']);
-  assert.equal(ctx.tools.get('mcp__two__echo'), undefined);
+  assert.deepEqual(view.servers.map(row => [row.serverName, row.status]), [['two', 'active']]);
+  assert.equal(ctx.tools.get('mcp__one__echo'), undefined, 'the removed definition no longer has a registered tool');
+  assert.ok(ctx.tools.get('mcp__two__echo'), 'the unrelated definition stays registered');
+  assert.deepEqual((await invoke('mcp__two__echo')).value, { content: [{ type: 'text', text: 'two:hi' }] });
+  assert.equal((await invoke('mcp__one__echo')).isError, true, 'the removed tool accepts no call');
+  assert.deepEqual((await stored()).servers.map(row => row.serverName), ['two'], 'the removed stored definition is deleted');
 });
 
-test('native permission guards still deny an enabled MCP tool at invocation', async t => {
+test('characterization: native permission guards still deny an enabled MCP tool at invocation', async t => {
   const { call, stdio, invoke, ctx } = await mount(t);
   const saved = (await call('save', { server: stdio('guarded') })).value;
   await call('setEnabled', { serverName: 'guarded', enabled: true, revision: saved.revision });
@@ -98,7 +107,7 @@ test('native permission guards still deny an enabled MCP tool at invocation', as
   assert.equal((await invoke('mcp__guarded__echo')).isError, false, 'MCP enablement never replaced the guard');
 });
 
-test('changing transport with stored credentials is refused and keeps them; a failed server is not restarted by refresh', async t => {
+test('characterization: changing transport with stored credentials is refused and keeps them; a failed server is not restarted by refresh', async t => {
   const { call, stored, stdio, journal } = await mount(t);
   const saved = (await call('save', { server: { ...stdio('creds'), env: { TOKEN: 'keep-me' } } })).value;
   const refused = await call('save', { originalName: 'creds', revision: saved.revision, server: { serverName: 'creds', transport: 'streamable-http', url: 'http://127.0.0.1:9/mcp' } });
@@ -130,4 +139,42 @@ test('status reports the deadline and a truthful last-result timestamp that refr
   const broken = (await call('save', { server: { ...stdio('dead'), command: join(tmpdir(), 'no-such-binary-m01') } })).value;
   const failed = (await call('setEnabled', { serverName: 'dead', enabled: true, revision: broken.revision })).value.servers.find(row => row.serverName === 'dead');
   assert.deepEqual([failed.status, failed.lastResult.action, failed.lastResult.outcome], ['failed', 'connect', 'failed']);
+});
+
+test('a revision token from one scope store is refused by another store with identical content', async t => {
+  const first = await mount(t), second = await mount(t);
+  const definition = { serverName: 'same', transport: 'streamable-http', url: 'http://127.0.0.1:9/mcp', reconnect: { enabled: false } };
+  const a = (await first.call('save', { server: definition })).value, b = (await second.call('save', { server: definition })).value;
+  assert.deepEqual((await first.stored()).servers, (await second.stored()).servers, 'precondition: identical stored content');
+  assert.notEqual(a.revision, b.revision, 'the token is bound to the store identity, not only to its content');
+  const crossed = await second.call('setEnabled', { serverName: 'same', enabled: true, revision: a.revision });
+  assert.deepEqual([crossed.ok, crossed.error?.code], [false, 'stale_revision']);
+  assert.equal((await second.stored()).servers[0].enabled, false);
+  // Two empty stores (no file yet) must not share a token either.
+  const emptyA = await mount(t), emptyB = await mount(t);
+  assert.notEqual((await emptyA.call('list')).value.revision, (await emptyB.call('list')).value.revision);
+});
+
+test('characterization: two parallel saves holding the same revision let exactly one win', async t => {
+  const { call, stored, stdio } = await mount(t);
+  const base = (await call('save', { server: stdio('race') })).value;
+  const attempt = args => call('save', { originalName: 'race', revision: base.revision, server: { ...stdio('race'), args } });
+  const results = await Promise.all([attempt(['one']), attempt(['two'])]);
+  assert.equal(results.filter(result => result.ok).length, 1, 'exactly one save succeeds');
+  const loser = results.find(result => !result.ok);
+  assert.equal(loser.error.code, 'stale_revision');
+  const winner = results.find(result => result.ok).value.servers[0].args.at(-1);
+  assert.equal((await stored()).servers[0].args.at(-1), winner, 'the stored definition is the winner, not a mix');
+});
+
+test('a replace credential with an empty value is refused and never overwrites the stored secret', async t => {
+  const { call, stored, stdio } = await mount(t);
+  const created = (await call('save', { server: { ...stdio('blank'), env: { TOKEN: 'fixture-secret' } } })).value;
+  const refused = await call('save', { originalName: 'blank', revision: created.revision, server: { ...stdio('blank'), env: { TOKEN: '' } } });
+  assert.deepEqual([refused.ok, refused.error?.code], [false, 'invalid_request']);
+  assert.deepEqual((await stored()).servers[0].env, { TOKEN: 'fixture-secret' });
+  // A non-empty replace and an explicit remove (null) still work.
+  const replaced = await call('save', { originalName: 'blank', revision: created.revision, server: { ...stdio('blank'), env: { TOKEN: 'new-secret' } } });
+  assert.equal(replaced.ok, true);
+  assert.deepEqual((await stored()).servers[0].env, { TOKEN: 'new-secret' });
 });

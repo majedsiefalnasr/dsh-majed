@@ -17,7 +17,7 @@ test('private MCP updates serialize across store instances, protect permissions 
   assert.deepEqual((await one.read()).servers.map(value => value.serverName), ['one', 'two']);
   if (process.platform !== 'win32') assert.equal((await stat(file)).mode & 0o777, 0o600);
   await writeFile(file, '{bad state');
-  await assert.rejects(one.save({ servers: [] }));
+  await assert.rejects(one.save({ servers: [] }), { code: 'CORRUPT_STORE' });
   assert.equal(await readFile(file, 'utf8'), '{bad state');
 });
 
@@ -32,8 +32,9 @@ test('plugin cleanup failure refuses a replacement generation until the old regi
   } }, async () => ({}));
   const server = { serverName: 'one', transport: 'stdio', command: 'first', enabled: true };
   await manager.replace([server]);
-  await assert.rejects(manager.replace([{ ...server, command: 'second' }]));
+  await assert.rejects(manager.replace([{ ...server, command: 'second' }]), { message: 'MCP cleanup failed. Replacement refused.' });
   assert.equal(visible.get('one'), 'first'); assert.equal(manager.snapshot()[0].status, 'cleanup-failed');
+  assert.deepEqual([manager.snapshot()[0].lastResult.action, manager.snapshot()[0].lastResult.outcome], ['disconnect', 'cleanup-failed']);
   failClose = false; await manager.replace([{ ...server, command: 'second' }]);
   assert.equal(visible.get('one'), 'second'); await manager.dispose(); assert.equal(visible.size, 0);
 });
@@ -132,13 +133,13 @@ test('a saved unavailable stdio CWD fails only that server and remains manageabl
   assert.deepEqual(view.servers.map(row => row.serverName), ['healthy']);
   assert.deepEqual([...active], ['healthy']);
   await writeFile(join(root, 'global.json'), '{corrupt');
-  await assert.rejects(call('list'));
+  await assert.rejects(call('list'), { code: 'CORRUPT_STORE' });
   assert.equal(await readFile(join(root, 'global.json'), 'utf8'), '{corrupt');
   await service.dispose();
   const restarted = createManagedMcpService(ctx, { stateDirectory: root });
   t.after(() => restarted.dispose());
-  await assert.rejects(restarted.ready);
-  await assert.rejects(restarted.operation({ action: 'remove', scope: 'global', serverName: 'healthy', revision }, new AbortController().signal));
+  await assert.rejects(restarted.ready, { code: 'CORRUPT_STORE' });
+  await assert.rejects(restarted.operation({ action: 'remove', scope: 'global', serverName: 'healthy', revision }, new AbortController().signal), { code: 'CORRUPT_STORE' });
   assert.equal(await readFile(join(root, 'global.json'), 'utf8'), '{corrupt');
 
 });

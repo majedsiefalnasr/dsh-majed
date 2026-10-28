@@ -11,8 +11,9 @@ export const MCP_METHOD = 'majed/mcp';
 export const MCP_PATH = '/api/' + MCP_METHOD;
 const deny = code => { throw Object.assign(new Error(code), { code }); };
 const revisionKey = randomBytes(32);
-// Opaque per-process token over the store revision: it fences stale writes but is not a digest of stored secrets.
-const token = revision => createHmac('sha256', revisionKey).update(String(revision)).digest('hex');
+// Opaque per-process token over the store revision, bound to the scope and store identity so a token never
+// validates against another scope; it fences stale writes but is not a digest of stored secrets.
+const token = (record, revision) => createHmac('sha256', revisionKey).update(JSON.stringify([record.root || 'global', record.file, revision])).digest('hex');
 const identifier = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value);
 const statusName = value => ({ configured: 'saved', mounted: 'active', 'activation-failed': 'failed', 'cleanup-failed': 'cleanup-failed', 'probe-passed': 'probe-passed', 'probe-failed': 'probe-failed', probing: 'probing' })[value] || 'saved';
 
@@ -23,8 +24,8 @@ export function createManagedMcpService(ctx, options = {}) {
   function scopeRecord(root) {
     const key = root || 'global';
     if (!scopes.has(key)) {
-      const file = root ? 'project-' + createHash('sha256').update(root).digest('hex') + '.json' : 'global.json';
-      scopes.set(key, { root, store: createMcpDefinitionStore(join(directory, file)), manager: root ? null : createMcpManager(ctx) });
+      const name = root ? 'project-' + createHash('sha256').update(root).digest('hex') + '.json' : 'global.json', file = join(directory, name);
+      scopes.set(key, { root, file, store: createMcpDefinitionStore(file), manager: root ? null : createMcpManager(ctx) });
     }
     return scopes.get(key);
   }
@@ -103,7 +104,7 @@ export function createManagedMcpService(ctx, options = {}) {
   async function snapshot(record, signal) {
     const observed = await record.store.observe(), servers = validateServers(observed.value.servers);
     const managers = record.manager ? [record.manager] : [...agents.values()].filter(value => value.root === record.root).map(value => value.manager);
-    return { enabled: true, runtime: 'native', scope: record.root ? 'project' : 'global', revision: token(observed.revision), probeDeadlineMs: PROBE_TIMEOUT_MS, contexts: await contexts(signal),
+    return { enabled: true, runtime: 'native', scope: record.root ? 'project' : 'global', revision: token(record, observed.revision), probeDeadlineMs: PROBE_TIMEOUT_MS, contexts: await contexts(signal),
       servers: servers.map(row => {
         const { env, headers, ...visible } = row;
         const views = managers.flatMap(manager => manager.snapshot().filter(value => value.serverName === row.serverName));
@@ -123,7 +124,7 @@ export function createManagedMcpService(ctx, options = {}) {
         const saved = await record.store.update(async (current, revision) => {
           // Edits, removals and toggles must name the revision the client last saw; a stale
           // or missing one is refused before any definition or credential changes.
-          if ((payload.action !== 'save' || payload.originalName !== undefined) && payload.revision !== token(revision)) deny('stale_revision');
+          if ((payload.action !== 'save' || payload.originalName !== undefined) && payload.revision !== token(record, revision)) deny('stale_revision');
           const servers = validateServers(current.servers);
           const name = payload.action === 'save' ? payload.originalName : payload.serverName;
           const index = servers.findIndex(row => row.serverName === name);
@@ -131,6 +132,10 @@ export function createManagedMcpService(ctx, options = {}) {
             if (payload.originalName !== undefined && index < 0) deny('not_found');
             const previous = servers[index];
             if (previous && previous.transport !== payload.server?.transport && (Object.keys(previous.env || {}).length || Object.keys(previous.headers || {}).length)) deny('credential_transport_change');
+            // A blank "replace" value is a blank form, not intent: refuse instead of erasing a stored secret.
+            for (const [stored, sent] of [[previous?.env, payload.server?.env], [previous?.headers, payload.server?.headers]]) {
+              if (sent && typeof sent === 'object') for (const [key, val] of Object.entries(sent)) if (val === '' && stored && Object.hasOwn(stored, key)) deny('invalid_request');
+            }
             const row = await validateCwd({ ...payload.server, scope: record.root ? 'project' : 'global', enabled: previous ? payload.server?.enabled ?? previous.enabled : false, // a NEW definition is never started by a save
               env: payload.server?.transport === 'stdio' ? mergeSecrets(previous?.env, payload.server?.env) : undefined,
               headers: payload.server?.transport === 'streamable-http' ? mergeSecrets(previous?.headers, payload.server?.headers) : undefined }, record.root);
