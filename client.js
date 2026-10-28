@@ -54,6 +54,19 @@ window.__ModuleLoader__.load({
       get: () => state,
       subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
       set(patch) {
+        const changed = (key) => Object.hasOwn(patch, key) && (key === 'notifyTitle' ? (patch[key] === true) !== (state[key] === true) : patch[key] !== state[key]);
+        if (changed('notifyMode') || changed('notifyTitle')) {
+          notificationGeneration++;
+          notificationFallback?.remove(); notificationFallback = null;
+          live.forEach((control, n) => { try { n.close(); } catch (_) {} }); live.clear();
+        } else {
+          for (const control of ['notifyDone', 'notifyAction']) {
+            if (!changed(control)) continue;
+            notificationControlGeneration[control]++;
+            if (notificationFallback?.dataset.control === control) { notificationFallback.remove(); notificationFallback = null; }
+            live.forEach((owner, n) => { if (owner === control) { try { n.close(); } catch (_) {} live.delete(n); } });
+          }
+        }
         state = { ...state, ...patch };
         try { localStorage.setItem(STORE_KEY, JSON.stringify({ ...state, autoApprove: Object.fromEntries(Object.entries(state.autoApprove || {}).filter(([, v]) => v === 'safe')) })); } catch (_) {}
         listeners.forEach((fn) => fn(state));
@@ -94,14 +107,22 @@ window.__ModuleLoader__.load({
       'notify.status.granted': 'Allowed on this device.',
       'notify.status.default': 'Not allowed yet — tap “Send test” to allow notifications.',
       'notify.status.denied': 'Blocked — allow notifications for this site in the browser settings.',
-      'notify.status.insecure': 'Unavailable: this page is not served over HTTPS. Use the tunnel (https) link. In-app alerts still appear.',
-      'notify.status.unsupported': 'Unsupported here. On iPhone, add the app to the Home Screen first. In-app alerts still appear.',
+      'notify.status.insecure': 'Unavailable: this page is not served over HTTPS. In-app alerts still appear.',
+      'notify.status.unsupported': 'Unsupported here. In-app alerts remain available while this interface is connected.',
+      'notify.fallback': 'In-app alert only; system notification was unavailable.',
+      'notify.open': 'Open session',
+      'notify.dismiss': 'Dismiss alert',
+      'notify.modeReset': 'Reset system notifications',
+      'notify.doneReset': 'Reset completion notifications',
+      'notify.actionReset': 'Reset action notifications',
+      'notify.titleOptIn': 'Include session title',
+      'notify.titleDescription': 'Show the session title in system alerts on this browser profile. Off keeps alerts private.',
+      'notify.titleReset': 'Reset notification title',
       'notify.done.title': 'Notify on completion',
       'notify.done.description': 'When a session finishes its work.',
       'notify.action.title': 'Notify when action is needed',
       'notify.action.description': 'When a session waits for an approval, a question, or a plan review.',
       'notify.msg.done': 'Finished — ready for review',
-      'notify.msg.approval': 'Approval needed: {tool}',
       'notify.msg.approvalPlain': 'Approval needed',
       'notify.msg.question': 'Waiting for your answer',
       'notify.msg.plan': 'Plan ready for your review',
@@ -151,14 +172,22 @@ window.__ModuleLoader__.load({
       'notify.status.granted': '已在此设备上允许。',
       'notify.status.default': '尚未允许：点击“发送测试”以允许通知。',
       'notify.status.denied': '已被阻止：请在浏览器设置中允许此网站发送通知。',
-      'notify.status.insecure': '不可用：当前页面不是 HTTPS。请使用隧道（https）链接；应用内提醒仍会显示。',
-      'notify.status.unsupported': '此处不支持。iPhone 请先将应用添加到主屏幕；应用内提醒仍会显示。',
+      'notify.status.insecure': '不可用：当前页面不是 HTTPS。应用内提醒仍会显示。',
+      'notify.status.unsupported': '此处不支持系统通知。此界面保持连接时仍可使用应用内提醒。',
+      'notify.fallback': 'In-app alert only; system notification was unavailable.',
+      'notify.open': 'Open session',
+      'notify.dismiss': 'Dismiss alert',
+      'notify.modeReset': 'Reset system notifications',
+      'notify.doneReset': 'Reset completion notifications',
+      'notify.actionReset': 'Reset action notifications',
+      'notify.titleOptIn': 'Include session title',
+      'notify.titleDescription': 'Show the session title in system alerts on this browser profile. Off keeps alerts private.',
+      'notify.titleReset': 'Reset notification title',
       'notify.done.title': '完成时通知',
       'notify.done.description': '会话完成工作时。',
       'notify.action.title': '需要操作时通知',
       'notify.action.description': '会话等待审批、提问或计划审阅时。',
       'notify.msg.done': '已完成，等待查看',
-      'notify.msg.approval': '需要审批：{tool}',
       'notify.msg.approvalPlain': '需要审批',
       'notify.msg.question': '等待你的回答',
       'notify.msg.plan': '计划待审阅',
@@ -840,20 +869,23 @@ window.__ModuleLoader__.load({
             : h('select', { value, onChange: (e) => onSelect(e.target.value) },
                 options.map((o) => h('option', { key: o.id, value: o.id }, o.label)))));
     }
-    function ToggleRow({ title, description, checked, onChange }) {
+    function ToggleRow({ title, description, checked, onChange, extra }) {
       const Switch = primitives.Switch;
       return h('div', { className: 'majed-row' },
         h('div', { className: 'majed-text' },
           h('div', { className: 'majed-title' }, title),
           h('div', { className: 'majed-desc' }, description)),
-        Switch
-          ? h(Switch, { checked, label: title, onChange: (n) => onChange(!!n) })
-          : h('input', { type: 'checkbox', checked, 'aria-label': title, onChange: (e) => onChange(e.target.checked) }));
+        h('div', { className: 'majed-control' },
+          Switch
+            ? h(Switch, { checked, label: title, onChange: (n) => onChange(!!n) })
+            : h('input', { type: 'checkbox', checked, 'aria-label': title, onChange: (e) => onChange(e.target.checked) }),
+          extra || null));
     }
 
     // ───────────────────────── system notifications ─────────────────────────
     let appCtx = null;
     let notificationGeneration = 0;
+    const notificationControlGeneration = { notifyDone: 0, notifyAction: 0 };
     const fmt = (str, vars) => String(str).replace(/\{(\w+)\}/g, (_, k) => (vars && vars[k] != null ? vars[k] : ''));
 
     /** Capabilities of THIS browser/webview, used both to pick a delivery path and to explain failures. */
@@ -862,7 +894,6 @@ window.__ModuleLoader__.load({
       return {
         api: hasApi,
         secure: window.isSecureContext !== false,
-        sw: 'serviceWorker' in navigator,
         permission: hasApi ? Notification.permission : 'unsupported',
       };
     }
@@ -870,18 +901,14 @@ window.__ModuleLoader__.load({
     // only from click handlers. Without a gesture we never prompt (it would be silently ignored).
     async function ensurePermission(fromGesture) {
       const caps = notifyCaps();
-      if (!caps.api) return false;
+      if (!caps.api || !caps.secure) return false;
       if (caps.permission === 'granted') return true;
       if (caps.permission === 'denied' || !fromGesture) return false;
       try { return (await Notification.requestPermission()) === 'granted'; } catch (_) { return false; }
     }
-    async function swRegistration() {
-      try {
-        if (!('serviceWorker' in navigator)) return null;
-        const reg = await navigator.serviceWorker.getRegistration();
-        return reg && typeof reg.showNotification === 'function' ? reg : null;
-      } catch (_) { return null; }
-    }
+    // Persistent notification clicks belong to the service worker, not this window.
+    // No supported host click/navigation contract is established here: never borrow
+    // a reference plugin's registration or mistake cloned data for a click handler.
     const appFocused = () => !document.hidden && document.hasFocus();
     function shouldNotify() {
       const mode = store.get().notifyMode;
@@ -889,25 +916,20 @@ window.__ModuleLoader__.load({
       if (mode === 'always') return true;
       return !appFocused();
     }
-    const live = new Set();
-    async function notify({ title, body, sessionId, tag, fromGesture }) {
-      const generation = notificationGeneration;
-      const active = () => appCtx !== null && generation === notificationGeneration;
+    const live = new Map();
+    async function notify({ title, body, sessionId, tag, control, fromGesture, isCurrent = () => true }) {
+      const generation = notificationGeneration, controlGeneration = notificationControlGeneration[control];
+      const active = () => appCtx !== null && generation === notificationGeneration && controlGeneration === notificationControlGeneration[control] && isCurrent() && (!!fromGesture || shouldNotify());
       if (!active()) return;
-      const options = { body, tag, renotify: true, silent: appFocused(), data: { sessionId } };
       const permitted = await ensurePermission(!!fromGesture);
       if (!active()) return;
-      if (permitted) {
-        // 1) Service-worker registration: the only API Chrome on Android allows, and it also works on
-        //    desktop and in installed iOS web apps. The remote-access plugin already registers one.
-        const reg = await swRegistration();
-        if (!active()) return;
-        if (reg) { try { await reg.showNotification(title, options); return; } catch (_) { /* fall through */ } }
-        if (!active()) return;
-        // 2) Classic constructor (desktop browsers, Electron). Mute the sound while the app is focused.
+      const options = { body, tag, renotify: true, silent: appFocused(), data: { sessionId } };
+      if (permitted && notifyCaps().permission === 'granted') {
+        // Constructor delivery supplies a window-owned click handler and needs no
+        // companion plugin. Platforms forbidding it use the navigable in-app alert.
         try {
           const n = new Notification(title, options);
-          live.add(n);
+          live.set(n, control);
           n.onclose = () => live.delete(n);
           n.onclick = () => {
             try { window.focus(); } catch (_) {}
@@ -917,45 +939,83 @@ window.__ModuleLoader__.load({
           return;
         } catch (_) { /* e.g. "Illegal constructor" on Android: fall through */ }
       }
-      // 3) Last resort so the event is never lost: in-app banner + haptic buzz.
-      try { showToast(title + ' — ' + body); } catch (_) {}
-      try { if (!appFocused() && navigator.vibrate) navigator.vibrate([120, 60, 120]); } catch (_) {}
+      // No competing audio/haptics or DND bypass. This is not OS delivery.
+      showNotificationFallback(title, body, sessionId, control);
+    }
+    let notificationFallback = null;
+    function showNotificationFallback(title, body, sessionId, control) {
+      if (!document.body) return;
+      notificationFallback?.remove();
+      const node = document.createElement('div');
+      node.className = 'majed-row';
+      node.setAttribute('data-majed-notification', '');
+      if (control) node.dataset.control = control;
+      node.setAttribute('role', 'status');
+      node.setAttribute('aria-live', 'polite');
+      const text = document.createElement('span');
+      text.textContent = title + ' — ' + body + ' — ' + appCtx.locale.bind(NS)('notify.fallback');
+      node.append(text);
+      if (sessionId) {
+        const open = document.createElement('button');
+        open.type = 'button'; open.textContent = appCtx.locale.bind(NS)('notify.open');
+        open.onclick = () => { appCtx?.uiWorkspace?.openSession(sessionId); node.remove(); };
+        node.append(open);
+      }
+      const dismiss = document.createElement('button');
+      dismiss.type = 'button'; dismiss.textContent = appCtx.locale.bind(NS)('notify.dismiss');
+      dismiss.onclick = () => node.remove(); node.append(dismiss);
+      document.body.append(node); notificationFallback = node;
     }
 
     function describePending(p, t) {
       if (!p) return null;
-      if (p.kind === 'plan-review') return { key: p.key, text: t('notify.msg.plan'), type: 'action' };
-      if (p.questions) return { key: p.key, text: t('notify.msg.question'), type: 'action' };
-      return { key: p.key || p.callId, type: 'action',
-        text: p.toolName ? fmt(t('notify.msg.approval'), { tool: p.toolName }) : t('notify.msg.approvalPlain') };
+      const kind = p.kind === 'plan-review' ? 'plan' : p.questions ? 'question' : 'approval';
+      const key = p.key ?? p.callId;
+      if (key == null) return null; // No native identity: do not invent a replay-prone event.
+      return { key: JSON.stringify([kind, key]), text: t('notify.msg.' + (kind === 'approval' ? 'approvalPlain' : kind)) };
     }
+
+    // Interface-local only, retained across overlay remounts for this connection.
+    // No event/session content is persisted or sent to an external service.
+    let notificationPrevious = null;
+    const notificationEvents = new Map();
 
     /** Invisible root component: watches session status through the standard `useSessionStatus` hook. */
     function NotificationWatcher({ useSessionStatus, useSessions, t }) {
       const status = useSessionStatus((m) => m);
       const list = useSessions((l) => l);
-      const prev = React.useRef(null);        // Map(sessionId -> { running, pendingKey })
-      const t0 = React.useRef(new Map());     // sessionId -> run start
+      const mounted = React.useRef(false);
+      const latest = React.useRef(status);
+      latest.current = status;
+      React.useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
       React.useEffect(() => {
         const next = new Map();
         const titleOf = (id) => {
           const row = list && list.byId && list.byId[id];
-          return (row && (row.title || row.name)) || t('notify.session');
+          return store.get().notifyTitle === true && row && (row.title || row.name) || 'DeepSeek Harness';
         };
         for (const [id, st] of status) {
           const pending = describePending(st.pendingInteraction, t);
-          next.set(id, { running: st.running === true, pendingKey: pending ? String(pending.key) : null });
-          const before = prev.current && prev.current.get(id);
-          if (!prev.current) continue;                                   // first snapshot = baseline
+          const before = notificationPrevious?.get(id);
+          const run = (before?.run || 0) + (st.running === true && !before?.running ? 1 : 0);
+          next.set(id, { running: st.running === true, run });
+          let seen = notificationEvents.get(id);
+          if (!seen) { seen = new Set(); notificationEvents.set(id, seen); }
+          const newAction = pending && !seen.has(pending.key);
+          // Claim before asynchronous delivery, including suppressed events and
+          // baseline snapshots: preference changes/failures never replay an event.
+          if (pending) seen.add(pending.key);
+          if (!notificationPrevious) continue; // first snapshot = baseline
           const cfg = store.get();
-          if (st.running === true && !(before && before.running)) t0.current.set(id, Date.now());
-          if (pending && cfg.notifyAction && (!before || before.pendingKey !== String(pending.key)) && shouldNotify()) {
-            notify({ title: titleOf(id), body: pending.text, sessionId: id, tag: `${id}:action` });
-          } else if (before && before.running && st.running === false && !pending && cfg.notifyDone && shouldNotify()) {
-            notify({ title: titleOf(id), body: t('notify.msg.done'), sessionId: id, tag: `${id}:done` });
+          if (newAction && cfg.notifyAction && shouldNotify()) {
+            notify({ title: titleOf(id), body: pending.text, sessionId: id, tag: `${id}:action`, control: 'notifyAction',
+              isCurrent: () => mounted.current && describePending(latest.current.get(id)?.pendingInteraction, t)?.key === pending.key });
+          } else if (before?.running && st.running === false && !st.pendingInteraction && cfg.notifyDone && shouldNotify()) {
+            notify({ title: titleOf(id), body: t('notify.msg.done'), sessionId: id, tag: `${id}:done`, control: 'notifyDone',
+              isCurrent: () => mounted.current && notificationPrevious?.get(id)?.run === run && latest.current.get(id)?.running === false && !latest.current.get(id)?.pendingInteraction });
           }
         }
-        prev.current = next;
+        notificationPrevious = next;
       }, [status, list, t]);
       return null;
     }
@@ -963,29 +1023,45 @@ window.__ModuleLoader__.load({
     function NotifyModeRow({ t }) {
       const mode = useSetting('notifyMode');
       const [, setTick] = React.useState(0);
+      const mounted = React.useRef(false);
+      React.useEffect(() => {
+        mounted.current = true;
+        const refresh = () => setTick((n) => n + 1);
+        window.addEventListener('focus', refresh);
+        document.addEventListener('visibilitychange', refresh);
+        return () => { mounted.current = false; window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', refresh); };
+      }, []);
       const caps = notifyCaps();
-      const statusKey = !caps.api ? (caps.secure ? 'notify.status.unsupported' : 'notify.status.insecure')
+      const statusKey = !caps.secure ? 'notify.status.insecure' : !caps.api ? 'notify.status.unsupported'
         : caps.permission === 'granted' ? 'notify.status.granted'
         : caps.permission === 'denied' ? 'notify.status.denied' : 'notify.status.default';
       const options = NOTIFY_MODES.map((id) => ({ id, label: t('notify.' + id) }));
       const test = h('button', {
-        type: 'button', className: 'majed-test', disabled: mode === 'off',
-        onClick: async () => { await notify({ title: 'DeepSeek Harness', body: t('notify.testBody'), tag: 'majed:test', fromGesture: true }); setTick((n) => n + 1); },
+        type: 'button', className: 'majed-test',
+        onClick: async () => { await notify({ title: 'DeepSeek Harness', body: t('notify.testBody'), tag: 'majed:test', fromGesture: true, isCurrent: () => mounted.current }); if (mounted.current) setTick((n) => n + 1); },
       }, t('notify.test'));
       return h(SelectRow, {
         title: t('notify.title'),
         description: h('span', null, t('notify.description'), h('br'), h('span', { className: 'majed-status', 'data-state': caps.permission }, t(statusKey))),
-        value: mode, options, extra: test,
-        onSelect: (id) => { store.set({ notifyMode: id }); if (id !== 'off') ensurePermission(true).then(() => setTick((n) => n + 1)); },
+        value: mode, options, extra: h(React.Fragment, null, test,
+          h('button', { type: 'button', className: 'majed-test', 'aria-label': t('notify.modeReset'), onClick: () => store.set({ notifyMode: DEFAULTS.notifyMode }) }, t('reset.label'))),
+        onSelect: (id) => { store.set({ notifyMode: id }); if (id !== 'off') ensurePermission(true).then(() => { if (mounted.current) setTick((n) => n + 1); }); },
       });
     }
     function NotifyDoneRow({ t }) {
       const on = useSetting('notifyDone');
-      return h(ToggleRow, { title: t('notify.done.title'), description: t('notify.done.description'), checked: on, onChange: (v) => store.set({ notifyDone: v }) });
+      return h(ToggleRow, { title: t('notify.done.title'), description: t('notify.done.description'), checked: on, onChange: (v) => store.set({ notifyDone: v }),
+        extra: h('button', { type: 'button', className: 'majed-test', 'aria-label': t('notify.doneReset'), onClick: () => store.set({ notifyDone: DEFAULTS.notifyDone }) }, t('reset.label')) });
+    }
+    function NotifyTitleRow({ t }) {
+      const on = useSetting('notifyTitle') === true;
+      return h(ToggleRow, { title: t('notify.titleOptIn'), description: t('notify.titleDescription'), checked: on, onChange: (v) => store.set({ notifyTitle: v }),
+        extra: h('button', { type: 'button', className: 'majed-test', 'aria-label': t('notify.titleReset'), onClick: () => store.set({ notifyTitle: false }) }, t('reset.label')) });
     }
     function NotifyActionRow({ t }) {
       const on = useSetting('notifyAction');
-      return h(ToggleRow, { title: t('notify.action.title'), description: t('notify.action.description'), checked: on, onChange: (v) => store.set({ notifyAction: v }) });
+      return h(ToggleRow, { title: t('notify.action.title'), description: t('notify.action.description'), checked: on, onChange: (v) => store.set({ notifyAction: v }),
+        extra: h('button', { type: 'button', className: 'majed-test', 'aria-label': t('notify.actionReset'), onClick: () => store.set({ notifyAction: DEFAULTS.notifyAction }) }, t('reset.label')) });
     }
 
     // ───────────────────────── account menu: extra actions live inside it ─────────────────────────
@@ -2355,7 +2431,7 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
         observeCodexRuntime(false);
         ctx.effect(() => () => observeCodexRuntime(false), 'dsh-majed: Codex runtime observation');
         appCtx = ctx;
-        ctx.effect(() => () => { notificationGeneration++; appCtx = null; live.forEach((n) => { try { n.close(); } catch (_) {} }); live.clear(); }, 'dsh-majed: notification cleanup');
+        ctx.effect(() => () => { notificationGeneration++; notificationPrevious = null; notificationEvents.clear(); notificationFallback?.remove(); notificationFallback = null; appCtx = null; live.forEach((control, n) => { try { n.close(); } catch (_) {} }); live.clear(); }, 'dsh-majed: notification cleanup');
         ctx.effect(() => ctx.locale.register(NS, { zh, en, ar: { ...en, ...managementAr } }), 'dsh-majed: dictionaries');
         ctx.effect(() => {
           // Older hosts may register dictionaries without exposing a language catalog.
@@ -2419,6 +2495,7 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
         ctx.slots.inject('settings.general.item', () => ctx.slots.register({ name: 'settings.general.item', id: 'majed-notify-mode', order: 13.1, locale: NS }, NotifyModeRow));
         ctx.slots.inject('settings.general.item', () => ctx.slots.register({ name: 'settings.general.item', id: 'majed-notify-done', order: 13.2, locale: NS }, NotifyDoneRow));
         ctx.slots.inject('settings.general.item', () => ctx.slots.register({ name: 'settings.general.item', id: 'majed-notify-action', order: 13.3, locale: NS }, NotifyActionRow));
+        ctx.slots.inject('settings.general.item', () => ctx.slots.register({ name: 'settings.general.item', id: 'majed-notify-title', order: 13.35, locale: NS }, NotifyTitleRow));
         ctx.slots.inject('settings.general.item', () => ctx.slots.register({ name: 'settings.general.item', id: 'majed-account-menu', order: 13.4, locale: NS }, AccountMenuRow));
         ctx.slots.inject('conversation.input.left', () => ctx.slots.register({ name: 'conversation.input.left', id: 'majed-auto-approve', order: 50, locale: NS }, AutoApproveSelect));
         ctx.slots.inject('conversation.session.header.utilities', () => ctx.slots.register({ name: 'conversation.session.header.utilities', id: 'majed-auto-approver', order: 9999, locale: NS }, AutoApprover));

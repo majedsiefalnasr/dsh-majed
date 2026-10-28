@@ -17,6 +17,7 @@ const expectedSlots = [
   ['majed-notify-mode', 'settings.general.item', 13.1],
   ['majed-notify-done', 'settings.general.item', 13.2],
   ['majed-notify-action', 'settings.general.item', 13.3],
+  ['majed-notify-title', 'settings.general.item', 13.35],
   ['majed-account-menu', 'settings.general.item', 13.4],
   ['majed-auto-approve', 'conversation.input.left', 50],
   ['majed-auto-approver', 'conversation.session.header.utilities', 9999],
@@ -106,7 +107,7 @@ test('rendered General controls apply retained settings live and persist in isol
   }
   const notify = harness.render('majed-notify-mode');
   assert.equal(notify.one(isType('fixture-menu')).props.selectedId, 'off');
-  assert.equal(notify.one((node) => node.type === 'button' && node.props.className === 'majed-test').props.disabled, true);
+  assert.notEqual(notify.one((node) => node.type === 'button' && node.props.className === 'majed-test' && !node.props['aria-label']).props.disabled, true, 'explicit Send test stays available in Off');
   assert.deepEqual([...harness.storage.keys()], [SETTINGS_KEY]);
 });
 
@@ -194,7 +195,7 @@ test('notification overlay ignores initial snapshot, notifies completion/action,
   view.render();
   await tick();
   assert.equal(harness.notifications.length, 1);
-  assert.equal(harness.notifications[0].title, 'Fixture session');
+  assert.equal(harness.notifications[0].title, 'DeepSeek Harness', 'session titles are private by default');
   assert.equal(harness.notifications[0].options.body, 'Finished — ready for review');
   assert.equal(harness.notifications[0].options.silent, true);
   harness.notifications[0].onclick();
@@ -204,7 +205,7 @@ test('notification overlay ignores initial snapshot, notifies completion/action,
   view.render();
   await tick();
   assert.equal(harness.notifications.length, 2);
-  assert.equal(harness.notifications[1].options.body, 'Approval needed: bash');
+  assert.equal(harness.notifications[1].options.body, 'Approval needed', 'tool names are omitted from system alerts');
   view.render();
   await tick();
   assert.equal(harness.notifications.length, 2, 'same pending interaction is not notified twice');
