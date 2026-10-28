@@ -51,6 +51,12 @@ Owner decision (answer to the coverage/priority question): real-mobile notificat
 - **Acceptance criterion 1 UNMET (decision gate G2):** no public seam connects a real native `approval/request` / `tools/pre-execute` to the host-held mode. Aggressive confirmation is client-side only. #90 must stay OPEN. Real browser/installed/paired proof and mobile testing are unverified (mobile deferred to Owner).
 - Next: Owner disposition of G2 for #90 (blocks #91 E11, #92 E12); other ready tickets: #48 R01 (claimed), #50, #51, #96, #97, #103.
 
+### S15 native API model references — 2026-10-28 (PARTIAL)
+
+- #96 `[S15]` claimed. Sole implementer `workflow-e6e152c2b1d94f58` (`claude`) `7d48e58`, correction `workflow-53913132c9634f4c` `ba76486`, merged `cbc38d8`: pure module `modules/catalog/native-api.js` (live `{provider, model}` identity via the native LLM service `listProviders`/`listModels`/`resolveModelInfo` and `llm/adapters-updated`; subscription ids excluded; no adapter registration; no credentials/endpoints stored; removed models shown unavailable without substitution; in-memory Owner preferences; bounded per-provider isolation). 18 new tests; full suite 603/603, classifier 166/166. Evidence: [S15 research](../research/s15-native-api-references-2026-10-28.md).
+- **Not met:** acceptance criterion 2 (Owner action → admitted transport → actual consumer → visible outcome): module is not mounted, no route/UI/picker/persistence; fake LLM service only; seam public contract unverified (source-read rc.3); mobile deferred to Owner. #96 stays OPEN.
+- Next ready: #97 M01, #103 H01, #50 A01a, #51 K01, #48 R01 (claimed).
+
 ### Completed final-cleanup contract — 2026-10-28
 
 The Owner approved preserving useful unique work and removing the four previously protected auxiliary worktrees and obsolete test artifacts. Direct Lead, bounded housekeeping only. Both browser research reports and all four modified R11 files matched remotely verified checkpoint blobs byte-for-byte; no WIP merge or acceptance occurred. Four reviewed nonprivate setup documents were preserved with a SHA-256 manifest in [historical test setup](../research/cleanup-preserved-2026-10-28/README.md), published non-forced as `497df0287dff997fd54346c339d8f86a9a11390f`, with exact remote readback before removal.
