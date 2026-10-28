@@ -18,7 +18,9 @@ async function main() {
   };
   const hook = { id: 'bounded', events: ['SessionStart'], command: 'printf synthetic > /scratch/marker; cat', source: 'inline', enabled: true, watchedFiles: ['watched'] };
   await fs.writeFile(root + '/watched', 'approved');
-  const approve = async () => { await call('save', { hook }); const review = await call('review', { id: hook.id }); await call('approve', { id: hook.id, nonce: review.nonce, phrase: 'RUN AS DSH USER' }); };
+  // H01: saves need the current revision and always store disabled drafts; activation is a separate fenced action.
+  const current = async (values = {}) => (await call('list', values)).hooks.find(item => item.hook.id === hook.id);
+  const approve = async (values = {}) => { await call('save', { ...values, hook, revision: (await current(values))?.revision }); const review = await call('review', { ...values, id: hook.id }); await call('approve', { ...values, id: hook.id, nonce: review.nonce, phrase: 'RUN AS DSH USER' }); await call('setEnabled', { ...values, id: hook.id, enabled: true, revision: (await current(values)).revision }); };
   try {
     await approve();
     const engine = createBoundedSessionStart(ctx, options);
@@ -89,9 +91,7 @@ async function main() {
     ctx.provide('workspaceRegistry', { list: () => [workspace], get: id => id === workspace.id ? workspace : undefined });
     const selectors = { scope: 'project', sessionId: header.id, workspaceId: workspace.id };
     delete hook.watchedFiles;
-    await call('save', { ...selectors, hook });
-    const projectReview = await call('review', { ...selectors, id: hook.id });
-    await call('approve', { ...selectors, id: hook.id, nonce: projectReview.nonce, phrase: 'RUN AS DSH USER' });
+    await approve(selectors);
     assert.equal((await engine.run('SessionStart', agent, new AbortController().signal))[0].status, 'completed');
     await fs.unlink(root + '/marker');
     ctx.subprocess.resolveExecutable = async (...args) => { const resolved = await original(...args); header.cwd = root + '/project-b'; return resolved; };
