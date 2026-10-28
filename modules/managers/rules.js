@@ -26,4 +26,4 @@ export function enabledRulePatterns(rules) {
   return rules.filter(rule => rule.enabled).map(rule => rule.pattern);
 }
 
-export const rulesConfigFields = { rules: { type: 'array', default: [], description: 'Tool rules: wildcard deny policies that run no code.' } };
+export const rulesConfigFields = { rules: { type: 'array', default: [], description: 'Legacy Tool Rules definitions retained for compatibility; feature disabled and not enforced.' } };

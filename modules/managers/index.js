@@ -1,6 +1,6 @@
 import { createMcpManager, validateServers, mcpConfigFields } from '../mcp/index.js';
 import { createHooksManager, validateHooks, hooksConfigFields, createCommandHooksManager, validateCommandHookConfig, commandHooksConfigFields } from '../hooks/index.js';
-import { validateRules, validateRule, enabledRulePatterns, rulesConfigFields } from './rules.js';
+import { validateRules, rulesConfigFields } from './rules.js';
 import { object, fail, serial, safeFailure, persistenceReason, MASKED_SECRET, mergeSecrets } from './validation.js';
 import { registerLocalTransport } from './transport.js';
 export const MANAGER_SERVICE = 'dshMajedManagers';
@@ -51,17 +51,17 @@ export function createOwnedPersistence(editor, ownership) {
     },
   };
 }
+const toolRulesDisabled = async () => ({ ok: false, code: 'TOOL_RULES_DISABLED', error: 'Tool Rules are disabled.' });
 /** Shared service is transport-independent. No file store, credentials echo, or HTTP fallback. */
 export function createManagerService(ctx, initial = {}, options = {}) {
   const mcp = createMcpManager(ctx, options.loadMcp); const hooks = createHooksManager(ctx); const commandHooks = createCommandHooksManager();
   const queue = serial(); let config = validateManagerConfig(initial); let hookStatus = 'configured'; let disposed = false; let disposal;
-  const snapshot = () => ({ writable: !disposed && options.mcpStore !== undefined, servers: mcp.snapshot(), hooks: { ...hooks.snapshot(), status: hookStatus }, commandHooks: commandHooks.snapshot(), rules: [...(config.rules || [])] });
+  const snapshot = () => ({ writable: !disposed && options.mcpStore !== undefined, servers: mcp.snapshot(), hooks: { ...hooks.snapshot(), status: hookStatus }, commandHooks: commandHooks.snapshot(), rules: structuredClone(config.rules || []), rulesStatus: 'disabled' });
   async function activate(next) {
     await mcp.replace(next.servers);
     if (disposed) return;
-    // Compose enabled rule patterns into hooks deny additively: rules never allow, only deny.
-    const mergedHooks = { ...next.hooks, deny: [...new Set([...next.hooks.deny, ...enabledRulePatterns(next.rules || [])])] };
-    try { hooks.replace(mergedHooks); hookStatus = next.hooks.enabled ? 'mounted' : 'configured'; }
+    // Standalone Tool Rules are disabled; retain their definitions without enforcement.
+    try { hooks.replace(next.hooks); hookStatus = next.hooks.enabled ? 'mounted' : 'configured'; }
     catch { hookStatus = 'activation-failed'; }
     try { commandHooks.replace('user', next.commandHooks.user.hooks); commandHooks.replace('project', next.commandHooks.project.hooks); }
     catch { /* inert: Command hooks never block activation */ }
@@ -71,7 +71,7 @@ export function createManagerService(ctx, initial = {}, options = {}) {
     if (options.mcpStore) {
       // Request-time read: private store is the source of truth for servers.
       const stored = await options.mcpStore.read();
-      start = { servers: stored.servers, hooks: config.hooks };
+      start = { ...config, servers: stored.servers };
     }
     await activate(start);
     config = start;
@@ -84,7 +84,7 @@ export function createManagerService(ctx, initial = {}, options = {}) {
       stage = 'read';
       const current = await options.mcpStore.read();
       stage = 'validation';
-      const next = validateManagerConfig(change(structuredClone({ servers: current.servers, hooks: config.hooks })));
+      const next = validateManagerConfig(change(structuredClone({ ...config, servers: current.servers })));
       stage = 'persistence';
       await options.mcpStore.save({ servers: next.servers });
       config = next;
@@ -156,27 +156,9 @@ export function createManagerService(ctx, initial = {}, options = {}) {
       next.commandHooks = commandHooks.snapshot();
       return next;
     }),
-    upsertRule: input => applyHooks(next => {
-      object(input, ['id', 'pattern', 'enabled', 'scope']);
-      validateRule(input);
-      const nextRules = validateRules([...(next.rules || []).filter(r => r.id !== input.id), input]);
-      next.rules = nextRules;
-      return next;
-    }),
-    removeRule: input => applyHooks(next => {
-      object(input, ['id']);
-      const idx = (next.rules || []).findIndex(r => r.id === input.id);
-      if (idx < 0) fail();
-      next.rules = [...(next.rules || []).slice(0, idx), ...(next.rules || []).slice(idx + 1)];
-      return next;
-    }),
-    setRuleEnabled: input => applyHooks(next => {
-      object(input, ['id', 'enabled']);
-      const idx = (next.rules || []).findIndex(r => r.id === input.id);
-      if (idx < 0) fail();
-      next.rules = [...(next.rules || []).map(r => r.id === input.id ? { ...r, enabled: input.enabled } : r)];
-      return next;
-    }),
+    upsertRule: toolRulesDisabled,
+    removeRule: toolRulesDisabled,
+    setRuleEnabled: toolRulesDisabled,
     snapshot: async () => { await ready; return snapshot(); },
     update: input => queue(async () => {
       object(input, ['servers', 'hooks']);

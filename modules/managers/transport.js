@@ -40,7 +40,7 @@ export function createManagerHandler(service, connection) {
       if (req.method === 'GET') return send(200, await service.snapshot());
       const body = await readBody(req);
       if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).some(key => !['action', 'input'].includes(key))) return send(400, { error: 'Invalid request.' });
-      if (!['setEnabled', 'upsertServer', 'removeServer', 'updateHooks', 'upsertCommandHook', 'removeCommandHook', 'setCommandHookEnabled', 'upsertRule', 'removeRule', 'setRuleEnabled', 'probeServer'].includes(body.action) || typeof service[body.action] !== 'function') return send(400, { error: 'Invalid action.' });
+      if (!['setEnabled', 'upsertServer', 'removeServer', 'updateHooks', 'upsertCommandHook', 'removeCommandHook', 'setCommandHookEnabled', 'probeServer'].includes(body.action) || typeof service[body.action] !== 'function') return send(400, { error: 'Invalid action.' });
       const result = await service[body.action](body.input);
       return send(result.ok ? 200 : 400, result);
     } catch (error) { return send(400, { error: safeError(error) }); }
@@ -62,7 +62,7 @@ export function createManagerFetchHandler(service) {
     try {
       const body = await readBody({ [Symbol.asyncIterator]: async function* () { if (request.body) yield* request.body; } });
       if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).some(key => !['action', 'input'].includes(key))) return send(400, { error: 'Invalid request.' });
-      if (!['setEnabled', 'upsertServer', 'removeServer', 'updateHooks', 'upsertCommandHook', 'removeCommandHook', 'setCommandHookEnabled', 'upsertRule', 'removeRule', 'setRuleEnabled', 'probeServer'].includes(body.action) || typeof service[body.action] !== 'function') return send(400, { error: 'Invalid action.' });
+      if (!['setEnabled', 'upsertServer', 'removeServer', 'updateHooks', 'upsertCommandHook', 'removeCommandHook', 'setCommandHookEnabled', 'probeServer'].includes(body.action) || typeof service[body.action] !== 'function') return send(400, { error: 'Invalid action.' });
       const result = await service[body.action](body.input);
       return send(result.ok ? 200 : 400, result);
     } catch (error) { return send(400, { error: safeError(error) }); }
