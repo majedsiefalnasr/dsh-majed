@@ -123,61 +123,69 @@ test('malformed storage falls back safely and invalid retained appearance values
   assert.equal(invalid.document.body.style.getPropertyValue('--dsw-font-family'), '');
 });
 
-test('composer retains only safe modes, confirms aggressive mode, and resets aggressive on reload', (t) => {
+// E10: command modes are host-owned. This fixture host stands in for majed/command-mode.
+function modeHost(modes = {}) {
+  const host = { modes, connection: { rpc: { async call(base, method, payload) {
+    if (payload.action === 'set') { if (payload.mode === 'ask') delete host.modes[payload.sessionId]; else host.modes[payload.sessionId] = payload.mode; }
+    return { ok: true, value: { modes: { ...host.modes } } };
+  } } } };
+  return host;
+}
+
+test('composer takes its mode from the host, confirms aggressive mode, and never writes authority to storage', async (t) => {
   let allow = false;
-  const harness = setup(t, { stored: { autoApprove: { 'session-a': 'safe', stale: 'aggressive', invalid: 'other' } }, confirm: () => allow });
+  const host = modeHost({ 'session-a': 'safe' });
+  const harness = setup(t, { stored: { autoApprove: { stale: 'aggressive', invalid: 'other' } }, confirm: () => allow, connection: host.connection });
   const view = composer(harness);
-  assert.equal(selected(view), 'safe');
-  assert.equal(selected(composer(harness, 'stale')), 'ask');
-  assert.equal(selected(composer(harness, 'invalid')), 'ask');
+  await tick();
+  assert.equal(selected(view.render()), 'safe');
+  assert.equal(selected(composer(harness, 'stale')), 'ask', 'stale local value is not authority');
   const locked = harness.render('majed-auto-approve', { sessionId: 'locked', locked: true });
   assert.equal(locked.one(isType('fixture-menu')).props.anchor.props.disabled, true);
   choose(view, 'aggressive');
   assert.equal(selected(view), 'safe', 'declining confirmation preserves current mode');
   assert.equal(harness.confirms.length, 1);
   allow = true;
-  choose(view, 'aggressive');
-  assert.equal(selected(view), 'aggressive');
-  assert.equal(harness.confirms.length, 2);
+  choose(view, 'aggressive'); await tick();
+  assert.equal(selected(view.render()), 'aggressive');
+  assert.equal(host.modes['session-a'], 'aggressive');
   assert.match(harness.confirms[1], /resets when the app restarts/);
-  assert.deepEqual(persisted(harness).autoApprove, {}, 'aggressive is never written to storage');
+  assert.equal(harness.storage.get(SETTINGS_KEY).includes('autoApprove'), false, 'legacy authority was scrubbed and never written back');
   const second = composer(harness, 'second');
-  choose(second, 'safe');
-  assert.deepEqual(persisted(harness).autoApprove, { second: 'safe' });
-  assert.equal(selected(view.render()), 'aggressive', 'another session does not overwrite in-memory choice');
-  const restarted = setup(t, { stored: harness.storage.get(SETTINGS_KEY) });
-  assert.equal(selected(composer(restarted)), 'ask');
-  assert.equal(selected(composer(restarted, 'second')), 'safe');
-  choose(second, 'ask');
-  assert.deepEqual(persisted(harness).autoApprove, {});
+  choose(second, 'safe'); await tick();
+  assert.equal(selected(view.render()), 'aggressive', 'another session does not overwrite the choice');
+  second.render();
+  choose(second, 'ask'); await tick();
+  assert.equal(host.modes.second, undefined);
 });
 
 test('session approval slot uses safe/aggressive semantics and leaves destructive commands to owner', async (t) => {
-  const harness = setup(t);
+  const host = modeHost();
+  const harness = setup(t, { connection: host.connection });
   const picker = composer(harness);
-  choose(picker, 'safe');
+  choose(picker, 'safe'); await tick();
   const answers = [];
   let pending;
   let chat = { nodes: new Map() };
   const useSessionStatus = (selector) => selector(new Map([['session-a', { pendingInteraction: pending }]]));
   const useChat = (selector) => selector(chat);
   const watcher = harness.render('majed-auto-approver', { sessionId: 'session-a', useSessionStatus, useChat });
-  const offer = (key, toolName, command) => {
+  const offer = async (key, toolName, command) => {
     pending = { key, callId: key, kind: 'approval', toolName, answerable: true, answer: (outcome) => answers.push([key, outcome]) };
     chat = { nodes: new Map(command === undefined ? [] : [['call', { kind: 'tool-call', data: { root: { callId: key, phase: 'start', argsRaw: JSON.stringify({ command }) } } }]]) };
-    watcher.render();
+    watcher.render(); await tick();
   };
-  offer('read-1', 'read');
+  await offer('read-1', 'read');
   watcher.render();
   assert.deepEqual(answers, [['read-1', 'allowed-once']], 'same pending key is answered only once');
-  offer('unknown-safe', 'unrecognized-tool');
+  await offer('unknown-safe', 'unrecognized-tool');
   assert.equal(answers.length, 1, 'safe mode leaves unknown tools unanswered');
-  choose(picker, 'aggressive');
-  offer('unknown-aggressive', 'unrecognized-tool');
+  choose(picker, 'aggressive'); await tick();
+  await offer('unknown-aggressive', 'unrecognized-tool');
   assert.deepEqual(answers.at(-1), ['unknown-aggressive', 'allowed-once']);
-  offer('destructive', 'bash', 'rm -rf ./build');
+  await offer('destructive', 'bash', 'rm -rf ./build');
   assert.equal(answers.length, 2, 'aggressive still does not answer hard-deny commands');
-  offer('readonly', 'bash', 'pwd');
+  await offer('readonly', 'bash', 'pwd');
   assert.deepEqual(answers.at(-1), ['readonly', 'allowed-once']);
   await tick();
 });

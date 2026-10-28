@@ -101,7 +101,7 @@ async function mount(t, { stored, fallback = false, language = 'en' } = {}) {
   };
 }
 
-const retained = { uiFontSize: 18, fontSource: 'inter', bidi: false, notifyMode: 'off', notifyDone: false, notifyAction: false, accountMenu: false, autoCopy: false, autoApprove: { fixture: 'safe' } };
+const retained = { uiFontSize: 18, fontSource: 'inter', bidi: false, notifyMode: 'off', notifyDone: false, notifyAction: false, accountMenu: false, autoCopy: false };
 
 test('profile reload rehydrates selected appearance without leaking to another profile; disposal removes only owned changes', async t => {
   const first = await mount(t, { stored: { ...retained, bidi: true } });

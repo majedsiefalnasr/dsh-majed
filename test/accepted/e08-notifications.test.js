@@ -137,7 +137,7 @@ test('Off suppresses events but explicit test remains available; background skip
 });
 
 test('per-setting notification resets are immediate, isolated and never request OS permission', async t => {
-  const original = { fontSource: 'inter', uiFontSize: 18, bidi: false, notifyMode: 'off', notifyDone: false, notifyAction: false, notifyTitle: true, accountMenu: false, autoCopy: false, autoApprove: { fixture: 'safe' } };
+  const original = { fontSource: 'inter', uiFontSize: 18, bidi: false, notifyMode: 'off', notifyDone: false, notifyAction: false, notifyTitle: true, accountMenu: false, autoCopy: false };
   const view = await mount(t, { stored: original, permission: 'default' });
   for (const [label, key, value] of [
     ['Reset system notifications', 'notifyMode', 'background'],

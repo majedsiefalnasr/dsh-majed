@@ -39,17 +39,21 @@ window.__ModuleLoader__.load({
     const FONT_FACES = [{"f": "Inter Majed", "u": "inter-latin-wght-normal.woff2", "w": "100 900", "r": "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD", "k": "inter"}, {"f": "Inter Majed", "u": "inter-latin-ext-wght-normal.woff2", "w": "100 900", "r": "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF", "k": "inter"}, {"f": "Roboto Majed", "u": "roboto-latin-wght-normal.woff2", "w": "100 900", "r": "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD", "k": "roboto"}, {"f": "Roboto Majed", "u": "roboto-latin-ext-wght-normal.woff2", "w": "100 900", "r": "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF", "k": "roboto"}, {"f": "Open Sans Majed", "u": "open-sans-latin-wght-normal.woff2", "w": "100 900", "r": "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD", "k": "open-sans"}, {"f": "Open Sans Majed", "u": "open-sans-latin-ext-wght-normal.woff2", "w": "100 900", "r": "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF", "k": "open-sans"}, {"f": "Open Sans Majed", "u": "open-sans-hebrew-wght-normal.woff2", "w": "100 900", "r": "U+0307-0308,U+0590-05FF,U+200C-2010,U+20AA,U+25CC,U+FB1D-FB4F", "k": "open-sans"}, {"f": "Noto Sans Majed", "u": "noto-sans-latin-wght-normal.woff2", "w": "100 900", "r": "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD", "k": "noto-sans"}, {"f": "Noto Sans Majed", "u": "noto-sans-latin-ext-wght-normal.woff2", "w": "100 900", "r": "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF", "k": "noto-sans"}, {"f": "Noto Sans Majed", "u": "noto-sans-arabic-arabic-wght-normal.woff2", "w": "100 900", "r": "U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0897-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FE74,U+FE76-FEFC,U+102E0-102FB,U+10E60-10E7E,U+10EC2-10EC4,U+10EFC-10EFF,U+1EE00-1EE03,U+1EE05-1EE1F,U+1EE21-1EE22,U+1EE24,U+1EE27,U+1EE29-1EE32,U+1EE34-1EE37,U+1EE39,U+1EE3B,U+1EE42,U+1EE47,U+1EE49,U+1EE4B,U+1EE4D-1EE4F,U+1EE51-1EE52,U+1EE54,U+1EE57,U+1EE59,U+1EE5B,U+1EE5D,U+1EE5F,U+1EE61-1EE62,U+1EE64,U+1EE67-1EE6A,U+1EE6C-1EE72,U+1EE74-1EE77,U+1EE79-1EE7C,U+1EE7E,U+1EE80-1EE89,U+1EE8B-1EE9B,U+1EEA1-1EEA3,U+1EEA5-1EEA9,U+1EEAB-1EEBB,U+1EEF0-1EEF1", "k": "noto-sans-arabic"}, {"f": "IBM Plex Sans Majed", "u": "ibm-plex-sans-latin-400-normal.woff2", "w": "400", "r": "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD", "k": "ibm-plex-sans"}, {"f": "IBM Plex Sans Majed", "u": "ibm-plex-sans-latin-ext-400-normal.woff2", "w": "400", "r": "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF", "k": "ibm-plex-sans"}, {"f": "IBM Plex Sans Majed", "u": "ibm-plex-sans-latin-500-normal.woff2", "w": "500", "r": "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD", "k": "ibm-plex-sans"}, {"f": "IBM Plex Sans Majed", "u": "ibm-plex-sans-latin-ext-500-normal.woff2", "w": "500", "r": "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF", "k": "ibm-plex-sans"}, {"f": "IBM Plex Sans Majed", "u": "ibm-plex-sans-latin-600-normal.woff2", "w": "600", "r": "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD", "k": "ibm-plex-sans"}, {"f": "IBM Plex Sans Majed", "u": "ibm-plex-sans-latin-ext-600-normal.woff2", "w": "600", "r": "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF", "k": "ibm-plex-sans"}, {"f": "IBM Plex Sans Majed", "u": "ibm-plex-sans-latin-700-normal.woff2", "w": "700", "r": "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD", "k": "ibm-plex-sans"}, {"f": "IBM Plex Sans Majed", "u": "ibm-plex-sans-latin-ext-700-normal.woff2", "w": "700", "r": "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF", "k": "ibm-plex-sans"}, {"f": "IBM Plex Sans Majed", "u": "ibm-plex-sans-arabic-arabic-400-normal.woff2", "w": "400", "r": "U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0897-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FE74,U+FE76-FEFC,U+102E0-102FB,U+10E60-10E7E,U+10EC2-10EC4,U+10EFC-10EFF,U+1EE00-1EE03,U+1EE05-1EE1F,U+1EE21-1EE22,U+1EE24,U+1EE27,U+1EE29-1EE32,U+1EE34-1EE37,U+1EE39,U+1EE3B,U+1EE42,U+1EE47,U+1EE49,U+1EE4B,U+1EE4D-1EE4F,U+1EE51-1EE52,U+1EE54,U+1EE57,U+1EE59,U+1EE5B,U+1EE5D,U+1EE5F,U+1EE61-1EE62,U+1EE64,U+1EE67-1EE6A,U+1EE6C-1EE72,U+1EE74-1EE77,U+1EE79-1EE7C,U+1EE7E,U+1EE80-1EE89,U+1EE8B-1EE9B,U+1EEA1-1EEA3,U+1EEA5-1EEA9,U+1EEAB-1EEBB,U+1EEF0-1EEF1", "k": "ibm-plex-sans-arabic"}, {"f": "IBM Plex Sans Majed", "u": "ibm-plex-sans-arabic-arabic-500-normal.woff2", "w": "500", "r": "U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0897-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FE74,U+FE76-FEFC,U+102E0-102FB,U+10E60-10E7E,U+10EC2-10EC4,U+10EFC-10EFF,U+1EE00-1EE03,U+1EE05-1EE1F,U+1EE21-1EE22,U+1EE24,U+1EE27,U+1EE29-1EE32,U+1EE34-1EE37,U+1EE39,U+1EE3B,U+1EE42,U+1EE47,U+1EE49,U+1EE4B,U+1EE4D-1EE4F,U+1EE51-1EE52,U+1EE54,U+1EE57,U+1EE59,U+1EE5B,U+1EE5D,U+1EE5F,U+1EE61-1EE62,U+1EE64,U+1EE67-1EE6A,U+1EE6C-1EE72,U+1EE74-1EE77,U+1EE79-1EE7C,U+1EE7E,U+1EE80-1EE89,U+1EE8B-1EE9B,U+1EEA1-1EEA3,U+1EEA5-1EEA9,U+1EEAB-1EEBB,U+1EEF0-1EEF1", "k": "ibm-plex-sans-arabic"}, {"f": "IBM Plex Sans Majed", "u": "ibm-plex-sans-arabic-arabic-600-normal.woff2", "w": "600", "r": "U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0897-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FE74,U+FE76-FEFC,U+102E0-102FB,U+10E60-10E7E,U+10EC2-10EC4,U+10EFC-10EFF,U+1EE00-1EE03,U+1EE05-1EE1F,U+1EE21-1EE22,U+1EE24,U+1EE27,U+1EE29-1EE32,U+1EE34-1EE37,U+1EE39,U+1EE3B,U+1EE42,U+1EE47,U+1EE49,U+1EE4B,U+1EE4D-1EE4F,U+1EE51-1EE52,U+1EE54,U+1EE57,U+1EE59,U+1EE5B,U+1EE5D,U+1EE5F,U+1EE61-1EE62,U+1EE64,U+1EE67-1EE6A,U+1EE6C-1EE72,U+1EE74-1EE77,U+1EE79-1EE7C,U+1EE7E,U+1EE80-1EE89,U+1EE8B-1EE9B,U+1EEA1-1EEA3,U+1EEA5-1EEA9,U+1EEAB-1EEBB,U+1EEF0-1EEF1", "k": "ibm-plex-sans-arabic"}, {"f": "IBM Plex Sans Majed", "u": "ibm-plex-sans-arabic-arabic-700-normal.woff2", "w": "700", "r": "U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0897-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FE74,U+FE76-FEFC,U+102E0-102FB,U+10E60-10E7E,U+10EC2-10EC4,U+10EFC-10EFF,U+1EE00-1EE03,U+1EE05-1EE1F,U+1EE21-1EE22,U+1EE24,U+1EE27,U+1EE29-1EE32,U+1EE34-1EE37,U+1EE39,U+1EE3B,U+1EE42,U+1EE47,U+1EE49,U+1EE4B,U+1EE4D-1EE4F,U+1EE51-1EE52,U+1EE54,U+1EE57,U+1EE59,U+1EE5B,U+1EE5D,U+1EE5F,U+1EE61-1EE62,U+1EE64,U+1EE67-1EE6A,U+1EE6C-1EE72,U+1EE74-1EE77,U+1EE79-1EE7C,U+1EE7E,U+1EE80-1EE89,U+1EE8B-1EE9B,U+1EEA1-1EEA3,U+1EEA5-1EEA9,U+1EEAB-1EEBB,U+1EEF0-1EEF1", "k": "ibm-plex-sans-arabic"}];
     const FONT_SOURCES = ['dsh', 'system', ...Object.keys(BUNDLED_FONTS)];
     const listeners = new Set();
+    let legacyAutoApprove = false;
     let state = (() => {
-      try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(STORE_KEY) || '{}') }; }
+      try { const saved = JSON.parse(localStorage.getItem(STORE_KEY) || '{}'); legacyAutoApprove = !!saved && typeof saved === 'object' && Object.hasOwn(saved, 'autoApprove'); return { ...DEFAULTS, ...saved }; }
       catch (_) { return { ...DEFAULTS }; }
     })();
     const clampPx = (v) => Math.min(UI_MAX_PX, Math.max(UI_MIN_PX, Math.round(Number(v)) || UI_BASE_PX));
     state.uiFontSize = clampPx(state.uiFontSize);
     if (!FONT_SOURCES.includes(state.fontSource)) state.fontSource = 'dsh';
     if (!NOTIFY_MODES.includes(state.notifyMode)) state.notifyMode = 'background';
-    // Per-session auto-approve modes. 'aggressive' lives in memory only: it resets to 'ask' on restart.
+    // Per-session command modes are owned by the host (majed/command-mode) and mirrored here in memory only.
+    // A value saved by an older version is never authority: it is dropped on load and never written back.
     const AP_MODES = ['ask', 'safe', 'aggressive'];
-    state.autoApprove = Object.fromEntries(Object.entries(state.autoApprove && typeof state.autoApprove === 'object' ? state.autoApprove : {}).filter(([, v]) => v === 'safe'));
+    state.autoApprove = {};
+    // Drop only the legacy authority key from storage; every other saved setting is kept as is.
+    if (legacyAutoApprove) { try { const { autoApprove, ...rest } = JSON.parse(localStorage.getItem(STORE_KEY) || '{}'); localStorage.setItem(STORE_KEY, JSON.stringify(rest)); } catch (_) {} }
     const store = {
       get: () => state,
       subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
@@ -68,7 +72,8 @@ window.__ModuleLoader__.load({
           }
         }
         state = { ...state, ...patch };
-        try { localStorage.setItem(STORE_KEY, JSON.stringify({ ...state, autoApprove: Object.fromEntries(Object.entries(state.autoApprove || {}).filter(([, v]) => v === 'safe')) })); } catch (_) {}
+        // Host-mirrored command modes are memory-only: a patch that only carries them is never persisted.
+        if (Object.keys(patch).some((key) => key !== 'autoApprove')) { try { const { autoApprove, ...durable } = state; localStorage.setItem(STORE_KEY, JSON.stringify(durable)); } catch (_) {} }
         listeners.forEach((fn) => fn(state));
       },
     };
@@ -1785,10 +1790,43 @@ window.__ModuleLoader__.load({
     const RISKY_TEXT = /danger-full-access|sudo|rm\s+-[a-z]*r|force[- ]push|--force|mkfs|dd\s+if=|DROP\s+TABLE|\.ssh/i;
 
     function modeFor(sessionId) { return (store.get().autoApprove || {})[sessionId] || 'ask'; }
-    function setModeFor(sessionId, mode) {
-      const next = { ...(store.get().autoApprove || {}) };
-      if (mode === 'ask') delete next[sessionId]; else next[sessionId] = mode;
+    // Host-owned command modes. Any failure or unreachable host collapses to Ask me (least authority).
+    const AP_POLL_MS = 5000;
+    let apGeneration = 0;
+    const adoptModes = (modes) => {
+      const next = Object.fromEntries(Object.entries(modes && typeof modes === 'object' ? modes : {}).filter(([, v]) => v === 'safe' || v === 'aggressive'));
+      const now = store.get().autoApprove || {};
+      if (Object.keys(next).length === Object.keys(now).length && Object.entries(next).every(([k, v]) => now[k] === v)) return;
       store.set({ autoApprove: next });
+    };
+    async function hostModes(payload) {
+      const generation = ++apGeneration;
+      try {
+        const call = appCtx?.connection?.rpc?.call;
+        if (typeof call !== 'function') throw new Error('unsupported');
+        const result = await call.call(appCtx.connection.rpc, '/api', 'majed/command-mode', payload);
+        if (!result || !result.ok) throw new Error('service');
+        if (generation === apGeneration) adoptModes(result.value && result.value.modes);
+        return generation === apGeneration;
+      } catch (_) {
+        if (generation === apGeneration) adoptModes({});
+        return false;
+      }
+    }
+    const syncModes = () => hostModes({ action: 'snapshot' });
+    // Bounded poll, alive only while a command-mode control is mounted; the last unmount drops the mirror.
+    let apWatchers = 0, apTimer = null;
+    function watchModes() {
+      if (apWatchers++ === 0) {
+        const loop = async () => { await syncModes(); if (apWatchers > 0) apTimer = setTimeout(loop, AP_POLL_MS); };
+        loop();
+      }
+      return () => { if (--apWatchers === 0) { clearTimeout(apTimer); apTimer = null; apGeneration++; adoptModes({}); } };
+    }
+    function setModeFor(sessionId, mode) {
+      // Lowering authority applies locally at once; raising it waits for the host to confirm.
+      if (mode === 'ask') { const next = { ...(store.get().autoApprove || {}) }; delete next[sessionId]; store.set({ autoApprove: next }); }
+      return hostModes({ action: 'set', sessionId, mode });
     }
 
     /**
@@ -1799,6 +1837,7 @@ window.__ModuleLoader__.load({
       const pending = useSessionStatus((m) => { const st = m.get(sessionId); return st ? st.pendingInteraction : undefined; });
       const chat = useChat((snap) => snap);
       const modes = useSetting('autoApprove');
+      React.useEffect(() => watchModes(), []);
       const handled = React.useRef(new Set());
       const handedBack = React.useRef(0);
       const [tick, setTick] = React.useState(0);
@@ -1812,7 +1851,8 @@ window.__ModuleLoader__.load({
         // the tool-call row may land a moment after the approval: give it one short retry before deciding
         if (p.toolName === 'bash' && command === undefined && tick < 3) { const h2 = setTimeout(() => setTick((x) => x + 1), 120); return () => clearTimeout(h2); }
         const d = decideApproval(p, command);
-        const approve = mode === 'aggressive' ? d.verdict !== 'deny' : d.verdict === 'allow';
+        const permits = (m) => m === 'aggressive' ? d.verdict !== 'deny' : m === 'safe' && d.verdict === 'allow';
+        const approve = permits(mode);
         handled.current.add(p.key);
         setTick(0);
         if (!approve) {
@@ -1821,9 +1861,13 @@ window.__ModuleLoader__.load({
           return;
         }
         handedBack.current = 0;
-        Promise.resolve(p.answer('allowed-once')).then(
-          () => showToast(fmt(t('ap.toast'), { tool: command ? command.split(/\s+/)[0] : (p.toolName || '') })),
-          () => handled.current.delete(p.key));
+        // Re-read the host immediately before acting so a change on another device wins.
+        syncModes().then((fresh) => {
+          if (!fresh || !permits(modeFor(sessionId))) { handled.current.delete(p.key); return; }
+          return Promise.resolve(p.answer('allowed-once')).then(
+            () => showToast(fmt(t('ap.toast'), { tool: command ? command.split(/\s+/)[0] : (p.toolName || '') })),
+            () => handled.current.delete(p.key));
+        });
         if (handled.current.size > 200) handled.current.clear();
       }, [pending, chat, modes, tick, sessionId, t]);
       return null;
@@ -1832,6 +1876,7 @@ window.__ModuleLoader__.load({
     /** Composer-bar dropdown (same look as the permission control next to it). */
     function AutoApproveSelect({ sessionId, locked, t }) {
       const modes = useSetting('autoApprove');
+      React.useEffect(() => watchModes(), []);
       const mode = modes[sessionId] || 'ask';
       const [open, setOpen] = React.useState(false);
       const ref = React.useRef(null);
