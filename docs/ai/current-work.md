@@ -69,6 +69,12 @@ Owner decision (answer to the coverage/priority question): real-mobile notificat
 - **Not met:** no Settings controls for duplicate/import/export/trash/enable (route-only); origin stays `unknown` (no native attestation contract); no stdin binding/display metadata; revisions not restart-durable; controlled fixtures only, no real browser/installed/paired proof; mobile deferred to Owner. #103 stays OPEN.
 - Next ready: #50 A01a, #51 K01, #48 R01 (claimed); blocked chain #62 by #50+#55, #91 by #90.
 
+### K01 scoped skill availability — 2026-10-29 (PARTIAL, gate G4 open)
+
+- #51 `[K01]` claimed. Sole implementer `workflow-6e0ae66ce31d47a5` (`claude`) `de34600`, merged `5afea59`: gap analysis a–g plus 3 characterization tests (`test/accepted/skills-availability.test.js`) against the vendored core; no production code changed. Cold load, source denial/native precedence/fallback/name-wide exclusion and disable-affects-future-loads are satisfied in controlled fixtures only. Full suite 626/626, classifier 166/166. Evidence: [K01 research](../research/k01-skill-availability-2026-10-28.md).
+- **Decision gate G4 (open):** the warmed browser slash source caches per session; its only invalidators are private closures reachable via `agent-preset/selected`, `plugin-manager/changed`, `connection/reset`. rc.3 never forwards `skills/change` and ignores `commands/change`, so there is no public invalidator; `node scripts/test-skills-product.mjs --require-slash-refresh` exits 1 (`Known gap: warmed native slash source ignores catalog invalidation`). Paired updates blocked likewise; same-Agent preset-isolated registry partial; Unicode native invocation unsupported (ASCII kebab-case only). Owner options: accept stale slash until reload/reselect, wait for a first-party seam, or authorise emitting `plugin-manager/changed` (not recommended). #51 stays OPEN.
+- Next ready: #50 A01a, #48 R01 (claimed).
+
 ### Completed final-cleanup contract — 2026-10-28
 
 The Owner approved preserving useful unique work and removing the four previously protected auxiliary worktrees and obsolete test artifacts. Direct Lead, bounded housekeeping only. Both browser research reports and all four modified R11 files matched remotely verified checkpoint blobs byte-for-byte; no WIP merge or acceptance occurred. Four reviewed nonprivate setup documents were preserved with a SHA-256 manifest in [historical test setup](../research/cleanup-preserved-2026-10-28/README.md), published non-forced as `497df0287dff997fd54346c339d8f86a9a11390f`, with exact remote readback before removal.
