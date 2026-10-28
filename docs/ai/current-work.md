@@ -10,7 +10,7 @@ Updated: 2026-10-28. This is the resume entry point, not a feature specification
 - The historical Codex-first implementation objective and old ticket frontier do not authorize resuming implementation during this reset.
 - The Owner requested reusable rules for future additions, improvements and removals, with skill routing adapted from `/ask-matt` and an explicit final `/implement` or `/implement-spec` stage. The current reset still follows the full six-stage route; shorter routes apply only when separately agreed for later bounded work.
 
-## Current phase: E01 and E08 source integrated; next ready Enhancements ticket pending
+## Current phase: E01, E08 and E09 source integrated; E10 (#90) is next
 
 ### Active implementation contract — 2026-10-28
 
@@ -38,7 +38,14 @@ Owner decision (answer to the coverage/priority question): real-mobile notificat
 - Correction `4fcd430` (9 new zh `notify.*` values changed to English per `AGENTS.md:4`; categorical "unapproved capability reduction" wording replaced by unestablished-contract plus Owner disposition) and `28d33e8` (deferred-mobile versus other acceptance wording). Full suite on candidate 559/559; delta two-axis review `e08-delta-review` (explicit `claude` / `claude-sonnet-5-5` because `codex` was unavailable per Owner) found no blocking finding on either axis.
 - Normal merge `e8980491bf94755e8ab9b83ab9627131a772a12f` of `impl/e08-notifications` (`28d33e8`) into `integration/current-scope-20261028` (parents `f6a4159` and `28d33e8`); integration `npm test` 559/559, classifier 166/166. Not pushed.
 - Remaining non-mobile gaps: desktop browser/OS delivery, installed-native and paired validation need separate operational approval; #78 keeps its own browser acceptance. Research and review reports under `docs/research/e08-*` document the investigation history.
-- Next allowed action: post evidence on #88 and close it per Owner disposition, then proceed to the next genuinely ready approved ticket in priority order.
+- #88 evidence was posted and the ticket closed COMPLETED per this disposition.
+
+### E09 copy-on-select and native read — 2026-10-28
+
+- #89 `[E09]` claimed. Sole implementer `workflow-00552e66d6654ccd` (explicit `claude` / `claude-sonnet-5-5`; `codex` unavailable per Owner) produced `2062c24` on `impl/e09-copy-read`: copy-on-select reports success only after the clipboard write (or legacy fallback) is confirmed, distinct error and unsupported feedback, error tone, disposal ignores late results. English locale keys `copy.error` / `copy.unsupported`; 12 mounted built-client tests; CHANGELOG and [evidence](../research/e09-copy-read-2026-10-28.md). Existing `lib/read-page-native.js` and its 22 regressions were re-run unchanged; independent Spec review found spec line 196 satisfied by them.
+- Independent two-axis review `e09-two-axis-review` (explicit `claude` / `claude-sonnet-5-5`): no P1/P2. Applied only the actionable P3 (input/textarea exclusion cases were vacuous under jsdom; now non-vacuous, mutation of the active-element guard fails one test) as `23fdee2`. Remaining P3s (English values in the `zh` block, a compact `sync` handler, `last` dedupe set before result, `execCommand` copies the then-current selection) are recorded, not changed, as pre-existing behavior or out of scope.
+- Normal merge `33ff453697d3540af65fc624abf0b75f9cbc17f4` into `integration/current-scope-20261028`; integration `npm test` 571/571, classifier 166/166. Not pushed. Controlled jsdom evidence only; real browser clipboard permission, OS behavior, native mobile selection controls and paired use are unverified and mobile testing is deferred to the Owner per the E08 disposition.
+- Next ready approved ticket: #90 `[E10]`.
 
 ### Completed final-cleanup contract — 2026-10-28
 
