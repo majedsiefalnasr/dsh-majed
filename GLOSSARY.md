@@ -9,7 +9,7 @@ A Settings section of dsh-majed through which the owner manages one kind of capa
 _Avoid_: Console, panel, dashboard
 
 **Reference plugin**:
-An installed third-party plugin kept only to test against and learn from, to be deleted once dsh-majed covers its features.
+A third-party plugin used as a source of behavior and implementation examples for dsh-majed. It need not be installed; an installed reference is removed by the Owner only after the agreed replacement criteria are met.
 _Avoid_: Dependency, companion
 
 **Cutover**:
@@ -36,6 +36,34 @@ _Avoid_: Roadmap, feature matrix
 The authenticated person who administers the DSH instance, locally or through the remote GUI.
 _Avoid_: Admin, user
 
+**Subscriptions**:
+The feature family for provider subscription accounts, integrated API model access, usage and supported search/image/video capabilities. Subscription access and API access retain distinct credentials, billing and limits; Auto and Smart Auto consume only explicitly eligible routes.
+_Avoid_: Auto pool, Chat-only subscriptions
+
+**Subscription account**:
+An Owner-managed identity with a provider whose login state, direct-chat availability, tool activation and routing participation are distinct. A connected account is not implicitly enrolled in Auto or contextual judgment.
+_Avoid_: Auto candidate, Implicit enrollment
+
+**API connection**:
+An Owner-configured model-access connection with its own service destination and authentication, distinct from subscription login. Its availability alone does not authorize Auto participation or subscription-to-API fallback.
+_Avoid_: Subscription account, Shared subscription credit
+
+**Command auto-approval**:
+An Owner-selected session mode for automatically answering eligible command permission requests within native DSH safeguards. It is distinct from model-routing Auto and Approval of a command hook.
+_Avoid_: Auto mode, Hook Approval
+
+**Auto safe**:
+A command auto-approval mode for uninterrupted routine development that retains a human boundary around materially destructive or hard-to-reverse actions. It is not a read-only mode.
+_Avoid_: Read-only mode
+
+**Auto aggressive**:
+A command auto-approval mode that also delegates project-risk decisions normally withheld by Auto safe, while retaining security and sensitive-data restrictions. It is not an override of native security controls.
+_Avoid_: Unrestricted access, Security bypass
+
+**Command fallback policy**:
+The Owner-controlled, mode-specific rules used to decide command permission requests when contextual judgment is unavailable. It is distinct from a judgment refusal and from Auto's model-selection fallback.
+_Avoid_: Command whitelist, Auto fallback
+
 **Auto**:
 An Owner-selected mode that chooses among explicitly included account/model candidates using the Owner's priority order and retains a healthy selection within a session.
 _Avoid_: Automatic account pool, intelligent routing
@@ -49,8 +77,20 @@ The Owner's explicit consent for an account/model candidate to participate in Au
 _Avoid_: Login consent, implicit enrollment
 
 **Auto candidate**:
-An explicitly enrolled provider, account and model combination with an Owner-defined priority and permitted reasoning efforts.
+An explicitly enrolled model-access route identifying its provider, subscription account or API connection, and model, with an Owner-defined priority and permitted reasoning efforts.
 _Avoid_: Available account, model pool member
+
+**Skill source**:
+The origin of a skill's instructions and resources, distinct from the scopes in which that skill is available. A source may be writable or read-only.
+_Avoid_: Skill scope, Skill ownership policy
+
+**Skill availability**:
+The effective permission for a skill to be discovered or invoked manually or by the model in a given context. Availability is distinct from storing the skill or granting authority to its tools.
+_Avoid_: Installed means enabled, Tool authorization
+
+**Effective skill**:
+The source-specific skill selected for an invocation name in a particular context under native precedence and applicable availability policy.
+_Avoid_: Merged skill, First displayed skill
 
 **Shadow evaluation**:
 An opt-in comparison that records Smart Auto's proposed selection without applying it to execution.

@@ -1,0 +1,418 @@
+{
+  "status": "published-verified",
+  "repo": "majedsiefalnasr/dsh-majed",
+  "parent_issue": 2,
+  "protected_issues": [
+    1,
+    2,
+    42,
+    43,
+    44,
+    45,
+    46
+  ],
+  "ticket_ids_are_not_github_numbers": true,
+  "tickets": [
+    {
+      "id": "R01",
+      "title": "Connect and retain a Codex account through Settings",
+      "blocked_by": [],
+      "historical_issues": [
+        8,
+        9,
+        18
+      ],
+      "github_issue": 48,
+      "github_url": "https://github.com/majedsiefalnasr/dsh-majed/issues/48",
+      "published_body_sha256": "8b08e63adc33ff7ba1de71f93494eca9792cefbc402e0625c4e26f6743638a87"
+    },
+    {
+      "id": "R02",
+      "title": "Select a Codex model and stream a direct response",
+      "blocked_by": [
+        "R01"
+      ],
+      "historical_issues": [
+        17,
+        20,
+        22
+      ],
+      "github_issue": 55,
+      "github_url": "https://github.com/majedsiefalnasr/dsh-majed/issues/55",
+      "published_body_sha256": "c7a6563eeef84e07b830d61d6190e557a3d50652a2d8e2a27c790dbe771bb636"
+    },
+    {
+      "id": "R03",
+      "title": "Connect Claude and use its models through native Settings",
+      "blocked_by": [
+        "R02"
+      ],
+      "historical_issues": [
+        18,
+        20,
+        21,
+        22
+      ],
+      "github_issue": 57,
+      "github_url": "https://github.com/majedsiefalnasr/dsh-majed/issues/57",
+      "published_body_sha256": "e133c0c2d5f87b09d9f3374c87d4773dde11f1ecd1339171b429a3fe26aa92a9"
+    },
+    {
+      "id": "R04",
+      "title": "Connect Grok and use its models through native Settings",
+      "blocked_by": [
+        "R02"
+      ],
+      "historical_issues": [
+        19,
+        20,
+        22
+      ],
+      "github_issue": 58,
+      "github_url": "https://github.com/majedsiefalnasr/dsh-majed/issues/58",
+      "published_body_sha256": "fed31ce51f38b4556b7cfc6b2e4ddfe5b6b4227d698acc1e99d0df9c5d744259"
+    },
+    {
+      "id": "R05",
+      "title": "Authorize Copilot by device code and use its models",
+      "blocked_by": [
+        "R02"
+      ],
+      "historical_issues": [
+        19,
+        20,
+        22
+      ],
+      "github_issue": 59,
+      "github_url": "https://github.com/majedsiefalnasr/dsh-majed/issues/59",
+      "published_body_sha256": "072e9263e2e33e39794cbde99d1310364472b75f81e8366dba8dc0864f7302ec"
+    },
+    {
+      "id": "R06",
+      "title": "Connect Antigravity and use its account catalog",
+      "blocked_by": [
+        "R02"
+      ],
+      "historical_issues": [
+        19,
+        20,
+        21,
+        22
+      ],
+      "github_issue": 60,
+      "github_url": "https://github.com/majedsiefalnasr/dsh-majed/issues/60",
+      "published_body_sha256": "3cc045050da2c0479438d97e81919c4080e68d93427e78de5dbfcde506417f5e"
+    },
+    {
+      "id": "R07",
+      "title": "Choose and observe multiple accounts with bounded pool failover",
+      "blocked_by": [
+        "R02"
+      ],
+      "historical_issues": [
+        17,
+        20,
+        21,
+        22
+      ],
+      "github_issue": 61,
+      "github_url": "https://github.com/majedsiefalnasr/dsh-majed/issues/61",
+      "published_body_sha256": "812323beaddcc654850518bdab647428adfc0b20586d8c3dc49fe2f6ea4e8e78"
+    },
+    {
+      "id": "R08",
+      "title": "Enroll real account models and run deterministic Auto",
+      "blocked_by": [
+        "R07",
+        "R10"
+      ],
+      "historical_issues": [
+        5,
+        6,
+        26,
+        27,
+        28
+      ],
+      "github_issue": 62,
+      "github_url": "https://github.com/majedsiefalnasr/dsh-majed/issues/62",
+      "published_body_sha256": "2c78b4e0dd271b4ef763a2acf753ec6d2f886bcead19ecb5fbb1331e4964f8ae"
+    },
+    {
+      "id": "R09",
+      "title": "Remove out-of-scope Skills catalog surfaces safely",
+      "blocked_by": [],
+      "historical_issues": [
+        10,
+        11,
+        37,
+        38,
+        39
+      ],
+      "github_issue": 49,
+      "github_url": "https://github.com/majedsiefalnasr/dsh-majed/issues/49",
+      "published_body_sha256": "4ed476e5ec07d661c7ecd4056d5230c33adef9fbdd5e23e2dffd9db436b4406c"
+    },
+    {
+      "id": "R10",
+      "title": "Reconcile and prove the native Auto routing and retry contracts",
+      "blocked_by": [],
+      "historical_issues": [
+        5,
+        6,
+        27,
+        28
+      ],
+      "github_issue": 50,
+      "github_url": "https://github.com/majedsiefalnasr/dsh-majed/issues/50",
+      "published_body_sha256": "3b98c5d978d4bed043085ee05339aa39e439486c9d0a68be619fa1f274b40828"
+    },
+    {
+      "id": "R11",
+      "title": "Make Skills management affect native model and slash visibility",
+      "blocked_by": [],
+      "historical_issues": [
+        4,
+        10,
+        11
+      ],
+      "github_issue": 51,
+      "github_url": "https://github.com/majedsiefalnasr/dsh-majed/issues/51",
+      "published_body_sha256": "156014cd0aa1f39954aa11b537c7728f43e01718f43a906991d5085045d3b87b"
+    },
+    {
+      "id": "R12",
+      "title": "Connect and invoke managed MCP servers through the selected public runtime",
+      "blocked_by": [],
+      "historical_issues": [
+        4,
+        12,
+        13
+      ],
+      "github_issue": 52,
+      "github_url": "https://github.com/majedsiefalnasr/dsh-majed/issues/52",
+      "published_body_sha256": "2f0c077bc54976eed2aa2d756d232c8d8fd197acfa443817e46f2a33a6771c62"
+    },
+    {
+      "id": "R13",
+      "title": "Review and persist exact Command hook Approval with truthful origin",
+      "blocked_by": [],
+      "historical_issues": [
+        14,
+        15,
+        47
+      ],
+      "github_issue": 53,
+      "github_url": "https://github.com/majedsiefalnasr/dsh-majed/issues/53",
+      "published_body_sha256": "d3e798d9af2e305c0991e137d7ab4819642a62145e2c66bf2e7f2b37b23eccf8"
+    },
+    {
+      "id": "R14",
+      "title": "Run approved lifecycle Command hooks with bounded native behavior",
+      "blocked_by": [
+        "R13"
+      ],
+      "historical_issues": [
+        14,
+        15,
+        16
+      ],
+      "github_issue": 56,
+      "github_url": "https://github.com/majedsiefalnasr/dsh-majed/issues/56",
+      "published_body_sha256": "0db069a82c47e000c722f3d417aa558874e226d6139402a3de3abb3ed91ac2ac"
+    },
+    {
+      "id": "R15",
+      "title": "Configure and validate a separate judgment service securely",
+      "blocked_by": [],
+      "historical_issues": [
+        29
+      ],
+      "github_issue": 54,
+      "github_url": "https://github.com/majedsiefalnasr/dsh-majed/issues/54",
+      "published_body_sha256": "51bebdd83a3c25f6a6086180cffb91080b9db507c9340684785b6cfd40f24bb7"
+    },
+    {
+      "id": "R16",
+      "title": "Apply opt-in bounded Smart selection and record Shadow decisions",
+      "blocked_by": [
+        "R08",
+        "R15"
+      ],
+      "historical_issues": [
+        30
+      ],
+      "github_issue": 63,
+      "github_url": "https://github.com/majedsiefalnasr/dsh-majed/issues/63",
+      "published_body_sha256": "21ea2cad47528e250c72451a439a3012084691da72065944907aad7e8aaa470b"
+    },
+    {
+      "id": "R17",
+      "title": "Route opted-in supported local children before native admission",
+      "blocked_by": [
+        "R08",
+        "R15"
+      ],
+      "historical_issues": [
+        7,
+        31
+      ],
+      "github_issue": 64,
+      "github_url": "https://github.com/majedsiefalnasr/dsh-majed/issues/64",
+      "published_body_sha256": "ccc2589b825d94a78813838f0bbf42c29684b72ef6b6717941028fc78ba4c8d5"
+    },
+    {
+      "id": "R18",
+      "title": "Advise on currently authorized Skills and MCP tools",
+      "blocked_by": [
+        "R11",
+        "R12",
+        "R15"
+      ],
+      "historical_issues": [
+        16,
+        32
+      ],
+      "github_issue": 65,
+      "github_url": "https://github.com/majedsiefalnasr/dsh-majed/issues/65",
+      "published_body_sha256": "a5ebf3aa13e62999038782ddb12c4024bdb24def61240f09af02344262967d50"
+    },
+    {
+      "id": "R19",
+      "title": "Use integrated search and preserve attachment/tool-policy history",
+      "blocked_by": [
+        "R02",
+        "R04"
+      ],
+      "historical_issues": [
+        23
+      ],
+      "github_issue": 66,
+      "github_url": "https://github.com/majedsiefalnasr/dsh-majed/issues/66",
+      "published_body_sha256": "d350c77c2debbf13bfd6db4464d0c46b86d4122b1fd97a687e9e833f67a22338"
+    },
+    {
+      "id": "R20",
+      "title": "Generate and edit images through integrated providers",
+      "blocked_by": [
+        "R19"
+      ],
+      "historical_issues": [
+        24
+      ],
+      "github_issue": 69,
+      "github_url": "https://github.com/majedsiefalnasr/dsh-majed/issues/69",
+      "published_body_sha256": "8475cbabb49981fbf026b55e41fe95e8e19f003b2c04b086274bb9fe7d926d2b"
+    },
+    {
+      "id": "R21",
+      "title": "Submit, resume polling and render integrated video jobs",
+      "blocked_by": [
+        "R19"
+      ],
+      "historical_issues": [
+        25
+      ],
+      "github_issue": 70,
+      "github_url": "https://github.com/majedsiefalnasr/dsh-majed/issues/70",
+      "published_body_sha256": "c8c2c0737a38df1a3241dcb60a66945dc424f0015bf27063c68edf44a2e16a63"
+    },
+    {
+      "id": "R22",
+      "title": "Show actual usage and perform explicit supported quota operations",
+      "blocked_by": [
+        "R02",
+        "R03"
+      ],
+      "historical_issues": [
+        21
+      ],
+      "github_issue": 67,
+      "github_url": "https://github.com/majedsiefalnasr/dsh-majed/issues/67",
+      "published_body_sha256": "0955f8851c0db55027bd9a48ef9f8fb170707230550cf827d2cbaf0ce507febd"
+    },
+    {
+      "id": "R23",
+      "title": "Apply proxy and provider settings to actual module traffic",
+      "blocked_by": [
+        "R02"
+      ],
+      "historical_issues": [
+        22
+      ],
+      "github_issue": 68,
+      "github_url": "https://github.com/majedsiefalnasr/dsh-majed/issues/68",
+      "published_body_sha256": "88bd49ac8f70ea288db60616f9c04e628798dec48cedabe166331b1dd784511d"
+    },
+    {
+      "id": "R24",
+      "title": "Prepare Manager replacement and prove rollback with integrated runtimes",
+      "blocked_by": [
+        "R09",
+        "R11",
+        "R12",
+        "R14"
+      ],
+      "historical_issues": [
+        16,
+        33
+      ],
+      "github_issue": 71,
+      "github_url": "https://github.com/majedsiefalnasr/dsh-majed/issues/71",
+      "published_body_sha256": "d9426c5fbc0725aee3efe7a5b413f77c3a527adf02836701d4347e07a4859b9e"
+    },
+    {
+      "id": "R25",
+      "title": "Verify Managers locally and remotely after approved replacement",
+      "blocked_by": [
+        "R24"
+      ],
+      "historical_issues": [
+        35
+      ],
+      "github_issue": 72,
+      "github_url": "https://github.com/majedsiefalnasr/dsh-majed/issues/72",
+      "published_body_sha256": "9b8432f153449cb2fdc2721fcfc392f5d008879fbd4d8c3e85b3db1ead5a169f"
+    },
+    {
+      "id": "R26",
+      "title": "Prepare subscription replacement with complete parity and rollback",
+      "blocked_by": [
+        "R03",
+        "R04",
+        "R05",
+        "R06",
+        "R07",
+        "R19",
+        "R20",
+        "R21",
+        "R22",
+        "R23"
+      ],
+      "historical_issues": [
+        34
+      ],
+      "github_issue": 73,
+      "github_url": "https://github.com/majedsiefalnasr/dsh-majed/issues/73",
+      "published_body_sha256": "686459539c78510e2031241dad4b742dfba09590cda5943e40033907a8bc7043"
+    },
+    {
+      "id": "R27",
+      "title": "Verify subscriptions and Auto, with separate Smart evaluation gates",
+      "blocked_by": [
+        "R26",
+        "R08",
+        "R16",
+        "R17",
+        "R18"
+      ],
+      "historical_issues": [
+        36
+      ],
+      "github_issue": 74,
+      "github_url": "https://github.com/majedsiefalnasr/dsh-majed/issues/74",
+      "published_body_sha256": "0873c3ec8c58caefb0bb393d388a8defe4a9559b20d3daafe779522a064eaa17"
+    }
+  ],
+  "reconciled_snapshot_finished_at": "2026-10-25T17:27:38.129320Z",
+  "verified_at": "2026-10-25T18:50:42.852772+00:00"
+}

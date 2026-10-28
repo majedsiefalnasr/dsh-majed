@@ -1,0 +1,1080 @@
+{
+  "verified": true,
+  "date": "2026-10-28",
+  "repo": "majedsiefalnasr/dsh-majed",
+  "record_count": 75,
+  "created": 48,
+  "amended": 27,
+  "closed_not_planned": [
+    49
+  ],
+  "native_edges": 109,
+  "review_slices": 73,
+  "story_count": 126,
+  "total_issues": 125,
+  "open_issues": 86,
+  "protected_records": [
+    {
+      "number": 1,
+      "content_sha256": "12e99b33cc77d87fc347955b87deeb48efa6ac52fe72ca5b3d5bbea4b62b2768",
+      "comments_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "number": 2,
+      "content_sha256": "64c884f1b3982d381b4577d9f6ee5ab72d848e3d178c4e2ca2589b871c4729ab",
+      "comments_sha256": "fd0b9e42584ec2c9be7c009b2bbd0b23629ccf4ffe8f266e2180c77d80c5bb03"
+    },
+    {
+      "number": 3,
+      "content_sha256": "4781a0826c90bfe6891b28710c475f2b91884d1d8bae5d6651242cbb305520c4",
+      "comments_sha256": "e6f165c831b826c8cb1778b3a023338126120cd89748feee2597ca083ea7d9a9"
+    },
+    {
+      "number": 4,
+      "content_sha256": "5dc1567970ee50cee36bf92e5b5487ec311f7c52b0e20183adf2dd5547b40bdf",
+      "comments_sha256": "70e121201c6e32b261be19c03e83d394ce53613743d3f40f8772a85bac695dac"
+    },
+    {
+      "number": 5,
+      "content_sha256": "027a25bd602e94c32da0978790dca7cf64b7ca94a79562517e3cb059c4400a1f",
+      "comments_sha256": "76a65eabf5b27553a55f646fff946e0e8dfe3827a0304566e91b76b07d9067d9"
+    },
+    {
+      "number": 6,
+      "content_sha256": "eb91fde16013602b27d71d99cdc3fbf93970db9a126469366ad3cb254366ace8",
+      "comments_sha256": "405a23f3eca4fbea67e31a8ba47aa7ed74caf38f97a2715e1c7a9ae0ec3a31ce"
+    },
+    {
+      "number": 7,
+      "content_sha256": "383e80bf2a927776b1d1367f7e3ad343e6a1e0791ae9ae1918238d0ee9437320",
+      "comments_sha256": "fc708f418680a04f1369010871dc2d4d21730b3dd896a9ffea9e8d11b6986efa"
+    },
+    {
+      "number": 8,
+      "content_sha256": "c62bb9a5048fe5e6790bb0bf3cff0350f9238da0c1c8602351ea634b6bb34161",
+      "comments_sha256": "84a8a686925facf8f6852acb3be8464617e02e1bca66645a32bbc2dd1ddb934c"
+    },
+    {
+      "number": 9,
+      "content_sha256": "480bcbb07c4ec22c62c0c6969e211780ecfbd7921e942df0cc1b09b3a084a4f2",
+      "comments_sha256": "bcfbb8df969bf4fb67bbc9d8f2580c9334ff0082c8c21c4ec38cf14439c29e57"
+    },
+    {
+      "number": 10,
+      "content_sha256": "494b281732cfc5a2d0af0238bbfeedc15c9ee94fc46124efb4cb5e99051ece4e",
+      "comments_sha256": "6f29dc5ac32260936e0b560df97307ee4dbb3e8eef6c703bd86dc72e10742adf"
+    },
+    {
+      "number": 11,
+      "content_sha256": "b23fdcbf77a8effabdb5b6010ce3fdf4728c6e9eb865e949b206aa350dd79044",
+      "comments_sha256": "064c6bd7b0b2d06641710bcbbec7cbe47fa824e66b3948254b5702a7a56058a2"
+    },
+    {
+      "number": 12,
+      "content_sha256": "4195bdda3c8c4aea24c1591b5d3024e25b8c79657c026ef7329b7c9f887c7d8f",
+      "comments_sha256": "499df54059a3cfeb508b47d30975879630893f1f36bf0a120faf1f85a91849b0"
+    },
+    {
+      "number": 13,
+      "content_sha256": "55689c5fc3c5f793852d0942e051c369882ca73b36245f60561b55b0a57ea377",
+      "comments_sha256": "3befc02e0960955d854d72d45dc8dfe1d4873eb5dbd015368f00812cd189cc59"
+    },
+    {
+      "number": 14,
+      "content_sha256": "582b3ab5753af1980d241740748b3d569a54cbf8425041d50ee6804cc6938c4a",
+      "comments_sha256": "1f31a85c315d6073e284a267c026e515196c69465d37809dc9c4427d460cd5d7"
+    },
+    {
+      "number": 15,
+      "content_sha256": "b5edc11a3e4b78ec74f35059e46b3f9de016b35a24e8cbe4c745ce16e5fac902",
+      "comments_sha256": "465c58e9b2b745fb73fe4bcecc265f4657842486635e32dc8172c52210d39ec5"
+    },
+    {
+      "number": 16,
+      "content_sha256": "5bf5f20454f34df6eb45060a514c2e25c90f75408c5db7ec281973f1a66132d0",
+      "comments_sha256": "61da3a84a4c4511dbeaf3d2fd449ca933849d846a83aab098cdd511eb58e036d"
+    },
+    {
+      "number": 17,
+      "content_sha256": "041facb5bb7f879d01209db3724611675126a787e4fa82c032ce5f6add4f8f81",
+      "comments_sha256": "f8a58e3e395189108530adbdcd274ef840d7d87652bc455d744b9f88986d52bc"
+    },
+    {
+      "number": 18,
+      "content_sha256": "679e9a370c40f8603adcfd15710504ce2446733267c66bf80e5bb8231a9ac90b",
+      "comments_sha256": "f75bc512d39a4cf9350e8a960c17836cae3ace09bb9c17834ab35841608243cf"
+    },
+    {
+      "number": 19,
+      "content_sha256": "245852683bded907e85bbb44ac3b45bfde69a0862e3a7a0cadcc5d7f339c5cbf",
+      "comments_sha256": "27e5da8b4f8297be9bf5946eeac0e04062dae313575068d55d0219f372d35150"
+    },
+    {
+      "number": 20,
+      "content_sha256": "c3b604ff34458d268a3f7a84890cdf7d823ea2863c90c3d18ce8d2a8743a40f4",
+      "comments_sha256": "eff3cbfbabe3648fff11c6388d13156716405c5dbe874e14a5887ab034f8c7a8"
+    },
+    {
+      "number": 21,
+      "content_sha256": "7d806a6eb818f2ceaf46ae9709fa882acaf97428c2063aad0708858a8349c00b",
+      "comments_sha256": "85bbed9be58f01a1d441a837b8b41a1dc9c1cd445197ada34df3538158fdae60"
+    },
+    {
+      "number": 22,
+      "content_sha256": "75066b24980006d9aed5cf3160b7d1da22b911c7dc0df2dfd8dd90b95b72958c",
+      "comments_sha256": "6ca5afb30abfbb991feb91348b651d8ae0053bbd9f80c684913b8ed9b9aea157"
+    },
+    {
+      "number": 23,
+      "content_sha256": "e03ce052167bead55fadec0d3ba2744b3c0fc146ec3a91a05752ebbdf5cce82c",
+      "comments_sha256": "e8ad3cde34a56cc543b150a2ad273e4aa72144f954f6b459423a6d2c02581374"
+    },
+    {
+      "number": 24,
+      "content_sha256": "d74f5445abd923841a8a5cf818a2ce6b7119360440e3564d5ae3286132543f67",
+      "comments_sha256": "5b36da61e957b51bcc0fe9a79de3ea5c489b91d9395994d08386dcdd264607dc"
+    },
+    {
+      "number": 25,
+      "content_sha256": "57f527453b4e111e2550f6e70317db7ea62698367de38a24a94c59684e3a0639",
+      "comments_sha256": "49517417ddc38ec959ec569b2841ad8809aeb732f327550c7198b31cee71fa1c"
+    },
+    {
+      "number": 26,
+      "content_sha256": "d94713b62cae8a133f7af99236c22c2aa78ca3c9d1a829fab740ce69ea6c98b3",
+      "comments_sha256": "5f553518f70ffdce0a4887ce2d144e0f0dd77f29cf1a5917c84236232214e2a4"
+    },
+    {
+      "number": 27,
+      "content_sha256": "5e502a1776eca075fbedd117851fa09f7117bddc0438aaa36c8427108e2e5bcc",
+      "comments_sha256": "fb51f6db63499fe7a99a2bfc12cdd558778a92aa7e21999fbb65071e2c189278"
+    },
+    {
+      "number": 28,
+      "content_sha256": "f29c1c1b051307b2c18c835d64864bd3ea697b98247fa8e89d433dcfa5aa9db6",
+      "comments_sha256": "0460162d31487f0b321de7b145aebbb6b62fdb7553b92fb2d54fa65670bfd1ca"
+    },
+    {
+      "number": 29,
+      "content_sha256": "a52fdb3c940d8b42b43517fb403260ef72ffcdbeda5bd181e679f41a91709524",
+      "comments_sha256": "e1666d6d08bb38bbd5b736257a2700b04372d652a353a19ed957ac672ce2f5e1"
+    },
+    {
+      "number": 30,
+      "content_sha256": "141514f79c333d7b9591b1e594b042243fe334d031c9d1ff4f541b77e22882d1",
+      "comments_sha256": "a7209c3ada51e10c73889a52296c3ce56c397dc72b497c8717c6b2fe627bacbd"
+    },
+    {
+      "number": 31,
+      "content_sha256": "ac7a627fc0bf5b2123d5a78aad1e6854488c8b182a9188688f03a7a567c156e4",
+      "comments_sha256": "abf07217ee8c8ecc4530e85172109237c903f550f619f522e095f678b3ca214c"
+    },
+    {
+      "number": 32,
+      "content_sha256": "99e2197b2be49ea5b39cc6934a17c59ae74e50879f0b943a0eb63a11f8f059ee",
+      "comments_sha256": "ed4b8e2654c24e951f87e8b5fc589426d2df4ad6558dfb3ececefa238f42dfd0"
+    },
+    {
+      "number": 33,
+      "content_sha256": "c6df54c0f1faae29526d656f9640b26363772985060b8e17c93096958f0de5cf",
+      "comments_sha256": "1db46fc08656f94ce2176aa1aab483c05b550425afc9c17ff000b6501af443bd"
+    },
+    {
+      "number": 34,
+      "content_sha256": "38fcff6b9c5afab032fc8536fd223356b4d086ae819a0e71ba371d61a4341baa",
+      "comments_sha256": "886b39b3c194df84d551f8309f545a9ba53d3a999ba331a845f225ab8c361463"
+    },
+    {
+      "number": 35,
+      "content_sha256": "9f0edce7ee1fe762b860d48b944b9376e3f41acd60c0afd973d537b4508487c4",
+      "comments_sha256": "4a4575adb97bd35cc0785b790daf245c76c3a7c54ec5033078a5cebb24d640b0"
+    },
+    {
+      "number": 36,
+      "content_sha256": "52101f6e88b469122866066cc5714942d4be4eca1dea9d505ee75e23113f8664",
+      "comments_sha256": "d1e17be3c487f12bf075e2ac0b6ca937ccf0f4015f6b60a9e72e0b98b5776d0e"
+    },
+    {
+      "number": 39,
+      "content_sha256": "0b67f1196e1de3ee4e41727ea77d6699eb6bf05f7cba001fbaccb050dff4bb23",
+      "comments_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "number": 42,
+      "content_sha256": "df240e1e5c5849861f34824464fd068e8383b4cc33023f0721be0bf5ebe3da27",
+      "comments_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "number": 43,
+      "content_sha256": "9ca0b96fdb125b65155cb20e77e2ad8ab88b27cf5832d93afe52da072abea1a9",
+      "comments_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "number": 44,
+      "content_sha256": "cfcd520a2e4cd72e29884893883eeefe7eb1a21282007b0aba3bd1bde7f014f9",
+      "comments_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "number": 45,
+      "content_sha256": "0dcbb474a73b70c0a40a95de121e9cee7fe347cf40b8b2db944750bacdd125ed",
+      "comments_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "number": 46,
+      "content_sha256": "12ef43f34c79f0731589b7d596e62f35db885cd4de3d1737dbaa633d35e00d7c",
+      "comments_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "number": 47,
+      "content_sha256": "808e05697acf57d45b061dc310d87a4f94f08c76773cf279b9cc7446b6087848",
+      "comments_sha256": "53a0ffbea1308b2e8a07c3dd7a6b0be875d99e92eb1b4af3fee707658a15b383"
+    },
+    {
+      "number": 52,
+      "content_sha256": "ddddeeea62547538e9e301055e6440298545a714f75f71d1bf989fa19227bcb7",
+      "comments_sha256": "eb315fcedd7cd6f52f76e063bd5737f5246113d3ea9600b173e985636fa8820e"
+    },
+    {
+      "number": 53,
+      "content_sha256": "0d2572ec5f44bee4523f7be5f4ff1b2431f97085b96fd3aaa83b74f3c8b5ffe5",
+      "comments_sha256": "c1b51ed83186a8ce82b7c9f5f27380add9a9a8a345a9c4d39a96838548753841"
+    },
+    {
+      "number": 54,
+      "content_sha256": "f74de2bda2dc527f4b2bf18999ff69a39d297fda79189ee498f10e953d296a2b",
+      "comments_sha256": "cc7992fc58405574c55875b0fd2aaac06340d9dbb1c3db6c0744422eff217d0c"
+    },
+    {
+      "number": 75,
+      "content_sha256": "be827a87699cbf17c045a0934e5907a74b2fa31f04e6bfe1b091d091e943aa57",
+      "comments_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "number": 76,
+      "content_sha256": "b56184d80ffb8abd58c700b8c53417bc7d1bcf03e5b2324eec05e810241fef2e",
+      "comments_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "number": 77,
+      "content_sha256": "854f1c0ddd4d1e17569ea820fd4b26406f0b3cbd7ef2e847da3a26e89901e6f7",
+      "comments_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  ],
+  "spec_sha256": "dc43de7d7dc45647b8c1dc1acba24d887c25d93c87a905fc0eb3ae51001db006",
+  "mapping": {
+    "E01": {
+      "number": 78,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/78",
+      "slice": "E01",
+      "blockers": [],
+      "body_sha256": "2742e01314515562c63bc6870978fe97a250671237b96bbadfd72f7516a090fd",
+      "title": "[E01] Retain preferences and independently restore typography/direction"
+    },
+    "E02": {
+      "number": 79,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/79",
+      "slice": "E02",
+      "blockers": [
+        78
+      ],
+      "body_sha256": "7d6b6e8aec85e817e633386bfdb5d164a8f774dd1b7b0a63a601ea99aebcafcc",
+      "title": "[E02] Personalize general branding and palettes"
+    },
+    "E03": {
+      "number": 80,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/80",
+      "slice": "E03",
+      "blockers": [
+        78
+      ],
+      "body_sha256": "4308d36d64968fe8e827e467edf8c1c61ec03055b70e2e12061b982779840477",
+      "title": "[E03] Customize home layouts and mascots"
+    },
+    "E04": {
+      "number": 81,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/81",
+      "slice": "E04",
+      "blockers": [
+        78
+      ],
+      "body_sha256": "975792deac5b9fa8972c5c250541484553bd662b5404512fbd779a7744c46811",
+      "title": "[E04] Navigate long conversations and configure their frame"
+    },
+    "E04a": {
+      "number": 82,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/82",
+      "slice": "E04a",
+      "blockers": [
+        78
+      ],
+      "body_sha256": "d906a0a0673b117a79f2b31f52742efdc769e26dbf42ca35443113b9c8543361",
+      "title": "[E04a] Fold reasoning, processes and messages accessibly"
+    },
+    "E04b": {
+      "number": 83,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/83",
+      "slice": "E04b",
+      "blockers": [
+        78
+      ],
+      "body_sha256": "e0ad91927d19e217aaa63e32262e95edcb150e1c3e91b64b6e203796248b00d9",
+      "title": "[E04b] Style process rows and composer without losing work"
+    },
+    "E05": {
+      "number": 84,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/84",
+      "slice": "E05",
+      "blockers": [
+        78
+      ],
+      "body_sha256": "e2786b3b53057664eafd4a2b4108747ca879dacb6504f0b1a57489a3f3b33bc1",
+      "title": "[E05] Present native model, effort, context and estimate information"
+    },
+    "E06": {
+      "number": 85,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/85",
+      "slice": "E06",
+      "blockers": [
+        78
+      ],
+      "body_sha256": "72cfeaba46b4918366044ec2313befa43d8b6ae4b131fd463ac49ae729961523",
+      "title": "[E06] Organize sidebar and account navigation"
+    },
+    "E07": {
+      "number": 86,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/86",
+      "slice": "E07",
+      "blockers": [
+        78
+      ],
+      "body_sha256": "b06be9366848adb432929a5a773468919cb45827dbeb1f7bff4a6e4b6ac4ed5d",
+      "title": "[E07] Control accessible motion and live conversation effects"
+    },
+    "E07a": {
+      "number": 87,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/87",
+      "slice": "E07a",
+      "blockers": [
+        78
+      ],
+      "body_sha256": "92879f515777e1f5a2a59db0c6263a97056e4fa8c40128d2632092ae1c85f40c",
+      "title": "[E07a] Opt into experimental rendering and recover native styling"
+    },
+    "E08": {
+      "number": 88,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/88",
+      "slice": "E08",
+      "blockers": [],
+      "body_sha256": "f712bb8096a0d1d8cb4f89b587b7c2145033bd82dcf623ba2cbd3fe15ad428fc",
+      "title": "[E08] Deliver private device-local notifications"
+    },
+    "E09": {
+      "number": 89,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/89",
+      "slice": "E09",
+      "blockers": [],
+      "body_sha256": "c89604fcb137f494a7825bf491ae8ffb052ce018b60a533dd5c333102fdf8fd6",
+      "title": "[E09] Copy selected text and read native pages honestly"
+    },
+    "E10": {
+      "number": 90,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/90",
+      "slice": "E10",
+      "blockers": [],
+      "body_sha256": "dcdcc18ca6ccbbebfd74b59fbb542eb96f7ce48b7b47ed9376367b7d4083def4",
+      "title": "[E10] Share authoritative session command mode safely"
+    },
+    "E11": {
+      "number": 91,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/91",
+      "slice": "E11",
+      "blockers": [
+        90
+      ],
+      "body_sha256": "f9611862aeba9b877b7927479759c448dcbe195c5a8d25d7156bb981eaa97eaf",
+      "title": "[E11] Apply reviewed local Safe/Aggressive action policies"
+    },
+    "E12": {
+      "number": 92,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/92",
+      "slice": "E12",
+      "blockers": [
+        91
+      ],
+      "body_sha256": "49d12c4fbc2fc20449b52502caaa037030a57213eb5d4cce164a1c15fe393b43",
+      "title": "[E12] Add explicitly configured bounded command judgment"
+    },
+    "S01a": {
+      "number": 48,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/48",
+      "slice": "S01",
+      "blockers": [],
+      "body_sha256": "5bb733ca5d0feb430a22e9dd0a8e49cc895361bf11ffb82584b891362e9be3d0",
+      "title": "[S01a] Connect, retain and revoke a Codex account through native Settings"
+    },
+    "S01b": {
+      "number": 55,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/55",
+      "slice": "S01",
+      "blockers": [
+        48
+      ],
+      "body_sha256": "b8565f051705d2739df5d6f44d8ae8e6914417885145957aad7506b955f5a621",
+      "title": "[S01b] Select a Codex model and complete prepared direct chat"
+    },
+    "S02": {
+      "number": 57,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/57",
+      "slice": "S02",
+      "blockers": [
+        55
+      ],
+      "body_sha256": "358e6df902276ba5df8863b053732ce2bd7a407981d1ef12d946dd959867f233",
+      "title": "[S02] Complete Claude login and direct chat"
+    },
+    "S03": {
+      "number": 58,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/58",
+      "slice": "S03",
+      "blockers": [
+        55
+      ],
+      "body_sha256": "4495ac9e2d2ac1e66c3f55216a2589f84395b3eacd999c4f0b3af412bd093c0f",
+      "title": "[S03] Complete Grok login and direct chat"
+    },
+    "S04": {
+      "number": 59,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/59",
+      "slice": "S04",
+      "blockers": [
+        55
+      ],
+      "body_sha256": "af7b2b016fc6f6f77fd4d16f57e4f7a1bcbfd9211fecc65d73a166b7450a938f",
+      "title": "[S04] Complete Copilot device authorization and chat"
+    },
+    "S05": {
+      "number": 60,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/60",
+      "slice": "S05",
+      "blockers": [
+        55
+      ],
+      "body_sha256": "755bb422440c8837c5effacd56d62ea3832231fc966912ba30b9ecff24e0e2b3",
+      "title": "[S05] Complete Antigravity account and chat"
+    },
+    "S06": {
+      "number": 93,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/93",
+      "slice": "S06",
+      "blockers": [
+        55
+      ],
+      "body_sha256": "569571610def26f3dc827eaf9fd46121ac17066826ebd780c2c3b44f09141243",
+      "title": "[S06] Use an explicitly enabled OpenCode connection"
+    },
+    "S07": {
+      "number": 61,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/61",
+      "slice": "S07",
+      "blockers": [
+        55
+      ],
+      "body_sha256": "e878b13281831fa58ecb114ad08835ecb25e5dad86e95d0f33def6e3cfbf2e10",
+      "title": "[S07] Manage multiple accounts, defaults and revocation"
+    },
+    "S08": {
+      "number": 94,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/94",
+      "slice": "S08",
+      "blockers": [
+        55
+      ],
+      "body_sha256": "0e03c6f24290e66e5b670d234def9471ff09e99e8bba1d2afd81a8c53a4e58fa",
+      "title": "[S08] Configure catalog entries and manual model defaults"
+    },
+    "S09": {
+      "number": 95,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/95",
+      "slice": "S09",
+      "blockers": [
+        61
+      ],
+      "body_sha256": "2d584b523e912fb520963831247109a94495642bb4d5cfd16af926727d70cdea",
+      "title": "[S09] Use explicit direct routes and bounded manual pools"
+    },
+    "S10": {
+      "number": 67,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/67",
+      "slice": "S10",
+      "blockers": [
+        55
+      ],
+      "body_sha256": "e1a0e820f0eb093fb5180f04c41395c15e36f16882a9ab72701e30d7066d3041",
+      "title": "[S10] Observe usage and perform explicit quota operations"
+    },
+    "S11": {
+      "number": 68,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/68",
+      "slice": "S11",
+      "blockers": [
+        55
+      ],
+      "body_sha256": "a04c3a0fda07e532faf6c119030fd434e58690cfb18ea285ea55f86fe41dfe74",
+      "title": "[S11] Apply proxy/cache/provider options to actual traffic"
+    },
+    "S12": {
+      "number": 66,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/66",
+      "slice": "S12",
+      "blockers": [
+        55
+      ],
+      "body_sha256": "ae1a7e2407f7dfe6329f8f84b43307ed34c435256eb37ab591580bda80b1d266",
+      "title": "[S12] Search through independently configured authorized services"
+    },
+    "S13": {
+      "number": 69,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/69",
+      "slice": "S13",
+      "blockers": [
+        55
+      ],
+      "body_sha256": "45de72c2966f40723279a4c228bdd8c60fba0e17e4b32c46b3698d5bf123c03f",
+      "title": "[S13] Generate and edit images without dropping references"
+    },
+    "S14": {
+      "number": 70,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/70",
+      "slice": "S14",
+      "blockers": [
+        55
+      ],
+      "body_sha256": "4fda30dffe3fb96b3d019ba4e07471aafa8947da5ce95795bb0f9697022a82ce",
+      "title": "[S14] Submit and recover video/media jobs once"
+    },
+    "S15": {
+      "number": 96,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/96",
+      "slice": "S15",
+      "blockers": [],
+      "body_sha256": "386e50a47015383d6ec744f306cf4b7089dc3430346156758cd9aeef72951e12",
+      "title": "[S15] Reuse native API model references without credential copies"
+    },
+    "M01": {
+      "number": 97,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/97",
+      "slice": "M01",
+      "blockers": [],
+      "body_sha256": "398a4f856a2315cbc89116011a69f65dcc898a980d18af675d1c887f074ae6f6",
+      "title": "[M01] Manage scoped connections with conflict-safe lifecycle"
+    },
+    "M02": {
+      "number": 40,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/40",
+      "slice": "M02",
+      "blockers": [
+        97
+      ],
+      "body_sha256": "85f9ad536582d2dfe0d230a8fe1a3ca467540a76c996eb00dbd84923449059f5",
+      "title": "[M02] Select MCP tools without expanding authority"
+    },
+    "M03": {
+      "number": 41,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/41",
+      "slice": "M03",
+      "blockers": [
+        97
+      ],
+      "body_sha256": "a2bc5a8bdb35f047d7b5fdd67b10e8211c73546a6472f6a4c5ed1a7595299c73",
+      "title": "[M03] Preview and exchange MCP definitions losslessly"
+    },
+    "M04": {
+      "number": 98,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/98",
+      "slice": "M04",
+      "blockers": [
+        97
+      ],
+      "body_sha256": "04d86c02b350fb0f64f522f325d4181f04e840c34aad7b2eadd24ef68bb28a77",
+      "title": "[M04] Authorize and relink supported remote MCP connections"
+    },
+    "M05": {
+      "number": 99,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/99",
+      "slice": "M05",
+      "blockers": [
+        40
+      ],
+      "body_sha256": "a2bd8c5503e3a868d6ba36c4b9bb7b7966db3babadb6a8b52a3756aa9f12d372",
+      "title": "[M05] Restore reviewed MCP activation safely after restart"
+    },
+    "K01": {
+      "number": 51,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/51",
+      "slice": "K01",
+      "blockers": [],
+      "body_sha256": "0771da8fc2a51f99eba3e91816f992c9fbc9ce5f72528b4ab34f6645da54b25a",
+      "title": "[K01] Make scoped availability match actual native consumers"
+    },
+    "K02": {
+      "number": 100,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/100",
+      "slice": "K02",
+      "blockers": [
+        51
+      ],
+      "body_sha256": "9d15e44e32ad2e77d3a13aa8bbec3fd4d062bdc4f45873b76a7edfe8345f378b",
+      "title": "[K02] Edit and reversibly remove owned Skills"
+    },
+    "K03": {
+      "number": 38,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/38",
+      "slice": "K03",
+      "blockers": [
+        100
+      ],
+      "body_sha256": "b236a7620f8dcf2d33efbbe02a89d0ac16750b1f84d0a6a54e756f287e8b3395",
+      "title": "[K03] Import local Skill files and folders disabled"
+    },
+    "K04": {
+      "number": 37,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/37",
+      "slice": "K04",
+      "blockers": [
+        38
+      ],
+      "body_sha256": "c3927e4504dbba7a3ba3fb9a727370e5dde45c30d99c78f3f7e28df05e9dfb2a",
+      "title": "[K04] Browse repositories and install selected Skills with provenance"
+    },
+    "K05": {
+      "number": 101,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/101",
+      "slice": "K05",
+      "blockers": [
+        51
+      ],
+      "body_sha256": "74a13e223d2fcffe6270c9ca169cc55a9e30d0762b1669367d1d5a8f8650f6df",
+      "title": "[K05] Organize Skills with durable local metadata"
+    },
+    "K06": {
+      "number": 102,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/102",
+      "slice": "K06",
+      "blockers": [
+        37
+      ],
+      "body_sha256": "6df076608e95bea983705526f75c690b2b3431374fd5e931a550e39acd9816b5",
+      "title": "[K06] Check and apply reviewed Skill updates recoverably"
+    },
+    "H01": {
+      "number": 103,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/103",
+      "slice": "H01",
+      "blockers": [],
+      "body_sha256": "18383fef08e90abace34dded216380126227ecabb038cb2024cf60f6afde0acd",
+      "title": "[H01] Manage definitions and exact-version Approval"
+    },
+    "H02": {
+      "number": 56,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/56",
+      "slice": "H02",
+      "blockers": [
+        103
+      ],
+      "body_sha256": "dc6d694c920544a5e6b80c4a8b03165fd2dc1d01d3d87f874c664b59e3cfb4c3",
+      "title": "[H02] Run SessionStart and UserPromptSubmit through bounded lifecycle"
+    },
+    "H03": {
+      "number": 104,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/104",
+      "slice": "H03",
+      "blockers": [
+        56
+      ],
+      "body_sha256": "e5e4b713425ca4336538e3be412c33f4285891d080d0374658daeba1f5ea5894",
+      "title": "[H03] Enforce PreToolUse and PermissionRequest gates"
+    },
+    "H04": {
+      "number": 105,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/105",
+      "slice": "H04",
+      "blockers": [
+        56
+      ],
+      "body_sha256": "2afa06b7d58da4e5714b3726665b020ddfbb31bae6409a98bb15bc2d48ab29d8",
+      "title": "[H04] Observe PostToolUse and PostCompact honestly"
+    },
+    "H05": {
+      "number": 106,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/106",
+      "slice": "H05",
+      "blockers": [
+        56
+      ],
+      "body_sha256": "12e64feeb233527390f32a9203e64b3eeb8afd486bfd7172654025c7ca7135de",
+      "title": "[H05] Bound Stop continuation to the real user turn"
+    },
+    "H06": {
+      "number": 107,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/107",
+      "slice": "H06",
+      "blockers": [
+        56
+      ],
+      "body_sha256": "7184454a180b2fc5176bfb21f88bd6c6a09fc058527980b7086bc3b0c79ff00a",
+      "title": "[H06] Test approved Hooks and inspect metadata-first history"
+    },
+    "H07": {
+      "number": 108,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/108",
+      "slice": "H07",
+      "blockers": [
+        56
+      ],
+      "body_sha256": "8b775047ae5495d4880548d3611638d8b5ce948064689ad610f9778daa0b34e0",
+      "title": "[H07] Restore or suspend Hooks safely across restart"
+    },
+    "A01a": {
+      "number": 50,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/50",
+      "slice": "A01",
+      "blockers": [],
+      "body_sha256": "5965e619e6ed54e4b66b96966c417eec47c3d682956290795a47e3a7a7783082",
+      "title": "[A01a] Prove native Auto preparation coherence and shared retry ownership"
+    },
+    "A01b": {
+      "number": 62,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/62",
+      "slice": "A01",
+      "blockers": [
+        50,
+        55
+      ],
+      "body_sha256": "b9c4df44832cddcd4c5380abca0e07b90a14b5499bb313ce5ba0dbe29b163953",
+      "title": "[A01b] Enroll and execute coherent deterministic native Auto"
+    },
+    "A02": {
+      "number": 63,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/63",
+      "slice": "A02",
+      "blockers": [
+        62
+      ],
+      "body_sha256": "7417815bcc53e771fe0106162c7ed46edb71272912c83461151e6bd57ef04af2",
+      "title": "[A02] Apply optional bounded task-suitability Smart"
+    },
+    "A03": {
+      "number": 109,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/109",
+      "slice": "A03",
+      "blockers": [
+        62
+      ],
+      "body_sha256": "a0a2f8e2f73be9f632d7fc83acb50bf3cd94163755d4bd169cf1d80abcbe743d",
+      "title": "[A03] Explain and expire routing decisions privately"
+    },
+    "A04": {
+      "number": 110,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/110",
+      "slice": "A04",
+      "blockers": [
+        63
+      ],
+      "body_sha256": "7c4bd3e396324ca35f857dd48ba9c30df51a0215ae72cb12fd16e7b551c7e6cf",
+      "title": "[A04] Compare opt-in Shadow without applying or duplicating work"
+    },
+    "A05": {
+      "number": 64,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/64",
+      "slice": "A05",
+      "blockers": [
+        62
+      ],
+      "body_sha256": "9b69932764222f62c1e3399d39673914cc4047567fb67465d4342ea868430824",
+      "title": "[A05] Route independently opted-in supported children"
+    },
+    "A06": {
+      "number": 65,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/65",
+      "slice": "A06",
+      "blockers": [
+        51,
+        40
+      ],
+      "body_sha256": "12438e52b1012b311eac655a27b1cadd0966444a82d19219937dce3a71e83352",
+      "title": "[A06] Advise only on currently authorized capabilities"
+    },
+    "A07": {
+      "number": 111,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/111",
+      "slice": "A07",
+      "blockers": [
+        62,
+        96
+      ],
+      "body_sha256": "9c8aabded80ec6834b1ac247786ed0902d9404347fbe379f25eb4111bf77d39c",
+      "title": "[A07] Admit explicit native API fallback and revalidate revocation"
+    },
+    "O01a": {
+      "number": 112,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/112",
+      "slice": "O01a",
+      "blockers": [
+        97,
+        40,
+        41,
+        98,
+        99
+      ],
+      "body_sha256": "708b2f1176d3ffda48397d75f8a8497f2915d3c8aeee059670a48bd7c9b84322",
+      "title": "[O01a] Rehearse MCP connection ownership and rollback"
+    },
+    "O01b": {
+      "number": 113,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/113",
+      "slice": "O01b",
+      "blockers": [
+        51,
+        100,
+        38,
+        37,
+        101,
+        102
+      ],
+      "body_sha256": "a5cd54b5d9deedeb60598c1f20774dd53c32a9e1552e26b4c9beb7b993d0b434",
+      "title": "[O01b] Rehearse Skills ownership and rollback"
+    },
+    "O01c": {
+      "number": 114,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/114",
+      "slice": "O01c",
+      "blockers": [
+        103,
+        56,
+        104,
+        105,
+        106,
+        107,
+        108
+      ],
+      "body_sha256": "402a83eb1743042f5bbfff80c64dd173774f4557c2a457f6ccb749f3468841ca",
+      "title": "[O01c] Rehearse Hook runner ownership and rollback"
+    },
+    "O01": {
+      "number": 71,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/71",
+      "slice": "O01",
+      "blockers": [
+        112,
+        113,
+        114
+      ],
+      "body_sha256": "d91e7539b380396da68891b322de522bd189d5c4e1ab79b7bfb499cb226e5ba6",
+      "title": "[O01] Verify cross-Manager transfer isolation and recovery"
+    },
+    "O02a": {
+      "number": 115,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/115",
+      "slice": "O02a",
+      "blockers": [
+        55
+      ],
+      "body_sha256": "01e0ed83359df37cf53cdd34b22d03d795b2e8dd0b6737851608d89c2f956e95",
+      "title": "[O02a] Rehearse Codex account and dispatch rollback"
+    },
+    "O02b": {
+      "number": 116,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/116",
+      "slice": "O02b",
+      "blockers": [
+        57
+      ],
+      "body_sha256": "608eba73343947210f00b011ef90c35988f6963d394ae7e4bcc5015ce5bfb777",
+      "title": "[O02b] Rehearse Claude account and dispatch rollback"
+    },
+    "O02c": {
+      "number": 117,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/117",
+      "slice": "O02c",
+      "blockers": [
+        58
+      ],
+      "body_sha256": "25283e01c20a890b854b8403ce1515d76530d9021855358fa30de03c04ca3b56",
+      "title": "[O02c] Rehearse Grok account and dispatch rollback"
+    },
+    "O02d": {
+      "number": 118,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/118",
+      "slice": "O02d",
+      "blockers": [
+        59
+      ],
+      "body_sha256": "11b4f7d78aa6a852b5b4b4bcee7fdda3ecfb654291694a85e5cfbae6eec9e486",
+      "title": "[O02d] Rehearse Copilot account and dispatch rollback"
+    },
+    "O02e": {
+      "number": 119,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/119",
+      "slice": "O02e",
+      "blockers": [
+        60
+      ],
+      "body_sha256": "65778bece7020136262e5511fad4269864d3766af7587c14b0083b251d1884ae",
+      "title": "[O02e] Rehearse Antigravity account and dispatch rollback"
+    },
+    "O02f": {
+      "number": 120,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/120",
+      "slice": "O02f",
+      "blockers": [
+        93
+      ],
+      "body_sha256": "2b0ed6d6a8ebef940ec1245a4931b83534dd8f76c2710a22cc0958ef7cd973f5",
+      "title": "[O02f] Rehearse OpenCode connection and rollback"
+    },
+    "O02g": {
+      "number": 121,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/121",
+      "slice": "O02g",
+      "blockers": [
+        61,
+        94,
+        95,
+        67,
+        68
+      ],
+      "body_sha256": "cd2f3914d1bc4805e15ef38dc4a4ea73c685e11817c087cb24815554d6996848",
+      "title": "[O02g] Rehearse account policies, usage and network settings rollback"
+    },
+    "O02h": {
+      "number": 122,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/122",
+      "slice": "O02h",
+      "blockers": [
+        66
+      ],
+      "body_sha256": "d3a4d089a9342e8741689b71eb0402969fba1affeb3b48357b437ae2b26231ad",
+      "title": "[O02h] Rehearse search ownership and rollback"
+    },
+    "O02i": {
+      "number": 123,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/123",
+      "slice": "O02i",
+      "blockers": [
+        69
+      ],
+      "body_sha256": "9a545d958e8fd8ade667e9a21748f4bc377856d88d8e1e26d5c4baa55823c0c4",
+      "title": "[O02i] Rehearse image edit/result ownership and rollback"
+    },
+    "O02j": {
+      "number": 124,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/124",
+      "slice": "O02j",
+      "blockers": [
+        70
+      ],
+      "body_sha256": "9d9e2795a984d8db5da6807b616fd95d49ca5af348384b844e9d60bd6cf61551",
+      "title": "[O02j] Rehearse video job recovery and rollback"
+    },
+    "O02k": {
+      "number": 125,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/125",
+      "slice": "O02k",
+      "blockers": [
+        96
+      ],
+      "body_sha256": "33fdcad038bdec92fcac93b0f549ba8277be7158663db15c838f851aa9e3921b",
+      "title": "[O02k] Rehearse native API reference recovery without secret migration"
+    },
+    "O02": {
+      "number": 73,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/73",
+      "slice": "O02",
+      "blockers": [
+        115,
+        116,
+        117,
+        118,
+        119,
+        120,
+        121,
+        122,
+        123,
+        124,
+        125
+      ],
+      "body_sha256": "0f145b9cba3998a96dc7e5ea55a598e7872c23ab52d23ef29d8325fd0ac3c2c3",
+      "title": "[O02] Verify cross-subscription ownership and recovery"
+    },
+    "O03": {
+      "number": 72,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/72",
+      "slice": "O03",
+      "blockers": [
+        71,
+        75,
+        76
+      ],
+      "body_sha256": "ff761a53dd972916293929b2f0b06c0edd2fa2c4eb7a9e8e244fb322c939d886",
+      "title": "[O03] Verify Managers after explicitly approved operational replacement"
+    },
+    "O04": {
+      "number": 74,
+      "url": "https://github.com/majedsiefalnasr/dsh-majed/issues/74",
+      "slice": "O04",
+      "blockers": [
+        73,
+        65,
+        62,
+        64,
+        63,
+        109,
+        110,
+        111,
+        77
+      ],
+      "body_sha256": "7d6ccf1a1588a46bf99933ceb48c5f1807c63bdc7b0ba551c39977d71e923b04",
+      "title": "[O04] Verify subscriptions/routing after authorized replacement"
+    }
+  },
+  "preserved_deferrals": [
+    39,
+    42,
+    43,
+    44,
+    45,
+    46
+  ],
+  "preserved_verification": [
+    75,
+    76,
+    77
+  ],
+  "permission": "Tracker reconciliation only; implementation/Git/installed/live operations not authorized.",
+  "verified_complete": true,
+  "status": "Complete: independent full issue/comment/native graph/subissue readback passed.",
+  "interrupted_checkpoint": {
+    "mapped_count": 71,
+    "created_count": 44,
+    "uncreated": [
+      "O02h",
+      "O02i",
+      "O02j",
+      "O02k"
+    ],
+    "ledger_sha256": "b599b38a86c635e3f5f07ea06b47fb6d5363a5835956cd7773d69445a64b75d6"
+  },
+  "extra_attempt": "Owner explicitly approved one additional attempt; publication and sequential readback both exited 0 with no new connection failure.",
+  "mutation_accounting": {
+    "intents": 200,
+    "acknowledged": 199,
+    "one_prior_unacknowledged_write": "Prior #121 POST timeout reconciled from live state before mutation; full final native graph verified."
+  },
+  "evidence_sha256": {
+    "readback-issues.json": "fb95ebe65aa812a137c53108d62a32c16bf24a0f8481eeccdea93ea3eb92397b",
+    "readback-comments.json": "873cd12fc16bde7585c9a5ec09d146565c219c87441e0dfc2a5590ce8f64a161",
+    "readback-graph.json": "36f67b0ec3e008c1b6dc0847bd099ab8ede9a8772530e7538a01e20998815d38",
+    "ledger.jsonl": "4afce6a315ab5b1b23f64fb44242b78c668a365dc4d7a8e223d9b29d583f0cff",
+    "plan.json": "71b643d59304f1e4e1c33ec5ecad854d4b361f31168c9dcadfdef4cae8f4be4e"
+  }
+}

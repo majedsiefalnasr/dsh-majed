@@ -1,4 +1,12 @@
+> Historical plan/publication record. Current workflow issues #48–#74 were verified on 2026-10-25T18:50:42.852772+00:00. Use [the published workflow index](manager-workflow-tickets/README.md) for current issue IDs and dependencies. Earlier publication/frontier statements below are historical.
+
 # Published Managers, subscriptions and Auto ticket map
+
+**Pending publication reconciliation — 2026-10-25:** The Owner accepted the interim [ADR 0009](./adr/0009-allow-unknown-command-approval-origin.md) amendment locally: T02E now proves authenticated Approval admission and truthful origin auditing, allowing `unknown` where locality is unverifiable. T10 still requires exact-content Approval and its existing proof dependencies. Historical provenance-blocker statements below describe the earlier contract. No GitHub issue, state, label or dependency was changed or read back for this amendment; the published issue snapshot below is not evidence of reconciliation or completion under the revised contract.
+
+The Owner also approved [ADR 0010](./adr/0010-allow-mcp-sdk-through-public-dsh-apis.md), permitting a verified public-API official MCP SDK alternative in T08 while retaining the native client as default. This local amendment also awaits publication reconciliation. The existing native-client evidence and dependencies remain; an SDK alternative needs its own proof.
+
+The Owner subsequently approved the [provider-workflow delivery order](./managers-scope-revision.md#integration-approach): one complete provider first, then remaining providers, multi-account/pooling and deterministic Auto. The old eight-component proposal is superseded as a delivery sequence. This publication ledger remains a historical snapshot; no replacement ticket graph has been published or verified. Preserve issue history and explicit deferrals during later reconciliation.
 
 ## Publication and authority
 
