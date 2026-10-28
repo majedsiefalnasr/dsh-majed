@@ -65,13 +65,17 @@ window.__ModuleLoader__.load({
     const NS = 'majed';
     const en = {
       'bidi.title': 'Bidirectional text',
+      'bidi.reset': 'Reset bidirectional text',
       'bidi.description': 'Detects Arabic, Persian and Hebrew per paragraph and lays it out right-to-left (chat, reasoning, tools, GenUI components).',
       'size.title': 'App UI font size',
       'size.description': 'Font size of the app interface (sidebar, headers, composer, panels). The chat font size above is unchanged.',
       'size.increase': 'Increase app UI font size',
       'size.decrease': 'Decrease app UI font size',
       'size.unit': 'px',
+      'reset.label': 'Reset',
+      'size.reset': 'Reset app UI font size',
       'font.title': 'App font',
+      'font.reset': 'Reset app font',
       'font.description': 'Choose the typeface used by the app interface and chat text.',
       'font.dsh': 'DSH default',
       'font.system': 'System font',
@@ -118,13 +122,17 @@ window.__ModuleLoader__.load({
     };
     const zh = {
       'bidi.title': '双向文本（RTL）',
+      'bidi.reset': '重置双向文本',
       'bidi.description': '按段落识别阿拉伯语、波斯语、希伯来语并从右到左排版（对话、思考、工具、GenUI 组件）。',
       'size.title': '应用界面字号',
       'size.description': '应用界面（侧边栏、标题栏、输入框、面板）的字号，不影响上方的对话字号。',
       'size.increase': '增大应用界面字号',
       'size.decrease': '减小应用界面字号',
       'size.unit': 'px',
+      'reset.label': '重置',
+      'size.reset': '重置应用界面字号',
       'font.title': '应用字体',
+      'font.reset': '重置应用字体',
       'font.description': '选择应用界面与对话文字使用的字体。',
       'font.dsh': 'DSH 默认',
       'font.system': '系统字体',
@@ -756,9 +764,11 @@ window.__ModuleLoader__.load({
         h('div', { className: 'majed-text' },
           h('div', { className: 'majed-title' }, t('bidi.title')),
           h('div', { className: 'majed-desc' }, t('bidi.description'))),
-        Switch
-          ? h(Switch, { checked: on, label: t('bidi.title'), onChange: (next) => store.set({ bidi: !!next }) })
-          : h('input', { type: 'checkbox', checked: on, 'aria-label': t('bidi.title'), onChange: (e) => store.set({ bidi: e.target.checked }) }));
+        h('div', { className: 'majed-control' },
+          Switch
+            ? h(Switch, { checked: on, label: t('bidi.title'), onChange: (next) => store.set({ bidi: !!next }) })
+            : h('input', { type: 'checkbox', checked: on, 'aria-label': t('bidi.title'), onChange: (e) => store.set({ bidi: e.target.checked }) }),
+          h('button', { type: 'button', className: 'majed-test', 'aria-label': t('bidi.reset'), onClick: () => store.set({ bidi: DEFAULTS.bidi }) }, t('reset.label'))));
     }
 
     function UiFontSizeRow({ t }) {
@@ -775,7 +785,8 @@ window.__ModuleLoader__.load({
             h('span', { className: 'majed-arrows' },
               h('button', { type: 'button', className: 'majed-arrow', 'aria-label': t('size.increase'), disabled: size >= UI_MAX_PX, onClick: () => set(size + 1) }, Up ? h(Up, { size: 9 }) : '▲'),
               h('button', { type: 'button', className: 'majed-arrow', 'aria-label': t('size.decrease'), disabled: size <= UI_MIN_PX, onClick: () => set(size - 1) }, Down ? h(Down, { size: 9 }) : '▼'))),
-          h('span', { className: 'majed-unit' }, t('size.unit'))));
+          h('span', { className: 'majed-unit' }, t('size.unit')),
+          h('button', { type: 'button', className: 'majed-test', 'aria-label': t('size.reset'), onClick: () => set(DEFAULTS.uiFontSize) }, t('reset.label'))));
     }
 
     /** Same look as the built-in "Open chat links in" row: title/description + dropdown button. */
@@ -793,14 +804,16 @@ window.__ModuleLoader__.load({
         h('div', { className: 'majed-text' },
           h('div', { className: 'majed-title' }, t('font.title')),
           h('div', { className: 'majed-desc' }, t('font.description'))),
-        Menu
-          ? h(Menu, {
-              open, onClose: close, selectedId: value, align: 'end', portal: true, anchor: selector,
-              items: FONT_SOURCES.map((id) => ({ id, label: t('font.' + id) })),
-              onSelect: (id) => { ref.current && ref.current.focus({ preventScroll: true }); close(); store.set({ fontSource: id }); },
-            })
-          : h('select', { value, onChange: (e) => store.set({ fontSource: e.target.value }) },
-              FONT_SOURCES.map((id) => h('option', { key: id, value: id }, t('font.' + id)))));
+        h('div', { className: 'majed-control' },
+          Menu
+            ? h(Menu, {
+                open, onClose: close, selectedId: value, align: 'end', portal: true, anchor: selector,
+                items: FONT_SOURCES.map((id) => ({ id, label: t('font.' + id) })),
+                onSelect: (id) => { ref.current && ref.current.focus({ preventScroll: true }); close(); store.set({ fontSource: id }); },
+              })
+            : h('select', { value, onChange: (e) => store.set({ fontSource: e.target.value }) },
+                FONT_SOURCES.map((id) => h('option', { key: id, value: id }, t('font.' + id)))),
+          h('button', { type: 'button', className: 'majed-test', 'aria-label': t('font.reset'), onClick: () => { close(); store.set({ fontSource: DEFAULTS.fontSource }); } }, t('reset.label'))));
     }
 
     // ───────────────────────── generic rows (same look as built-in ones) ─────────────────────────
@@ -1903,7 +1916,9 @@ window.__ModuleLoader__.load({
       for (const name of FONT_VARS) {
         if (stack !== null) {
           if (style.getPropertyValue(name) !== stack || style.getPropertyPriority(name) !== 'important') {
-            if (!priorFontValues.has(name)) priorFontValues.set(name, {
+            // Keep the latest native/theme write, not a stale value captured before
+            // a theme change. Switching between our own stacks must not replace it.
+            if (!priorFontValues.has(name) || !ownedValues().has(style.getPropertyValue(name))) priorFontValues.set(name, {
               value: style.getPropertyValue(name), priority: style.getPropertyPriority(name),
             });
             style.setProperty(name, stack, 'important');
