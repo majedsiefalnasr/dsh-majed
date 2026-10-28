@@ -1809,7 +1809,8 @@ window.__ModuleLoader__.load({
         if (generation === apGeneration) adoptModes(result.value && result.value.modes);
         return generation === apGeneration;
       } catch (_) {
-        if (generation === apGeneration) adoptModes({});
+        // A failed write says nothing about the host: setModeFor restores the last confirmed mirror, then re-syncs.
+        if (generation === apGeneration && payload.action !== 'set') adoptModes({});
         return false;
       }
     }
@@ -1825,8 +1826,13 @@ window.__ModuleLoader__.load({
     }
     function setModeFor(sessionId, mode) {
       // Lowering authority applies locally at once; raising it waits for the host to confirm.
-      if (mode === 'ask') { const next = { ...(store.get().autoApprove || {}) }; delete next[sessionId]; store.set({ autoApprove: next }); }
-      return hostModes({ action: 'set', sessionId, mode });
+      const confirmed = { ...(store.get().autoApprove || {}) };
+      if (mode === 'ask') { const next = { ...confirmed }; delete next[sessionId]; store.set({ autoApprove: next }); }
+      return hostModes({ action: 'set', sessionId, mode }).then((ok) => {
+        // A failed write must not change what the control shows: back to the last host-confirmed mirror, then ask the host.
+        if (!ok) { adoptModes(confirmed); syncModes(); }
+        return ok;
+      });
     }
 
     /**
@@ -1839,6 +1845,7 @@ window.__ModuleLoader__.load({
       const modes = useSetting('autoApprove');
       React.useEffect(() => watchModes(), []);
       const handled = React.useRef(new Set());
+      const latest = React.useRef(); latest.current = pending && pending.key;
       const handedBack = React.useRef(0);
       const [tick, setTick] = React.useState(0);
       React.useEffect(() => {
@@ -1862,8 +1869,9 @@ window.__ModuleLoader__.load({
         }
         handedBack.current = 0;
         // Re-read the host immediately before acting so a change on another device wins.
-        syncModes().then((fresh) => {
-          if (!fresh || !permits(modeFor(sessionId))) { handled.current.delete(p.key); return; }
+        // A poll can supersede the re-read (false): retry it once, then give up; never answer without a current host read.
+        syncModes().then((fresh) => fresh || syncModes()).then((fresh) => {
+          if (!fresh || latest.current !== p.key || !permits(modeFor(sessionId))) { handled.current.delete(p.key); return; }
           return Promise.resolve(p.answer('allowed-once')).then(
             () => showToast(fmt(t('ap.toast'), { tool: command ? command.split(/\s+/)[0] : (p.toolName || '') })),
             () => handled.current.delete(p.key));

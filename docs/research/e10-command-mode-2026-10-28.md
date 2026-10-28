@@ -7,8 +7,8 @@ Ticket #90, spec stories 28 and 34. Scope: where the Ask me / Auto (safe) / Auto
 - `modules/command-mode/index.js` keeps a `Map<sessionId, 'safe' | 'aggressive'>` in host memory. Absent means Ask me. Nothing is written to disk, so a restart, host disposal, a new session or a reopened session id starts at Ask me.
 - One exact Fetch route, `POST /api/majed/command-mode` (`snapshot`, `set`), registered through `owner.connection.fetch.register`. Native BrowserAuth + Owner admission happens in DSH before delivery; this repository does not use cookies, headers or loopback as authentication.
 - Bounded streaming body (4096 bytes, 5 s deadline, `application/json` only, abort-aware) reuses `readMessage` from `lib/management/settings.js`. Errors expose only allow-listed codes; responses are `no-store`.
-- `set` requires a live session (`owner.get('sessions').get(id)`); a snapshot drops entries for sessions that are gone. Without the `sessions` service the route fails closed (`scope_unavailable`).
-- `client.js`: the `autoApprove` mirror is memory-only, filled from the host. A bounded 5 s poll runs only while a command-mode control is mounted; every call failure replaces the mirror with Ask me. Lowering to Ask me applies locally at once, raising waits for host confirmation. The approver re-reads the host immediately before answering, so a revocation on another device wins. The legacy `autoApprove` key is removed from saved settings on load; other settings are untouched.
+- `set` requires a live session (`owner.get('sessions').get(id)`). Every read of authority (`get`, `entries`, and therefore `snapshot`) checks liveness itself: a not-live session returns Ask me and its entry is dropped, so a closed session whose id reappears before any snapshot is still Ask me. Without the `sessions` service the route fails closed (`scope_unavailable`).
+- `client.js`: the `autoApprove` mirror is memory-only, filled from the host. A bounded 5 s poll runs only while a command-mode control is mounted; every call failure replaces the mirror with Ask me. Lowering to Ask me applies locally at once, raising waits for host confirmation. The approver re-reads the host immediately before answering, so a revocation on another device wins; if a poll supersedes that re-read it is retried once, and nothing is answered unless a current host read says elevated. A failed host write leaves the displayed mode at the last host-confirmed mode and triggers a re-sync. The legacy `autoApprove` key is removed from saved settings on load; other settings are untouched.
 
 ## RED / GREEN
 
@@ -33,7 +33,17 @@ Final: `npm run build` ok, `node --test test/accepted/e10-command-mode.test.js` 
 
 ## Limitations
 
+- Ticket acceptance criterion 1 (a real native permission request observes the chosen mode under native guards) is UNMET and remains decision gate G2: the native approval/request and tools/pre-execute seams are first-party internals with no public contract used here. This change is partial, not a complete E10.
+
 - The host stores the mode but does not itself answer native permission requests. The browser Auto approver still performs the answer, so a closed browser auto-approves nothing. Making a real native `approval/request` observe the host mode needs a supported server-side hook; no public contract was found and none was simulated. No accepted test mounts a native approval fixture, so that outcome is unproven (decision gate, G2).
-- Aggressive confirmation stays client-side (`window.confirm`); the server accepts the mode from any admitted Owner request.
-- Closed sessions are dropped lazily on the next snapshot/set, not on a closure event.
-- Evidence is controlled fixtures. Real browser, installed host, paired device and mobile acceptance are unverified; mobile stays deferred to the Owner.
+- Aggressive confirmation is client-side `window.confirm` only, NOT server-enforced; the server accepts the mode from any admitted Owner request. This is a decision-gate item.
+- Closed sessions are fenced by a liveness lookup on every read, not by a closure event; the proof is the fixture `sessions` service in `test/accepted/e10-command-mode.test.js`, not a real native session lifecycle.
+- Evidence is controlled fixture evidence. Real browser, installed host and paired device are unverified; mobile testing is deferred to the Owner.
+
+## Correction round (review fixes)
+
+| Fix | RED | GREEN |
+| --- | --- | --- |
+| Reopened id fenced on read | `node --test test/accepted/e10-command-mode.test.js` exit 1: `a not-live session reads as Ask me` actual `'aggressive'` | exit 0 |
+| Superseded pre-answer re-check | exit 1: `answered exactly once after the bounded re-read` actual `[]` | exit 0 (also guards that a no-longer-pending approval is not answered late) |
+| Failed lowering write | exit 1: `the host still holds safe, so the control must not claim Ask me` actual `'ask'` | exit 0 |

@@ -219,3 +219,100 @@ test('host disposal resets the in-memory map itself, not only the route', async 
   await fiber.dispose();
   assert.equal(modes.get('s1'), 'ask');
 });
+
+test('reading authority itself fences a closed session, so a reopened id is Ask me without any snapshot', async t => {
+  const live = new Set(['s1']);
+  const ctx = new Context();
+  ctx.provide('connection', { fetch: { register() {} } });
+  ctx.provide('sessions', { get: id => live.has(id) ? { header: { id } } : undefined });
+  let modes;
+  const fiber = ctx.plugin({ apply: c => { modes = applyCommandMode(c); } }); await fiber;
+  t.after(() => fiber.dispose());
+  modes.set('s1', 'aggressive');
+  assert.equal(modes.get('s1'), 'aggressive');
+  live.delete('s1');
+  assert.equal(modes.get('s1'), 'ask', 'a not-live session reads as Ask me');
+  live.add('s1');
+  assert.equal(modes.get('s1'), 'ask', 'the reopened id was dropped by the read, not revived');
+  assert.deepEqual(modes.entries(), [], 'the dead entry is gone from host state');
+});
+
+/** Wraps a fake host so selected calls fail or are held until released. */
+function controlled(host) {
+  const inner = host.connection.rpc.call;
+  const control = { held: [], hold: false, failSets: 0 };
+  host.connection.rpc.call = async function (...args) {
+    if (args[2].action === 'set' && control.failSets > 0) { control.failSets--; host.calls.push([args[1], args[2]]); throw new Error('HTTP 500'); }
+    if (control.hold) await new Promise(resolve => control.held.push(resolve));
+    return inner.apply(this, args);
+  };
+  control.release = () => control.held.splice(0).forEach(resolve => resolve());
+  return control;
+}
+function approver(d, answers) {
+  let pending;
+  const useSessionStatus = selector => selector(new Map([['s1', { pendingInteraction: pending }]]));
+  const useChat = selector => selector({ nodes: new Map() });
+  const watcher = d.render('majed-auto-approver', { sessionId: 's1', useSessionStatus, useChat });
+  return { watcher, offer(key) { pending = { key, callId: key, kind: 'approval', toolName: 'read', answerable: true, answer: outcome => answers.push([key, outcome]) }; watcher.render(); } };
+}
+
+test('a poll that supersedes the pre-answer re-check cannot stall the approval: it is re-read once and answered exactly once while the host stays elevated', async t => {
+  const host = fakeHost({ s1: 'safe' });
+  const control = controlled(host);
+  const d = device(t, host);
+  const answers = [];
+  const { watcher, offer } = approver(d, answers);
+  await tick();
+  control.hold = true;
+  offer('a1');
+  await tick();
+  d.runTimers(5000); await tick(); // the poll is now in flight and supersedes the held re-check
+  control.hold = false;
+  control.release(); await tick(); await tick();
+  assert.deepEqual(answers, [['a1', 'allowed-once']], 'answered exactly once after the bounded re-read');
+  watcher.render(); d.runTimers(5000); await tick();
+  assert.equal(answers.length, 1, 'no second answer');
+});
+
+test('a superseded re-check never answers when the host lowered the mode meanwhile', async t => {
+  const host = fakeHost({ s1: 'safe' });
+  const control = controlled(host);
+  const d = device(t, host);
+  const answers = [];
+  const { offer } = approver(d, answers);
+  await tick();
+  control.hold = true;
+  offer('a1');
+  await tick();
+  d.runTimers(5000); await tick();
+  host.modes.s1 = 'ask';
+  control.hold = false;
+  control.release(); await tick(); await tick();
+  assert.deepEqual(answers, [], 'host lowered authority, so nothing is answered');
+});
+
+test('a failed lowering write keeps showing the host-confirmed elevated mode, then re-syncs; a failed raise never shows a more permissive mode', async t => {
+  const host = fakeHost({ s1: 'safe' });
+  const control = controlled(host);
+  const d = device(t, host);
+  const view = d.render('majed-auto-approve', { sessionId: 's1' });
+  await tick();
+  assert.equal(view.render().one(isMenu).props.selectedId, 'safe');
+  control.failSets = 1;
+  choose(view, 'ask'); await tick(); await tick();
+  assert.equal(view.render().one(isMenu).props.selectedId, 'safe', 'the host still holds safe, so the control must not claim Ask me');
+  assert.equal(host.modes.s1, 'safe');
+  assert.ok(host.calls.slice(host.calls.findIndex(([, p]) => p.action === 'set') + 1).some(([, p]) => p.action === 'snapshot'), 'a re-sync follows the failed write');
+  d.runTimers(5000); await tick();
+  assert.equal(view.render().one(isMenu).props.selectedId, 'safe');
+  const lowered = fakeHost();
+  const control2 = controlled(lowered);
+  const e = device(t, lowered, { confirm: () => true });
+  const view2 = e.render('majed-auto-approve', { sessionId: 's1' });
+  await tick();
+  control2.failSets = 1;
+  choose(view2, 'safe'); await tick(); await tick();
+  assert.equal(view2.render().one(isMenu).props.selectedId, 'ask', 'a failed raise never shows safe');
+  assert.equal(lowered.modes.s1, undefined);
+});

@@ -10,31 +10,34 @@ const failure = (code, status) => Object.assign(new Error(code), { code, status 
 const json = (value, status = 200) => Response.json(value, { status, headers: { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' } });
 
 /** Host-owned, in-memory only. Absent means Ask me, so a restart can only reduce authority. */
-export function createCommandModes() {
+export function createCommandModes(isLive = () => true) {
   const modes = new Map();
+  // Every read of authority checks liveness itself: a closed session, even if its id reappears, is dropped and reads as Ask me.
+  const prune = () => { for (const id of [...modes.keys()]) if (!isLive(id)) modes.delete(id); };
   return {
-    get: sessionId => modes.get(sessionId) ?? 'ask',
+    get(sessionId) {
+      if (!modes.has(sessionId)) return 'ask';
+      if (!isLive(sessionId)) { modes.delete(sessionId); return 'ask'; }
+      return modes.get(sessionId);
+    },
     set(sessionId, mode) {
       if (!COMMAND_MODES.includes(mode)) throw failure('invalid_request', 400);
       if (mode === 'ask') modes.delete(sessionId); else modes.set(sessionId, mode);
     },
     reset: sessionId => { modes.delete(sessionId); },
     resetAll: () => modes.clear(),
-    entries: () => [...modes],
+    entries: () => { prune(); return [...modes]; },
   };
 }
 
 /** Exact native Fetch registration: DSH supplies BrowserAuth + Owner admission before delivery. */
 export function applyCommandMode(ctx) {
-  const modes = createCommandModes();
+  let live = () => false; // fail closed until the native sessions service is bound
+  const modes = createCommandModes(id => live(id));
   ctx.inject(['connection'], owner => {
     owner.effect(() => () => modes.resetAll(), 'dsh-majed: command mode reset');
-    const live = id => !!owner.get('sessions')?.get(id);
-    const snapshot = () => {
-      // A closed or replaced session never keeps authority.
-      for (const [id] of modes.entries()) if (!live(id)) modes.reset(id);
-      return { modes: Object.fromEntries(modes.entries()) };
-    };
+    live = id => !!owner.get('sessions')?.get(id);
+    const snapshot = () => ({ modes: Object.fromEntries(modes.entries()) });
     owner.connection.fetch.register({ path: COMMAND_MODE_PATH, methods: ['POST'], requestBody: 'streaming', async fetch(request) {
       let rpcId;
       try {
