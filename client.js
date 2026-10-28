@@ -132,6 +132,8 @@ window.__ModuleLoader__.load({
       'copy.title': 'Copy on select',
       'copy.description': 'Automatically copy any text you select in the app to the clipboard. Text inside input fields is not copied.',
       'copy.toast': 'Copied to clipboard',
+      'copy.error': 'Could not copy the selection',
+      'copy.unsupported': 'Copying is not available here',
       'ap.label': 'Approvals',
       'ap.ask': 'Ask me',
       'ap.safe': 'Auto (safe)',
@@ -197,6 +199,8 @@ window.__ModuleLoader__.load({
       'copy.title': '选中即复制',
       'copy.description': '在应用中选中的文字会自动复制到剪贴板。输入框内的文字不会被复制。',
       'copy.toast': '已复制到剪贴板',
+      'copy.error': 'Could not copy the selection',
+      'copy.unsupported': 'Copying is not available here',
       'ap.label': '审批',
       'ap.ask': '手动确认',
       'ap.safe': '自动（安全）',
@@ -1194,9 +1198,11 @@ window.__ModuleLoader__.load({
 .majed-toast{position:fixed;top:40px;left:50%;z-index:2147483000;transform:translate(-50%,-6px);display:flex;align-items:center;gap:10px;width:max-content;max-width:min(640px,calc(100vw - 48px));padding:12px 16px;border-radius:var(--dsw-radius-lg,16px);background:var(--dsw-alias-toast-bg,#2b2b2e);color:var(--dsw-alias-toast-label,#fff);font:var(--dsw-font-s-14);box-shadow:var(--dsw-shadow-lv3,0 8px 24px rgba(0,0,0,.28));pointer-events:none;opacity:0;transition:opacity .16s ease,transform .16s ease}
 .majed-toast[data-show]{opacity:1;transform:translate(-50%,0)}
 .majed-toast svg{flex:none;width:16px;height:16px;color:var(--dsw-alias-state-success-primary,#3ecf8e)}
+.majed-toast[data-tone="error"] svg{color:var(--dsw-alias-state-error-primary,#f06a6a)}
 `;
     let toastEl = null, toastTimer = null, toastStyle = null;
-    function showToast(text) {
+    const TOAST_ICON_OK = 'M3 8.5l3.2 3.2L13 4.8', TOAST_ICON_ERROR = 'M4.5 4.5l7 7M11.5 4.5l-7 7';
+    function showToast(text, tone) {
       if (!document.body) return;
       if (!toastStyle) { toastStyle = document.createElement('style'); toastStyle.setAttribute('data-majed-toast-style', ''); toastStyle.textContent = TOAST_CSS; document.head.appendChild(toastStyle); }
       if (!toastEl) {
@@ -1206,6 +1212,9 @@ window.__ModuleLoader__.load({
         document.body.appendChild(toastEl);
       }
       toastEl.lastElementChild.textContent = text;
+      if (tone === 'error') toastEl.setAttribute('data-tone', 'error'); else toastEl.removeAttribute('data-tone');
+      const icon = toastEl.querySelector && toastEl.querySelector('path');
+      if (icon) icon.setAttribute('d', tone === 'error' ? TOAST_ICON_ERROR : TOAST_ICON_OK);
       // restart the transition when a toast is already visible
       toastEl.removeAttribute('data-show'); void toastEl.offsetWidth; toastEl.setAttribute('data-show', '');
       clearTimeout(toastTimer);
@@ -1217,13 +1226,19 @@ window.__ModuleLoader__.load({
       if (toastStyle) { toastStyle.remove(); toastStyle = null; }
     }
 
-    function startAutoCopy(onCopied) {
-      let last = '';
-      const done = () => { if (onCopied) onCopied(); };
+    function startAutoCopy(onResult) {
+      let last = '', stopped = false;
+      // Report the outcome only once the clipboard write is confirmed or has genuinely failed.
+      const report = (outcome) => { if (!stopped && onResult) onResult(outcome); };
+      const fallback = (failure) => {
+        let ok = false;
+        try { ok = !!document.execCommand('copy'); } catch (_) {}
+        report(ok ? 'copied' : failure);
+      };
       const copy = (text) => {
         if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(text).then(done, () => { try { if (document.execCommand('copy')) done(); } catch (_) {} });
-        } else { try { if (document.execCommand('copy')) done(); } catch (_) {} }
+          navigator.clipboard.writeText(text).then(() => report('copied'), () => fallback('error'));
+        } else fallback('unsupported');
       };
       const run = () => {
         const sel = window.getSelection && window.getSelection();
@@ -1242,6 +1257,7 @@ window.__ModuleLoader__.load({
       document.addEventListener('dblclick', later, true);
       document.addEventListener('keyup', onKey, true);
       return () => {
+        stopped = true;
         clearTimeout(timer);
         document.removeEventListener('mouseup', later, true);
         document.removeEventListener('dblclick', later, true);
@@ -2504,7 +2520,7 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
         ctx.effect(() => {
           let stop = null;
           const t = ctx.locale.bind(NS);
-          const sync = (st) => { if (st.autoCopy && !stop) stop = startAutoCopy(() => showToast(t('copy.toast'))); else if (!st.autoCopy && stop) { stop(); stop = null; } };
+          const sync = (st) => { if (st.autoCopy && !stop) stop = startAutoCopy((outcome) => showToast(t(outcome === 'copied' ? 'copy.toast' : 'copy.' + outcome), outcome === 'copied' ? undefined : 'error')); else if (!st.autoCopy && stop) { stop(); stop = null; } };
           sync(store.get());
           const unsub = store.subscribe(sync);
           return () => { unsub(); if (stop) stop(); disposeToast(); };
