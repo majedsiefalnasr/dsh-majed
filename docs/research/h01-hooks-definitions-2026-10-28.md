@@ -65,5 +65,22 @@ Slice 1 also changed the #53 callers (the production client, the opt-in probe, t
 `hooks-approval.test.js`) to send the revision: after the change the #53 file failed on three assertions until
 those callers were updated, then passed with all original assertions intact.
 
-Final: `node --test` on `hooks-approval`, `hooks-definitions`, `hooks-inert` = 26/26; full `npm test` =
-616/616 (baseline 612 + 4 new), classifier `node test/classify.test.cjs` = 166/166; `git diff --check` clean.
+Initial final: `node --test` on `hooks-approval`, `hooks-definitions`, `hooks-inert` = 26/26; full `npm test` =
+616/616 (baseline 612 + 4 new), classifier 166/166. Superseded by the corrections below.
+
+## Corrections (review follow-up)
+
+Ticket #103 acceptance remains PARTIAL and the ticket stays open.
+
+| Finding | Fix | RED | GREEN |
+| --- | --- | --- | --- |
+| P1 a bundle repeating `[scope, root, id]` marked both items `new`; import wrote both and `store.read` then refused the duplicate key (`store_unavailable`) for every later operation | `previewImport` marks 2nd+ occurrences `duplicate`; import skips them | exit 1 (`[twin,new],[twin,new]`) | exit 0 |
+| P2 `save` had no 128-entry cap (read caps at 128, trash counts) | `save` refuses with `store_full` before writing; one `MAX_ENTRIES` constant | exit 1 (129th save accepted) | exit 0 |
+| P2 export could produce a bundle import cannot accept | export refuses with `bundle_too_large` above 32 hooks or 24576 bytes (import accepts at most 32 hooks and a 32768-byte request); roundtrip tested at the boundaries | exit 1 | exit 0 |
+| P2 fences untested | tests for `stale_revision` on revoke, remove, restore, purge, duplicate, setEnabled, save, and for a revision from another scope/root; tautological assertion replaced by `list` -> `executionAvailable === false` | passing at write time; mutation: dropping each of revoke, remove, purge, restore, duplicate, setEnabled from the fence list fails a test (exit 1 each); a lookup that ignores scope/root fails the cross-scope test. A revision HMAC made scope-free alone does NOT fail it, because the lookup is already scope-bound | n/a |
+| P3 `setEnabled(true)` checked the Approval before async work only | re-checked after the scope resolution (`state_changed`) | exit 1 | exit 0 |
+| P3 Settings edit that changed the hook id sent the old revision | client sends a revision only when the id is unchanged (jsdom-style harness test) | exit 1 | exit 0 |
+
+Not changed: the `_activation` binding in `reviewEntry` is intentionally unused as a variable; it exists only to omit `enabled` from the fingerprinted content (rest destructuring). Remaining gaps are unchanged: no browser control for duplicate/import/export/trash/enable, origin `unknown`, revisions do not survive restart, no real browser/installed/paired acceptance.
+
+Final after corrections: `node --test` on `hooks-approval`, `hooks-definitions`, `hooks-inert` = 33/33; full `npm test` = 623/623 (616 + 7 new: 6 in `hooks-definitions`, 1 in `hooks-approval`); classifier 166/166; `git diff --check` clean.
