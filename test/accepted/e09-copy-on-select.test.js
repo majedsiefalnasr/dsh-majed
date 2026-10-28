@@ -142,12 +142,12 @@ test('failure feedback does not leave the error state on a later success', async
 test('excluded targets copy nothing and show nothing', async (t) => {
   const view = await mount(t, { clipboard: async () => {} });
   const { document } = view;
-  const fixtures = [
-    ['input', (el) => { el.value = 'draft prompt'; }], ['textarea', (el) => { el.value = 'draft prompt'; }],
-  ];
-  for (const [tag, fill] of fixtures) {
-    const el = document.createElement(tag); fill(el); document.body.append(el);
-    el.focus(); el.select();
+  // jsdom does not reflect input.select() in getSelection(), so the page text is selected while the field has focus.
+  for (const tag of ['input', 'textarea']) {
+    const el = document.createElement(tag); el.value = 'draft prompt'; document.body.append(el);
+    el.focus();
+    assert.equal(document.activeElement, el);
+    view.select(view.page);
     await view.release(el);
     el.remove();
   }
