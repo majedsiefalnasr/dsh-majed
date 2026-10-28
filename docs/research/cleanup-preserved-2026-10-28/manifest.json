@@ -1,0 +1,22 @@
+[
+  {
+    "historical_source": "dsh-majed-browser-preflight-retry/.startup-review/README.md",
+    "preserved_file": "startup-handoff.md",
+    "sha256": "3d8ccbaa15f071198acf89423d8ecb727323942442c8ee5182d0dfe9102f7a7a"
+  },
+  {
+    "historical_source": "dsh-majed-browser-preflight-retry/.startup-review/launch-isolated.sh",
+    "preserved_file": "launch-isolated.sh.txt",
+    "sha256": "22dc701c025b78c7a75fbf9d62e1988fcb588dd3284ff31b2085c1e84bc09691"
+  },
+  {
+    "historical_source": "dsh-majed-browser-preflight-retry/.startup-review/isolated.patch.yml",
+    "preserved_file": "isolated.patch.yml.txt",
+    "sha256": "0b350aaf95feb641f78fb4b16e37e55fcaed1daccf27cbbe59bf691bad96ae32"
+  },
+  {
+    "historical_source": "dsh-majed-typography-diagnosis/browser-acceptance.patch.yml",
+    "preserved_file": "typography-browser.patch.yml.txt",
+    "sha256": "255e740163d5bee275c33ead543895bd134229af5114492fe79cd42af0f4506a"
+  }
+]

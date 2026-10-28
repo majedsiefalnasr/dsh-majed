@@ -1,0 +1,23 @@
+#!/bin/bash
+# Run explicitly with /bin/bash. Never source. Does not install or build.
+set -euo pipefail
+umask 077
+ROOT='/Users/majedsiefalnasr/Documents/Work/DeepSeek Harness/dsh-majed-browser-preflight-retry'
+ELECTRON='/Applications/DeepSeek Harness.app/Contents/MacOS/DeepSeek Harness'
+CLI='/Applications/DeepSeek Harness.app/Contents/Resources/app.asar/dsh/node_modules/@deepseek-ai/dsh/lib/bin.js'
+test -s "$ROOT/dist/client.js"
+test -x "$ELECTRON"
+# New path on every run; do not reuse a prior acceptance profile.
+RUN=$(/usr/bin/mktemp -d "$ROOT/.startup-review/run.XXXXXXXX")
+/bin/mkdir -m 700 "$RUN/home" "$RUN/dsh" "$RUN/tmp" "$RUN/work" "$RUN/cache"
+printf '%s\n' "$$" > "$RUN/host.pid"
+printf 'Private run directory: %s\n' "$RUN"
+printf 'Startup output contains authentication material; do not share host.log.\n'
+cd "$RUN/work"
+# exec preserves the exact PID recorded above; output never enters shared logs.
+exec /usr/bin/env -i \
+  HOME="$RUN/home" DSH_HOME="$RUN/dsh" TMPDIR="$RUN/tmp" \
+  XDG_CACHE_HOME="$RUN/cache" PATH='/usr/bin:/bin' \
+  ELECTRON_RUN_AS_NODE=1 DSH_TELEMETRY_DISABLED=1 \
+  "$ELECTRON" "$CLI" web --patch "$ROOT/.startup-review/isolated.patch.yml" \
+  --no-open --host 127.0.0.1 --port 0 > "$RUN/host.log" 2>&1
