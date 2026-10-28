@@ -44,7 +44,7 @@ test('Owner-admitted Fetch contract reviews exact command and persists truthful 
   assert.equal(state.value.hooks[0].approval.origin, 'unknown');
   assert.equal(state.value.hooks[0].approval.valid, true);
   assert.equal(state.value.executionAvailable, false);
-  assert.equal((await service.call('revoke', { scope: 'user', id: hook.id })).ok, true);
+  assert.equal((await service.call('revoke', { scope: 'user', id: hook.id, revision: state.value.hooks[0].revision })).ok, true);
   assert.equal((await service.call('list', { scope: 'user' })).value.hooks[0].approval, null);
 });
 
@@ -78,7 +78,8 @@ test('nonce attempts are exact, single use, expiring and cannot approve edited o
   const root = await fixture(t); let clock = 1000;
   const service = await mount(t, root, { now: () => clock });
   await writeFile(join(root, 'watched.txt'), 'reviewed bytes');
-  const save = async value => service.call('save', { scope: 'user', hook: { ...hook, watchedFiles: ['watched.txt'], ...value } });
+  // H01: overwriting an existing definition carries its current revision; assertions below are the unchanged #53 proof.
+  const save = async value => service.call('save', { scope: 'user', hook: { ...hook, watchedFiles: ['watched.txt'], ...value }, revision: (await service.call('list', { scope: 'user' })).value.hooks[0]?.revision });
   const review = async () => (await service.call('review', { scope: 'user', id: hook.id })).value;
   const approve = async (challenge, phrase = 'RUN AS DSH USER') => service.call('approve', { scope: 'user', id: hook.id, nonce: challenge.nonce, phrase });
   await save(); let challenge = await review();
