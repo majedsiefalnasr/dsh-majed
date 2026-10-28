@@ -63,6 +63,12 @@ Owner decision (answer to the coverage/priority question): real-mobile notificat
 - **Not met:** clause (a) combined global/project override/fallback visibility (no proven cross-scope tool-name resolution contract); revision is a per-process token; `modules/managers/index.js` MCP upsert path is unmounted and unfenced; controlled fixtures only, no real browser/installed/paired proof; mobile deferred to Owner. #97 stays OPEN.
 - Next ready: #103 H01, #50 A01a, #51 K01, #48 R01 (claimed).
 
+### H01 hook definitions and exact-version Approval — 2026-10-28 (PARTIAL)
+
+- #103 `[H01]` claimed. Sole implementer `workflow-5f7f0ef1c1284926` (`claude`) `8bacbd6`, correction `workflow-cfebce44be5241ed` `97a8c1e`, merged `d639bec`: per-entry scoped HMAC revision fence on every mutating op, draft/approved/active states (enabling requires currently valid exact Approval; disable keeps consent), duplicate/trash/restore/purge, export/preview-import/import (imports unapproved and disabled, repeated ids rejected, consent-smuggling refused, export excludes consent/revision/env values), 128-entry save cap, `setEnabled` re-review. 11 new/changed tests; full suite 623/623, classifier 166/166; nothing executes hooks. Evidence: [H01 research](../research/h01-hooks-definitions-2026-10-28.md).
+- **Not met:** no Settings controls for duplicate/import/export/trash/enable (route-only); origin stays `unknown` (no native attestation contract); no stdin binding/display metadata; revisions not restart-durable; controlled fixtures only, no real browser/installed/paired proof; mobile deferred to Owner. #103 stays OPEN.
+- Next ready: #50 A01a, #51 K01, #48 R01 (claimed); blocked chain #62 by #50+#55, #91 by #90.
+
 ### Completed final-cleanup contract — 2026-10-28
 
 The Owner approved preserving useful unique work and removing the four previously protected auxiliary worktrees and obsolete test artifacts. Direct Lead, bounded housekeeping only. Both browser research reports and all four modified R11 files matched remotely verified checkpoint blobs byte-for-byte; no WIP merge or acceptance occurred. Four reviewed nonprivate setup documents were preserved with a SHA-256 manifest in [historical test setup](../research/cleanup-preserved-2026-10-28/README.md), published non-forced as `497df0287dff997fd54346c339d8f86a9a11390f`, with exact remote readback before removal.
