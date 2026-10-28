@@ -10,7 +10,7 @@ Updated: 2026-10-28. This is the resume entry point, not a feature specification
 - The historical Codex-first implementation objective and old ticket frontier do not authorize resuming implementation during this reset.
 - The Owner requested reusable rules for future additions, improvements and removals, with skill routing adapted from `/ask-matt` and an explicit final `/implement` or `/implement-spec` stage. The current reset still follows the full six-stage route; shorter routes apply only when separately agreed for later bounded work.
 
-## Current phase: E01, E08 and E09 source integrated; E10 (#90) is next
+## Current phase: E01, E08, E09 source integrated; E10 (#90) partially integrated (gate G2 open); Owner decision needed
 
 ### Active implementation contract — 2026-10-28
 
@@ -45,7 +45,11 @@ Owner decision (answer to the coverage/priority question): real-mobile notificat
 - #89 `[E09]` claimed. Sole implementer `workflow-00552e66d6654ccd` (explicit `claude` / `claude-sonnet-5-5`; `codex` unavailable per Owner) produced `2062c24` on `impl/e09-copy-read`: copy-on-select reports success only after the clipboard write (or legacy fallback) is confirmed, distinct error and unsupported feedback, error tone, disposal ignores late results. English locale keys `copy.error` / `copy.unsupported`; 12 mounted built-client tests; CHANGELOG and [evidence](../research/e09-copy-read-2026-10-28.md). Existing `lib/read-page-native.js` and its 22 regressions were re-run unchanged; independent Spec review found spec line 196 satisfied by them.
 - Independent two-axis review `e09-two-axis-review` (explicit `claude` / `claude-sonnet-5-5`): no P1/P2. Applied only the actionable P3 (input/textarea exclusion cases were vacuous under jsdom; now non-vacuous, mutation of the active-element guard fails one test) as `23fdee2`. Remaining P3s (English values in the `zh` block, a compact `sync` handler, `last` dedupe set before result, `execCommand` copies the then-current selection) are recorded, not changed, as pre-existing behavior or out of scope.
 - Normal merge `33ff453697d3540af65fc624abf0b75f9cbc17f4` into `integration/current-scope-20261028`; integration `npm test` 571/571, classifier 166/166. Not pushed. Controlled jsdom evidence only; real browser clipboard permission, OS behavior, native mobile selection controls and paired use are unverified and mobile testing is deferred to the Owner per the E08 disposition.
-- Next ready approved ticket: #90 `[E10]`.
+### E10 session command mode — 2026-10-28 (PARTIAL)
+
+- #90 `[E10]` claimed. Sole implementer `workflow-a841f1e48df64fe6` (`claude` / `claude-sonnet-5-5`) produced `661e694`, correction `workflow-2c68bc4462224589` produced `2c010dd` on `impl/e10-command-mode`, merged as `966c629`: in-memory host-owned mode map (`modules/command-mode/index.js`, Ask me default, liveness-fenced `get`/`entries`, never persisted), Owner-admitted exact Fetch route `POST /api/majed/command-mode` (`snapshot`/`set`), client reads actual host state, stale localStorage `autoApprove` scrubbed, host failure shows last host-confirmed/Ask me, approver re-reads host with one bounded retry. 14 E10 tests; full suite 585/585, classifier 166/166. Evidence: [E10 research](../research/e10-command-mode-2026-10-28.md).
+- **Acceptance criterion 1 UNMET (decision gate G2):** no public seam connects a real native `approval/request` / `tools/pre-execute` to the host-held mode. Aggressive confirmation is client-side only. #90 must stay OPEN. Real browser/installed/paired proof and mobile testing are unverified (mobile deferred to Owner).
+- Next: Owner disposition of G2 for #90 (blocks #91 E11, #92 E12); other ready tickets: #48 R01 (claimed), #50, #51, #96, #97, #103.
 
 ### Completed final-cleanup contract — 2026-10-28
 
