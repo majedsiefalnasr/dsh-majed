@@ -4,7 +4,9 @@ import { codexFlow, grant } from './protocol.js';
 import { createPrivateStore } from './storage.js';
 
 const fail = code => Object.assign(new Error(code), { code });
-const publicAccount = account => ({ id: account.id, label: account.session.label, state: account.state, expiresAt: account.session.expiresAt });
+// The stored label is the private verified identity; every public projection masks it.
+const mask = label => { const at = label.lastIndexOf('@'); return at > 0 ? label[0] + '•••' + label.slice(at) : label; };
+const publicAccount = account => ({ id: account.id, label: mask(account.session.label), state: account.state, expiresAt: account.session.expiresAt });
 export function createCodexAccounts({ path, fetch: fetchFn = globalThis.fetch, ports, timeoutMs, now = Date.now } = {}) {
   if (!path) throw fail('account_store_required');
   const store = createPrivateStore(path), flow = new OAuthFlowManager(), refreshes = new Map();
@@ -16,11 +18,13 @@ export function createCodexAccounts({ path, fetch: fetchFn = globalThis.fetch, p
   function live() { if (disposed || disposing) throw fail('service_disposed'); }
   async function snapshot() {
     live(); const data = await store.load();
-    return { ...(current ? { authorizeUrl: current.attempt.authorizeUrl } : {}), loginState: state, state: current ? state : data.accounts.some(a => a.state === 'connected') ? 'connected' : data.accounts.length ? 'reauthentication_required' : state,
+    return { ...(current ? { authorizeUrl: current.attempt.authorizeUrl } : {}), loginState: state, state: current ? state : data.accounts.some(a => a.state === 'connected' || a.state === 'paused') ? 'connected' : data.accounts.length ? 'reauthentication_required' : state,
       accounts: data.accounts.map(a => ({ ...publicAccount(a), default: data.default === a.id })) };
   }
-  async function begin() {
+  // `reconnect` is an explicit account id: only then may a verified identity replace an existing record.
+  async function begin(reconnect) {
     live(); if (current || starting) throw fail('login_pending');
+    if (reconnect && !(await store.load()).accounts.some(a => a.id === reconnect)) throw fail('account_not_found');
     const generation = loginGeneration;
     starting = flow.start('codex', { ...codexFlow, ...(timeoutMs ? { timeoutMs } : {}), listen: { ...codexFlow.listen, ...(ports ? { ports } : {}) } });
     let attempt;
@@ -33,7 +37,7 @@ export function createCodexAccounts({ path, fetch: fetchFn = globalThis.fetch, p
       return { state: 'cancelled' };
     }
     const controller = new AbortController(); controllers.add(controller);
-    const entry = { attempt, controller, cancelled: false }; current = entry; state = 'pending';
+    const entry = { attempt, controller, cancelled: false, reconnect }; current = entry; state = 'pending';
     entry.done = (async () => {
       try {
         const code = await attempt.waitCode();
@@ -44,11 +48,19 @@ export function createCodexAccounts({ path, fetch: fetchFn = globalThis.fetch, p
           const id = createHash('sha256').update(JSON.stringify([session.accountId, session.user || session.accountId])).digest('hex');
           const record = { id, revision: randomUUID(), session, state: 'connected' };
           const index = data.accounts.findIndex(a => a.id === id);
-          if (index < 0) data.accounts.push(record); else data.accounts[index] = record;
+          if (entry.reconnect) {
+            if (id !== entry.reconnect) throw fail('identity_mismatch');
+            if (data.accounts[index].state === 'paused') record.state = 'paused';
+            data.accounts[index] = record;
+          } else if (index >= 0) throw fail('duplicate_account');
+          else data.accounts.push(record);
           data.default ||= id;
         }, { signal: controller.signal });
         if (!entry.cancelled && !disposing && !disposed) { state = 'connected'; changed(); }
-      } catch { if (current === entry) state = entry.cancelled ? 'cancelled' : 'failed'; }
+      } catch (error) {
+        if (['duplicate_account', 'identity_mismatch'].includes(error.code)) entry.failure = error.code;
+        if (current === entry) state = entry.cancelled ? 'cancelled' : 'failed';
+      }
       finally { controllers.delete(controller); if (current === entry) current = undefined; }
     })();
     return { state, authorizeUrl: attempt.authorizeUrl };
@@ -61,6 +73,7 @@ export function createCodexAccounts({ path, fetch: fetchFn = globalThis.fetch, p
     if (url.origin + url.pathname !== current.attempt.redirectUri || url.searchParams.get('state') !== current.attempt.state || !url.searchParams.get('code')) throw fail('invalid_callback');
     const entry = current; state = 'pending';
     entry.attempt.manual(url.href); await entry.done;
+    if (entry.failure) throw fail(entry.failure);
     return snapshot();
   }
   async function cancel() {
@@ -75,6 +88,8 @@ export function createCodexAccounts({ path, fetch: fetchFn = globalThis.fetch, p
     const controller = new AbortController(); controllers.add(controller);
     const work = (async () => {
       const old = (await store.load()).accounts.find(a => a.id === id); if (!old) throw fail('account_not_found');
+      if (old.state === 'paused') throw fail('account_paused');
+      if (old.state === 'signed_out') throw fail('reauthentication_required');
       try {
         const session = await grant(fetchFn, { grant_type: 'refresh_token', refresh_token: old.session.refreshToken }, { refresh: true, previous: old.session, signal: AbortSignal.any([controller.signal, AbortSignal.timeout(30_000)]), now: now() });
         if (disposed) throw fail('service_disposed');
@@ -94,12 +109,27 @@ export function createCodexAccounts({ path, fetch: fetchFn = globalThis.fetch, p
     refreshes.set(id, work);
     try { return await work; } finally { controllers.delete(controller); refreshes.delete(id); }
   }
-  async function mutate(id, remove) {
+  // Local sign-out only: tokens are deleted from this host's store; the provider session is not revoked.
+  async function signOut(id) {
     live(); await store.transaction(data => {
-      if (!data.accounts.some(a => a.id === id)) throw fail('account_not_found');
-      if (remove) { changed({ revoked: id }); data.accounts = data.accounts.filter(a => a.id !== id); if (data.default === id) data.default = data.accounts[0]?.id || null; }
+      const record = data.accounts.find(a => a.id === id);
+      if (!record) throw fail('account_not_found');
+      changed({ revoked: id });
+      Object.assign(record, { state: 'signed_out', revision: randomUUID(), session: { accountId: record.session.accountId, ...(record.session.user ? { user: record.session.user } : {}), label: record.session.label } });
+    }, { signal: lifecycle.signal }); changed({ revoked: id }); return snapshot();
+  }
+  async function mutate(id, remove, paused) {
+    live(); await store.transaction(data => {
+      const record = data.accounts.find(a => a.id === id);
+      if (!record) throw fail('account_not_found');
+      if (paused !== undefined) {
+        // Pause is a host-owned state change: it revokes prepared routes, retains credentials and settings.
+        if (record.state === 'reauthentication_required') throw fail('reauthentication_required');
+        if ((record.state === 'paused') !== paused) { if (paused) changed({ revoked: id }); record.state = paused ? 'paused' : 'connected'; record.revision = randomUUID(); }
+      }
+      else if (remove) { changed({ revoked: id }); data.accounts = data.accounts.filter(a => a.id !== id); if (data.default === id) data.default = data.accounts[0]?.id || null; }
       else data.default = id;
-    }, { signal: lifecycle.signal }); changed(remove ? { revoked: id } : undefined); return snapshot();
+    }, { signal: lifecycle.signal }); changed(remove || paused ? { revoked: id } : undefined); return snapshot();
   }
   // Host-only runtime seam. These credentials never enter management snapshots.
   async function session(id, { force = false, signal } = {}) {
@@ -126,5 +156,6 @@ export function createCodexAccounts({ path, fetch: fetchFn = globalThis.fetch, p
   }
   return { snapshot, begin, complete, cancel, refresh, session,
     subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
-    remove: id => mutate(id, true), setDefault: id => mutate(id, false), dispose };
+    remove: id => mutate(id, true), setDefault: id => mutate(id, false),
+    signOut, pause: id => mutate(id, false, true), resume: id => mutate(id, false, false), dispose };
 }
