@@ -55,7 +55,7 @@ Via the Plugins page, or:
 dsh plugin install github:majedsiefalnasr/dsh-majed
 ```
 
-Then remove `dsh-persian-rtl` (this plugin supersedes it) and restart DSH.
+Then remove `dsh-persian-rtl` (this plugin supersedes it). After installing or updating, fully restart DSH: newly added component rows do not appear through in-place discovery without a restart (Owner-verified).
 
 ## Roadmap
 More Settings ▸ General options will be added here over time.

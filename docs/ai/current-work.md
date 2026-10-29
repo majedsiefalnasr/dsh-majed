@@ -37,6 +37,10 @@ Updated 2026-10-29 (Africa/Cairo).
 19. Restore `main` to `d6fe0e3` after the push incident (done 2026-10-29).
 20. Ticket breakdown approved as proposed: ticket 2 (Codex with the shared core) stays one ticket; blocking edges as listed below.
 
+21. Every owned DSH-global id carries the Majed plugin prefix (`majed` / `dsh-majed`): settings sections, slot entries, RPC names, storage directories, effects, locale namespaces and CSS/data attributes. Provider ids remain the deliberate ADR-0002 exception; no glossary or ADR expansion.
+22. Keep our Settings section next to the enabled reference, not replacing it; distinguish its navigation title and show a conditional en/ar shared-provider warning.
+23. Owner live verification: new component rows require a full restart after installation/update; in-place row discovery without restart is proven false.
+
 ## Tickets
 
 | # | Ticket | Blocked by |
@@ -73,11 +77,15 @@ The Owner authorized exactly three corrections on `impl/128-component` from `9c6
 Spec Further Notes status (exact Owner steps remain in [ticket verification](ticket-128-verification.md#spec-further-notes)):
 
 - GitHub subpath resolution: **UNPROVEN - Owner live check required for #128 acceptance**.
-- In-place row discovery: **UNPROVEN - Owner live check required for #128 acceptance**.
+- In-place row discovery: **OWNER-VERIFIED FALSE; full restart required after installation/update**.
 - Third-party API remotes access: **UNPROVEN - deferred by the spec to #136, which must prove it or stop for a decision**.
 
-#128 is acceptance-ready only after the Owner's live check of the first two points, alongside the installed acceptance scenario. Static evidence and controlled fixtures are not live proof.
+#128 is acceptance-ready only after the Owner's live check of GitHub-installed subpath resolution, alongside the installed acceptance scenario. Static evidence and controlled fixtures are not live proof.
+
+## #128 Owner live correction pass
+
+The Owner authorized only four corrections from ba9f02d: namespaced/distinguishable Settings section, conditional reference coexistence warning, restart evidence and global-id rule/audit. Direct bounded surgical-patch route; no new design or later-ticket scope. Allowed writes: this worktree plus /tmp/majed-t128b. Tests: controlled browser/host/package seams, 166 classifier assertions, fresh committed-build match and packed content count. Investigation cap remains two failed diagnostics or 20 minutes per blocker; intentional regression-red proof is not a diagnostic blocker. No delegation available at this depth. Direct Standards/Spec review required before commit.
 
 ## Next allowed action
 
-Owner live acceptance of #128 using `/tmp/majed-t128/dsh-majed-0.2.0.tgz`. Review corrections add first-probe non-404 error visibility and synchronous/asynchronous Subscriptions setup isolation after all core registrations. Final controlled validation: 166/166 classifier assertions and 16/16 seam tests pass; build-match passes. Direct two-axis review and static/live boundaries are recorded in `docs/ai/ticket-128-review.md` and `docs/ai/ticket-128-verification.md`. Candidate remains local, unmerged and unpushed; no installed state or secrets accessed. No new deferred improvement was identified. Nothing beyond #128 starts before its live acceptance.
+The four authorized corrections are complete. Fix/build/tests commit: `50a2941` (`fix(subscriptions): coexist with reference settings section`), followed by the accompanying documentation commit on impl/128-component. Controlled gates pass: classifier 166/166; seam/audit tests 24/24; `Committed output matches a fresh build.` Tarball: /tmp/majed-t128b/dsh-majed-0.2.0.tgz, 46 files. Direct Standards/Spec review found no remaining issues; independent review was unavailable at this delegation depth. Candidate stays local, unmerged and unpushed. Next: Owner live acceptance after full DSH restart, including both Settings entries, notice switching, en/ar rendering and core parity. No #129-#137, push, merge, installed changes, profile access or secrets. Detailed evidence and residual unknowns remain in docs/ai/ticket-128-verification.md.

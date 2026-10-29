@@ -7,6 +7,7 @@
 
 `dsh-majed` is a plugin for **DeepSeek Harness (DSH)**: host half `index.js`, browser half `client.js`. It must never patch DSH itself; everything goes through public extension points. Each feature is a separate DSH plugin component (a Loader row) that the user can switch off without disabling the plugin; see `docs/adr/0001-features-are-components-of-one-plugin.md`.
 
+- Prefix every owned DSH-global identifier with `majed` (including the plugin name `dsh-majed`): settings sections, slot entries, RPC routes, storage directories, effect labels, locale namespaces and CSS/data attributes. Shared provider ids are the deliberate exception (ADR-0002).
 - Current version and history: `package.json`, `CHANGELOG.md`. Release process: `docs/RELEASING.md`. Third-party code: `THIRD_PARTY_NOTICES.md`.
 - Command: `npm test`.
 - Ported reference source keeps its provenance record next to it and an entry in `THIRD_PARTY_NOTICES.md`.

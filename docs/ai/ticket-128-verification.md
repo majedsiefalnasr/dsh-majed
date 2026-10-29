@@ -1,10 +1,10 @@
 # Ticket #128 verification
 
-Date: 2026-10-29. Controlled fixture/static evidence only; no real DSH execution, installation, switch, restart or account access performed.
+Date: 2026-10-29. Agent evidence is controlled fixture/static only; no real DSH execution, installation, switch, restart or account access performed by the agent. Owner live findings are attributed separately below.
 
 ## Work contract
 
-Approved bounded outcome: GitHub #128, Component row and empty Subscriptions section. Only this worktree may be written, plus the requested /tmp/majed-t128 tarball. Seams: host exact probe RPC, browser registered/rendered section, packed artifact and reproducible build. Investigation budget: two failed diagnostic attempts or 20 minutes per blocker. Stop at #128 delivery; #129-#137 require Owner acceptance first. The implementation skill is not available in this session's catalog; lean-build, karpathy-guidelines and TDD supply the bounded fallback. Review is direct because nested delegation is unavailable.
+Approved bounded outcome: GitHub #128, Component row and empty Subscriptions section. Only this worktree may be written, plus the requested /tmp/majed-t128b tarball. Seams: host exact probe RPC, browser registered/rendered section, packed artifact and reproducible build. Investigation budget: two failed diagnostic attempts or 20 minutes per blocker. Stop at #128 delivery; #129-#137 require Owner acceptance first. The implementation skill is not available in this session's catalog; lean-build, karpathy-guidelines and TDD supply the bounded fallback. Review is direct because nested delegation is unavailable.
 
 ## Spec Further Notes
 
@@ -21,12 +21,9 @@ Static package exports and DSH package-based row resolution support the pattern,
 
 ### In-place update adds rows without restart
 
-**UNPROVEN - Owner live check required for #128 acceptance**
+**OWNER-VERIFIED FALSE (2026-10-29): new component rows appear only after a full DSH restart.**
 
-The static HMR reconcile path supports the scenario but does not prove live row discovery.
-
-- /tmp/dsh-asar/dsh/node_modules/@deepseek-ai/dsh-plugin-manager/lib/index.js:2355-2371 calls hmr.reconcileProfile; 2398 emits plugin-manager/changed. declaredRows at 2166-2200 re-reads bundle patch files. Research doc sections 2 and 4 explain fiber disposal and metadata discovery.
-- Owner check: on an existing 0.2.0 installation with core on, update in place to this artifact through the supported plugin update path. Without restarting, reopen Plugins > Majed and verify the new disabled row appears; enable/disable it, and confirm Settings appears/disappears within the presence poll interval, with core preferences/fonts still working. If DSH reports restart-required, record it rather than treating static support as proof.
+The Owner installed the candidate on real DSH and verified that in-place row discovery without restart does not work. Static HMR reconciliation evidence did not establish live discovery and is superseded by this result. Fully restart DSH after installing or updating. Subsequent component switches still use the browser presence poll; this is distinct from discovering a newly installed row.
 
 ### Third-party browser access to API-provider remotes
 
@@ -58,4 +55,22 @@ The baseline classifier suite referenced a missing lib/classify.cjs. A test-only
 
 ## Residual acceptance
 
-Controlled tests cannot establish desktop HMR, remote authentication cookies, actual browser RTL rendering, actual UI module injection or installed 0.2.0 parity. #128 is acceptance-ready only after the Owner's live check of GitHub-installed subpath resolution and in-place row discovery using the exact steps above, alongside the remaining installed acceptance scenario. Owner live acceptance remains required and issue #128 is left open. No push, installed plugin modification, profile write or secret access performed.
+Controlled tests cannot establish desktop HMR, remote authentication cookies, actual browser RTL rendering, actual UI module injection or installed 0.2.0 parity. #128 is acceptance-ready only after the Owner's live check of GitHub-installed subpath resolution using the exact steps above; in-place row discovery is now Owner-verified false, so installation/update requires restart, alongside the remaining installed acceptance scenario. Owner live acceptance remains required and issue #128 is left open. No push, installed plugin modification, profile write or secret access performed.
+
+## Owner live correction pass (2026-10-29)
+
+Bounded contract: fix only the Settings collision, conditional localized coexistence notice, restart documentation and owned-global-id rule/audit. Baseline ba9f02d, branch impl/128-component; writes only this worktree and /tmp/majed-t128b. Same investigation cap; no scope expansion or installed changes. The unavailable /implement route is replaced by direct surgical-patch and regression-first proof; nested review delegation is unavailable.
+
+- Owner reported the reference registers `settings.section` id `subscriptions`, causing duplicate registration. Our id is now `majed-subscriptions`, order 90 unchanged. Settings navigation uses "Subscriptions (Majed)" / "الاشتراكات (Majed)". Component metadata remains "Subscriptions" / "الاشتراكات" because its row is already under Majed, not the colliding Settings navigation.
+- Detection uses `connection.rpc.call('/api', 'subscriptions-auth.proxyGet', {})`. Reference v0.9.12: /tmp/upstream-0.9.12/src/auth/rpc.ts:603-605 delegates only to proxy.get; /tmp/upstream-0.9.12/src/index.ts:1264 wires proxyGetConfig; /tmp/upstream-0.9.12/src/http.ts:274-318,354-363 loads existing local config once and returns a sanitized view, without login, persistence or network testing. The getter may initialize its in-memory proxy agent, but performs no configuration write. It avoids the account/model work in status/speed. No payload value is retained, displayed or logged.
+- Only `ok: true` shows the role=status notice above both parts. Missing-route 404 is absent; every other failure/malformed result is unknown, also hiding the notice without blocking our section. Both probes share the three-second cadence, reconnect, sequence and disposal guards. The notice inherits DSH typography/color tokens and logical alignment; no new CSS or physical properties.
+- Audited all src files: browser.ts settings slot entry, locale namespace `majed.subscriptions`, effects `dsh-majed: subscriptions dictionaries` and `dsh-majed: subscriptions presence`; subscriptions.ts route/method `majed-subscriptions.status` and effect `dsh-majed: subscriptions presence route`. Only the section id needed correction. No storage directory, owned CSS/data attribute or provider registration exists in src. `settings.section`, `/api`, dependency names and the reference route are public/foreign namespaces consumed, not owned ids; `subscriptions` response marker and React part keys are local data, not global registrations. GLOSSARY.md and ADRs are unchanged; ADR-0002 remains solely the deliberate shared-provider-id exception.
+- Regression-first run failed on the old section id and missing notice. Focused tests cover en/ar, default 404, success, later 404, transport/503/malformed/ok:false, duplicate registrations, reconnect and stale/disposed reference replies. Static namespace regression covers the current literal registration forms, not arbitrary future syntax.
+
+### Final controlled gates
+
+- `npm test`: `166/166 passed`; node test runner final lines: `tests 24`, `pass 24`, `fail 0` (19 browser/audit tests, 3 host tests, 2 package/build tests).
+- `npm run check:build`: `Committed output matches a fresh build.` Built output is included in the fix commit; version remains 0.2.0.
+- Initial npm pack hit EPERM on the existing npm cache; the Owner-provided `npm_config_cache=/tmp/npm-cache-majed` fallback succeeded. `npm pack --pack-destination /tmp/majed-t128b`: `/tmp/majed-t128b/dsh-majed-0.2.0.tgz`, 46 files (npm total and `tar -tzf | wc -l` agree), shasum `f7d86a636a2d1b1f021efc6916dfbbc5bc0e3538`.
+- Direct review against ba9f02d plus the working diff (independent parallel review unavailable at this delegation depth): Standards — no remaining findings against AGENTS, scope control and existing token/logical-property style; Spec — no remaining findings against these four Owner corrections and story 6. Public slot/connection seams only; reference probe has no write/login/test call, original core source and host route unchanged. `git diff --check` passes. This is direct review, not independent acceptance.
+- Agent cannot verify the corrected candidate on real DSH: simultaneous live Settings entries, actual localized navigation/RTL rendering, reference toggling and existing core parity still need Owner acceptance after restart. GitHub-installed subpath resolution remains unproven; third-party API remotes remain deferred to #136. No merge or push.
