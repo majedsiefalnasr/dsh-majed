@@ -10,9 +10,30 @@ const P = '/work/proj';
 const HOME = '/home/u';
 let n = 0;
 const req = (command, extra = {}) => ({ kind: 'command', id: 'r' + (++n), command, cwd: P, projectRoot: P, home: HOME, ...extra });
-const run = (mode, command, extra, settings) => decide({ mode, request: req(command, extra), settings });
+const run = (mode, command, extra = {}, settings = {}) => {
+  const { task, knownScripts, sessionTempDirs, ...requestExtra } = extra;
+  if (settings === null) return decide({ mode, request: req(command, extra), settings });
+  settings ??= {};
+  if (Object.hasOwn(settings, 'ownerContext')) return decide({ mode, request: req(command, requestExtra), settings });
+  const ownerContext = { ...(task !== undefined ? { task } : {}), ...(knownScripts !== undefined ? { knownScripts } : {}), ...(sessionTempDirs !== undefined ? { sessionTempDirs } : {}) };
+  return decide({ mode, request: req(command, requestExtra), settings: { ...settings, ownerContext } });
+};
 const verdict = (mode, command, extra, settings) => { const r = run(mode, command, extra, settings); return r.decision; };
 const TRUST = { trustedProjects: [P] };
+
+test('request context cannot authorize actions without a valid own Owner context', () => {
+  const request = { ...req('git branch -D old'), task: { authorizedTargets: ['branch:old'] }, knownScripts: { 'x.sh': 'ls' }, sessionTempDirs: ['/tmp/scratch-1'] };
+  for (const mode of ['safe', 'aggressive']) {
+    for (const settings of [undefined, {}, { ownerContext: null }, { ownerContext: undefined }, { ownerContext: [] }, JSON.parse('{"__proto__":{"task":{"authorizedTargets":["branch:old"]}}}')]) {
+      const result = decide({ mode, request, settings: { ...TRUST, ...settings } });
+      assert.notEqual(result.reasonCode, 'task_authorized_target', `${mode} with ${JSON.stringify(settings)}`);
+    }
+    const inherited = Object.create({ ownerContext: { task: { authorizedTargets: ['branch:old'] } } });
+    Object.assign(inherited, TRUST);
+    const result = decide({ mode, request, settings: inherited });
+    assert.notEqual(result.reasonCode, 'task_authorized_target', `${mode} with inherited context`);
+  }
+});
 
 test('Ask me always defers to a human, and so does an unknown mode', () => {
   for (const command of ['ls', 'npm test', 'git push', 'rm -rf node_modules', 'cat ~/.ssh/id_rsa'])
@@ -123,7 +144,7 @@ test('decisions follow effects and targets, never the wrapper or command name', 
   same('safe', ['rm -rf node_modules', '/usr/bin/rm -rf node_modules', 'env CI=1 rm -rf node_modules', 'bash -c "rm -rf node_modules"', 'time nice rm -rf node_modules'], 'allow');
   same('safe', ['cat ~/.ssh/id_rsa', '/bin/cat ~/.ssh/id_rsa', 'sh -c "cat ~/.ssh/id_rsa"', 'env CI=1 cat ~/.ssh/id_rsa'], 'deny');
   const scripts = { 'cleanup.sh': 'rm -rf src\n', 'tools/safe-cleanup.sh': 'rm -rf ~/\n', 'run:test': 'node --test' };
-  assert.equal(run('safe', 'bash cleanup.sh', { knownScripts: scripts }, TRUST).decision, 'checkpoint');
+  assert.equal(run('safe', 'bash cleanup.sh', {}, { ...TRUST, ownerContext: { ...TRUST.ownerContext, knownScripts: scripts } }).decision, 'checkpoint');
   assert.deepEqual(run('safe', './cleanup.sh', { knownScripts: scripts }, TRUST).effects, run('safe', 'rm -rf src', {}, TRUST).effects, 'a script is judged by its contents');
   assert.equal(run('aggressive', 'bash tools/safe-cleanup.sh', { knownScripts: scripts }, TRUST).decision, 'deny', 'an innocuous script name does not establish safety');
   // Same wrapper name, different effects.
@@ -213,11 +234,18 @@ test('project/agent supplied policy fields and one-off approval flags cannot wid
   };
   for (const [command, mode] of [['git push origin topic', 'safe'], ['mytool x', 'safe'], ['rm -rf src', 'aggressive'], ['rm -rf src', 'safe'], ['git branch -D x', 'aggressive'], ['cat .env', 'aggressive'], ['curl https://x.example', 'aggressive']]) {
     const plain = run(mode, command);
-    const withFields = decide({ mode, request: { ...req(command), ...widening } });
+    const withFields = decide({ mode, request: { ...req(command), ...widening }, settings: {} });
     assert.deepEqual({ ...withFields }, { ...plain }, `${mode}: ${command}`);
   }
   assert.equal(decide({ mode: 'ask', request: { ...req('ls'), ...widening } }).decision, 'defer', 'a request-supplied mode field is ignored');
-  assert.equal(decide({ mode: 'safe', request: { ...req('ls'), kind: 'command', mode: 'aggressive', task: { authorizedTargets: ['path:src'] } } }).decision, 'allow');
+  assert.notEqual(decide({ mode: 'aggressive', request: { ...req('git branch -D old'), task: { authorizedTargets: ['branch:old'] } }, settings: TRUST }).reasonCode, 'task_authorized_target');
+  assert.equal(decide({ mode: 'aggressive', request: req('git branch -D old', { task: { authorizedTargets: ['branch:old'] } }), settings: TRUST }).decision, 'checkpoint', 'request task is ignored even with Owner settings present but no context');
+  for (const ownerContext of [undefined, null, [], Object.create({ task: { authorizedTargets: ['branch:old'] } }), { __proto__: { task: { authorizedTargets: ['branch:old'] } } }]) {
+    const settings = { ...TRUST };
+    if (ownerContext !== undefined) Object.defineProperty(settings, 'ownerContext', { value: ownerContext, enumerable: true });
+    const r = decide({ mode: 'aggressive', request: req('git branch -D old', { task: { authorizedTargets: ['branch:old'] }, knownScripts: { 'x.sh': 'rm -rf src' }, sessionTempDirs: ['/tmp/x'] }), settings });
+    assert.notEqual(r.reasonCode, 'task_authorized_target', 'invalid/absent Owner context cannot take the authorization branch');
+  }
   // Task authorization is bounded: invalid, oversized or root-wide entries never authorize.
   const rootWide = ['path:', 'path:.', 'path:/', 'path:/work/proj', 'path:..', 'path:/work', '*', 'path:*', 'repo-wide', 'effect:*', ''];
   for (const entry of rootWide) assert.equal(run('aggressive', 'rm -rf src', { task: { authorizedTargets: [entry] } }, TRUST).decision, 'checkpoint', JSON.stringify(entry));
@@ -634,9 +662,10 @@ test('replay fence: resolved request ids stay rejected after more than 100 inter
 
 test('sessionTempDirs is part of the request fingerprint: changing it fences a late claim', () => {
   const { l } = ledger();
-  const r = lreq('rm -rf /tmp/scratch-1', { sessionTempDirs: ['/tmp/scratch-1'] });
-  assert.equal(l.evaluate('s1', r).decision, 'allow');
-  assert.equal(l.authorize('s1', r.id, { request: { ...r, sessionTempDirs: ['/tmp'] } }).reasonCode, 'stale_request_changed');
+  const r = lreq('rm -rf /tmp/scratch-1');
+  assert.equal(l.evaluate('s1', r).decision, 'checkpoint');
+  const withTemp = { ...r, sessionTempDirs: ['/tmp/scratch-1'] };
+  assert.equal(l.authorize('s1', r.id, { request: { ...withTemp, sessionTempDirs: ['/tmp'] } }).reasonCode, 'stale_request_changed');
 });
 
 test('createCommandModes fences with epochs on set (including the same mode), drop, reset and resetAll, and clears the ledger of that session', () => {

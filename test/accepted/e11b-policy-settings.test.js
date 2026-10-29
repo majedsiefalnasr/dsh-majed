@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm, stat, writeFile, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createPolicySettingsStore } from '../../modules/command-policy/settings.js';
+import { createPolicySettingsStore, policyDefaults } from '../../modules/command-policy/settings.js';
 import { decide, createPolicyLedger } from '../../modules/command-policy/index.js';
 import { applyPolicySettings } from '../../modules/command-policy/settings-mount.js';
 import { Context } from '@deepseek-ai/cordis';
@@ -68,7 +68,7 @@ test('Owner context changes fence pending claims and redacted history stays boun
 
 test('Owner route persists strict settings and returns only bounded redacted ledger entries', async t => {
   const root = await mkdtemp(join(tmpdir(), 'e11b-route-')); t.after(() => rm(root, { recursive: true, force: true }));
-  const ledger = createPolicyLedger({ getMode: () => 'safe', now: () => 123 });
+  const ledger = createPolicyLedger({ getMode: () => 'safe', now: () => 123, settings: () => policyDefaults() });
   ledger.evaluate('s1', { id: 'secret-request-id', kind: 'command', command: 'cat private-source.txt', cwd: '/private/project', projectRoot: '/private/project' });
   let route;
   applyPolicySettings({ inject(deps, callback) { assert.deepEqual(deps, ['connection']); callback({ connection: { fetch: { register(value) { route = value; } } } }); } }, { path: join(root, 'policy.json'), ledger });

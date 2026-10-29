@@ -84,7 +84,7 @@ const tightList = (settings, key, accept, out, max = 64) => {
 /** Owner settings may only extend (trusted projects, safe known effects) or tighten (checkpoint/deny lists, switch off Aggressive destructive actions). Malformed tightening input is reported as `settingsInvalid` and fails closed. */
 export function normalizeSettings(settings) {
   const out = { trustedProjects: [], knownEffects: [], checkpointEffects: [], denyEffects: [], checkpointPaths: [], denyPaths: [], aggressiveDestructive: true, settingsInvalid: false };
-  if (settings === undefined || settings === null) return out;
+  if (settings === undefined || settings === null) { out.ownerContext = {}; return out; }
   if (!isRecord(settings)) { out.settingsInvalid = true; return out; }
   if (own(settings, 'settingsInvalid') && settings.settingsInvalid === true) out.settingsInvalid = true;
   out.trustedProjects = boundedList(settings, 'trustedProjects', absolute);
@@ -103,8 +103,13 @@ export function normalizeSettings(settings) {
     if (settings.aggressiveDestructive === false) out.aggressiveDestructive = false;
     else if (settings.aggressiveDestructive !== true) out.settingsInvalid = true;
   }
-  // Presence selects the Owner Settings trust source; absence preserves the existing host-attached API.
-  if (own(settings, 'ownerContext')) out.ownerContext = isRecord(settings.ownerContext) ? settings.ownerContext : {};
+  // Task/script/temp context is trusted only when supplied as an own Owner Settings record.
+  const context = own(settings, 'ownerContext') && isRecord(settings.ownerContext) ? settings.ownerContext : {};
+  out.ownerContext = {
+    ...(own(context, 'task') && isRecord(context.task) ? { task: Object.fromEntries(Object.entries(context.task).filter(([key]) => ['authorizedTargets', 'prohibitions'].includes(key))) } : {}),
+    ...(own(context, 'knownScripts') && isRecord(context.knownScripts) ? { knownScripts: context.knownScripts } : {}),
+    ...(own(context, 'sessionTempDirs') && Array.isArray(context.sessionTempDirs) ? { sessionTempDirs: context.sessionTempDirs } : {}),
+  };
   return out;
 }
 
@@ -1091,13 +1096,16 @@ function evaluateCommand(mode, request, settings) {
   return result(level, code, reduceEffects(findings.map(f => f.effect)));
 }
 
-/** Pure decision. `request.task` is host-attached task context (never model or project text); approval flags and policy fields in the request are ignored. */
+/** Pure decision. Task authorization, scripts and temp directories come only from normalized Owner settings; request approval flags and policy fields are ignored. */
 export function decide({ mode, request, settings } = {}) {
   if (!POLICY_MODES.includes(mode)) return result('defer', 'mode_ask');
   if (!isRecord(request) || request.kind !== 'command') return result('defer', 'not_command_request');
   try {
     const normalized = normalizeSettings(settings);
-    if (own(normalized, 'ownerContext')) request = { ...request, task: normalized.ownerContext.task, knownScripts: normalized.ownerContext.knownScripts, sessionTempDirs: normalized.ownerContext.sessionTempDirs };
+    request = { ...request, task: normalized.ownerContext.task, knownScripts: normalized.ownerContext.knownScripts, sessionTempDirs: normalized.ownerContext.sessionTempDirs };
+    if (request.task === undefined) delete request.task;
+    if (request.knownScripts === undefined) delete request.knownScripts;
+    if (request.sessionTempDirs === undefined) delete request.sessionTempDirs;
     return evaluateCommand(mode, request, normalized);
   } catch { return result('checkpoint', 'analysis_failed', ['unknown']); }
 }

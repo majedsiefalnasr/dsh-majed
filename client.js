@@ -485,7 +485,7 @@ window.__ModuleLoader__.load({
 
     function PolicySection({ ctx, t }) {
       const [draft, setDraft] = React.useState({}), [error, setError] = React.useState(false), [busy, setBusy] = React.useState(false);
-      const [sessionId, setSessionId] = React.useState(''), [ledger, setLedger] = React.useState(null), active = React.useRef(null);
+      const [sessionId, setSessionId] = React.useState(''), [ledger, setLedger] = React.useState(null), active = React.useRef(null), baseline = React.useRef(null);
       const call = async payload => {
         if (active.current) return;
         const controller = new AbortController(); active.current = controller; setBusy(true); setError(false);
@@ -494,7 +494,14 @@ window.__ModuleLoader__.load({
           const response = await ctx.connection.rpc.call('/api', 'majed/command-policy', payload, controller.signal);
           if (controller.signal.aborted || active.current !== controller) return;
           if (!response.ok) throw new Error('invalid');
-          if (response.value.settings) setDraft(Object.fromEntries(policyFields.map(key => [key, JSON.stringify(response.value.settings[key] ?? (key === 'aggressiveDestructive' ? true : key === 'ownerContext' ? {} : []), null, 2)])));
+          if (response.value.settings) {
+            const snapshot = Object.fromEntries(policyFields.map(key => [key, JSON.stringify(response.value.settings[key] ?? (key === 'aggressiveDestructive' ? true : key === 'ownerContext' ? {} : []), null, 2)]));
+            if (baseline.current === null) { baseline.current = snapshot; setDraft(snapshot); }
+            else if (payload.field && Object.hasOwn(snapshot, payload.field)) {
+              baseline.current = { ...baseline.current, [payload.field]: snapshot[payload.field] };
+              setDraft(current => ({ ...current, [payload.field]: snapshot[payload.field] }));
+            }
+          }
           if (response.value.ledger) setLedger(response.value.ledger);
         } catch { if (active.current === controller) setError(true); }
         finally { clearTimeout(timer); if (active.current === controller) { active.current = null; setBusy(false); } }
