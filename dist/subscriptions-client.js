@@ -9,7 +9,42 @@ var subscriptions$1 = {
 	"accountsEmpty": "No subscription accounts yet.",
 	"providersEmpty": "No API providers yet.",
 	"unreachable": "The Subscriptions host component cannot be reached. Reconnect or check the component on the Plugins page.",
-	"coexistence": "The reference plugin dsh-plugin-subscriptions is running too. Only one plugin can serve the shared provider ids (codex, claude, grok, copilot, antigravity) at a time; switch the reference plugin off before using providers from this component."
+	"coexistence": "The reference plugin dsh-plugin-subscriptions is running too. Only one plugin can serve the shared provider ids (codex, claude, grok, copilot, antigravity) at a time; switch the reference plugin off before using providers from this component.",
+	"loginProgress": "Login in progress",
+	"connected": "Connected accounts",
+	"notLoggedIn": "Not logged in",
+	"clientVersion": "Client version",
+	"source_npm": "npm registry",
+	"source_local": "Local CLI",
+	"source_fallback": "Bundled fallback",
+	"source_config": "Configuration",
+	"addAccount": "Add account",
+	"openAuthorization": "Open authorization page",
+	"pasteCallback": "Paste callback URL or code",
+	"submitCallback": "Submit callback",
+	"cancelLogin": "Cancel login",
+	"unknownPlan": "Unknown plan",
+	"expires": "Expires",
+	"defaultAccount": "Default account",
+	"makeDefault": "Make default",
+	"logout": "Log out",
+	"refreshUsage": "Refresh usage",
+	"usageNotLoaded": "Usage has not been loaded.",
+	"usageUnavailable": "Usage data is unavailable.",
+	"window_session": "5-hour",
+	"window_weekly": "Weekly",
+	"window_other": "Other window",
+	"resets": "Resets",
+	"resetCredits": "Usable reset credits",
+	"creditExpiryUnknown": "Expiry unknown",
+	"creditExpired": "Expired",
+	"creditsUnavailable": "Reset credits could not be verified.",
+	"useReset": "Use reset credit",
+	"confirmLogout": "Log this account out? Its stored credentials will be removed.",
+	"confirmReset": "Consume one reset credit? Weekly usage must be at least 80%. This action cannot be undone.",
+	"resetAcknowledge": "I understand that this spends one reset credit.",
+	"cancel": "Cancel",
+	"confirm": "Confirm"
 };
 
 //#endregion
@@ -21,8 +56,261 @@ var subscriptions = {
 	"accountsEmpty": "لا توجد حسابات اشتراك بعد.",
 	"providersEmpty": "لا يوجد موفرو API بعد.",
 	"unreachable": "يتعذر الوصول إلى مكوّن الاشتراكات على المضيف. أعد الاتصال أو تحقق من المكوّن في صفحة الإضافات.",
-	"coexistence": "الإضافة المرجعية dsh-plugin-subscriptions تعمل أيضًا. يمكن لإضافة واحدة فقط تقديم معرّفات الموفّرين المشتركة (codex, claude, grok, copilot, antigravity) في الوقت نفسه؛ أوقف الإضافة المرجعية قبل استخدام الموفّرين من هذا المكوّن."
+	"coexistence": "الإضافة المرجعية dsh-plugin-subscriptions تعمل أيضًا. يمكن لإضافة واحدة فقط تقديم معرّفات الموفّرين المشتركة (codex, claude, grok, copilot, antigravity) في الوقت نفسه؛ أوقف الإضافة المرجعية قبل استخدام الموفّرين من هذا المكوّن.",
+	"loginProgress": "جارٍ تسجيل الدخول",
+	"connected": "الحسابات المتصلة",
+	"notLoggedIn": "لم يتم تسجيل الدخول",
+	"clientVersion": "إصدار العميل",
+	"source_npm": "سجل npm",
+	"source_local": "واجهة الأوامر المحلية",
+	"source_fallback": "الإصدار الاحتياطي المرفق",
+	"source_config": "الإعدادات",
+	"addAccount": "إضافة حساب",
+	"openAuthorization": "فتح صفحة التفويض",
+	"pasteCallback": "ألصق رابط العودة أو الرمز",
+	"submitCallback": "إرسال الرمز",
+	"cancelLogin": "إلغاء تسجيل الدخول",
+	"unknownPlan": "خطة غير معروفة",
+	"expires": "تنتهي الصلاحية",
+	"defaultAccount": "الحساب الافتراضي",
+	"makeDefault": "تعيين كافتراضي",
+	"logout": "تسجيل الخروج",
+	"refreshUsage": "تحديث الاستخدام",
+	"usageNotLoaded": "لم يتم تحميل الاستخدام بعد.",
+	"usageUnavailable": "بيانات الاستخدام غير متاحة.",
+	"window_session": "خمس ساعات",
+	"window_weekly": "أسبوعي",
+	"window_other": "فترة أخرى",
+	"resets": "إعادة التعيين",
+	"resetCredits": "أرصدة إعادة التعيين المتاحة",
+	"creditExpiryUnknown": "انتهاء الصلاحية غير معروف",
+	"creditExpired": "منتهي الصلاحية",
+	"creditsUnavailable": "تعذر التحقق من أرصدة إعادة التعيين.",
+	"useReset": "استخدام رصيد إعادة تعيين",
+	"confirmLogout": "هل تريد تسجيل خروج هذا الحساب؟ ستُحذف بيانات اعتماده المخزنة.",
+	"confirmReset": "هل تريد استهلاك رصيد إعادة تعيين؟ يجب ألا يقل الاستخدام الأسبوعي عن 80٪. لا يمكن التراجع عن هذا الإجراء.",
+	"resetAcknowledge": "أفهم أن هذا سيستهلك رصيد إعادة تعيين واحدًا.",
+	"cancel": "إلغاء",
+	"confirm": "تأكيد"
 };
+
+//#endregion
+//#region src/codex-card.ts
+/** Codex account controls adapted from the reference SubscriptionsSection, scoped to #129. */
+function createCodexCard(React, primitives, rpc, t) {
+	const h = React.createElement;
+	const Button = primitives.Button ?? "button";
+	const Input = primitives.Input ?? "input";
+	const style = {
+		textAlign: "start",
+		paddingBlock: "var(--dsw-spacing-4)",
+		borderBlockEnd: "1px solid var(--dsw-alias-border-l2)"
+	};
+	return function CodexCard() {
+		const [status, setStatus] = React.useState(null);
+		const [error, setError] = React.useState("");
+		const [pending, setPending] = React.useState(false);
+		const [login, setLogin] = React.useState(null);
+		const [input, setInput] = React.useState("");
+		const [usage, setUsage] = React.useState({});
+		const [confirmation, setConfirmation] = React.useState(null);
+		const [acknowledged, setAcknowledged] = React.useState(false);
+		const alive = React.useRef(true);
+		const usageRequests = React.useRef(/* @__PURE__ */ new Map());
+		const accountKeys = React.useRef(/* @__PURE__ */ new Set());
+		const call = async (endpoint, payload = {}) => {
+			const response = await rpc.call("/api", `majed-subscriptions.${endpoint}`, {
+				provider: "codex",
+				...payload
+			});
+			if (!response?.ok) throw new Error(response?.error?.message ?? t("unreachable"));
+			return response.value;
+		};
+		const refreshStatus = async () => {
+			const value = await call("status");
+			if (alive.current) setStatus({
+				...value.providers.codex,
+				registrationError: value.registrationError
+			});
+		};
+		const action = async (run) => {
+			setPending(true);
+			setError("");
+			try {
+				await run();
+			} catch (error$1) {
+				if (alive.current) setError(error$1 instanceof Error ? error$1.message : String(error$1));
+			} finally {
+				if (alive.current) setPending(false);
+			}
+		};
+		React.useEffect(() => {
+			alive.current = true;
+			refreshStatus().catch((error$1) => {
+				if (alive.current) setError(error$1.message);
+			});
+			return () => {
+				alive.current = false;
+			};
+		}, []);
+		React.useEffect(() => {
+			if (!status?.busy) return;
+			const timer = setInterval(() => {
+				refreshStatus().catch((error$1) => {
+					if (alive.current) setError(error$1.message);
+				});
+			}, 2e3);
+			return () => clearInterval(timer);
+		}, [status?.busy]);
+		const refreshUsage = (account, force = false) => {
+			if (usageRequests.current.has(account)) return usageRequests.current.get(account);
+			const request = (async () => {
+				try {
+					const snapshot = await call("usage", {
+						account,
+						force
+					});
+					if (alive.current && accountKeys.current.has(account) && usageRequests.current.get(account) === request) setUsage((previous) => ({
+						...previous,
+						[account]: snapshot
+					}));
+				} catch (error$1) {
+					if (alive.current && accountKeys.current.has(account) && usageRequests.current.get(account) === request) setUsage((previous) => ({
+						...previous,
+						[account]: { error: error$1 instanceof Error ? error$1.message : String(error$1) }
+					}));
+				} finally {
+					if (usageRequests.current.get(account) === request) usageRequests.current.delete(account);
+				}
+			})();
+			usageRequests.current.set(account, request);
+			return request;
+		};
+		const accountsSignature = JSON.stringify((status?.accounts ?? []).map((account) => account.key));
+		React.useEffect(() => {
+			const keys = new Set((status?.accounts ?? []).map((account) => account.key));
+			const added = [...keys].filter((key) => !accountKeys.current.has(key));
+			accountKeys.current = keys;
+			for (const key of usageRequests.current.keys()) if (!keys.has(key)) usageRequests.current.delete(key);
+			setUsage((previous) => Object.fromEntries(Object.entries(previous).filter(([key]) => keys.has(key))));
+			for (const key of added) refreshUsage(key);
+		}, [accountsSignature]);
+		const button = (label, onClick, disabled = false) => h(Button, {
+			type: "button",
+			disabled: pending || disabled,
+			onClick
+		}, label);
+		const date = (time) => new Date(time).toLocaleString();
+		return h("article", {
+			style,
+			"data-majed-codex-card": true
+		}, h("h4", null, "Codex (ChatGPT)"), h("p", { role: "status" }, status?.busy ? t("loginProgress") : status?.accounts?.length ? `${t("connected")}: ${status.accounts.length}` : t("notLoggedIn")), status?.clientVersion ? h("p", null, t("clientVersion"), ": ", h("bdi", { dir: "ltr" }, status.clientVersion.version), " · ", t(`source_${status.clientVersion.source}`)) : null, status?.registrationError ? h("p", { role: "alert" }, t("coexistence"), " ", status.registrationError) : null, error || status?.detail ? h("p", { role: "alert" }, error || status.detail) : null, button(t("addAccount"), () => {
+			const tab = window.open("about:blank", "_blank");
+			if (tab) tab.opener = null;
+			action(async () => {
+				try {
+					const result = await call("login");
+					if (tab) tab.location.href = result.authorizeUrl;
+					if (alive.current) {
+						setLogin(result);
+						await refreshStatus();
+					}
+				} catch (error$1) {
+					tab?.close();
+					throw error$1;
+				}
+			});
+		}, status?.busy || !!status?.registrationError), status?.busy ? h("div", null, (status.pendingAuth ?? login)?.authorizeUrl ? h("a", {
+			href: (status.pendingAuth ?? login).authorizeUrl,
+			target: "_blank",
+			rel: "noopener noreferrer"
+		}, t("openAuthorization")) : null, h(Input, {
+			value: input,
+			"aria-label": t("pasteCallback"),
+			dir: "ltr",
+			onChange: (event) => setInput(event.target.value)
+		}), button(t("submitCallback"), () => {
+			action(async () => {
+				await call("manual", { input });
+				setInput("");
+				await refreshStatus();
+			});
+		}, !input.trim()), button(t("cancelLogin"), () => {
+			action(async () => {
+				await call("cancel");
+				setLogin(null);
+				await refreshStatus();
+			});
+		})) : null, ...(status?.accounts ?? []).map((account) => {
+			const snapshot = usage[account.key];
+			return h("section", {
+				key: account.key,
+				style
+			}, h("p", null, h("bdi", { dir: "ltr" }, account.account ?? account.key), " · ", h("bdi", null, account.plan ?? t("unknownPlan")), account.expiresAt ? h("span", null, " · ", t("expires"), ": ", h("bdi", null, date(account.expiresAt))) : null), button(account.isDefault ? `★ ${t("defaultAccount")}` : `☆ ${t("makeDefault")}`, () => {
+				action(async () => {
+					await call("setDefault", { account: account.key });
+					await refreshStatus();
+				});
+			}, account.isDefault), button(t("logout"), () => {
+				setAcknowledged(false);
+				setConfirmation({
+					kind: "logout",
+					account: account.key,
+					label: account.account
+				});
+			}), button(t("refreshUsage"), () => {
+				action(() => refreshUsage(account.key, true));
+			}), !snapshot ? h("p", null, t("usageNotLoaded")) : snapshot.error ? h("p", { role: "alert" }, snapshot.error) : !snapshot.supported || !snapshot.windows?.length ? h("p", null, t("usageUnavailable")) : null, ...(snapshot?.windows ?? []).map((window$1, index) => {
+				const percent = Math.max(0, Math.min(100, window$1.usedPercent));
+				const color = percent >= 95 ? "var(--dsw-alias-state-error-primary)" : percent >= 80 ? "var(--dsw-alias-state-warn-label)" : "var(--dsw-alias-state-success-primary)";
+				return h("div", { key: index }, h("span", null, t(`window_${window$1.kind}`), " ", h("bdi", null, `${Math.round(percent)}%`)), h("div", {
+					role: "progressbar",
+					"aria-label": t(`window_${window$1.kind}`),
+					"aria-valuenow": percent,
+					"aria-valuemin": 0,
+					"aria-valuemax": 100,
+					style: {
+						background: "var(--dsw-alias-background-secondary)",
+						blockSize: "var(--dsw-spacing-2)"
+					}
+				}, h("div", { style: {
+					background: color,
+					inlineSize: `${percent}%`,
+					blockSize: "100%"
+				} })), window$1.resetsAt ? h("p", null, t("resets"), ": ", h("bdi", null, date(window$1.resetsAt))) : null);
+			}), snapshot?.resetCredits ? h("details", null, h("summary", null, t("resetCredits"), ": ", snapshot.resetCredits.filter((credit) => credit.id && (credit.expiresAt === void 0 || credit.expiresAt > Date.now())).length), ...[...snapshot.resetCredits].sort((a, b) => (a.expiresAt ?? Infinity) - (b.expiresAt ?? Infinity)).map((credit, index) => h("p", { key: credit.id ?? index }, credit.expiresAt === void 0 ? t("creditExpiryUnknown") : h("span", null, t("expires"), ": ", h("bdi", null, date(credit.expiresAt)), credit.expiresAt <= Date.now() ? ` · ${t("creditExpired")}` : null)))) : null, snapshot?.resetCreditsError ? h("p", { role: "alert" }, t("creditsUnavailable"), " ", snapshot.resetCreditsError) : null, snapshot?.resetCredits?.some((credit) => credit.id && (credit.expiresAt === void 0 || credit.expiresAt > Date.now())) ? button(t("useReset"), () => {
+				action(async () => {
+					const prepared = await call("prepareReset", { account: account.key });
+					setAcknowledged(false);
+					setConfirmation({
+						kind: "reset",
+						account: account.key,
+						...prepared
+					});
+				});
+			}) : null);
+		}), confirmation ? h("div", {
+			role: "dialog",
+			"aria-modal": true,
+			"aria-label": confirmation.kind === "logout" ? t("confirmLogout") : t("confirmReset")
+		}, h("p", null, confirmation.kind === "logout" ? t("confirmLogout") : t("confirmReset")), confirmation.kind === "reset" ? h("p", null, t("window_weekly"), ": ", h("bdi", null, `${confirmation.weeklyUsedPercent}%`), " · ", confirmation.creditExpiresAt === void 0 ? t("creditExpiryUnknown") : h("span", null, t("expires"), ": ", h("bdi", null, date(confirmation.creditExpiresAt)))) : null, confirmation.kind === "reset" ? h("label", null, h("input", {
+			type: "checkbox",
+			checked: acknowledged,
+			onChange: (event) => setAcknowledged(event.target.checked)
+		}), t("resetAcknowledge")) : null, button(t("cancel"), () => setConfirmation(null)), button(t("confirm"), () => {
+			action(async () => {
+				if (confirmation.kind === "logout") await call("logout", { account: confirmation.account });
+				else await call("consumeReset", {
+					account: confirmation.account,
+					ticket: confirmation.ticket
+				});
+				setConfirmation(null);
+				await refreshStatus();
+				if (confirmation.kind === "reset") await refreshUsage(confirmation.account, true);
+			});
+		}, confirmation.kind === "reset" && (!acknowledged || Date.now() >= confirmation.expiresAt))) : null);
+	};
+}
 
 //#endregion
 //#region src/browser.ts
@@ -45,13 +333,15 @@ function applySubscriptions(root) {
 		const connection = ctx.get("connection");
 		const React = require("react");
 		const h = React.createElement;
-		const { IconSettingsOutlineMedium } = require("@deepseek-ai/dsh-client-ui-primitives");
+		const primitives = require("@deepseek-ai/dsh-client-ui-primitives");
+		const { IconSettingsOutlineMedium } = primitives;
 		const NS = "majed.subscriptions";
 		isolate(() => ctx.effect(() => isolate(() => ctx.locale.register(NS, {
 			en: subscriptions$1,
 			ar: subscriptions
 		})), "dsh-majed: subscriptions dictionaries"));
 		const t = ctx.locale.bind(NS);
+		const CodexCard = createCodexCard(React, primitives, connection.rpc, t);
 		let present = false;
 		let failing = false;
 		let referenceEnabled = false;
@@ -74,7 +364,7 @@ function applySubscriptions(root) {
 					paddingBlock: "var(--dsw-spacing-4)",
 					borderBlockEnd: "1px solid var(--dsw-alias-border-l2)"
 				}
-			}, h("h3", { style: { font: "var(--dsw-font-s-strong-14)" } }, h(IconSettingsOutlineMedium, { "aria-hidden": true }), t(part)), h("p", { style: { color: "var(--dsw-alias-label-tertiary)" } }, t(`${part}Empty`)))));
+			}, h("h3", { style: { font: "var(--dsw-font-s-strong-14)" } }, h(IconSettingsOutlineMedium, { "aria-hidden": true }), t(part)), part === "accounts" ? h(CodexCard) : h("p", { style: { color: "var(--dsw-alias-label-tertiary)" } }, t(`${part}Empty`)))));
 		}
 		function update() {
 			if (present && !withdraw) withdraw = ctx.slots.inject("settings.section", () => ctx.slots.register({

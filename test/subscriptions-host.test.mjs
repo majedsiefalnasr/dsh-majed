@@ -2,6 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { apply } from '../dist/subscriptions.js';
 import { apply as coreApply } from '../index.js';
+import { mkdtempSync } from 'node:fs';
+process.env.DSH_HOME = mkdtempSync('/tmp/majed-t129-host-');
 
 function harness() {
   const routes = new Map();
@@ -11,6 +13,7 @@ function harness() {
     webServer: { register(route) { font = route; return () => { font = undefined; }; } },
   };
   const ctx = {
+    llm: { registerAdapter() { return { replace() {} }; } }, logger: { warn() {} },
     get: (name) => services[name], reflect: { get: (name) => services[name] },
     inject: (_, fn) => fn(ctx), effect: (fn) => fn(),
   };
@@ -29,12 +32,12 @@ function harness() {
 test('Owner can probe the mounted component; unauthenticated calls are rejected', async () => {
   const host = harness();
   apply(host.ctx);
-  assert.equal(host.routes.size, 1);
+  assert.equal(host.routes.size, 9);
   const response = await host.call();
   assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { type: 'server-response', rpcId: 'probe', result: {
-    ok: true, value: { ok: true, component: 'subscriptions', version: '0.2.0' },
-  } });
+  const envelope = await response.json();
+  assert.equal(envelope.result.value.component, 'subscriptions');
+  assert.deepEqual(envelope.result.value.providers.codex.accounts, []);
   assert.equal((await host.call(false)).status, 401);
 });
 

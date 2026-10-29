@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Correct #129 review findings: never import or remove foreign credential files, automatically load and reconcile account usage, recover pending authorization after card remount, and retain reset-credit expiry/confirmation context. Extend bounded Responses, retry-policy and assembled auth failure regression coverage.
+
+- Port pinned reference v0.9.12 Codex and shared accounts, OAuth/PKCE, translation, catalog, internal pools and rate-limit retry into the optional, default-off Subscriptions component (#129).
+- Add English/Arabic Codex account identity, expiry, default selection, confirmed logout, authorization/paste/cancel, usage windows and guarded reset-credit controls; use owned RPC/storage and report shared-provider registration collisions without takeover.
+- Add adapted reference and assembled host/browser fixture coverage; retain compiled output and provenance. Installed/live Owner acceptance remains pending; no real account or inference was used.
+
 - Avoid the reference plugin's Settings collision with the `majed-subscriptions` section, titled "Subscriptions (Majed)", and show an English/Arabic coexistence notice only when its read-only probe succeeds.
 - Require a full DSH restart after installing or updating: the Owner verified that new component rows are not discovered in place without restart.
 
