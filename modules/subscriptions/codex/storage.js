@@ -6,8 +6,10 @@ const queues = new Map();
 const fail = code => Object.assign(new Error(code), { code });
 function validAccount(account) {
   const session = account?.session;
+  if (account?.state === 'signed_out') return /^[a-f0-9]{64}$/.test(account.id) && typeof account.revision === 'string'
+    && ['accountId', 'label'].every(key => typeof session?.[key] === 'string' && session[key].length > 0) && !('accessToken' in session) && !('refreshToken' in session);
   return /^[a-f0-9]{64}$/.test(account?.id) && typeof account.revision === 'string'
-    && ['connected', 'reauthentication_required'].includes(account.state)
+    && ['connected', 'paused', 'reauthentication_required'].includes(account.state)
     && session && ['accessToken', 'refreshToken', 'accountId', 'label'].every(key => typeof session[key] === 'string' && session[key].length > 0)
     && Number.isFinite(session.expiresAt);
 }

@@ -254,6 +254,9 @@ window.__ModuleLoader__.load({
       'skills.delete': 'حذف نهائي', 'skills.confirmDelete': 'أؤكد الحذف النهائي',
     };
     Object.assign(managementEn, {
+      'codex.signOutNote': 'Sign out only deletes credentials stored on this host. It does not revoke the session at the provider.', 'codex.removeConfirm': 'Remove this account card and its settings? Conversations are not deleted.', 'codex.confirmRemove': 'Confirm removal', 'codex.keep': 'Keep account',
+      'codex.pause': 'Pause', 'codex.resume': 'Resume', 'codex.signOut': 'Sign out locally', 'codex.reconnect': 'Reconnect', 'codex.paused': 'Paused: new requests are blocked; login and settings are kept.', 'codex.signed_out': 'Signed out on this host. Reconnect to use this account again.',
+      'codex.duplicate_account': 'This identity is already connected. Use Reconnect on the existing account.', 'codex.identity_mismatch': 'The signed-in identity does not match this account. Nothing was changed.', 'codex.account_paused': 'Resume the account first.',
       'codex.title': 'Codex account', 'codex.enable': 'Enable account management', 'codex.disable': 'Disable account management',
       'codex.begin': 'Connect Codex', 'codex.complete': 'Complete login', 'codex.callback': 'Paste the full callback URL', 'codex.cancel': 'Cancel login',
       'codex.open': 'Open Codex sign-in', 'codex.status': 'Refresh account status', 'codex.refresh': 'Refresh credentials', 'codex.remove': 'Remove account', 'codex.default': 'Use by default',
@@ -273,6 +276,9 @@ window.__ModuleLoader__.load({
       'codex.catalogFallback': 'Catalog refresh failed. Saved or built-in model metadata is shown where available; refresh the catalog or reconnect the account.',
     });
     Object.assign(managementAr, {
+      'codex.signOutNote': 'تسجيل الخروج يحذف بيانات الاعتماد المخزنة على هذا المضيف فقط ولا يلغي الجلسة لدى المزود.', 'codex.removeConfirm': 'إزالة بطاقة هذا الحساب وإعداداته؟ لا تُحذف المحادثات.', 'codex.confirmRemove': 'تأكيد الإزالة', 'codex.keep': 'الإبقاء على الحساب',
+      'codex.pause': 'إيقاف مؤقت', 'codex.resume': 'استئناف', 'codex.signOut': 'تسجيل الخروج محليًا', 'codex.reconnect': 'إعادة الربط', 'codex.paused': 'متوقف مؤقتًا: الطلبات الجديدة محظورة وتبقى بيانات الدخول والإعدادات.', 'codex.signed_out': 'تم تسجيل الخروج على هذا المضيف. أعد الربط لاستخدام الحساب مجددًا.',
+      'codex.duplicate_account': 'هذه الهوية متصلة بالفعل. استخدم إعادة الربط على الحساب الحالي.', 'codex.identity_mismatch': 'الهوية المسجلة لا تطابق هذا الحساب. لم يتغير شيء.', 'codex.account_paused': 'استأنف الحساب أولًا.',
       'codex.title': 'حساب Codex', 'codex.enable': 'تفعيل إدارة الحساب', 'codex.disable': 'تعطيل إدارة الحساب',
       'codex.begin': 'ربط Codex', 'codex.complete': 'إكمال تسجيل الدخول', 'codex.callback': 'ألصق رابط العودة الكامل', 'codex.cancel': 'إلغاء تسجيل الدخول',
       'codex.open': 'فتح تسجيل دخول Codex', 'codex.status': 'تحديث حالة الحساب', 'codex.refresh': 'تحديث بيانات الاعتماد', 'codex.remove': 'إزالة الحساب', 'codex.default': 'استخدامه افتراضيًا',
@@ -506,7 +512,7 @@ window.__ModuleLoader__.load({
     function CodexAccountsSection({ ctx, t }) {
       const [value, setValue] = React.useState({ enabled: false, state: 'disabled', accounts: [] });
       const [callback, setCallback] = React.useState('');
-      const [failure, setFailure] = React.useState(false), [busy, setBusy] = React.useState(false);
+      const [failure, setFailure] = React.useState(false), [busy, setBusy] = React.useState(false), [confirming, setConfirming] = React.useState(null);
       const active = React.useRef(null), mounted = React.useRef(true);
       const call = async (action, payload = {}) => {
         if (active.current) return;
@@ -533,7 +539,7 @@ window.__ModuleLoader__.load({
           }
         } catch (error) {
           if (current()) {
-            setFailure(error.code === 'runtime_unavailable' ? 'runtimeUnavailable' : 'error');
+            setFailure(error.code === 'runtime_unavailable' ? 'runtimeUnavailable' : ['duplicate_account', 'identity_mismatch', 'account_paused'].includes(error.code) ? error.code : 'error');
             if (action === 'refresh') {
               // A rejected grant can still commit reauthentication-required state.
               // Hide stale actionable metadata while querying the public snapshot;
@@ -571,7 +577,15 @@ window.__ModuleLoader__.load({
         h('p', { role: failure ? 'alert' : 'status', 'aria-live': 'polite' }, t('codex.' + (failure || (busy ? 'working' : status)))),
         ...(value.accounts || []).map(account => h('div', { key: account.id }, h('p', null, account.label),
           h('p', null, t('codex.' + account.state)), h('div', { className: 'majed-management-controls' },
-            button('refresh', 'refresh', { account: account.id }, account.state === 'error'), button('default', 'default', { account: account.id }, account.default || account.state !== 'connected'), button('remove', 'remove', { account: account.id })),
+            button('refresh', 'refresh', { account: account.id }, account.state !== 'connected' && account.state !== 'reauthentication_required'), button('default', 'default', { account: account.id }, account.default || account.state !== 'connected'),
+            account.state === 'connected' && button('pause', 'pause', { account: account.id }), account.state === 'paused' && button('resume', 'resume', { account: account.id }),
+            ['signed_out', 'reauthentication_required'].includes(account.state) && h('button', { type: 'button', className: 'majed-management-refresh', 'data-codex-action': 'reconnect', disabled: busy || pending, onClick: () => call('begin', { account: account.id }) }, t('codex.reconnect')),
+            account.state !== 'signed_out' && account.state !== 'error' && button('signOut', 'signOut', { account: account.id }),
+            confirming !== account.id && h('button', { type: 'button', className: 'majed-management-refresh', 'data-codex-action': 'remove', disabled: busy, onClick: () => setConfirming(account.id) }, t('codex.remove'))),
+          confirming === account.id && h('div', { role: 'alertdialog' }, h('p', null, t('codex.removeConfirm')), h('div', { className: 'majed-management-controls' },
+            h('button', { type: 'button', className: 'majed-management-refresh', 'data-codex-action': 'confirmRemove', disabled: busy, onClick: async () => { await call('remove', { account: account.id }); setConfirming(null); } }, t('codex.confirmRemove')),
+            h('button', { type: 'button', className: 'majed-management-refresh', 'data-codex-action': 'keep', disabled: busy, onClick: () => setConfirming(null) }, t('codex.keep')))),
+          account.state === 'signed_out' && h('p', null, t('codex.signOutNote')),
           value.runtimeEnabled && value.runtime && account.state === 'connected' && h(CodexAccountSettings, { account, preferences: value.runtime?.preferences?.accounts?.[account.id], call, busy, t }))));
     }
 

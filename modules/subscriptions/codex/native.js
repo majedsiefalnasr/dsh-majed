@@ -7,7 +7,7 @@ export const CODEX_ACCOUNTS_PATH = '/api/' + CODEX_ACCOUNTS_METHOD;
 const error = code => Object.assign(new Error(code), { code });
 const object = value => value && typeof value === 'object' && !Array.isArray(value);
 const keys = (value, allowed) => Object.keys(value).every(key => allowed.includes(key));
-const allowedErrors = new Set(['invalid_request', 'module_disabled', 'runtime_unavailable', 'invalid_callback', 'login_not_pending', 'login_pending', 'account_not_found', 'reauthentication_required', 'refresh_failed', 'unsafe_account_store', 'corrupt_account_store', 'INVALID_REQUEST', 'NO_ADAPTER', 'DUPLICATE_ADAPTER']);
+const allowedErrors = new Set(['invalid_request', 'module_disabled', 'runtime_unavailable', 'invalid_callback', 'login_not_pending', 'login_pending', 'account_not_found', 'account_paused', 'duplicate_account', 'identity_mismatch', 'reauthentication_required', 'refresh_failed', 'unsafe_account_store', 'corrupt_account_store', 'INVALID_REQUEST', 'NO_ADAPTER', 'DUPLICATE_ADAPTER']);
 const json = value => Response.json(value, { headers: { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' } });
 
 async function message(request) {
@@ -51,17 +51,18 @@ export function applyCodexAccounts(ctx, config = {}) {
         const input = await message(request);
         if (!object(input) || !keys(input, ['type', 'rpcId', 'method', 'payload']) || input.type !== 'client-request' || input.method !== CODEX_ACCOUNTS_METHOD || typeof input.rpcId !== 'string' || !/^[\w-]{1,128}$/.test(input.rpcId)) throw error('invalid_request');
         rpcId = input.rpcId; const p = input.payload;
-        if (!object(p) || !keys(p, ['action', 'enabled', 'callback', 'account', 'settings', 'sessionId', 'tier', 'mode']) || !['status', 'enable', 'runtime', 'catalog', 'configure', 'speed', 'setSpeed', 'begin', 'complete', 'cancel', 'refresh', 'remove', 'default'].includes(p.action)) throw error('invalid_request');
+        if (!object(p) || !keys(p, ['action', 'enabled', 'callback', 'account', 'settings', 'sessionId', 'tier', 'mode']) || !['status', 'enable', 'runtime', 'catalog', 'configure', 'speed', 'setSpeed', 'begin', 'complete', 'cancel', 'refresh', 'remove', 'default', 'pause', 'resume', 'signOut'].includes(p.action)) throw error('invalid_request');
         if (p.action === 'status' && (!keys(p, ['action', 'mode']) || ('mode' in p && p.mode !== 'passive'))) throw error('invalid_request');
         if (p.action !== 'status' && 'mode' in p) throw error('invalid_request');
-        if (['catalog', 'begin', 'cancel'].includes(p.action) && !keys(p, ['action'])) throw error('invalid_request');
+        if (['catalog', 'cancel'].includes(p.action) && !keys(p, ['action'])) throw error('invalid_request');
+        if (p.action === 'begin' && (!keys(p, ['action', 'account']) || ('account' in p && !/^[a-f0-9]{64}$/.test(p.account)))) throw error('invalid_request');
         if (['enable', 'runtime'].includes(p.action) && (typeof p.enabled !== 'boolean' || !keys(p, ['action', 'enabled']))) throw error('invalid_request');
         if (p.action === 'configure' && (!object(p.settings) || !keys(p, ['action', 'settings']))) throw error('invalid_request');
         if (['speed', 'setSpeed'].includes(p.action) && (typeof p.sessionId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(p.sessionId)
           || !keys(p, p.action === 'speed' ? ['action', 'sessionId'] : ['action', 'sessionId', 'tier'])
           || (p.action === 'setSpeed' && !['standard', 'fast'].includes(p.tier)))) throw error('invalid_request');
         if (p.action === 'complete' && (typeof p.callback !== 'string' || p.callback.length > 4096 || !keys(p, ['action', 'callback']))) throw error('invalid_request');
-        if (['refresh', 'remove', 'default'].includes(p.action) && (typeof p.account !== 'string' || !/^[a-f0-9]{64}$/.test(p.account) || !keys(p, ['action', 'account']))) throw error('invalid_request');
+        if (['refresh', 'remove', 'default', 'pause', 'resume', 'signOut'].includes(p.action) && (typeof p.account !== 'string' || !/^[a-f0-9]{64}$/.test(p.account) || !keys(p, ['action', 'account']))) throw error('invalid_request');
         request.signal.throwIfAborted();
         if (switching) throw error('module_disabled');
         if (p.action === 'enable') {
@@ -106,12 +107,15 @@ export function applyCodexAccounts(ctx, config = {}) {
             if (p.action === 'configure') await runtime.configure(p.settings); else await runtime.invalidate();
             value = await service.snapshot();
           }
-          else if (p.action === 'begin') value = await service.begin();
+          else if (p.action === 'begin') value = await service.begin(p.account);
           else if (p.action === 'complete') value = await service.complete(p.callback);
           else if (p.action === 'cancel') value = await service.cancel();
           else if (p.action === 'refresh') value = await service.refresh(p.account);
           else if (p.action === 'remove') value = await service.remove(p.account);
           else if (p.action === 'default') value = await service.setDefault(p.account);
+          else if (p.action === 'pause') value = await service.pause(p.account);
+          else if (p.action === 'signOut') value = await service.signOut(p.account);
+          else if (p.action === 'resume') value = await service.resume(p.account);
           else value = await service.snapshot();
           value = { enabled: true, ...value, runtimeAvailable: !!llm && !!loader, runtimeEnabled: !!runtime,
             ...(runtime && p.mode !== 'passive' && !['speed', 'setSpeed'].includes(p.action) ? { runtime: await runtime.snapshot() } : {}) };

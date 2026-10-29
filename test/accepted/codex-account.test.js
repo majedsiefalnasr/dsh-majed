@@ -20,8 +20,9 @@ async function fixture(t, options = {}) {
   t.after(() => service.dispose());
   return { service, config, calls };
 }
-async function login(service) {
-  const attempt = await service.begin();
+// A verified duplicate identity is rejected; a replacement login names its account (explicit reconnection).
+async function login(service, reconnect) {
+  const attempt = await service.begin(reconnect);
   const url = new URL(attempt.authorizeUrl);
   const callback = new URL(url.searchParams.get('redirect_uri'));
   callback.searchParams.set('code', 'fixture-code');
@@ -35,7 +36,7 @@ test('Codex account survives restart and refreshes using actual authorization gr
   await login(service);
   const view = await service.snapshot();
   assert.equal(view.state, 'connected');
-  assert.equal(view.accounts[0].label, 'fixture@example.test');
+  assert.equal(view.accounts[0].label, 'f•••@example.test');
   assert.equal(JSON.stringify(view).includes('fixture-access'), false);
   assert.equal((await stat(config.path)).mode & 0o777, 0o600);
   assert.equal(new URLSearchParams(calls[0].init.body).get('grant_type'), 'authorization_code');
@@ -77,7 +78,7 @@ test('a stale refresh cannot overwrite or revoke a newer login and concurrent re
   const first = service.refresh(id), second = service.refresh(id);
   const settled = Promise.allSettled([first, second]);
   while (!refreshing) await new Promise(resolve => setImmediate(resolve));
-  await login(service); release(); await settled;
+  await login(service, id); release(); await settled;
   assert.equal(refreshCalls, 1);
   assert.equal((await service.snapshot()).accounts[0].state, 'connected');
 });
@@ -95,8 +96,9 @@ test('cancelling while a durable write is pending preserves the previous valid a
     access_token: large ? 'x'.repeat(16 * 1024 * 1024) : 'fixture-access', refresh_token: 'fixture-refresh', expires_in: 3600, id_token: idToken,
   }) });
   await login(service); const before = await readFile(config.path, 'utf8'); large = true;
+  const id = (await service.snapshot()).accounts[0].id;
   let cancelled = false, done = false;
-  const writing = login(service).finally(() => { done = true; });
+  const writing = login(service, id).finally(() => { done = true; });
   while (!done) {
     if ((await readdir(join(config.path, '..'))).some(name => name.endsWith('.tmp'))) { cancelled = true; await service.cancel(); break; }
     await new Promise(resolve => setImmediate(resolve));
@@ -159,6 +161,6 @@ test('cancelling during callback listener startup closes that attempt and preser
   await assert.rejects(service.complete(`http://localhost:${port}/auth/callback?code=late&state=late`), /login_not_pending/);
   assert.equal(calls.length, 1, 'A cancelled startup never exchanges a code');
   assert.equal(await readFile(config.path, 'utf8'), before);
-  await login(service);
+  await login(service, (await service.snapshot()).accounts[0].id);
   assert.equal((await service.snapshot()).loginState, 'connected', 'A new login is allowed after cancelled startup');
 });

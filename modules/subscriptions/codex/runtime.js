@@ -59,7 +59,12 @@ export async function createCodexRuntime({ accounts, llm, llmModule, path, fetch
   // but no committed revocation can race a held snapshot into a send.
   const accountEpochs = new Map(), consentEpochs = new Map();
   const bump = (epochs, key) => epochs.set(key, (epochs.get(key) || 0) + 1);
-  const unsubscribe = accounts.subscribe(event => { if (event?.revoked) bump(accountEpochs, event.revoked); notify(); });
+  // Streams already in flight are cancelled cooperatively when their account is revoked (pause, sign-out, removal, reauthentication).
+  const inflight = new Map();
+  const unsubscribe = accounts.subscribe(event => {
+    if (event?.revoked) { bump(accountEpochs, event.revoked); for (const controller of inflight.get(event.revoked) || []) controller.abort(); }
+    notify();
+  });
   async function catalog(account, signal) {
     live(); signal?.throwIfAborted();
     const key = account.id;
@@ -136,7 +141,9 @@ export async function createCodexRuntime({ accounts, llm, llmModule, path, fetch
     const data = await store.load();
     if (!(await snapshotAccounts()).some(a => a.id === bound.account)
       || (bound.id.startsWith(prefix) && data.preferences.accounts?.[bound.account]?.independentEntry !== true)) throw failure('NO_ADAPTER');
-    const watchdog = idleWatchdog(AbortSignal.any([lifecycle.signal, ...(options.signal ? [options.signal] : [])]), streamIdleTimeoutMs);
+    const revocation = new AbortController(), group = inflight.get(bound.account) || new Set();
+    group.add(revocation); inflight.set(bound.account, group);
+    const watchdog = idleWatchdog(AbortSignal.any([lifecycle.signal, revocation.signal, ...(options.signal ? [options.signal] : [])]), streamIdleTimeoutMs);
     try {
       const request = async force => {
         const session = await bounded(accounts.session(bound.account, { force, signal: watchdog.signal }), watchdog.signal);
@@ -181,11 +188,11 @@ export async function createCodexRuntime({ accounts, llm, llmModule, path, fetch
       }
     } catch (error) {
       const allowed = ['AUTH', 'RATE_LIMIT', 'QUOTA', 'CONTEXT_WINDOW_EXCEEDED', 'EMPTY_RESPONSE', 'INVALID_REQUEST', 'NO_ADAPTER', 'UNSUPPORTED', 'TIMEOUT', 'SERVER', 'MALFORMED_RESPONSE', 'STREAM_CLOSED', 'INVALID_CREDENTIAL'];
-      const code = watchdog.timedOut() ? 'TIMEOUT' : watchdog.signal.aborted ? 'ABORTED' : error.code === 'reauthentication_required' ? 'AUTH'
+      const code = watchdog.timedOut() ? 'TIMEOUT' : revocation.signal.aborted && !options.signal?.aborted ? 'NO_ADAPTER' : watchdog.signal.aborted ? 'ABORTED' : error.code === 'reauthentication_required' ? 'AUTH'
         : allowed.includes(error.code) || /^HTTP_[1-5][0-9]{2}$/.test(error.code) ? error.code : 'TRANSPORT';
       throw new LlmError('Codex request failed.', code,
         { ...(Number.isInteger(error.status) ? { status: error.status } : {}), ...(Number.isFinite(error.providerRetryAfterMs) ? { providerRetryAfterMs: error.providerRetryAfterMs } : {}) });
-    } finally { watchdog.stop(); }
+    } finally { watchdog.stop(); group.delete(revocation); if (!group.size) inflight.delete(bound.account); }
   }
   class CodexDirectAdapter extends LlmAdapter {
     providerInfo(provider) { return { id: provider, name: 'Codex (Subscription)' }; }
