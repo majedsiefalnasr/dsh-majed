@@ -23,6 +23,43 @@ All notable changes to `dsh-majed` are documented here. The format follows
 - Dormant synthetic SessionStart seam reads production Command Approval authority and runs an approved inline Bash command through native subprocess, with immediate pre-spawn revocation, watched-byte and canonical-cwd checks. Activation remains off; no production event registration, native tool-guard, other-event, installed-state or full R14 acceptance is claimed.
 
 ### Partial (not complete)
+- E11 (#91) deterministic local Safe/Aggressive action policy, controlled
+  fixtures only; the ticket stays PARTIAL/open. New pure module
+  `modules/command-policy/index.js` decides `allow`/`checkpoint`/`deny`/`defer`
+  for native command permission requests from effects, targets, paths and known
+  script contents (not from wrapper names). `createCommandModes` gains a
+  host-side `evaluate(sessionId, request)` that reads the host-held mode.
+  - Ask me always defers, and so do non-command requests (browser, MCP, tool,
+    hook). Safe allows scoped routine work and checkpoints destructive actions
+    for that request only (no handback shutdown). Aggressive adds
+    task-authorized known-target destructive project actions and still denies
+    sensitive data, key exposure, catastrophic targets and task prohibitions.
+  - The shell analysis is best-effort lexical analysis of a documented subset
+    (no symlink or filesystem resolution). Anything outside the subset
+    checkpoints, but the subset is not proven exhaustive. Pure-read commands use
+    flag validation for sort, sed and rg; most Git read commands use deny-lists,
+    not full allow-lists, and `node --test` accepts unknown long flags. Tooling
+    flags that run code or redirect output, unsafe npm/make
+    lifecycle arguments, `.git` writes, history rewrites (including amend),
+    recursive permission changes and sensitive-capable globs checkpoint. `find .
+    -print` is allowed; it is not a command-wide checkpoint.
+  - Owner settings can only extend known safe effects/trusted projects or
+    tighten; malformed or oversized tightening lists checkpoint with
+    `settings_invalid`. Project/agent request fields and one-off approvals
+    never widen authority.
+  - A bounded in-memory ledger keeps the last 100 redacted decisions per
+    session (no raw commands, paths or outputs). Closing a session or
+    `resetAll` clears it; `reset` clears that session's history and pending
+    decisions. A separate ids-only set (1000 per session, oldest evicted first)
+    rejects a replayed resolved request id, even after more than 100 later
+    decisions; ids evicted from that set can no longer be recognised, and it
+    survives `reset` but not session closure.
+  - Known gaps: nothing answers a native permission request yet (native
+    consumption unproven, gate G2, open on #90); no judgment (E12); no route,
+    UI or persisted Owner settings; `knownScripts`, `task` and
+    `sessionTempDirs` need a trusted host source that does not exist yet; no
+    real browser, installed or paired proof; mobile is deferred to the Owner.
+  Details: `docs/research/e11-action-policies-2026-10-29.md`.
 - E10 session command mode (Ask me / Auto safe / Auto aggressive) is PARTIAL: ticket acceptance criterion 1 (a real native permission request observes the chosen mode under native guards) is UNMET and remains decision gate G2, because the native approval/request and tools/pre-execute seams are first-party internals with no public contract used here. What changed: the mode is now one host-owned, in-memory setting per session behind a new Owner-admitted exact Fetch route (`/api/majed/command-mode`) instead of browser `localStorage`. Reading a session's mode checks that the session is live, so a closed session reads as Ask me and a reopened id does not revive authority. Browser mounts and a bounded 5 s poll mirror the actual host state; an unreachable or failing host shows Ask me; a failed write keeps showing the last host-confirmed mode and re-syncs; the pre-answer host re-read is retried once if a poll supersedes it; values saved by older versions are scrubbed. The host never answers native approvals itself and the existing client Auto approver decision rules are unchanged. Aggressive confirmation is client-side `window.confirm` only, not server-enforced (also a gate item). Evidence is controlled fixture evidence; real browser, installed-host and paired-device behavior are unverified; mobile testing is deferred to the Owner.
 
 ### Fixed
