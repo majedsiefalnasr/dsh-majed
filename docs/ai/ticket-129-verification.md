@@ -66,6 +66,10 @@ Remaining reference suite inventory and explicit ticket exclusions:
 
 No single happy-path test is offered as parity proof. This is bounded #129 source/behavior coverage, not complete reference-plugin or installed-host acceptance.
 
+### Final P2 cache-bypass correction
+
+Independent re-review at `cd780c8` confirmed the five prior remediation areas, but reproduced automatic card mounting bypassing a fresh usage snapshot (`force: true`). The delegated one-fix attempt could not spawn its shell (`spawn sandbox-exec ENOENT`) and changed nothing; Lead applied the bounded correction with the functioning normal workspace executor, without widening sandbox access. Regression renders the actual card against a prewarmed real `PoolUsageTracker` with fake usage fetching: before correction automatic mount produced fetch count 2 instead of 1; after correction automatic requests use `force: false`, manual Refresh and post-reset refresh explicitly use `true`. Focused regression passes. Lead full suite: classifier 166/166, Node 230/230, zero failures; fresh build match and whitespace pass. No live provider or installed state access.
+
 ### Final remediation gate results
 
 - `npm_config_cache=/tmp/npm-cache-majed npm run build`: passed; regenerated owned nested dist modules and both browser artifacts.

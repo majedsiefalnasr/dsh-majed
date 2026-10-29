@@ -162,13 +162,13 @@ function createCodexCard(React, primitives, rpc, t) {
 			}, 2e3);
 			return () => clearInterval(timer);
 		}, [status?.busy]);
-		const refreshUsage = (account) => {
+		const refreshUsage = (account, force = false) => {
 			if (usageRequests.current.has(account)) return usageRequests.current.get(account);
 			const request = (async () => {
 				try {
 					const snapshot = await call("usage", {
 						account,
-						force: true
+						force
 					});
 					if (alive.current && accountKeys.current.has(account) && usageRequests.current.get(account) === request) setUsage((previous) => ({
 						...previous,
@@ -259,7 +259,7 @@ function createCodexCard(React, primitives, rpc, t) {
 					label: account.account
 				});
 			}), button(t("refreshUsage"), () => {
-				action(() => refreshUsage(account.key));
+				action(() => refreshUsage(account.key, true));
 			}), !snapshot ? h("p", null, t("usageNotLoaded")) : snapshot.error ? h("p", { role: "alert" }, snapshot.error) : !snapshot.supported || !snapshot.windows?.length ? h("p", null, t("usageUnavailable")) : null, ...(snapshot?.windows ?? []).map((window$1, index) => {
 				const percent = Math.max(0, Math.min(100, window$1.usedPercent));
 				const color = percent >= 95 ? "var(--dsw-alias-state-error-primary)" : percent >= 80 ? "var(--dsw-alias-state-warn-label)" : "var(--dsw-alias-state-success-primary)";
@@ -306,7 +306,7 @@ function createCodexCard(React, primitives, rpc, t) {
 				});
 				setConfirmation(null);
 				await refreshStatus();
-				if (confirmation.kind === "reset") await refreshUsage(confirmation.account);
+				if (confirmation.kind === "reset") await refreshUsage(confirmation.account, true);
 			});
 		}, confirmation.kind === "reset" && (!acknowledged || Date.now() >= confirmation.expiresAt))) : null);
 	};

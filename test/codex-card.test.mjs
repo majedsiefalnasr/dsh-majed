@@ -55,6 +55,26 @@ for (const locale of ['en', 'ar']) test(`Codex account actions and guarded reset
 });
 
 
+test('automatic card loading reuses fresh tracker usage while explicit refresh bypasses it', async () => {
+  const { PoolUsageTracker } = await import('../dist/providers/pool-usage.js');
+  let fetches = 0;
+  const tracker = new PoolUsageTracker(() => async () => {
+    fetches++;
+    return { supported: true, windows: [{ kind: 'weekly', usedPercent: fetches }] };
+  });
+  await tracker.snapshotFor('codex', 'a');
+  const page = fixture('en', { busy: false, accounts: [{ key: 'a' }] }, async (endpoint, payload) => {
+    if (endpoint === 'usage') return { ok: true, value: await tracker.snapshotFor('codex', payload.account, payload.force === true) };
+  });
+  page.render(); await page.settle();
+  assert.equal(fetches, 1, 'automatic mount must reuse the fresh shared snapshot');
+  assert.equal(page.calls.find(c => c.method.endsWith('.usage')).payload.force, false);
+  page.click('refreshUsage'); await page.settle();
+  assert.equal(fetches, 2, 'manual refresh must fetch a new snapshot');
+  assert.equal(page.calls.filter(c => c.method.endsWith('.usage')).at(-1).payload.force, true);
+  page.unmount();
+});
+
 test('usage loads once per appearance, failures do not auto-retry, removed accounts lose cached state', async () => {
   const status = { busy: false, accounts: [{ key: 'a' }] };
   const page = fixture('en', status, endpoint => endpoint === 'usage' ? { ok: false, error: { message: 'fixture usage failure' } } : undefined);

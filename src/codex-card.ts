@@ -40,11 +40,11 @@ export function createCodexCard(React: any, primitives: any, rpc: any, t: (key: 
       const timer = setInterval(() => { void refreshStatus().catch((error: Error) => { if (alive.current) setError(error.message); }); }, 2000);
       return () => clearInterval(timer);
     }, [status?.busy]);
-    const refreshUsage = (account: string) => {
+    const refreshUsage = (account: string, force = false) => {
       if (usageRequests.current.has(account)) return usageRequests.current.get(account);
       const request = (async () => {
         try {
-          const snapshot = await call('usage', { account, force: true });
+          const snapshot = await call('usage', { account, force });
           if (alive.current && accountKeys.current.has(account) && usageRequests.current.get(account) === request) setUsage((previous: object) => ({ ...previous, [account]: snapshot }));
         } catch (error) {
           if (alive.current && accountKeys.current.has(account) && usageRequests.current.get(account) === request) setUsage((previous: object) => ({ ...previous, [account]: { error: error instanceof Error ? error.message : String(error) } }));
@@ -94,7 +94,7 @@ export function createCodexCard(React: any, primitives: any, rpc: any, t: (key: 
             account.expiresAt ? h('span', null, ' · ', t('expires'), ': ', h('bdi', null, date(account.expiresAt))) : null),
           button(account.isDefault ? `★ ${t('defaultAccount')}` : `☆ ${t('makeDefault')}`, () => { void action(async () => { await call('setDefault', { account: account.key }); await refreshStatus(); }); }, account.isDefault),
           button(t('logout'), () => { setAcknowledged(false); setConfirmation({ kind: 'logout', account: account.key, label: account.account }); }),
-          button(t('refreshUsage'), () => { void action(() => refreshUsage(account.key)); }),
+          button(t('refreshUsage'), () => { void action(() => refreshUsage(account.key, true)); }),
           !snapshot ? h('p', null, t('usageNotLoaded')) : snapshot.error ? h('p', { role: 'alert' }, snapshot.error)
             : !snapshot.supported || !snapshot.windows?.length ? h('p', null, t('usageUnavailable')) : null,
           ...(snapshot?.windows ?? []).map((window: any, index: number) => {
@@ -127,7 +127,7 @@ export function createCodexCard(React: any, primitives: any, rpc: any, t: (key: 
           if (confirmation.kind === 'logout') await call('logout', { account: confirmation.account });
           else await call('consumeReset', { account: confirmation.account, ticket: confirmation.ticket });
           setConfirmation(null); await refreshStatus();
-          if (confirmation.kind === 'reset') await refreshUsage(confirmation.account);
+          if (confirmation.kind === 'reset') await refreshUsage(confirmation.account, true);
         }); }, confirmation.kind === 'reset' && (!acknowledged || Date.now() >= confirmation.expiresAt))) : null);
   };
 }
