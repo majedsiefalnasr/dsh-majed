@@ -295,7 +295,7 @@ Complete the Owner-authorized documentation commit/push and safe obsolete-worktr
 
 ## Following gates
 
-Checkpoint preservation/push -> full feature inventory -> Owner design discussion (`/grill-with-docs`) -> specification with confirmed seams (`/to-spec`) -> Owner-approved vertical ticket breakdown and tracker reconciliation (`/to-tickets`) -> implementation with `/implement` per agreed task/ticket or `/implement-spec` for the approved specification graph, including TDD and Standards/Spec review. See [scope control](rules/scope-control.md). No future design, seam or ticket approval is implied by approval of this sequence.
+Checkpoint preservation/push -> full feature inventory -> Owner design discussion (`/grill-with-docs`) -> specification with confirmed seams (`/to-spec`) -> Owner-approved vertical ticket breakdown and tracker reconciliation (`/to-tickets`) -> implementation with `/implement` per agreed task/ticket or `/implement-spec` for the approved specification graph, including TDD and Standards/Spec review. See [scope control](../ai/rules/scope-control.md). No future design, seam or ticket approval is implied by approval of this sequence.
 
 ## Deferred decisions
 
@@ -339,4 +339,3 @@ Historical checkpoint/inventory verification (before the bounded source-disable 
 - Slice of #91 on `impl/e11b-policy-settings`: implementer `codex/gpt-6.1-sol` `baf0e78` (753/753), independent review `codex/gpt-6-astra` (source-only; sandbox refused execution) found two P2 (decide() fell back to request-supplied task/knownScripts/tempDirs without Owner context; UI draft discarded unrelated unsaved edits on save/reset), correction `0223639` via `codex/gpt-6-luna` (755/755, classifier 166/166); merged `b40487f`; integration 755/755 on two reruns (one earlier run hit an unrelated `codex-direct` tmpdir ENOTEMPTY cleanup flake, passed on rerun).
 - Added: private durable Owner policy settings (`modules/command-policy/settings.js`), exact Fetch route mount (`modules/command-policy/settings-mount.js`), Settings UI with per-field Reset/independent drafts, bounded redacted ledger view (HMAC fingerprints, counts by reason, no raw command/path/args). Authorization context (task, knownScripts, sessionTempDirs, trust) now comes ONLY from Owner settings; request values ignored.
 - **Still not met for #91:** native `approval/request` consumption (G2 accepted gap), real-browser/installed/paired proof of the new UI, symlink resolution, E12 judgment. Fail-closed means no automatic approval while settings are unloaded/invalid (explicit human approval still possible). #91 stays OPEN.
-
