@@ -172,6 +172,8 @@ export function applyCommandApproval(ctx, options = {}) {
     const bundleItems = () => {
       const bundle = input.bundle;
       if (!only(bundle, ['version', 'kind', 'hooks']) || bundle.version !== 1 || bundle.kind !== BUNDLE_KIND || !Array.isArray(bundle.hooks) || bundle.hooks.length > MAX_BUNDLE_HOOKS) reject('invalid_request');
+      // The same byte bound as export (bytes, not characters), so preview and import accept exactly what export can emit.
+      if (Buffer.byteLength(JSON.stringify(bundle)) > MAX_BUNDLE_BYTES) reject('bundle_too_large');
       const seen = new Set();
       return bundle.hooks.map(raw => {
         try {

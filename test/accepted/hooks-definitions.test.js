@@ -261,3 +261,22 @@ test('enabling re-reviews the watched bytes after the asynchronous scope check',
   const after = (await service.call('list', scope)).value.hooks[0];
   assert.equal(after.hook.enabled, false); assert.equal(after.state, 'draft');
 });
+
+test('preview and import enforce the export byte bound by bytes, not characters', async t => {
+  const service = await mount(t, await fixture(t));
+  // 5 hooks of 2500 two-byte characters: under 24576 characters but over 24576 bytes, and under the 32768-byte request limit.
+  const hooks = Array.from({ length: 5 }, (_, index) => ({ ...hook, id: 'wide' + index, command: 'é'.repeat(2500) }));
+  const bundle = { version: 1, kind: 'dsh-majed-hooks', hooks };
+  const serialized = JSON.stringify(bundle);
+  assert.ok(serialized.length < 24576 && Buffer.byteLength(serialized) > 24576 && Buffer.byteLength(serialized) < 30000, 'fixture straddles the byte bound');
+  const preview = await service.call('previewImport', { bundle });
+  assert.equal(preview.ok, false); assert.equal(preview.error.code, 'bundle_too_large');
+  const imported = await service.call('import', { bundle });
+  assert.equal(imported.ok, false); assert.equal(imported.error.code, 'bundle_too_large');
+  assert.deepEqual((await service.call('list')).value.hooks, []);
+  // One fewer wide hook fits the bound and is accepted.
+  const fits = { ...bundle, hooks: hooks.slice(0, 4) };
+  assert.ok(Buffer.byteLength(JSON.stringify(fits)) <= 24576);
+  assert.equal((await service.call('import', { bundle: fits })).ok, true);
+  assert.equal((await service.call('list')).value.hooks.length, 4);
+});

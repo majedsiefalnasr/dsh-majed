@@ -178,13 +178,13 @@ test('Settings edit that changes the hook id is a new entry: it never sends the 
 });
 
 // H01 Settings controls: built dist/client.js driven through the baseline harness against the production service.
-async function openSettings(t, service) {
+async function openSettings(t, service, { language = 'en', intercept } = {}) {
   const source = await readFile(new URL('../../dist/client.js', import.meta.url), 'utf8');
   const sent = [];
-  const harness = createBaselineHarness(source, { connection: { rpc: { async call(channel, method, payload) {
+  const harness = createBaselineHarness(source, { language, connection: { rpc: { async call(channel, method, payload) {
     if (method === 'majed/settings/status') return { ok: true, value: { module: 'hooks', enabled: false, state: 'disabled' } };
     const { action, ...input } = payload; sent.push({ action, input });
-    return service.call(action, input);
+    return intercept?.(action, input) ?? service.call(action, input);
   } } } });
   t.after(() => harness.dispose()); harness.apply(); const view = harness.render('majed-hooks');
   const buttons = label => view.nodes(node => node.type === 'button' && node.props.children.includes(label));
@@ -194,7 +194,7 @@ async function openSettings(t, service) {
   const click = async (label, index = 0) => { await waitFor(() => buttons(label).length > index, 'button ' + label); await buttons(label)[index].props.onClick(); view.render(); };
   const type = (name, value) => { view.one(node => node.props.name === name).props.onChange({ target: { value } }); view.render(); };
   const submit = async name => { await view.one(node => node.type === 'form' && node.props['data-approval-form'] === name).props.onSubmit({ preventDefault() {} }); view.render(); };
-  return { view, sent, buttons, text, waitFor, click, type, submit };
+  return { harness, view, sent, buttons, text, waitFor, click, type, submit };
 }
 
 const ids = async service => (await service.call('list', { scope: 'user' })).value.hooks.map(item => item.hook.id).sort();
@@ -319,4 +319,149 @@ test('Settings Export shows bounded JSON without consent, revision or env values
   await ui.waitFor(() => ui.view.nodes(node => node.props['data-import-item'] === 'invalid').length === 1, 'invalid item');
   assert.equal(ui.buttons('Import')[0].props.disabled, true);
   assert.deepEqual(await ids(service), ['example', 'imported']);
+});
+
+// H01 correction round: truthful enabled state, import byte bound through the UI, Arabic/RTL, accessibility, stale previews.
+const enableDirect = async (service, id = 'example') => assert.equal((await service.call('setEnabled', { scope: 'user', id, enabled: true, revision: (await hookState(service, id)).revision })).ok, true);
+
+test('an enabled hook whose Approval became invalid is shown as enabled-but-unapproved, never as a disabled draft', async t => {
+  const root = await fixture(t); const service = await mount(t, root);
+  await writeFile(join(root, 'watched.txt'), 'reviewed bytes');
+  await service.call('save', { scope: 'user', hook: { ...hook, watchedFiles: ['watched.txt'] } }); await approveDirect(service); await enableDirect(service);
+  assert.equal((await hookState(service)).state, 'active');
+  await writeFile(join(root, 'watched.txt'), 'changed after review');
+  // Route semantics are unchanged: the entry is still enabled, its state is the generic draft and its Approval is not valid.
+  const listed = await hookState(service);
+  assert.equal(listed.hook.enabled, true); assert.equal(listed.state, 'draft'); assert.equal(listed.approval.valid, false);
+  const ui = await openSettings(t, service);
+  await ui.waitFor(() => ui.view.nodes(node => node.props['data-hook-state']).length === 1, 'hook state');
+  assert.equal(ui.view.one(node => node.props['data-hook-state']).props['data-hook-state'], 'enabled_invalid');
+  assert.match(ui.text(), /Enabled, but its Approval is no longer valid: review required/);
+  assert.doesNotMatch(ui.text(), /saved draft, disabled/);
+  assert.equal(ui.buttons('Disable').length, 1);
+});
+
+test('Import through the UI refuses an oversize multibyte bundle by bytes and shows invalid JSON and malformed bundles specifically', async t => {
+  const root = await fixture(t); const service = await mount(t, root);
+  const ui = await openSettings(t, service);
+  await ui.waitFor(() => ui.buttons('Preview import').length === 1, 'import form');
+  // Invalid JSON is refused locally with its own message and no request is sent.
+  const before = ui.sent.length;
+  ui.type('bundle', '{not json'); await ui.submit('import');
+  await ui.waitFor(() => /not valid JSON/.test(ui.text()), 'invalid JSON message');
+  assert.equal(ui.sent.length, before); assert.equal(ui.view.nodes(node => node.props['data-import-item']).length, 0);
+  // Five hooks of 2500 two-byte characters: fewer than 24576 characters, more than 24576 bytes, still inside the request body limit.
+  const wide = { version: 1, kind: 'dsh-majed-hooks', hooks: Array.from({ length: 5 }, (_, index) => ({ ...hook, id: 'wide' + index, command: 'é'.repeat(2500) })) };
+  const text = JSON.stringify(wide);
+  assert.ok(text.length < 24576 && Buffer.byteLength(text) > 24576 && Buffer.byteLength(text) < 30000);
+  ui.type('bundle', text); await ui.submit('import');
+  await ui.waitFor(() => /bundle is too large/.test(ui.text()), 'too large message');
+  assert.equal(ui.sent.at(-1).action, 'previewImport'); assert.equal(ui.view.nodes(node => node.props['data-import-item']).length, 0);
+  assert.doesNotMatch(ui.text(), /not valid JSON/); assert.deepEqual(await ids(service), []);
+  // A well-formed JSON text that is not a bundle gets the generic refusal, not the JSON or size message.
+  ui.type('bundle', '{"a":1}'); await ui.submit('import');
+  await ui.waitFor(() => /request is not valid/.test(ui.text()), 'invalid request message');
+  assert.doesNotMatch(ui.text(), /too large|not valid JSON/);
+});
+
+test('the import preview is cleared whenever the list changes: refresh, save, duplicate, restore, purge, import and a failed or successful scope change', async t => {
+  const root = await fixture(t);
+  const header = { id: 'session-a', cwd: root }, workspace = { id: 'workspace-a', path: root, sessionIds: ['session-a'] };
+  const service = await mount(t, root, { services: {
+    sessions: { get(id) { return id === 'session-a' ? { header } : undefined; } }, sessionPersistence: { async stat() {} },
+    workspaceRegistry: { get(id) { return id === 'workspace-a' ? workspace : undefined; }, list() { return [workspace]; } } } });
+  await service.call('save', { scope: 'user', hook }); await service.call('save', { scope: 'user', hook: { ...hook, id: 'gone' } });
+  await service.call('remove', { scope: 'user', id: 'gone', revision: (await hookState(service, 'gone')).revision });
+  let failProject = false;
+  const ui = await openSettings(t, service, { intercept: (action, input) => failProject && input.scope === 'project' ? { ok: false, error: { code: 'unavailable', message: 'unavailable', details: {} } } : undefined });
+  await ui.waitFor(() => ui.buttons('Preview import').length === 1, 'import form');
+  const bundle = JSON.stringify({ version: 1, kind: 'dsh-majed-hooks', hooks: [{ ...hook, id: 'fresh' }] });
+  const preview = async () => { ui.type('bundle', bundle); await ui.submit('import'); await ui.waitFor(() => ui.view.nodes(node => node['props']['data-approval-preview'] !== undefined).length === 1, 'preview'); };
+  const cleared = async what => ui.waitFor(() => ui.view.nodes(node => node.props['data-approval-preview'] !== undefined).length === 0, 'preview cleared by ' + what);
+  await preview(); await ui.click('Refresh saved commands'); await cleared('refresh');
+  await preview(); await ui.click('Duplicate'); ui.type('newId', 'copy'); await ui.submit('duplicate'); await cleared('duplicate');
+  await preview(); await ui.click('Restore'); await cleared('restore');
+  await preview(); await ui.click('Remove command', 0); await ui.waitFor(() => ui.buttons('Purge').length > 0, 'trash'); await cleared('remove');
+  await preview(); await ui.click('Purge'); await ui.click('Confirm permanent delete'); await cleared('purge');
+  await preview(); ui.type('id', 'edited'); ui.type('command', 'printf edited'); await ui.submit('definition'); await cleared('save');
+  // Scope change: the preview is cleared and, when the new list fails, the old scope's hooks and trash are not left on screen.
+  const scope = value => ui.view.one(node => node.props.name === 'scope').props.onChange({ target: { value } });
+  const project = JSON.stringify(['session-a', 'workspace-a']);
+  await ui.waitFor(() => ui.view.one(node => node.props.name === 'scope').props.children.flat(Infinity).filter(node => node.type === 'option').length === 2, 'scope options');
+  await preview(); failProject = true; scope(project);
+  await ui.waitFor(() => /request was refused/.test(ui.text()), 'scope change failure');
+  assert.equal(ui.view.nodes(node => node.props['data-approval-preview'] !== undefined).length, 0);
+  assert.equal(ui.view.nodes(node => node.props['data-hook-state']).length, 0); assert.doesNotMatch(ui.text(), /printf hello|example/);
+  assert.equal(ui.buttons('Duplicate').length, 0); assert.equal(ui.buttons('Remove command').length, 0);
+  // A later successful scope change recovers.
+  failProject = false; await ui.click('Refresh saved commands');
+  await ui.waitFor(() => !/request was refused/.test(ui.text()), 'recovered');
+});
+
+const sectionOf = ui => ui.view.one(node => node.props['data-majed-approval'] !== undefined);
+const labelled = (ui, label) => ui.view.nodes(node => node.type === 'button' && node.props['aria-label'] === label);
+
+test('Arabic renders the translated state strings and buttons, with RTL on the panel and an explicitly LTR JSON text area', async t => {
+  const root = await fixture(t); const service = await mount(t, root);
+  await writeFile(join(root, 'watched.txt'), 'reviewed bytes');
+  await service.call('save', { scope: 'user', hook: { ...hook, watchedFiles: ['watched.txt'] } });
+  await service.call('save', { scope: 'user', hook: { ...hook, id: 'second' } });
+  await service.call('save', { scope: 'user', hook: { ...hook, id: 'third' } });
+  await service.call('remove', { scope: 'user', id: 'third', revision: (await hookState(service, 'third')).revision });
+  await approveDirect(service, 'second');
+  const ui = await openSettings(t, service, { language: 'ar' });
+  await ui.waitFor(() => ui.buttons('تكرار').length === 2, 'Arabic row buttons');
+  assert.equal(sectionOf(ui).props.dir, 'rtl'); assert.equal(sectionOf(ui).props['aria-label'], 'الموافقة على أوامر الخطافات');
+  const statesNow = () => ui.view.nodes(node => node.props['data-hook-state']).map(node => node.props['data-hook-state'] + '=' + node.props.children.join(''));
+  assert.deepEqual(statesNow().sort(), ['draft=يحتاج إلى مراجعة (مسودة محفوظة، معطلة)', 'approved=تمت الموافقة (معطل)', 'trashed=في المحذوفات (معطل، غير موافق عليه)'].sort());
+  for (const label of ['تعديل الأمر', 'مراجعة الأمر', 'إلغاء الموافقة', 'إزالة الأمر', 'تفعيل', 'تكرار', 'استعادة', 'حذف نهائي', 'تصدير الخطافات', 'معاينة الاستيراد']) assert.ok(ui.buttons(label).length > 0, 'Arabic button ' + label);
+  assert.match(ui.text(), /لا ينفّذ أي شيء بهذه الأدوات/);
+  // Enabled state, enabled-but-invalid state and Disable in Arabic.
+  await enableDirect(service, 'second'); await ui.click('تحديث الأوامر المحفوظة');
+  await ui.waitFor(() => ui.text().includes('تمت الموافقة ومفعّل (التنفيذ ما زال غير متاح)'), 'Arabic active state'); assert.ok(ui.buttons('تعطيل').length > 0);
+  // Export text area: JSON stays left-to-right inside the right-to-left panel.
+  await ui.click('تصدير الخطافات'); await ui.waitFor(() => ui.view.nodes(node => node.props.name === 'exported').length === 1, 'Arabic export');
+  assert.equal(ui.view.one(node => node.props.name === 'exported').props.dir, 'ltr'); assert.equal(ui.view.one(node => node.props.name === 'bundle').props.dir, 'ltr');
+  assert.equal(ui.view.one(node => node.props.name === 'exported').props['aria-label'], 'التعريفات المصدّرة (دون موافقة أو مراجعة أو قيم بيئة)');
+  // Specific Arabic refusal messages: invalid JSON, bundle too large, stale revision.
+  ui.type('bundle', '{x'); await ui.submit('import'); await ui.waitFor(() => ui.text().includes('النص الملصق ليس JSON صالحًا.'), 'Arabic invalid JSON');
+  ui.type('bundle', JSON.stringify({ version: 1, kind: 'dsh-majed-hooks', hooks: Array.from({ length: 5 }, (_, index) => ({ ...hook, id: 'w' + index, command: 'é'.repeat(2500) })) })); await ui.submit('import');
+  await ui.waitFor(() => ui.text().includes('رُفض: الحزمة أكبر من أن تُصدَّر أو تُستورد.'), 'Arabic too large');
+  // The enabled-but-invalid state in Arabic: change the watched file of the enabled hook after review.
+  await service.call('save', { scope: 'user', hook: { ...hook, id: 'watched', watchedFiles: ['watched.txt'] } }); await approveDirect(service, 'watched'); await enableDirect(service, 'watched');
+  await writeFile(join(root, 'watched.txt'), 'changed'); await ui.click('تحديث الأوامر المحفوظة');
+  await ui.waitFor(() => ui.text().includes('مفعّل، لكن موافقته لم تعد صالحة: المراجعة مطلوبة (التنفيذ غير متاح)'), 'Arabic enabled_invalid');
+});
+
+test('every per-row button names its hook, the duplicate form submit differs from the row button, and the purge dialog is named and moves and returns focus', async t => {
+  const root = await fixture(t); const service = await mount(t, root);
+  await service.call('save', { scope: 'user', hook }); await service.call('save', { scope: 'user', hook: { ...hook, id: 'second' } });
+  await service.call('save', { scope: 'user', hook: { ...hook, id: 'gone' } });
+  await service.call('remove', { scope: 'user', id: 'gone', revision: (await hookState(service, 'gone')).revision });
+  const ui = await openSettings(t, service);
+  await ui.waitFor(() => ui.buttons('Duplicate').length === 2, 'rows');
+  for (const id of ['example', 'second']) {
+    for (const label of ['Edit command', 'Review command', 'Revoke Approval', 'Remove command', 'Enable', 'Duplicate']) assert.equal(labelled(ui, label + ': ' + id).length, 1, label + ' names ' + id);
+  }
+  for (const label of ['Restore', 'Purge']) assert.equal(labelled(ui, label + ': gone').length, 1, label + ' names gone');
+  // Every visible per-row button in the hook rows and trash has an accessible subject; only the global buttons may be unnamed.
+  const unnamed = ui.view.nodes(node => node.type === 'button' && !node.props['aria-label']).map(node => node.props.children.join(''));
+  assert.deepEqual(unnamed.sort(), ['Export hooks', 'Preview import', 'Refresh saved commands', 'Refresh status', 'Save command']);
+  // The duplicate form submit is a different control from the row button, with a distinct accessible name.
+  await ui.click('Duplicate', 0);
+  const submitButton = ui.view.one(node => node.type === 'button' && node.props.type === 'submit' && node.props['aria-label']?.startsWith('Create copy'));
+  assert.equal(submitButton.props['aria-label'], 'Create copy: example'); assert.notEqual(submitButton.props['aria-label'], 'Duplicate: example');
+  assert.equal(labelled(ui, 'Duplicate: example').length, 1);
+  // The purge confirmation is an alertdialog with an accessible name and description; focus moves to its safe control and returns.
+  const purge = labelled(ui, 'Purge: gone')[0]; const purgeElement = ui.view.elementOf(purge);
+  assert.ok(purgeElement, 'Purge trigger has a ref');
+  await ui.click('Purge');
+  const dialog = ui.view.one(node => node.props.role === 'alertdialog');
+  assert.equal(dialog.props['aria-label'], 'Confirm permanent delete: gone');
+  assert.ok(ui.view.nodes(node => node.props.id === dialog.props['aria-describedby']).length === 1, 'description exists');
+  const keep = labelled(ui, 'Keep in trash: gone')[0]; assert.ok(keep); assert.equal(labelled(ui, 'Confirm permanent delete: gone').filter(node => node.type === 'button').length, 1);
+  assert.equal(ui.harness.document.activeElement, ui.view.elementOf(keep), 'focus moves into the dialog');
+  await ui.click('Keep in trash');
+  assert.equal(ui.view.nodes(node => node.props.role === 'alertdialog').length, 0);
+  assert.equal(ui.harness.document.activeElement, ui.view.elementOf(labelled(ui, 'Purge: gone')[0]), 'focus returns to the Purge control');
 });

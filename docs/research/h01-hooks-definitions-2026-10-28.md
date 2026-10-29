@@ -1,7 +1,7 @@
 # H01 scoped hook definitions and exact-version Approval (#103)
 
 Date: 2026-10-28. Base: `bacc766` on `impl/h01-hooks-definitions`. Evidence class: controlled local fixtures
-only (fake Cordis context with a captured Owner Fetch route, the built `dist/client.js` in the existing jsdom
+only (fake Cordis context with a captured Owner Fetch route, the built `dist/client.js` in the existing baseline client
 harness). No real browser, no installed DSH, no paired device, no real native session. Real-mobile testing is
 deferred to the Owner. H01 never executes a hook command; no event mapping, matcher, ordering, Stop
 continuation or history was touched.
@@ -79,18 +79,19 @@ Ticket #103 acceptance remains PARTIAL and the ticket stays open.
 | P2 export could produce a bundle import cannot accept | export refuses with `bundle_too_large` above 32 hooks or 24576 bytes (import accepts at most 32 hooks and a 32768-byte request); roundtrip tested at the boundaries | exit 1 | exit 0 |
 | P2 fences untested | tests for `stale_revision` on revoke, remove, restore, purge, duplicate, setEnabled, save, and for a revision from another scope/root; tautological assertion replaced by `list` -> `executionAvailable === false` | passing at write time; mutation: dropping each of revoke, remove, purge, restore, duplicate, setEnabled from the fence list fails a test (exit 1 each); a lookup that ignores scope/root fails the cross-scope test. A revision HMAC made scope-free alone does NOT fail it, because the lookup is already scope-bound | n/a |
 | P3 `setEnabled(true)` checked the Approval before async work only | re-checked after the scope resolution (`state_changed`) | exit 1 | exit 0 |
-| P3 Settings edit that changed the hook id sent the old revision | client sends a revision only when the id is unchanged (jsdom-style harness test) | exit 1 | exit 0 |
+| P3 Settings edit that changed the hook id sent the old revision | client sends a revision only when the id is unchanged (baseline client harness test) | exit 1 | exit 0 |
 
-Not changed: the `_activation` binding in `reviewEntry` is intentionally unused as a variable; it exists only to omit `enabled` from the fingerprinted content (rest destructuring). Remaining gaps are unchanged: no browser control for duplicate/import/export/trash/enable, origin `unknown`, revisions do not survive restart, no real browser/installed/paired acceptance.
+Not changed: the `_activation` binding in `reviewEntry` is intentionally unused as a variable; it exists only to omit `enabled` from the fingerprinted content (rest destructuring). Remaining gaps are unchanged: origin `unknown`, revisions do not survive restart, no real browser/installed/paired acceptance. (At this point there was still no browser control for duplicate/import/export/trash/enable; the Settings controls section below adds them.)
 
-Final after corrections: `node --test` on `hooks-approval`, `hooks-definitions`, `hooks-inert` = 33/33; full `npm test` = 623/623 (616 + 7 new: 6 in `hooks-definitions`, 1 in `hooks-approval`); classifier 166/166; `git diff --check` clean.
+Final after the first corrections: `node --test` on `hooks-approval`, `hooks-definitions`, `hooks-inert` = 33/33; full `npm test` = 623/623 (616 + 7 new: 6 in `hooks-definitions`, 1 in `hooks-approval`); classifier 166/166; `git diff --check` clean.
 
 ## Settings controls
 
 Slice 2 (2026-10-29): the existing `CommandApprovalSection` in `client.js` now calls the existing route actions
 `duplicate`, `setEnabled`, `remove`/`restore`/`purge`, `export`, `previewImport` and `import`. No new route,
-setting or host change. Every mutating call sends the per-entry `revision` returned by the last `list` (the
-duplicate source, the trashed entry); the route's refusal codes (`stale_revision`, `exists`, `invalid_approval`,
+setting or host change. Every mutation of an existing entry (edit, revoke, remove, setEnabled, duplicate, restore, purge)
+sends the per-entry `revision` returned by the last `list`; save-new uses the absent-revision fence, approve uses the
+nonce and phrase, and import is fenced by the preview and never overwrites; the route's refusal codes (`stale_revision`, `exists`, `invalid_approval`,
 `state_changed`, `not_found`, `store_full`, `bundle_too_large`, `invalid_request`) are mapped to visible text. Purge is
 two-step (Purge, then Confirm permanent delete; Keep in trash cancels). Import is two-step (paste, Preview import,
 then Import; disabled unless at least one item is `new` and none is `invalid`). The panel states that nothing is
@@ -100,6 +101,9 @@ Tests: `test/accepted/hooks-approval.test.js` (built `dist/client.js` through `c
 service through the Fetch route; bounded waits, no fixed sleeps). Assertions cover rendered text and the persisted
 service state.
 
+RED/GREEN as observed. First slice (each test written before the Settings controls existed; RED observed against the
+commit before the controls, GREEN after):
+
 | Control | Test | RED | GREEN |
 | --- | --- | --- | --- |
 | Duplicate + state labels | Settings Duplicate creates a disabled unapproved draft ... refuses a taken id or a stale revision | exit 1 (`timed out waiting for Duplicate button`) | exit 0 |
@@ -107,9 +111,38 @@ service state.
 | Trash / Restore / Purge | Settings Trash, Restore and Purge ... purge needs an explicit confirmation step | exit 1 (`timed out waiting for trashed state`) | exit 0 |
 | Export / Import preview | Settings Export shows bounded JSON ...; Import previews new/exists/duplicate | exit 1 (`timed out waiting for button Export hooks`) | exit 0 |
 
-Note: the Duplicate GREEN needed two harness-level fixes in the test only (the submit handler must return the call so
+The Duplicate GREEN needed two harness-level fixes in the test only (the submit handler must return the call so
 the test can await it, and refusal text is awaited with the bounded `waitFor`).
+
+## Settings controls: correction round (independent review)
+
+Fixes for the review findings. Each test below was written first and run against the previous `client.js` and
+`modules/hooks/approval.js` (restored from `c3e8064`); that run exited 1 with exactly these six tests failing (21 other
+tests of the two files passed). Only the first and second rows record an individually inspected assertion; for the
+others the observed fact is that the test failed against the previous code (exit 1), without a recorded assertion text. GREEN: both files exit 0.
+
+| Finding | Fix | Test | RED observed |
+| --- | --- | --- | --- |
+| P2 an enabled hook whose Approval became invalid (watched file changed) was rendered "Needs review (saved draft, disabled)" next to a Disable button | The route is unchanged (it still returns `state: 'draft'`, `enabled: true`, `approval.valid: false`). The client derives `enabled_invalid` from `hook.enabled && !approval.valid` and shows "Enabled, but its Approval is no longer valid: review required (execution is unavailable)" (English and Arabic) | `an enabled hook whose Approval became invalid is shown as enabled-but-unapproved ...` | exit 1, `'draft'` !== `'enabled_invalid'` |
+| P2 preview and import accepted a bundle above the export byte bound | `bundleItems` measures `Buffer.byteLength(JSON.stringify(bundle))` against `MAX_BUNDLE_BYTES` and refuses with `bundle_too_large` (bytes, not characters) | `preview and import enforce the export byte bound by bytes, not characters` (route); `Import through the UI refuses an oversize multibyte bundle ...` (UI: also invalid JSON sends no request, malformed bundle shows the generic refusal) | exit 1 (route test: `actual: true, expected: false`; UI test failed, assertion not recorded) |
+| P2 Arabic/RTL untested | `ar` strings rendered and asserted; panel `dir` follows `management.direction`; JSON text areas stay `dir="ltr"` | `Arabic renders the translated state strings and buttons ...` | exit 1 (failed; assertion not recorded) |
+| P2 a11y: only Duplicate, Enable/Disable, Restore, Purge and the purge-dialog buttons named their hook | Edit, Review, Revoke, Remove, the confirmation Cancel and Approve now carry `Label: hook`; the duplicate form submit is "Create copy: hook" (distinct from the row "Duplicate: hook"); the purge `alertdialog` has `aria-label` and `aria-describedby`; focus moves to Keep in trash and returns to the Purge control | `every per-row button names its hook ...` | exit 1 (failed; assertion not recorded) |
+| P3 import preview survived list changes | every successful response other than `review`/`export`/`previewImport` clears it; a failed `list` clears preview, duplicate form, purge confirmation and export | `the import preview is cleared whenever the list changes ...` | exit 1 (failed; assertion not recorded in the six-test run; an earlier partial run of the new client showed `timed out waiting for preview cleared by refresh`) |
+| P3 failed scope change kept the previous scope's hooks | a failed `list` clears `hooks` and `trash` and shows the error | same test | same test |
+
+Mutation checks after GREEN (each mutation applied to `client.js` alone, then reverted): removing the Arabic Purge string,
+the Arabic draft-state string, the panel `dir`, the export text area `dir`, the alertdialog `aria-label`, the
+focus-return assignment, the focus-move call (replaced with a no-op), the Create copy label, and the `enabled_invalid`
+derivation each fail at least one test.
+
+What the baseline client harness cannot assert: it has no DOM, layout, tab order, accessibility tree, screen reader or
+real focus. Focus is checked through a ref stub that records `document.activeElement` when the client calls
+`element.focus()`; refs are attached and detached in React commit order but no real focus change or focus trap exists.
+The `dir` attributes and `aria-label` values are asserted as props, not as computed accessible names. Bidirectional
+text rendering and Arabic shaping are not exercised.
 
 Remaining gaps (unchanged): origin stays `unknown`; no stdin binding or display metadata; revisions are per-process
 and not restart-durable; no real browser, installed-desktop or paired-device proof; mobile deferred to the Owner.
-Route gaps: none found for these controls (no route was added).
+Route gaps: none found for these controls (no route was added; the byte bound closes a gap in preview/import).
+
+Final after this correction round: `node --test test/accepted/hooks-*.test.js` = 43/43; full `npm test` = 660/660 (654 + 6 new tests: 1 route, 5 UI), classifier 166/166; `git diff --check` clean.
