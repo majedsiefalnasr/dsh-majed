@@ -1,6 +1,6 @@
 import { LlmAdapter, LlmError, attributionHeaders, bindHostLlm } from './upstream/host-llm.js';
 import { createHash } from 'node:crypto';
-import { createPrivateStore } from './storage.js';
+import { createSettingsStore } from './storage.js';
 import { fetchCodexModels, codexRequestBody, projectCodexMessages } from './upstream/providers/codex-helpers.js';
 import { resolveImages } from './upstream/translate/resolved.js';
 import { toResponsesInput, streamResponses } from './upstream/translate/responses.js';
@@ -47,8 +47,7 @@ function guardedBody(stream, signal) {
 export async function createCodexRuntime({ accounts, llm, llmModule, path, fetch: transport = globalThis.fetch, resolveAttachments = () => undefined, streamIdleTimeoutMs = 30000, clientVersion } = {}) {
   bindHostLlm(llmModule);
   if (!accounts || !llm?.registerAdapter || !path) throw failure('NO_ADAPTER');
-  const store = createPrivateStore(path, { empty: () => ({ version: 1, preferences: {}, catalogs: {} }),
-    validate: value => value?.version === 1 && object(value.preferences) && object(value.catalogs) });
+  const store = createSettingsStore(path);
   const cache = new Map(), speedBySession = new Map(), lifecycle = new AbortController();
   let disposed = false, generation = 0, registration;
   const live = () => { if (disposed) throw failure('NO_ADAPTER'); };

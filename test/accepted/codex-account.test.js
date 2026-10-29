@@ -164,3 +164,26 @@ test('cancelling during callback listener startup closes that attempt and preser
   await login(service, (await service.snapshot()).accounts[0].id);
   assert.equal((await service.snapshot()).loginState, 'connected', 'A new login is allowed after cancelled startup');
 });
+
+
+test('session() without an id never throws an accidental error when the default is missing, paused or signed out', async t => {
+  const { service } = await fixture(t);
+  await assert.rejects(service.session(), { code: 'reauthentication_required' });
+  await login(service); const id = (await service.snapshot()).accounts[0].id;
+  assert.equal((await service.session()).accessToken, 'fixture-access');
+  await service.pause(id);
+  await assert.rejects(service.session(), { code: 'reauthentication_required' });
+  await service.resume(id); await service.signOut(id);
+  await assert.rejects(service.session(), { code: 'reauthentication_required' });
+  await assert.rejects(service.session('f'.repeat(64)), { code: 'reauthentication_required' });
+});
+
+test('reconnect completion reports account_not_found, not a TypeError or a phantom write, when the account was removed mid-login', async t => {
+  const { service, config } = await fixture(t);
+  await login(service); const id = (await service.snapshot()).accounts[0].id;
+  const attempt = await service.begin(id), url = new URL(attempt.authorizeUrl), callback = new URL(url.searchParams.get('redirect_uri'));
+  callback.searchParams.set('code', 'fixture-code'); callback.searchParams.set('state', url.searchParams.get('state'));
+  await service.remove(id);
+  await assert.rejects(service.complete(callback.href), { code: 'account_not_found' });
+  assert.deepEqual(JSON.parse(await readFile(config.path, 'utf8')), { version: 1, accounts: [], default: null });
+});

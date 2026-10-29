@@ -13,16 +13,22 @@ function validAccount(account) {
     && session && ['accessToken', 'refreshToken', 'accountId', 'label'].every(key => typeof session[key] === 'string' && session[key].length > 0)
     && Number.isFinite(session.expiresAt);
 }
+const plain = value => value && typeof value === 'object' && !Array.isArray(value);
+// Per-account Owner settings and cached catalogs live beside, not inside, the credential store.
+export const createSettingsStore = path => createPrivateStore(path, { empty: () => ({ version: 1, preferences: {}, catalogs: {} }),
+  validate: value => value?.version === 1 && plain(value.preferences) && plain(value.catalogs) });
 // Majed owns this file exclusively. Never opens or migrates a reference store.
 export function createPrivateStore(path, options = {}) {
+  // One predicate guards both reads and writes, so no mutation can persist a store that load() would reject.
+  const valid = data => options.validate ? !!options.validate(data) : (data?.version === 1 && Array.isArray(data.accounts) && data.accounts.every(validAccount)
+    && new Set(data.accounts.map(a => a.id)).size === data.accounts.length
+    && (data.default === null || data.accounts.some(a => a.id === data.default)));
   async function load() {
     try {
       const info = await lstat(path);
       if (!info.isFile() || info.isSymbolicLink() || (process.platform !== 'win32' && (info.mode & 0o077))) throw fail('unsafe_account_store');
       const data = JSON.parse(await readFile(path, 'utf8'));
-      if (options.validate ? !options.validate(data) : (data.version !== 1 || !Array.isArray(data.accounts) || !data.accounts.every(validAccount)
-        || new Set(data.accounts.map(a => a.id)).size !== data.accounts.length
-        || (data.default !== null && !data.accounts.some(a => a.id === data.default)))) throw fail('corrupt_account_store');
+      if (!valid(data)) throw fail('corrupt_account_store');
       return data;
     } catch (error) {
       if (error.code === 'ENOENT') return options.empty ? options.empty() : { version: 1, accounts: [], default: null };
@@ -35,6 +41,7 @@ export function createPrivateStore(path, options = {}) {
       signal?.throwIfAborted();
       const data = await load();
       const result = await change(data);
+      if (!valid(data)) throw fail('invalid_state');
       await mkdir(dirname(path), { recursive: true, mode: 0o700 });
       const temporary = `${path}.${randomUUID()}.tmp`;
       let file;
