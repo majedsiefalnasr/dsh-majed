@@ -49,3 +49,21 @@ Evidence logs (not committed) were kept in `/tmp/s15-evidence`.
 - `chat: true` is derived from the model appearing in the listing; it is not independently proven by a capability check. `mediaGeneration: false` is likewise a constant, not a probe.
 - `refresh()` is failure-safe: if `listProviders()` throws, the previous providers are kept and marked `list-failed`, and the next refresh recovers (covered by test).
 - `llm/adapters-updated` listeners are invoked with no arguments (host line 1821), so the module re-reads the full provider list on every event; this was not exercised on a live host.
+
+## Mount slice (2026-10-29)
+
+Scope: closes the "module is not mounted, no route/UI/persistence" item in controlled form only. Fixtures are fakes (`ctx.llm` with credential-looking extras, a recording Connection, the baseline client harness over built `dist/client.js`); native BrowserAuth/Owner admission is host-owned and not simulated.
+
+- `modules/catalog/native-api-mount.js`: `applyNativeApiReferences(ctx, {path, timeoutMs})`, wired in `index.js`; exact route `POST /api/majed/native-api`, actions `snapshot | setPreference | clearPreference`; a transient `createNativeApiReferences` is built per request and disposed.
+- Persistence: Codex `createPrivateStore` (0600, atomic, per-path queue); `{version:1, preferences:[{provider, model, alias?, visible, default}]}`; corrupt/unsafe => `store: corrupt|unsafe`, empty list, writes refused with `store_corrupt|store_unsafe`, file untouched.
+- UI: `NativeApiSection` inside the existing `routing` module section (no new settings slot, so `baseline-client.test.js` slot list is unchanged).
+
+| Slice | Test(s) in `test/accepted/native-api-mount.test.js` | RED | GREEN |
+| --- | --- | --- | --- |
+| A route + bounds + degrade | exact seam/no secrets; bounded requests; llm unavailable | exit 1 (`Cannot read properties of undefined (reading 'path')`: nothing mounted) | exit 0 |
+| B persistence/removal/corrupt/dispose | restart, removed model, corrupt/unsafe, dispose | not independently RED: written after A's implementation, which already covered them (characterization); one dispose assertion first failed on test timing (async dispose) and was corrected | exit 0 (7/7) |
+| C Settings panel | list + click persists + visible outcome; unavailable/error/Arabic | exit 1 (`timed out waiting for reference list`) | exit 0 (9/9) |
+
+A full-suite run after C showed 2 failures in `judgment-ui.test.js` (its fake RPC returned a non-snapshot value to the new panel, `TypeError ... reading 'map'`); fixed by validating the response shape in the panel, then `npm test`: 669 tests, 669 pass; classifier 166/166; `git diff --check` clean (baseline 660 + 9).
+
+Remaining gaps: preferences are not consumed by the native model picker (no public consumer seam proven), so they do not change selection, routing or Auto; no live-host Owner admission or real-provider run; `llm/adapters-updated` is not subscribed (the panel refreshes on demand); the route lifetime is host-owned like the other routes (not unregistered by this module). The ticket stays PARTIAL/open.

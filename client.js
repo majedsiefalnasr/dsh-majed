@@ -755,6 +755,66 @@ window.__ModuleLoader__.load({
             button(labels.edit, () => edit(server)), button(server.enabled ? labels.disconnect : labels.connect, () => call('setEnabled', { serverName: server.serverName, enabled: !server.enabled })), button(labels.reconnect, () => call('reconnect', { serverName: server.serverName }), !server.enabled), button(labels.probe, () => call('probe', { serverName: server.serverName })), button(labels.remove, () => call('remove', { serverName: server.serverName }))))));
     }
 
+    // Native API model references (S15): preferences keyed by native {provider, model}; no credentials, no activation.
+    const nativeApiLabels = {
+      en: { title: 'Native API model references', refresh: 'Refresh native references', hide: 'Hide', show: 'Show', hidden: 'Hidden', setDefault: 'Set as default', clearDefault: 'Clear default', isDefault: 'Default',
+        alias: 'Alias', saveAlias: 'Save alias', clear: 'Clear preference', none: 'No native API models are listed.', loading: 'Loading native references…',
+        disclosure: 'Lists models from the native API providers already configured in DSH. This panel does not copy credentials or endpoints, and it does not activate, route or enroll any model in Auto. Preferences are saved on the DSH host and are not yet used by the model picker.',
+        unavailable: 'The native model service is unavailable.', store_corrupt: 'The saved preferences file is unreadable; it is shown as empty and will not be overwritten.', store_unsafe: 'The saved preferences file has unsafe permissions; changes are refused.',
+        error: 'The request failed. Refresh and try again.', invalid_request: 'Refused: the request is not valid.', unknown_reference: 'Refused: that model is no longer listed.', store_full: 'Refused: too many saved preferences.', llm_unavailable: 'The native model service is unavailable.',
+        'model-removed': 'Unavailable: the model was removed', 'provider-removed': 'Unavailable: the provider was removed', 'provider-unreadable': 'Unavailable: the provider could not be read', 'service-unavailable': 'Unavailable: the native model service is unavailable' },
+      ar: { title: 'مراجع نماذج API الأصلية', refresh: 'تحديث المراجع الأصلية', hide: 'إخفاء', show: 'إظهار', hidden: 'مخفي', setDefault: 'تعيين كافتراضي', clearDefault: 'إلغاء الافتراضي', isDefault: 'افتراضي',
+        alias: 'الاسم المستعار', saveAlias: 'حفظ الاسم المستعار', clear: 'مسح التفضيل', none: 'لا توجد نماذج API أصلية.', loading: 'جارٍ تحميل المراجع الأصلية…',
+        disclosure: 'يعرض النماذج من مزودي API الأصليين المهيأين في DSH. لا ينسخ أي بيانات اعتماد أو عناوين، ولا يفعّل أو يوجّه أو يسجّل أي نموذج في الوضع التلقائي. تُحفظ التفضيلات على مضيف DSH ولا يستخدمها منتقي النماذج بعد.',
+        unavailable: 'خدمة النماذج الأصلية غير متاحة.', store_corrupt: 'ملف التفضيلات المحفوظ غير قابل للقراءة؛ يظهر فارغًا ولن يُستبدل.', store_unsafe: 'ملف التفضيلات المحفوظ بصلاحيات غير آمنة؛ رُفضت التغييرات.',
+        error: 'فشل الطلب. حدّث وأعد المحاولة.', invalid_request: 'رُفض: الطلب غير صالح.', unknown_reference: 'رُفض: لم يعد هذا النموذج مدرجًا.', store_full: 'رُفض: عدد التفضيلات المحفوظة كبير جدًا.', llm_unavailable: 'خدمة النماذج الأصلية غير متاحة.',
+        'model-removed': 'غير متاح: أُزيل النموذج', 'provider-removed': 'غير متاح: أُزيل المزود', 'provider-unreadable': 'غير متاح: تعذرت قراءة المزود', 'service-unavailable': 'غير متاح: خدمة النماذج الأصلية غير متاحة' },
+    };
+    function NativeApiSection({ ctx, t }) {
+      const labels = nativeApiLabels[t('management.direction') === 'rtl' ? 'ar' : 'en'];
+      const [state, setState] = React.useState(null), [error, setError] = React.useState(null), [busy, setBusy] = React.useState(false), [drafts, setDrafts] = React.useState({});
+      const active = React.useRef(null);
+      async function call(payload) {
+        if (active.current) return;
+        const controller = new AbortController(); active.current = controller; setBusy(true); setError(null);
+        const timer = setTimeout(() => controller.abort(), 6000);
+        try {
+          if (typeof ctx.connection?.rpc?.call !== 'function') throw new Error('unsupported');
+          const result = await ctx.connection.rpc.call('/api', 'majed/native-api', payload, controller.signal);
+          if (controller.signal.aborted || active.current !== controller) return;
+          if (!result?.ok) throw Object.assign(new Error('refused'), { code: result?.error?.code });
+          const value = result.value;
+          if (!['ready', 'unavailable'].includes(value?.state) || !['ok', 'corrupt', 'unsafe'].includes(value.store) || !Array.isArray(value.references) || !Array.isArray(value.unavailable)) throw new Error('service');
+          setState(value); setDrafts({});
+        } catch (failure) { if (active.current === controller) setError(failure.code && labels[failure.code] ? failure.code : 'error'); }
+        finally { clearTimeout(timer); if (active.current === controller) { active.current = null; setBusy(false); } }
+      }
+      React.useEffect(() => { call({ action: 'snapshot' }); return () => { active.current?.abort(); active.current = null; }; }, [ctx]);
+      const button = (label, subject, onClick) => h('button', { type: 'button', className: 'majed-management-refresh', 'aria-label': label + ': ' + subject, disabled: busy, onClick }, label);
+      const row = (item, available) => {
+        const key = item.provider + '\u0000' + item.model, id = { provider: item.provider, model: item.model };
+        const draft = drafts[key] ?? item.alias ?? '';
+        return h('li', { key, 'data-native-model': item.model, dir: 'ltr' },
+          h('strong', null, item.alias || item.name || item.model), ' ', h('span', null, (item.providerName || item.provider) + ' / ' + item.model),
+          item.visible === false && h('span', { 'data-native-state': 'hidden' }, ' ' + labels.hidden), item.default && h('span', { 'data-native-state': 'default' }, ' ' + labels.isDefault),
+          !available && h('p', { role: 'status', 'data-native-state': 'unavailable' }, labels[item.reason] || labels.unavailable),
+          available && h('input', { type: 'text', 'aria-label': labels.alias + ': ' + item.model, value: draft, maxLength: 64, disabled: busy, onChange: event => setDrafts({ ...drafts, [key]: event.target.value }) }),
+          available && button(labels.saveAlias, item.model, () => call({ action: 'setPreference', ...id, alias: draft.trim() === '' ? null : draft.trim() })),
+          available && button(item.visible === false ? labels.show : labels.hide, item.model, () => call({ action: 'setPreference', ...id, visible: item.visible === false })),
+          available && button(item.default ? labels.clearDefault : labels.setDefault, item.model, () => call({ action: 'setPreference', ...id, default: !item.default })),
+          (!available || item.alias || item.visible === false || item.default) && button(labels.clear, item.model, () => call({ action: 'clearPreference', ...id })));
+      };
+      return h('section', { className: 'majed-management', dir: t('management.direction'), 'aria-label': labels.title, 'data-majed-native-api': true },
+        h('h2', { className: 'majed-management__title' }, labels.title), h('p', null, labels.disclosure),
+        h('button', { type: 'button', className: 'majed-management-refresh', 'aria-label': labels.refresh, disabled: busy, onClick: () => call({ action: 'snapshot' }) }, labels.refresh),
+        busy && !state && h('p', { role: 'status', 'aria-live': 'polite' }, labels.loading),
+        error && h('p', { role: 'alert', 'data-majed-native-api-error': error }, labels[error]),
+        state?.state === 'unavailable' && h('p', { role: 'status' }, labels.unavailable),
+        state && state.store !== 'ok' && h('p', { role: 'alert' }, labels['store_' + state.store]),
+        state?.state === 'ready' && !state.references.length && !state.unavailable.length && h('p', { role: 'status' }, labels.none),
+        state && h('ul', { 'aria-label': labels.title }, state.references.map(item => row(item, true)), state.unavailable.map(item => row(item, false))));
+    }
+
     function ManagementSection({ ctx, module, t }) {
       const [value, setValue] = React.useState(null);
       const [error, setError] = React.useState(null);
@@ -793,7 +853,8 @@ window.__ModuleLoader__.load({
         module === 'subscriptions' && h(CodexAccountsSection, { ctx, t }),
         module === 'hooks' && h(CommandApprovalSection, { ctx, t }),
         module === 'mcp' && h(ManagedMcpSection, { ctx, t }),
-        module === 'routing' && h(JudgmentSection, { ctx, t }));
+        module === 'routing' && h(JudgmentSection, { ctx, t }),
+        module === 'routing' && h(NativeApiSection, { ctx, t }));
     }
 
     // ───────────────────────── settings rows ─────────────────────────
