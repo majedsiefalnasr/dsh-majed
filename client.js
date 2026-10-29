@@ -471,6 +471,47 @@ window.__ModuleLoader__.load({
       'judgment.inputTokens': 'رموز الإدخال', 'judgment.outputTokens': 'رموز الإخراج', 'judgment.cost': 'التكلفة المبلغ عنها',
     });
 
+    const policyFields = ['trustedProjects', 'knownEffects', 'checkpointEffects', 'denyEffects', 'checkpointPaths', 'denyPaths', 'aggressiveDestructive', 'ownerContext'];
+    Object.assign(en, {
+      'policy.title': 'Local command policy', 'policy.description': 'Safe permits known routine development. Aggressive additionally permits Owner-authorized destructive targets, never security overrides. JSON lists and context below are Owner configuration only; never paste secrets. Native approval consumption is not connected. Local decision counts are not judgment calls or a monetary budget.',
+      'policy.save': 'Save', 'policy.reset': 'Reset', 'policy.error': 'Policy settings invalid or unavailable. No diagnostic input is echoed.', 'policy.session': 'Session ID for redacted local decisions', 'policy.refresh': 'Refresh local decisions',
+      'policy.trustedProjects': 'Trusted project paths (JSON list)', 'policy.knownEffects': 'Known effects (JSON list of {argv, effect})', 'policy.checkpointEffects': 'Checkpoint effects (JSON list)', 'policy.denyEffects': 'Denied effects (JSON list)', 'policy.checkpointPaths': 'Checkpoint paths (JSON list)', 'policy.denyPaths': 'Denied paths (JSON list)', 'policy.aggressiveDestructive': 'Permit authorized destructive targets (JSON boolean)', 'policy.ownerContext': 'Owner context (JSON: task authorizedTargets/prohibitions, knownScripts map, sessionTempDirs list)',
+    });
+    Object.assign(managementAr, {
+      'policy.title': 'سياسة الأوامر المحلية', 'policy.description': 'الوضع الآمن يسمح بالتطوير الروتيني المعروف. الجريء يضيف الأهداف التدميرية التي يصرح بها المالك ولا يتجاوز الأمن. الإعدادات بصيغة JSON ومن المالك فقط؛ لا تلصق أسراراً. استهلاك الموافقات الأصلية غير متصل. الأعداد لقرارات محلية وليست لاستدعاءات التقييم أو ميزانية مالية.',
+      'policy.save': 'حفظ', 'policy.reset': 'إعادة الضبط', 'policy.error': 'الإعدادات غير صالحة أو غير متاحة. لا يُعرض الإدخال في التشخيص.', 'policy.session': 'معرّف الجلسة للقرارات المنقحة', 'policy.refresh': 'تحديث القرارات المحلية',
+      'policy.trustedProjects': 'مسارات المشاريع الموثوقة (قائمة JSON)', 'policy.knownEffects': 'التأثيرات المعروفة (argv و effect)', 'policy.checkpointEffects': 'تأثيرات تتطلب التأكيد', 'policy.denyEffects': 'التأثيرات الممنوعة', 'policy.checkpointPaths': 'مسارات تتطلب التأكيد', 'policy.denyPaths': 'المسارات الممنوعة', 'policy.aggressiveDestructive': 'السماح بالأهداف التدميرية المصرح بها (قيمة منطقية JSON)', 'policy.ownerContext': 'سياق المالك (JSON: task و knownScripts و sessionTempDirs)',
+    });
+
+    function PolicySection({ ctx, t }) {
+      const [draft, setDraft] = React.useState({}), [error, setError] = React.useState(false), [busy, setBusy] = React.useState(false);
+      const [sessionId, setSessionId] = React.useState(''), [ledger, setLedger] = React.useState(null), active = React.useRef(null);
+      const call = async payload => {
+        if (active.current) return;
+        const controller = new AbortController(); active.current = controller; setBusy(true); setError(false);
+        const timer = setTimeout(() => controller.abort(), 6000);
+        try {
+          const response = await ctx.connection.rpc.call('/api', 'majed/command-policy', payload, controller.signal);
+          if (controller.signal.aborted || active.current !== controller) return;
+          if (!response.ok) throw new Error('invalid');
+          if (response.value.settings) setDraft(Object.fromEntries(policyFields.map(key => [key, JSON.stringify(response.value.settings[key] ?? (key === 'aggressiveDestructive' ? true : key === 'ownerContext' ? {} : []), null, 2)])));
+          if (response.value.ledger) setLedger(response.value.ledger);
+        } catch { if (active.current === controller) setError(true); }
+        finally { clearTimeout(timer); if (active.current === controller) { active.current = null; setBusy(false); } }
+      };
+      React.useEffect(() => { call({ action: 'snapshot' }); return () => { active.current?.abort(); active.current = null; }; }, [ctx]);
+      return h('section', { className: 'majed-management', dir: t('management.direction'), 'data-majed-policy': true },
+        h('h2', null, t('policy.title')), h('p', null, t('policy.description')),
+        ...policyFields.map(field => h('div', { key: field, className: 'majed-management-controls' },
+          h('label', null, t('policy.' + field), h('textarea', { dir: 'ltr', value: draft[field] ?? '', disabled: busy, 'data-policy-field': field, onChange: e => setDraft({ ...draft, [field]: e.target.value }) })),
+          h('button', { type: 'button', disabled: busy, 'data-policy-save': field, onClick: () => { try { return call({ action: 'set', field, value: JSON.parse(draft[field]) }); } catch { setError(true); } } }, t('policy.save')),
+          h('button', { type: 'button', disabled: busy, 'data-policy-reset': field, onClick: () => call({ action: 'reset', field }) }, t('policy.reset')))),
+        error ? h('p', { role: 'alert' }, t('policy.error')) : null,
+        h('label', null, t('policy.session'), h('input', { dir: 'ltr', value: sessionId, onChange: e => setSessionId(e.target.value), 'data-policy-session': true })),
+        h('button', { type: 'button', disabled: busy || !sessionId, 'data-policy-refresh': true, onClick: () => call({ action: 'ledger', sessionId }) }, t('policy.refresh')),
+        ledger ? h('pre', { dir: 'ltr', 'data-policy-ledger': true }, JSON.stringify(ledger, null, 2)) : null);
+    }
+
     function JudgmentSection({ ctx, t }) {
       const [value, setValue] = React.useState(null), [error, setError] = React.useState(false), [busy, setBusy] = React.useState(false);
       const [protocol, setProtocol] = React.useState('systemone'), [address, setAddress] = React.useState(''), [model, setModel] = React.useState('');
@@ -883,6 +924,7 @@ window.__ModuleLoader__.load({
         module === 'hooks' && h(CommandApprovalSection, { ctx, t }),
         module === 'mcp' && h(ManagedMcpSection, { ctx, t }),
         module === 'routing' && h(JudgmentSection, { ctx, t }),
+        module === 'routing' && h(PolicySection, { ctx, t }),
         module === 'routing' && h(NativeApiSection, { ctx, t }));
     }
 

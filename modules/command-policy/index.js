@@ -86,6 +86,7 @@ export function normalizeSettings(settings) {
   const out = { trustedProjects: [], knownEffects: [], checkpointEffects: [], denyEffects: [], checkpointPaths: [], denyPaths: [], aggressiveDestructive: true, settingsInvalid: false };
   if (settings === undefined || settings === null) return out;
   if (!isRecord(settings)) { out.settingsInvalid = true; return out; }
+  if (own(settings, 'settingsInvalid') && settings.settingsInvalid === true) out.settingsInvalid = true;
   out.trustedProjects = boundedList(settings, 'trustedProjects', absolute);
   out.knownEffects = boundedList(settings, 'knownEffects', item => {
     if (!isRecord(item) || !own(item, 'argv') || !own(item, 'effect') || !Array.isArray(item.argv) || item.argv.length < 1 || item.argv.length > 4) return null;
@@ -102,6 +103,8 @@ export function normalizeSettings(settings) {
     if (settings.aggressiveDestructive === false) out.aggressiveDestructive = false;
     else if (settings.aggressiveDestructive !== true) out.settingsInvalid = true;
   }
+  // Presence selects the Owner Settings trust source; absence preserves the existing host-attached API.
+  if (own(settings, 'ownerContext')) out.ownerContext = isRecord(settings.ownerContext) ? settings.ownerContext : {};
   return out;
 }
 
@@ -1092,7 +1095,11 @@ function evaluateCommand(mode, request, settings) {
 export function decide({ mode, request, settings } = {}) {
   if (!POLICY_MODES.includes(mode)) return result('defer', 'mode_ask');
   if (!isRecord(request) || request.kind !== 'command') return result('defer', 'not_command_request');
-  try { return evaluateCommand(mode, request, normalizeSettings(settings)); } catch { return result('checkpoint', 'analysis_failed', ['unknown']); }
+  try {
+    const normalized = normalizeSettings(settings);
+    if (own(normalized, 'ownerContext')) request = { ...request, task: normalized.ownerContext.task, knownScripts: normalized.ownerContext.knownScripts, sessionTempDirs: normalized.ownerContext.sessionTempDirs };
+    return evaluateCommand(mode, request, normalized);
+  } catch { return result('checkpoint', 'analysis_failed', ['unknown']); }
 }
 
 // ---------------------------------------------------------------- bounded in-memory ledger
@@ -1112,7 +1119,7 @@ export function createPolicyLedger({ getMode, getEpoch = () => 0, isLive = () =>
   const live = id => identifier(id) && isLive(id);
   const store = (id, create = false) => {
     if (sessions.has(id) && !live(id)) sessions.delete(id);
-    if (!sessions.has(id) && create) sessions.set(id, { entries: [], counts: { total: 0, allow: 0, checkpoint: 0, deny: 0, defer: 0 }, seq: 0, resolved: new Map() });
+    if (!sessions.has(id) && create) sessions.set(id, { entries: [], counts: { total: 0, allow: 0, checkpoint: 0, deny: 0, defer: 0 }, reasons: {}, seq: 0, resolved: new Map() });
     return sessions.get(id);
   };
   const prune = () => { for (const id of [...sessions.keys()]) if (!live(id)) sessions.delete(id); };
@@ -1158,6 +1165,7 @@ export function createPolicyLedger({ getMode, getEpoch = () => 0, isLive = () =>
       const entry = { seq: ++s.seq, requestId: request.id, at: now(), mode, decision: decision.decision, reasonCode: decision.reasonCode, effects: [...decision.effects],
         state: decision.decision === 'allow' || decision.decision === 'checkpoint' ? 'pending' : 'final', epoch: getEpoch(sessionId), fp: fingerprint(request), policy: mac(normalizeSettings(policySettings)) };
       s.entries.push(entry); s.counts.total++; s.counts[entry.decision]++;
+      s.reasons[entry.reasonCode] = (s.reasons[entry.reasonCode] || 0) + 1;
       while (s.entries.length > limit) s.entries.shift();
       return decision;
     },
@@ -1202,10 +1210,14 @@ export function createPolicyLedger({ getMode, getEpoch = () => 0, isLive = () =>
       e.state = 'cancelled'; markResolved(sessionId, e);
       return { accepted: true, reasonCode: 'cancelled' };
     },
+    redacted(id) {
+      const s = store(id);
+      return { counts: { ...s?.reasons }, entries: (s?.entries ?? []).slice(-100).map(e => ({ at: e.at, mode: e.mode, decision: e.decision, reasonCode: e.reasonCode, fingerprint: e.fp })) };
+    },
     history: id => store(id)?.entries.map(pub) ?? [],
     counts: id => ({ ...(store(id)?.counts ?? { total: 0, allow: 0, checkpoint: 0, deny: 0, defer: 0 }) }),
     /** Drops history, counts and pending decisions but keeps the ids-only replay fence (an explicit mode reset must not reopen resolved ids). */
-    reset: id => { const s = sessions.get(id); if (s) { s.entries = []; s.counts = { total: 0, allow: 0, checkpoint: 0, deny: 0, defer: 0 }; } },
+    reset: id => { const s = sessions.get(id); if (s) { s.entries = []; s.reasons = {}; s.counts = { total: 0, allow: 0, checkpoint: 0, deny: 0, defer: 0 }; } },
     closeSession: id => { sessions.delete(id); },
     clear: () => sessions.clear(),
     resolvedCount: id => sessions.get(id)?.resolved.size ?? 0,
