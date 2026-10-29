@@ -4,6 +4,18 @@ Updated 2026-10-29 (Africa/Cairo).
 
 ## Phase
 
+**CURRENT OVERRIDE: #128 accepted and closed; #129 authorized.** This worktree is `dsh-majed-t129`, branch `impl/129-codex`, baseline `e796366`. The direct Owner instruction and Lead record supersede the historical #128 freeze below. Only #129 is active; no #130+ implementation is authorized.
+
+## #129 bounded contract and source inventory
+
+- Outcome: port the pinned reference shared accounts/auth/RPC/provider translation/pooling/retry and Codex end to end, retaining core 0.2.0 and the optional component default off.
+- Source: `/tmp/upstream-0.9.12`, V1ki/dsh-plugin-subscriptions v0.9.12, commit `b802311`, MIT. Inventory: `src/auth/{store,jwt,pkce,oauth-flow,rpc}.ts`; `src/providers/{accounts,common,codex,codex-client-version,npm-cli-version,catalog-store,catalog-refresh,pool,pool-family,pool-health,pool-usage,rate-limit,reset-redemption}.ts`; `src/translate/{responses,resolved,sse}.ts`; reference `src/index.ts` composes these. Reference browser `SubscriptionsSection.tsx` contains account/login/usage controls; Manage, proxy, badge, Speed and later providers remain deferred.
+- Route: `/implement` unavailable; Owner-authorized bounded TDD/Karpathy fallback. Use agreed spec seams: assembled host RPC/registered adapter with fake HTTP, rendered browser controls with fake RPC, and package/build parity. Adapt applicable reference shared-core/Codex tests, supplemented with lifecycle/isolation/no-network regression proof. No nested delegation; independent Standards/Spec review cannot run at this depth and remains a Lead gate.
+- Allowed writes: this worktree and `/tmp/majed-t129`; npm cache `/tmp/npm-cache-majed`. No installed packages/profile/state, credentials, real accounts, login, live provider inference, host patches, restarts, push, merge or sibling edits.
+- Invariants: own `majed-subscriptions.*` RPC and `plugins/majed/subscriptions` storage; owner-only credential files; no reference-state imports; no network/models before first login; report registration collisions without taking over the reference.
+- Stop: #129 candidate only, with coherent conventional commits, committed `dist`, provenance/notices/changelog, verification document and tarball. Owner live acceptance is explicitly not fixture proof. Per-blocker investigation cap: two failed attempts or 20 minutes, then report concrete impact.
+- Current state: #129 candidate implemented with owned Codex/shared-core source, committed-build output, adapted reference tests and assembled host/browser fixtures. Full build/test/build-match and pack gates are recorded in `docs/ai/ticket-129-verification.md`; Owner installed/live acceptance and independent Lead review remain pending. No #130+ work started.
+
 **Ticket #128 implemented in an isolated candidate; Owner live acceptance pending.** Spec #127 and tickets #128-#137 remain the approved plan. Only #128 is authorized in this worktree; no later ticket starts before its installed acceptance.
 
 ## Plan of record

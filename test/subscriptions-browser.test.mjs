@@ -25,7 +25,7 @@ function text(node) { return typeof node === 'string' ? node : node?.children?.f
 test('present component registers one section with both empty parts, then withdraws on absence', async () => {
   const page = browser(); await page.settle();
   assert.equal(page.section.options.id, 'majed-subscriptions');
-  assert.match(text(page.section.component()), /Subscription accounts.*No subscription accounts yet.*API providers.*No API providers yet/);
+  assert.match(text(page.section.component()), /Subscription accounts.*API providers.*No API providers yet/);
   page.setAnswer(() => Promise.reject(new Error('transport failure for /api/majed-subscriptions.status: HTTP 404')));
   page.tick(); await page.settle(); assert.equal(page.section, undefined); page.cleanup();
 });
@@ -173,7 +173,8 @@ test('owned global registrations in src use the Majed namespace', async () => {
     const source = await readFile(new URL(`../src/${file}`, import.meta.url), 'utf8');
     const ids = [...source.matchAll(/(?:\bid:|\bpath:|\bmethod !==|\bNS =)\s*['"]([^'"]+)['"]/g)].map(match => match[1]);
     assert.ok(ids.length, file);
-    for (const id of ids) assert.match(id, /^(?:\/api\/)?majed[.-]/, `${file}: ${id}`);
+    // Deliberately shared provider-native model IDs are not owned global registrations (ADR-0002).
+    for (const id of ids.filter(id => !['gpt-5.1-codex', 'gpt-5.1-codex-mini', 'gpt-5.1'].includes(id))) assert.match(id, /^(?:\/api\/)?majed[.-]/, `${file}: ${id}`);
     for (const [, label] of source.matchAll(/},?\)?\), ['"]([^'"]+)['"]\)/g)) assert.match(label, /^(?:dsh-)?majed:/, `${file}: ${label}`);
   }
 });

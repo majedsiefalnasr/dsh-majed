@@ -1,6 +1,7 @@
 // Independently implemented presence lifecycle; reference recipe and slot conventions only.
 import en from '../locale/en.json';
 import ar from '../locale/ar.json';
+import { createCodexCard } from './codex-card.js';
 
 type Dispose = () => void;
 interface Context {
@@ -20,10 +21,12 @@ export function applySubscriptions(root: Context): void {
     const connection = ctx.get('connection');
     const React = require('react');
     const h = React.createElement;
-    const { IconSettingsOutlineMedium } = require('@deepseek-ai/dsh-client-ui-primitives');
+    const primitives = require('@deepseek-ai/dsh-client-ui-primitives');
+    const { IconSettingsOutlineMedium } = primitives;
     const NS = 'majed.subscriptions';
     isolate(() => ctx.effect(() => isolate(() => ctx.locale.register(NS, { en: en.subscriptions, ar: ar.subscriptions })), 'dsh-majed: subscriptions dictionaries'));
     const t = ctx.locale.bind(NS);
+    const CodexCard = createCodexCard(React, primitives, connection.rpc, t);
     let present = false;
     let failing = false;
     let referenceEnabled = false;
@@ -38,7 +41,7 @@ export function applySubscriptions(root: Context): void {
         failing ? h('p', { role: 'alert' }, t('unreachable')) : null,
         ...['accounts', 'providers'].map((part) => h('section', { key: part, style: { paddingBlock: 'var(--dsw-spacing-4)', borderBlockEnd: '1px solid var(--dsw-alias-border-l2)' } },
           h('h3', { style: { font: 'var(--dsw-font-s-strong-14)' } }, h(IconSettingsOutlineMedium, { 'aria-hidden': true }), t(part)),
-          h('p', { style: { color: 'var(--dsw-alias-label-tertiary)' } }, t(`${part}Empty`)))));
+          part === 'accounts' ? h(CodexCard) : h('p', { style: { color: 'var(--dsw-alias-label-tertiary)' } }, t(`${part}Empty`)))));
     }
     function update() {
       if (present && !withdraw) {
