@@ -17,11 +17,13 @@ Next allowed action: discuss the new plan with the Owner (`/grill-with-docs` rou
 
 ## Authoritative sources
 
-- Behavior and scope: [six-family specification](../current-scope-specification-2026-10-28.md) (includes the 2026-10-29 Subscriptions adoption amendment) and the [ticket proposal](../current-scope-ticket-proposal-2026-10-28.md). GitHub Issues (`majedsiefalnasr/dsh-majed`) are the tracker of record; see [verified publication status](../current-scope-tickets-publication-status-2026-10-28.md).
+- Behavior and scope: [six-family specification](../current-scope-specification-2026-10-28.md) (includes the 2026-10-29 Subscriptions adoption amendment) and the [ticket proposal](../current-scope-ticket-proposal-2026-10-28.md). GitHub Issues (`majedsiefalnasr/dsh-majed`) are the tracker of record, currently with no open issues (reset); historical publication record: [verified publication status](../current-scope-tickets-publication-status-2026-10-28.md).
 - Rules: [scope control](rules/scope-control.md), [execution policy](rules/execution-policy.md), [ADRs](../adr/), `GLOSSARY.md`.
 - Evidence per ticket: `docs/research/*` (controlled evidence only unless it says otherwise). Older planning documents are in [docs/archive](../archive/README.md) and are historical, not authoritative.
 
 ## Product status (truthful, none accepted as complete)
+
+**Tracker reset (2026-10-29): all 85 previously open issues (#1, #2 and the execution records) were closed as not planned with an explanatory comment; this is a planning reset, not acceptance or rejection.** Full bodies are in the closed issues and an offline snapshot (`dsh-backups/open-issues-snapshot-20261029.json`, outside Git). The new plan will be re-ticketed from a clean tracker. The ticket numbers below are historical references.
 
 Every implemented ticket slice is PARTIAL: controlled jsdom/native-fixture evidence, not installed/paired/live acceptance. Closed: #88 E08, #89 E09. Open and partial: #48 R01 (Codex lifecycle; real-account observations posted), #50 A01a, #51 K01, #78 E01 (installed-build observation partial), #90 E10, #91 E11/E11b, #96 S15, #97 M01, #103 H01. New: #126 S16 (adopt the reference Subscriptions Settings experience for Codex; implementation not accepted). Remaining tickets are blocked behind these or deferred.
 
