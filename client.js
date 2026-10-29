@@ -1770,6 +1770,7 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
     return {
       inject: ['slots', 'locale', 'uiWorkspace'],
       apply(ctx) {
+        subscriptions.applySubscriptions(ctx);
         appCtx = ctx;
         ctx.effect(() => () => { appCtx = null; live.forEach((n) => { try { n.close(); } catch (_) {} }); live.clear(); }, 'dsh-majed: notification cleanup');
         ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsh-majed: dictionaries');

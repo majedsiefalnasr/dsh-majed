@@ -20,7 +20,10 @@
   },
   "exports": {
     ".": "./index.js",
-    "./client": "./client.js",
+    "./client": "./dist/client.js",
+    "./subscriptions": "./dist/subscriptions.js",
+    "./subscriptions/locale/*.json": "./subscriptions/locale/*.json",
+    "./subscriptions/icon": "./icon.svg",
     "./locale/*.json": "./locale/*.json",
     "./icon": "./icon.svg"
   },
@@ -34,7 +37,11 @@
     "fonts/manifest.json",
     "fonts/LICENSE-*.txt",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "dist",
+    "THIRD_PARTY_NOTICES.md",
+    "src/PROVENANCE.md",
+    "subscriptions/locale/*.json"
   ],
   "dsh": {
     "bundle": {
@@ -46,8 +53,20 @@
       "inject": [
         "@deepseek-ai/dsh-client-ui-settings-general",
         "@deepseek-ai/dsh-client-ui-conversation",
-        "@deepseek-ai/dsh-client-ui-chat"
+        "@deepseek-ai/dsh-client-ui-chat",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-connection"
       ]
     }
+  },
+  "scripts": {
+    "build": "tsc && tsdown && node scripts/assemble-client.mjs",
+    "test": "node scripts/classifier-test-adapter.mjs && node test/classify.test.cjs && node --test test/*.test.mjs",
+    "check:build": "node scripts/check-build.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsdown": "^0.15.0",
+    "typescript": "^5.8.0"
   }
 }

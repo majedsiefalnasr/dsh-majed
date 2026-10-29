@@ -1,3 +1,6 @@
 - insert:
     - id: majed
       name: 'dsh-majed'
+    - id: majed-subscriptions
+      name: 'dsh-majed/subscriptions'
+      disabled: true
