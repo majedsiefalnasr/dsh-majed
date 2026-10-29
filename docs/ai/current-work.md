@@ -4,7 +4,7 @@ Updated 2026-10-29 (Africa/Cairo).
 
 ## Phase
 
-**Ticket breakdown for the Subscriptions component** (`/to-tickets`). The spec and its test seams were approved by the Owner and published as #127 (`ready-for-agent`). No implementation is authorized until the ticket breakdown is approved and published.
+**Subscriptions tickets published; implementation not started.** Spec #127 and its ten tickets #128-#137 (sub-issues, native blocking edges, `ready-for-agent`) were approved by the Owner. `/implement` starts with #128 only when the Owner says so.
 
 ## Plan of record
 
@@ -34,6 +34,26 @@ Updated 2026-10-29 (Africa/Cairo).
 17. Distribution: keep installing from GitHub; commit the built output in its own directory with a test that it matches the source (ADR-0004). npm publishing could be a later ticket.
 18. ADRs only for hard-to-reverse, surprising decisions with real trade-offs: 0001 components, 0002 reference provider ids, 0003 owned fork, 0004 committed build. Live verification stays an `AGENTS.md` rule; API-provider storage and OpenCode Zen scope live in the spec.
 
+19. Restore `main` to `d6fe0e3` after the push incident (done 2026-10-29).
+20. Ticket breakdown approved as proposed: ticket 2 (Codex with the shared core) stays one ticket; blocking edges as listed below.
+
+## Tickets
+
+| # | Ticket | Blocked by |
+|---|---|---|
+| #128 | Component row and empty Subscriptions section | none |
+| #129 | Codex end to end with the shared core | #128 |
+| #130 | Manage dialog, model list, account pool and proxy | #129 |
+| #131 | Composer usage badge, Speed control and `/fast` | #129 |
+| #132 | Claude | #129, #130 |
+| #133 | Grok and agent media and search tools | #129, #130 |
+| #134 | GitHub Copilot | #129 |
+| #135 | Google Antigravity | #129, #130 |
+| #136 | API providers part | #128 |
+| #137 | OpenCode Zen | #129 |
+
+Worked in this order, one at a time; each closes only after the Owner's live acceptance on the installed build.
+
 ## Sources
 
 - Research (2026-10-29): `docs/research/dsh-plugin-components-2026-10-29.md`, `docs/research/subscriptions-reference-inventory-2026-10-29.md`, `docs/research/opencode-and-native-api-providers-2026-10-29.md`.
@@ -41,9 +61,9 @@ Updated 2026-10-29 (Africa/Cairo).
 
 ## Repository state
 
-- `feat/subscriptions` pushed to origin at `c7f8598` (docs only, no code).
-- Incident 2026-10-29: the first push went to `main` because the new branch tracked `origin/main` (`push.default=upstream`); `main` was fast-forwarded from `d6fe0e3` to `c7f8598` (19 docs files, no code). The installed plugin is pinned in the profile lockfile to `d6fe0e3` and is unaffected. Restoring `main` needs a force push and the Owner's decision. The branch now tracks `origin/feat/subscriptions`.
+- `feat/subscriptions` on origin (docs only, no code); it tracks `origin/feat/subscriptions`.
+- Incident 2026-10-29: the first push went to `main` because the new branch tracked `origin/main` (`push.default=upstream`); `main` was fast-forwarded from `d6fe0e3` to `c7f8598` (19 docs files, no code). With the Owner's approval `main` was restored to `d6fe0e3` by a force push with lease. The installed plugin was pinned to `d6fe0e3` throughout and was unaffected.
 
 ## Next allowed action
 
-Present the ticket breakdown to the Owner; publish the tickets (sub-issues of #127, native blocking edges) only after approval. Obtain the Owner's decision on restoring `main`.
+`/implement` #128 when the Owner gives the go-ahead. Nothing beyond #128 starts before its live acceptance.
