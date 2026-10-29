@@ -16,6 +16,9 @@ const MAX_STORE_BYTES = 262144;
 const ID = /^[^\u0000-\u001f\u007f]{1,256}$/;
 const ALIAS = /^[^\u0000-\u001f\u007f]{1,64}$/;
 const ACTIONS = { snapshot: [], setPreference: ['provider', 'model', 'alias', 'visible', 'default'], clearPreference: ['provider', 'model'] };
+const PUBLIC_CODES = new Set(['unavailable', 'not_found', 'method_not_allowed', 'invalid_request', 'json_required', 'body_too_large', 'request_timeout', 'cancelled',
+  'llm_unavailable', 'unknown_reference', 'store_corrupt', 'store_unsafe', 'store_full']);
+const bytes = value => Buffer.byteLength(JSON.stringify(value));
 const record = value => value && typeof value === 'object' && !Array.isArray(value);
 const keysOnly = (value, keys) => Object.keys(value).every(key => keys.includes(key));
 const failure = (code, status) => Object.assign(new Error(code), { code, status });
@@ -26,13 +29,14 @@ function validPreferences(value) {
   if (!record(value) || value.version !== 1 || !Array.isArray(value.preferences) || value.preferences.length > MAX_PREFERENCES) return false;
   let defaults = 0; const seen = new Set();
   for (const p of value.preferences) {
-    if (!record(p) || !keysOnly(p, ['provider', 'model', 'alias', 'visible', 'default']) || !ID.test(p.provider) || !ID.test(p.model)
+    if (!record(p) || !keysOnly(p, ['provider', 'model', 'alias', 'visible', 'default']) || typeof p.provider !== 'string' || typeof p.model !== 'string' || !ID.test(p.provider) || !ID.test(p.model)
       || (p.alias !== undefined && !(typeof p.alias === 'string' && ALIAS.test(p.alias))) || typeof p.visible !== 'boolean' || typeof p.default !== 'boolean') return false;
     const key = JSON.stringify([p.provider, p.model]);
     if (seen.has(key)) return false; seen.add(key);
     if (p.default) defaults += 1;
   }
-  return defaults <= 1;
+  // The same predicate guards reads and writes: a write that read() would refuse as too large is never persisted.
+  return defaults <= 1 && bytes(value) <= MAX_STORE_BYTES;
 }
 
 /** Reuses the Codex private-store helper (0600 atomic write, one writer queue per file, unsafe/corrupt refusal). */
@@ -52,7 +56,7 @@ export function createNativeApiPreferenceStore(path) {
 }
 
 export function applyNativeApiReferences(ctx, options = {}) {
-  let disposed = false, llm, hold;
+  let disposed = false, llm;
   const path = resolve(options.path || join(process.env.DSH_HOME || join(homedir(), '.dsh'), 'majed', 'native-api-preferences.json'));
   const store = createNativeApiPreferenceStore(path);
   const refsFor = (preferences, signal) => {
@@ -80,8 +84,8 @@ export function applyNativeApiReferences(ctx, options = {}) {
   }
 
   async function mutate(payload, signal) {
-    if (!llm) throw failure('llm_unavailable', 200);
     if (payload.action === 'setPreference') {
+      if (!llm) throw failure('llm_unavailable', 200);
       // Only a reference the native service lists right now can be given a preference.
       const refs = refsFor([], signal);
       try { await refs.refresh(); signal.throwIfAborted(); if (!refs.snapshot().providers.some(p => p.id === payload.provider && p.models.some(m => m.model === payload.model))) throw failure('unknown_reference', 200); }
@@ -101,7 +105,7 @@ export function applyNativeApiReferences(ctx, options = {}) {
         refs.setPreference(payload.provider, payload.model, change);
         data.preferences = refs.preferences();
       } finally { refs.dispose(); }
-      if (data.preferences.length > MAX_PREFERENCES) throw failure('store_full', 200);
+      if (data.preferences.length > MAX_PREFERENCES || bytes({ version: 1, preferences: data.preferences }) > MAX_STORE_BYTES) throw failure('store_full', 200);
     }, { signal });
   }
 
@@ -129,17 +133,17 @@ export function applyNativeApiReferences(ctx, options = {}) {
             || ('alias' in payload && payload.alias !== null && !(typeof payload.alias === 'string' && ALIAS.test(payload.alias.trim())))
             || ['visible', 'default'].some(name => name in payload && typeof payload[name] !== 'boolean')) throw failure('invalid_request', 400);
           if (typeof payload.alias === 'string') payload.alias = payload.alias.trim();
-          const prior = hold ?? Promise.resolve();
-          const task = prior.catch(() => {}).then(() => mutate(payload, request.signal)); hold = task;
-          try { await task; } finally { if (hold === task) hold = undefined; }
+          await mutate(payload, request.signal);
         }
         return json({ type: 'server-response', rpcId, result: { ok: true, value: await snapshot(request.signal) } });
       } catch (error) {
         if (request.signal.aborted) return json({ error: 'cancelled' }, 408);
         // Never serialize native exception messages, paths, stack or credentials.
-        const code = error.code && (error.status || error.code === 'llm_unavailable' || error.code.startsWith('store_') || error.code === 'unknown_reference') ? error.code : 'service_unavailable';
+        // Only codes this module itself defines are public; any other code or status from below collapses to service_unavailable/503.
+        const known = typeof error?.code === 'string' && PUBLIC_CODES.has(error.code);
+        const code = known ? error.code : 'service_unavailable';
         if (rpcId) return json({ type: 'server-response', rpcId, result: { ok: false, error: { code, message: code, details: {} } } });
-        return json({ error: code }, error.status || 503);
+        return json({ error: code }, known && Number.isInteger(error.status) ? error.status : 503);
       }
     } });
   });

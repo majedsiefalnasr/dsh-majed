@@ -794,8 +794,9 @@ window.__ModuleLoader__.load({
       const row = (item, available) => {
         const key = item.provider + '\u0000' + item.model, id = { provider: item.provider, model: item.model };
         const draft = drafts[key] ?? item.alias ?? '';
-        return h('li', { key, 'data-native-model': item.model, dir: 'ltr' },
-          h('strong', null, item.alias || item.name || item.model), ' ', h('span', null, (item.providerName || item.provider) + ' / ' + item.model),
+        // Row text and controls follow the page direction; only identifiers are isolated as LTR.
+        return h('li', { key, 'data-native-model': item.model },
+          h('strong', null, h('bdi', { dir: 'auto' }, item.alias || item.name || item.model)), ' ', h('span', null, h('bdi', { dir: 'auto' }, item.providerName || item.provider), ' / ', h('bdi', { dir: 'ltr' }, item.model)),
           item.visible === false && h('span', { 'data-native-state': 'hidden' }, ' ' + labels.hidden), item.default && h('span', { 'data-native-state': 'default' }, ' ' + labels.isDefault),
           !available && h('p', { role: 'status', 'data-native-state': 'unavailable' }, labels[item.reason] || labels.unavailable),
           available && h('input', { type: 'text', 'aria-label': labels.alias + ': ' + item.model, value: draft, maxLength: 64, disabled: busy, onChange: event => setDrafts({ ...drafts, [key]: event.target.value }) }),

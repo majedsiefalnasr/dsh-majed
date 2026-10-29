@@ -45,11 +45,11 @@ async function fixture(t) {
   return { root, path: join(root, 'state', 'native-api-preferences.json') };
 }
 
-async function mount(t, { path, fake = fakeLlm(catalog()), llm = fake?.llm, root } = {}) {
+async function mount(t, { path, fake = fakeLlm(catalog()), llm = fake?.llm, root, timeoutMs } = {}) {
   const ctx = new Context(); let route; const live = { registered: 0, unregistered: 0 };
   ctx.provide('connection', { fetch: { register(value) { if (value.path !== PATH) return; route = value; live.registered += 1; return () => { live.unregistered += 1; }; } } });
   if (llm) ctx.provide('llm', llm);
-  const fiber = ctx.plugin({ apply(c) { apply(c, { nativeApi: { path } }); } }); await fiber;
+  const fiber = ctx.plugin({ apply(c) { apply(c, { nativeApi: { path, ...(timeoutMs === undefined ? {} : { timeoutMs }) } }); } }); await fiber;
   t.after(() => fiber.dispose());
   const send = (payload, init = {}) => route.fetch(new Request('http://fixture' + PATH, {
     method: 'POST', headers: { 'content-type': 'application/json', ...init.headers },
@@ -246,4 +246,221 @@ test('Settings panel shows honest unavailable and error states and Arabic labels
   assert.equal(ar.labelled('إخفاء: acme-text').length, 1);
   down = true; await ar.press('تحديث المراجع الأصلية');
   await ar.waitFor(() => ar.view.nodes(node => node.props.role === 'alert' && node.props['data-majed-native-api-error'] !== undefined).length === 1, 'Arabic error');
+});
+
+// ───────────── review corrections (each written RED first) ─────────────
+const hostileFake = () => {
+  const fake = fakeLlm({ acme: { name: 'Acme API', models: [{ id: 'acme-text' }, { id: 'acme-obj' }] } });
+  const hostile = { apiKey: SECRET, baseUrl: 'https://x' };
+  const listProviders = fake.llm.listProviders, listModels = fake.llm.listModels;
+  fake.llm.listProviders = () => listProviders().map(p => ({ ...p, name: hostile }));
+  fake.llm.listModels = async provider => (await listModels(provider)).map(m => (m.id === 'acme-obj' ? { ...m, name: { apiKey: SECRET, nested: [hostile] } } : m));
+  return fake;
+};
+
+test('an object-valued provider or model name never reaches the snapshot or the persisted store', async t => {
+  const { path } = await fixture(t);
+  const m = await mount(t, { path, fake: hostileFake() });
+  const snap = await m.call({ action: 'snapshot' });
+  const set = await m.call({ action: 'setPreference', provider: 'acme', model: 'acme-obj', alias: 'Obj', visible: false });
+  for (const text of [snap.text, set.text, await readFile(path, 'utf8')]) for (const forbidden of [SECRET, 'apiKey', 'baseUrl', 'https://x', 'nested']) assert.ok(!text.includes(forbidden), 'leaked ' + forbidden);
+  const rows = snap.body.result.value.references;
+  assert.deepEqual(rows.map(r => [r.model, r.name, r.providerName]), [['acme-text', 'acme-text', 'acme'], ['acme-obj', 'acme-obj', 'acme']]);
+});
+
+const readJson = async path => JSON.parse(await readFile(path, 'utf8'));
+const many = (count, id) => ({ acme: { name: 'Acme', models: Array.from({ length: count }, (_, i) => ({ id: id(i) })) } });
+
+test('write-side entry cap: the 256th preference is stored, the 257th is refused with store_full and the store stays readable', async t => {
+  const { path } = await fixture(t);
+  const m = await mount(t, { path, fake: fakeLlm(many(257, i => 'm' + String(i).padStart(3, '0'))) });
+  for (let i = 0; i < 256; i += 1) assert.equal((await m.call({ action: 'setPreference', provider: 'acme', model: 'm' + String(i).padStart(3, '0'), visible: false })).body.result.ok, true, 'entry ' + i);
+  const over = await m.call({ action: 'setPreference', provider: 'acme', model: 'm256', visible: false });
+  assert.equal(over.body.result.error.code, 'store_full');
+  assert.equal((await readJson(path)).preferences.length, 256);
+  const value = (await m.call({ action: 'snapshot' })).body.result.value;
+  assert.equal(value.store, 'ok');
+  assert.equal((await m.call({ action: 'clearPreference', provider: 'acme', model: 'm000' })).body.result.ok, true);
+  assert.equal((await m.call({ action: 'setPreference', provider: 'acme', model: 'm256', visible: false })).body.result.ok, true, 'space freed by a clear is reusable');
+});
+
+test('write-side byte cap: multibyte ids can never produce a store above 256 KiB or one that reads back as corrupt', async t => {
+  const { path } = await fixture(t);
+  const provider = 'é'.repeat(250);
+  const model = i => 'é'.repeat(247) + String(i).padStart(3, '0');
+  const m = await mount(t, { path, fake: fakeLlm({ [provider]: { name: 'Big', models: Array.from({ length: 256 }, (_, i) => ({ id: model(i) })) } }) });
+  let accepted = 0, refused;
+  for (let i = 0; i < 256; i += 1) {
+    const result = (await m.call({ action: 'setPreference', provider, model: model(i), visible: false })).body.result;
+    if (result.ok) accepted += 1; else { refused = result.error.code; break; }
+  }
+  assert.equal(refused, 'store_full', 'a write that would exceed the byte cap is refused explicitly');
+  assert.ok(accepted > 200 && accepted < 256, 'accepted ' + accepted);
+  const size = (await stat(path)).size;
+  assert.ok(size <= 262144, 'store size ' + size);
+  assert.ok(size > 250000, 'cap is not lowered: ' + size);
+  const value = (await m.call({ action: 'snapshot' })).body.result.value;
+  assert.deepEqual([value.store, value.references.length], ['ok', 256]);
+  assert.equal((await readJson(path)).preferences.length, accepted);
+  assert.equal((await m.call({ action: 'clearPreference', provider, model: model(0) })).body.result.ok, true);
+});
+
+test('cancellation: an already aborted request and a request aborted mid-write answer 408 and persist nothing', async t => {
+  const { path } = await fixture(t);
+  const fake = fakeLlm(catalog());
+  const m = await mount(t, { path, fake });
+  const early = new AbortController(); early.abort();
+  const refusedEarly = await m.send({ action: 'snapshot' }, { request: { signal: early.signal } });
+  assert.equal(refusedEarly.status, 408); assert.deepEqual(await refusedEarly.json(), { error: 'cancelled' });
+  const late = new AbortController(); let entered, release;
+  const reached = new Promise(resolve => { entered = resolve; }), gate = new Promise(resolve => { release = resolve; });
+  const listModels = fake.llm.listModels;
+  fake.llm.listModels = async provider => { entered(); await gate; return listModels(provider); };
+  const pending = m.send({ action: 'setPreference', provider: 'acme', model: 'acme-text', visible: false }, { request: { signal: late.signal } });
+  await reached; late.abort(); release();
+  const response = await pending;
+  assert.equal(response.status, 408); assert.deepEqual(await response.json(), { error: 'cancelled' });
+  await assert.rejects(stat(path), { code: 'ENOENT' });
+});
+
+test('error codes are an explicit whitelist: unknown or status-bearing native errors collapse to service_unavailable', async t => {
+  const { root, path } = await fixture(t);
+  const m = await mount(t, { path });
+  // a status-bearing error from below the handler must not choose its own public code
+  const native = Object.assign(new Error('boom ' + SECRET), { status: 500, code: 'sk-LEAK-' + SECRET });
+  const request = { get url() { throw native; }, method: 'POST', signal: new AbortController().signal, headers: new Headers() };
+  const raw = await m.route.fetch(request);
+  assert.equal(raw.status, 503);
+  const rawText = await raw.text();
+  assert.deepEqual(JSON.parse(rawText), { error: 'service_unavailable' }); assert.ok(!rawText.includes(SECRET));
+  // a filesystem write failure carries an errno code (EACCES) but must not leak it
+  const { mkdir, chmod } = await import('node:fs/promises');
+  const locked = join(root, 'locked'); await mkdir(locked); await chmod(locked, 0o500);
+  t.after(() => chmod(locked, 0o700).catch(() => {}));
+  const broken = await mount(t, { path: join(locked, 'prefs.json') });
+  const failed = await broken.call({ action: 'setPreference', provider: 'acme', model: 'acme-text', visible: false });
+  assert.deepEqual(failed.body.result.error, { code: 'service_unavailable', message: 'service_unavailable', details: {} });
+  assert.ok(!failed.text.includes('EACCES') && !failed.text.includes(root));
+  // every public code that this handler can emit is on the list and is returned verbatim
+  const codes = new Set();
+  for (const payload of [{ action: 'wipe' }, { action: 'setPreference', provider: 'acme', model: 'ghost', visible: false }]) codes.add((await m.call(payload)).body.result.error.code);
+  assert.deepEqual([...codes].sort(), ['invalid_request', 'unknown_reference']);
+  assert.equal((await m.send({ action: 'snapshot' }, { request: { headers: { 'content-type': 'text/plain' } } })).status, 415);
+});
+
+test('options.timeoutMs bounds a hanging native provider listing (pass-through proof)', async t => {
+  const { path } = await fixture(t);
+  const fake = fakeLlm(catalog());
+  const m = await mount(t, { path, fake, timeoutMs: 25 });
+  await m.call({ action: 'setPreference', provider: 'acme', model: 'acme-text', alias: 'Saved' });
+  fake.llm.listModels = () => new Promise(() => {});
+  let guard; const slow = new Promise(resolve => { guard = setTimeout(() => resolve('hung'), 1500); });
+  const outcome = await Promise.race([m.call({ action: 'snapshot' }), slow]); clearTimeout(guard);
+  assert.notEqual(outcome, 'hung', 'snapshot must finish within the configured bound, not the 5 s default');
+  const value = outcome.body.result.value;
+  assert.deepEqual(value.unavailable.map(u => [u.model, u.reason]), [['acme-text', 'provider-unreadable']]);
+});
+
+test('parallel writes through the private store queue lose no update and keep one default', async t => {
+  const { path } = await fixture(t);
+  const m = await mount(t, { path, fake: fakeLlm(many(24, i => 'p' + i)) });
+  const results = await Promise.all(Array.from({ length: 24 }, (_, i) => m.call({ action: 'setPreference', provider: 'acme', model: 'p' + i, alias: 'A' + i, default: true })));
+  assert.ok(results.every(r => r.body.result.ok === true));
+  const stored = (await readJson(path)).preferences;
+  assert.deepEqual(stored.map(p => p.model).sort(), Array.from({ length: 24 }, (_, i) => 'p' + i).sort(), 'no lost update');
+  assert.equal(stored.filter(p => p.default).length, 1, 'exactly one default');
+  assert.ok(stored.every(p => p.alias === 'A' + p.model.slice(1)));
+});
+
+test('transient references are disposed per request: later adapters-updated events cause no native reads', async t => {
+  const { path } = await fixture(t);
+  const m = await mount(t, { path });
+  await m.call({ action: 'snapshot' }); await m.call({ action: 'setPreference', provider: 'acme', model: 'acme-text', visible: false });
+  const before = m.fake.calls.listProviders;
+  m.ctx.emit('llm/adapters-updated'); await new Promise(resolve => setTimeout(resolve, 20));
+  assert.equal(m.fake.calls.listProviders, before);
+});
+
+test('the llm reference is dropped when the native LLM service goes away and after disposal', async t => {
+  const { path } = await fixture(t);
+  const fake = fakeLlm(catalog());
+  const m = await mount(t, { path, fake: null, llm: null });
+  const provider = m.ctx.plugin({ apply(c) { c.provide('llm', fake.llm); } }); await provider;
+  assert.equal((await m.call({ action: 'snapshot' })).body.result.value.state, 'ready');
+  await m.call({ action: 'setPreference', provider: 'acme', model: 'acme-text', alias: 'Kept' });
+  const calls = fake.calls.listProviders;
+  await provider.dispose(); await new Promise(resolve => setImmediate(resolve));
+  const gone = (await m.call({ action: 'snapshot' })).body.result.value;
+  assert.deepEqual([gone.state, gone.unavailable.map(u => [u.model, u.reason])], ['unavailable', [['acme-text', 'service-unavailable']]]);
+  assert.equal(fake.calls.listProviders, calls, 'the removed service is not called again');
+  assert.equal((await m.call({ action: 'setPreference', provider: 'acme', model: 'acme-text', visible: false })).body.result.error.code, 'llm_unavailable');
+});
+
+test('clearPreference works while the native LLM service is unavailable (removal never needs the service)', async t => {
+  const { path } = await fixture(t);
+  const first = await mount(t, { path });
+  await first.call({ action: 'setPreference', provider: 'acme', model: 'acme-text', alias: 'Gone soon' });
+  await first.dispose();
+  const none = await mount(t, { path, fake: null, llm: null });
+  const cleared = await none.call({ action: 'clearPreference', provider: 'acme', model: 'acme-text' });
+  assert.equal(cleared.body.result.ok, true);
+  assert.deepEqual([cleared.body.result.value.state, cleared.body.result.value.unavailable], ['unavailable', []]);
+  assert.deepEqual((await readJson(path)).preferences, []);
+  assert.equal((await none.call({ action: 'setPreference', provider: 'acme', model: 'acme-text', visible: false })).body.result.error.code, 'llm_unavailable');
+});
+
+test('persisted values must have the right types: provider 5 or model {} reads as corrupt', async t => {
+  const { path } = await fixture(t);
+  const { mkdir } = await import('node:fs/promises');
+  await mkdir(join(path, '..'), { recursive: true });
+  const m = await mount(t, { path });
+  for (const entry of [{ provider: 5, model: 'ok' }, { provider: 'ok', model: {} }, { provider: ['a'], model: 'ok' }, { provider: 'ok', model: null }]) {
+    await writeFile(path, JSON.stringify({ version: 1, preferences: [{ ...entry, visible: true, default: false }] }), { mode: 0o600 });
+    const value = (await m.call({ action: 'snapshot' })).body.result.value;
+    assert.deepEqual([value.store, JSON.stringify(entry)], ['corrupt', JSON.stringify(entry)]);
+    assert.equal((await m.call({ action: 'clearPreference', provider: 'acme', model: 'acme-text' })).body.result.error.code, 'store_corrupt');
+  }
+});
+
+test('prototype-pollution shaped ids and keys are inert', async t => {
+  const { path } = await fixture(t);
+  const initial = { acme: { name: 'Acme', models: [{ id: 'acme-text' }] } };
+  Object.defineProperty(initial, '__proto__', { value: { name: 'Proto', models: [{ id: 'constructor' }, { id: '__proto__' }] }, enumerable: true, configurable: true, writable: true });
+  const m = await mount(t, { path, fake: fakeLlm(initial) });
+  for (const action of ['__proto__', 'constructor', 'toString', 'hasOwnProperty']) assert.equal((await m.call({ action })).body.result.error.code, 'invalid_request', action);
+  const raw = body => m.send({ action: 'snapshot' }, { request: { body } });
+  assert.equal((await (await raw('{"type":"client-request","rpcId":"r1","method":"majed/native-api","payload":{"action":"snapshot","__proto__":{"polluted":1}}}')).json()).result.error.code, 'invalid_request');
+  assert.equal((await (await raw('{"type":"client-request","rpcId":"r1","method":"majed/native-api","payload":{"action":"snapshot","constructor":{"prototype":{"polluted":1}}}}')).json()).result.error.code, 'invalid_request');
+  const ok = await m.call({ action: 'setPreference', provider: '__proto__', model: 'constructor', alias: '__proto__', visible: false });
+  assert.equal(ok.body.result.ok, true);
+  assert.deepEqual((await readJson(path)).preferences, [{ provider: '__proto__', model: 'constructor', alias: '__proto__', visible: false, default: false }]);
+  const row = ok.body.result.value.references.find(r => r.provider === '__proto__' && r.model === 'constructor');
+  assert.deepEqual([row.alias, row.visible], ['__proto__', false]);
+  assert.equal({}.polluted, undefined); assert.equal({}.alias, undefined); assert.equal({}.visible, undefined); assert.equal(Object.getPrototypeOf({}), Object.prototype);
+});
+
+test('Arabic rows keep status text and buttons in the page direction; only ids and model names are forced LTR', async t => {
+  const { path } = await fixture(t);
+  const m = await mount(t, { path });
+  const ar = await openPanel(t, m, { language: 'ar' });
+  await ar.waitFor(() => /Acme Text/.test(ar.text()), 'Arabic list');
+  await ar.press('إخفاء: acme-text');
+  await ar.waitFor(() => ar.labelled('إظهار: acme-text').length === 1, 'hidden state');
+  await ar.press('تعيين كافتراضي: acme-mini');
+  await ar.waitFor(() => ar.labelled('إلغاء الافتراضي: acme-mini').length === 1, 'default state');
+  m.fake.state.get('acme').models = m.fake.state.get('acme').models.filter(x => x.id !== 'acme-mini');
+  await ar.press('تحديث المراجع الأصلية');
+  await ar.waitFor(() => /غير متاح: أُزيل النموذج/.test(ar.text()), 'unavailable row');
+  const strings = node => { const out = []; const walk = n => { if (typeof n === 'string') out.push(n); else if (Array.isArray(n)) n.forEach(walk); else if (n && n.props) { walk(n.props.children); } }; walk(node); return out.join(' '); };
+  const hasButton = node => { let found = false; const walk = n => { if (Array.isArray(n)) n.forEach(walk); else if (n && n.props) { if (n.type === 'button' || n.type === 'input') found = true; walk(n.props.children); } }; walk(node); return found; };
+  const inPanel = (function collect(n, out = []) { if (Array.isArray(n)) n.forEach(x => collect(x, out)); else if (n && n.props) { out.push(n); collect(n.props.children, out); } return out; })(ar.panel());
+  const ltr = inPanel.filter(node => node.props.dir === 'ltr');
+  assert.ok(ltr.length > 0, 'ids and model names are isolated as LTR');
+  assert.deepEqual([...new Set(ltr.map(node => node.type))], ['bdi'], 'only inline bdi isolates are forced LTR');
+  assert.ok(ltr.every(node => !hasButton(node)), 'no control is inside an LTR subtree');
+  assert.ok(ltr.every(node => !/[\u0600-\u06ff]/.test(strings(node))), 'no Arabic status text is inside an LTR subtree');
+  assert.ok(ltr.some(node => strings(node) === 'acme-text'));
+  const rows = inPanel.filter(node => node.props['data-native-model'] !== undefined);
+  assert.ok(rows.length >= 3 && rows.every(node => node.props.dir !== 'ltr'), 'rows inherit the rtl panel direction');
+  assert.match(ar.text(), /مخفي/);
 });

@@ -299,3 +299,28 @@ test('setPreference returns a detached copy', async t => {
   assert.equal(refs.preferences()[0].default, false);
   assert.equal(find(refs.snapshot(), 'acme', 'acme-text').alias, 'A');
 });
+
+// Review correction: the credential guarantee is an allow-list on VALUES, not only on field names.
+test('displayed values are allow-listed: object or array names, oversized names and control characters never pass', async t => {
+  const hostile = { apiKey: SECRET, baseUrl: 'https://x' };
+  const long = 'N'.repeat(129);
+  const fake = fakeLlm({ acme: { name: 'Acme', models: [{ id: 'm-object' }, { id: 'm-array' }, { id: 'm-long' }, { id: 'm-ctrl' }, { id: 'm-ok', name: 'x'.repeat(128) }] }, odd: { name: 'Odd', models: [{ id: 'o1' }] } });
+  const names = { 'm-object': hostile, 'm-array': [SECRET], 'm-long': long, 'm-ctrl': 'Fa\u0000st\u001b[31m\u007f\u0085 text' };
+  const listModels = fake.llm.listModels;
+  fake.llm.listModels = async provider => (await listModels(provider)).map(m => (m.id in names ? { ...m, name: names[m.id], inputModalities: [{ apiKey: SECRET }, 'text', 'y'.repeat(200), 5] } : m));
+  const listProviders = fake.llm.listProviders;
+  fake.llm.listProviders = () => [...listProviders().map(p => (p.id === 'odd' ? { ...p, name: hostile } : p)), { id: { apiKey: SECRET }, name: 'Bad id' }, { id: 'p\u0000x', name: 'ctrl id' }];
+  const ctx = new Context(); ctx.provide('llm', fake.llm);
+  const refs = createNativeApiReferences(ctx); t.after(() => refs.dispose());
+  await refs.refresh();
+  refs.setPreference('acme', 'm-object', { alias: 'A' });
+  const out = JSON.stringify([refs.snapshot(), refs.usable(), refs.preferences(), refs.defaultReference()]);
+  for (const forbidden of [SECRET, 'apiKey', 'baseUrl', 'https://x']) assert.ok(!out.includes(forbidden), 'leaked ' + forbidden);
+  const snap = refs.snapshot();
+  assert.deepEqual(snap.providers.map(p => [p.id, p.name]), [['acme', 'Acme'], ['odd', 'odd']], 'non-string provider ids are skipped; an object provider name falls back to its id');
+  const byModel = Object.fromEntries(snap.providers[0].models.map(m => [m.model, m]));
+  assert.equal(byModel['m-object'].name, 'm-object'); assert.equal(byModel['m-array'].name, 'm-array'); assert.equal(byModel['m-long'].name, 'm-long');
+  assert.equal(byModel['m-ctrl'].name, 'Fast[31m text', 'control characters are stripped, printable text is kept');
+  assert.equal(byModel['m-ok'].name.length, 128, 'a name at the bound is kept');
+  assert.deepEqual(byModel['m-object'].inputModalities, ['text'], 'modalities keep only short strings');
+});

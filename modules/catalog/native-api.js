@@ -13,7 +13,18 @@ import { AUTO_ROUTE_ID } from '../auto/index.js';
 export const SUBSCRIPTION_PROVIDER_IDS = Object.freeze([...PROVIDER_IDS, 'opencode', AUTO_ROUTE_ID]);
 
 const DEFAULT_TIMEOUT_MS = 5000;
+const MAX_ID = 256, MAX_NAME = 128, MAX_ALIAS = 64, MAX_MODALITY = 64, MAX_MODALITIES = 16;
 const key = (provider, model) => JSON.stringify([provider, model]);
+
+// Credential guarantee on VALUES: every field this module surfaces or stores is a bounded plain string.
+// A native object, array, number or oversized string never passes through, whatever key it arrives under.
+const CONTROL = /[\u0000-\u001f\u007f-\u009f]/g;
+const validId = value => typeof value === 'string' && value.length >= 1 && value.length <= MAX_ID && !/[\u0000-\u001f\u007f]/.test(value);
+function label(value, max, fallback) {
+  if (typeof value !== 'string') return fallback;
+  const clean = value.replace(CONTROL, '');
+  return clean.length >= 1 && clean.length <= max ? clean : fallback;
+}
 
 function bounded(promise, timeoutMs) {
   let timer;
@@ -32,6 +43,7 @@ export function createNativeApiReferences(ctx, options = {}) {
   if (!service || typeof service.listProviders !== 'function' || typeof service.listModels !== 'function') throw new Error('Native LLM service is unavailable.');
   const prefs = new Map(); // key -> { provider, model, alias?, visible, default }
   for (const p of options.preferences ?? []) {
+    if (!p || !validId(p.provider) || !validId(p.model)) continue;
     const next = normalize(p);
     if (next.default) for (const other of prefs.values()) other.default = false; // last default wins, as in setPreference
     prefs.set(key(p.provider, p.model), next);
@@ -42,13 +54,15 @@ export function createNativeApiReferences(ctx, options = {}) {
   let running, pending;
 
   function normalize(p) {
-    return { provider: p.provider, model: p.model, ...(p.alias === undefined ? {} : { alias: String(p.alias) }), visible: p.visible !== false, default: p.default === true };
+    const alias = label(p.alias, MAX_ALIAS);
+    return { provider: p.provider, model: p.model, ...(alias === undefined ? {} : { alias }), visible: p.visible !== false, default: p.default === true };
   }
 
   async function readProvider(provider) {
     try {
       const listed = await bounded(Promise.resolve().then(() => service.listModels(provider.id)), timeoutMs);
-      return { id: provider.id, name: provider.name, models: listed.map(m => ({ model: m.id, name: m.name, ...(m.inputModalities ? { inputModalities: [...m.inputModalities] } : {}) })) };
+      return { id: provider.id, name: provider.name, models: listed.filter(m => m && validId(m.id)).map(m => ({ model: m.id, name: label(m.name, MAX_NAME, m.id),
+        ...(Array.isArray(m.inputModalities) ? { inputModalities: m.inputModalities.filter(x => typeof x === 'string' && x.length >= 1 && x.length <= MAX_MODALITY).slice(0, MAX_MODALITIES) } : {}) })) };
     } catch {
       return { id: provider.id, name: provider.name, models: [], error: 'list-failed' };
     }
@@ -57,7 +71,7 @@ export function createNativeApiReferences(ctx, options = {}) {
   async function load() {
     let eligible;
     try {
-      eligible = service.listProviders().filter(p => !exclude.has(p.id));
+      eligible = service.listProviders().filter(p => p && validId(p.id) && !exclude.has(p.id)).map(p => ({ id: p.id, name: label(p.name, MAX_NAME, p.id) }));
     } catch {
       // The provider list itself is unreadable: keep the previous providers, mark all unreadable.
       if (disposed) return;
@@ -117,6 +131,7 @@ export function createNativeApiReferences(ctx, options = {}) {
     },
     usable() { return providers.flatMap(p => p.models.map(m => view(p, m))).filter(m => m.visible); },
     setPreference(provider, model, change) {
+      if (!validId(provider) || !validId(model)) throw new TypeError('Invalid native reference.');
       const current = prefs.get(key(provider, model)) ?? { provider, model, visible: true, default: false };
       const next = normalize({ ...current, ...change });
       if (next.default) for (const other of prefs.values()) if (other !== current) other.default = false;

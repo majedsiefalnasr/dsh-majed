@@ -1,6 +1,6 @@
 # S15 native API model references (ticket #96, stories 59-61)
 
-Date: 2026-10-28. Branch `impl/s15-native-api-refs`, base `08135c322201295a4172f1e3a6ac67297c9dd74b`. Status: controlled-test verified module; not user-visible, not accepted.
+Date: 2026-10-28. Branch `impl/s15-native-api-refs`, base `08135c322201295a4172f1e3a6ac67297c9dd74b`. Status: controlled-test verified module, mounted behind an Owner-admitted route with persistence and a Settings panel (see "Mount slice" and "Review corrections" below); controlled fixtures only, not accepted, ticket #96 stays PARTIAL/open.
 
 ## What was built
 
@@ -42,10 +42,10 @@ Evidence logs (not committed) were kept in `/tmp/s15-evidence`.
 ## Acceptance mapping and limitations
 
 - Met in controlled form: no duplicate provider/secret store, no credential copy, live `{provider, model}` identity, changes/removal reflected without substitution, chat support does not imply media, no adapter ownership (tools/context/effort/cancel remain native), Auto application left to A01.
-- Not met / not built: no management route, Settings UI or native picker integration (the repo has no catalog route to extend; adding one is a new transport and was out of scope); no persistence of preferences; no real native picker, browser, installed-host, paired or accessibility evidence; no mobile testing (deferred to the Owner); explicit enrollment and billing disclosure (story 61) are A01 and not included. `select()` proves the exact identity resolves live; it does not itself change a session's model, which requires a UI/session consumer. Ticket #96 acceptance criterion 2 (full Owner action -> consumer -> visible outcome) is therefore unmet and the ticket should stay open.
+- Not met / not built at the time of the module slice (the route, persistence and Settings panel were added later, see "Mount slice"): no native picker integration (still unbuilt, no public consumer seam proven); no real native picker, browser, installed-host, paired or accessibility evidence; no mobile testing (deferred to the Owner); explicit enrollment and billing disclosure (story 61) are A01 and not included. `select()` proves the exact identity resolves live; it does not itself change a session's model, which requires a UI/session consumer. Ticket #96 acceptance criterion 2 (full Owner action -> consumer -> visible outcome) is therefore unmet and the ticket should stay open.
 - The subscription id list (`SUBSCRIPTION_PROVIDER_IDS`) is a static exclusion of this plugin's own ids plus `opencode` and the Auto id; a brand-new subscription id added later must be added there.
 - Exclusion-list collision risk: exclusion is by provider id only, so an API provider whose id equals a brand name in `SUBSCRIPTION_PROVIDER_IDS` (for example a native API route with id `claude`) would be hidden from this list. The list is pinned by test to `modules/subscriptions/wire.js` `PROVIDER_IDS` plus `opencode` and the Auto id.
-- Preferences (alias, visibility, default) are in memory only and are lost on restart; a later persistence owner must save and restore them through `preferences()` and the constructor option.
+- Preferences (alias, visibility, default) are in memory inside the module; the mount slice persists them through `preferences()` and the constructor option (see "Mount slice").
 - `chat: true` is derived from the model appearing in the listing; it is not independently proven by a capability check. `mediaGeneration: false` is likewise a constant, not a probe.
 - `refresh()` is failure-safe: if `listProviders()` throws, the previous providers are kept and marked `list-failed`, and the next refresh recovers (covered by test).
 - `llm/adapters-updated` listeners are invoked with no arguments (host line 1821), so the module re-reads the full provider list on every event; this was not exercised on a live host.
@@ -67,3 +67,21 @@ Scope: closes the "module is not mounted, no route/UI/persistence" item in contr
 A full-suite run after C showed 2 failures in `judgment-ui.test.js` (its fake RPC returned a non-snapshot value to the new panel, `TypeError ... reading 'map'`); fixed by validating the response shape in the panel, then `npm test`: 669 tests, 669 pass; classifier 166/166; `git diff --check` clean (baseline 660 + 9).
 
 Remaining gaps: preferences are not consumed by the native model picker (no public consumer seam proven), so they do not change selection, routing or Auto; no live-host Owner admission or real-provider run; `llm/adapters-updated` is not subscribed (the panel refreshes on demand); the route lifetime is host-owned like the other routes (not unregistered by this module). The ticket stays PARTIAL/open.
+
+## Review corrections (2026-10-29)
+
+Independent review of the mount slice found these; each was reproduced by a failing test first (`node --test test/accepted/native-api*.test.js`, exit 1) and fixed minimally (exit 0, 41/41).
+
+| Finding | RED (assertion) | Fix |
+| --- | --- | --- |
+| Credential guarantee was on field names only: a provider/model `name` that is an object carrying `apiKey`/`baseUrl` reached the snapshot (`leaked sk-test-SECRET-...`) | `an object-valued provider or model name never reaches...` and `displayed values are allow-listed...` | `modules/catalog/native-api.js`: ids must be strings of 1-256 characters without control characters (else the entry is skipped); names and aliases are strings, control characters stripped, <=128 / <=64 characters, otherwise replaced by the id (alias omitted); modalities keep only short strings |
+| Write side could persist a store that `read()` rejects as too large (256 entries of 250 multibyte characters exceed 256 KiB: `store_corrupt` instead of `store_full`) | `write-side byte cap...` | `validPreferences` (used by both load and write) also bounds the serialized byte size; `mutate` refuses with `store_full` before persisting (entries and bytes) |
+| Cancel path, error whitelist and `timeoutMs` pass-through untested | `cancellation...`, `error codes are an explicit whitelist...`, `options.timeoutMs bounds...` | tests; code: a native error's own `code`/`status` is no longer trusted, only codes this module defines are public (`PUBLIC_CODES`), everything else is `service_unavailable`/503. This is stricter than Command mode's `error.status ? error.code`, chosen because that pattern would echo any status-bearing native error's code |
+| `clearPreference` was refused while the LLM service was unavailable | `clearPreference works while the native LLM service is unavailable` | the LLM check now applies to `setPreference` only |
+| Persisted `provider: 5` / `model: {}` | `persisted values must have the right types...` (read as ok) | explicit `typeof` checks in `validPreferences` |
+| Redundant `hold` promise chain | `parallel writes through the private store queue lose no update...` (24 parallel setPreference calls: no lost update, one default) | removed: `createPrivateStore.transaction` already serializes writers per path; the test passes after removal |
+| Arabic rows forced `dir="ltr"` on status text and buttons | `Arabic rows keep status text and buttons in the page direction...` | `client.js`: row `dir` removed; names and ids are `bdi` isolates (`dir="ltr"` only on the model id) |
+
+Also added tests: `refs.dispose()` and `llm` dropped after the service goes away and after disposal, prototype-pollution shaped ids and keys, transient references emit no native reads after the request. Mutation checks (each mutant fails at least one test): entry cap 256 -> 257, byte cap 262144 -> 300000 and -> 200000, write-side byte check removed, value allow-list weakened or name bound widened, error whitelist removed, persisted `typeof` checks removed.
+
+Honesty about the mount slice RED/GREEN table above: slice B (persistence/removal/corrupt/dispose) had no independent RED, it was written after slice A's implementation as characterization. The corrections here were each written RED first. Still true: no live-host admission, real provider, browser or paired-device proof; preferences are not consumed by the native model picker.
