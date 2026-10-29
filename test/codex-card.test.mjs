@@ -30,11 +30,32 @@ function fixture(locale, status, respond) {
   const render = () => { cursor = 0; view = Card(); const pending = effects; effects = []; pending.forEach(fn => { const cleanup = fn(); if (cleanup) cleanups.push(cleanup); }); return view; };
   const settle = async () => { for (let frame = 0; frame < 4; frame++) { for (let i = 0; i < 12; i++) await Promise.resolve(); render(); } };
   const nodes = (node = view) => [node, ...(node?.children?.flat(Infinity).flatMap(child => typeof child === 'object' && child ? nodes(child) : []) ?? [])];
-  const text = node => typeof node === 'string' || typeof node === 'number' ? String(node) : node?.children?.flat(Infinity).map(text).join(' ') ?? '';
-  return { render, settle, nodes, unmount: () => cleanups.reverse().forEach(fn => fn()), text: () => text(view), calls, click(key) { const button = nodes().find(node => node.tag === 'button' && text(node) === dictionary[key]); assert.ok(button, key); assert.equal(!!button.props.disabled, false, key); button.props.onClick(); }, dictionary };
+  const text = node => node?.tag === 'style' ? '' : typeof node === 'string' || typeof node === 'number' ? String(node) : node?.children?.flat(Infinity).map(text).join(' ') ?? '';
+  return { render, settle, nodes, textOf: text, unmount: () => cleanups.reverse().forEach(fn => fn()), text: () => text(view), calls, click(key) { const button = nodes().find(node => node.tag === 'button' && text(node) === dictionary[key]); assert.ok(button, key); assert.equal(!!button.props.disabled, false, key); button.props.onClick(); }, dictionary };
 }
 import { readFileSync } from 'node:fs';
 function requireText(locale) { return readFileSync(new URL(`../locale/${locale}.json`, import.meta.url), 'utf8'); }
+for (const locale of ['en', 'ar']) test(`reference hierarchy groups provider identity, account controls and usage in ${locale}`, async () => {
+  const page = fixture(locale, { busy: false, accounts: [{ key: 'a', account: 'fixture@example.test', isDefault: true }], clientVersion: { version: '1.2.3', source: 'fallback' } });
+  page.render(); await page.settle();
+  const group = name => page.nodes().find(n => n.props['data-majed-codex-part'] === name);
+  assert.ok(group('header'), 'provider header groups status dot, name and CLI version');
+  assert.match(page.textOf(group('header')), /Codex.*1.2.3/);
+  assert.ok(group('account-header'), 'compact star and logout share account identity row');
+  assert.equal(page.nodes(group('account-header')).filter(n => n.tag === 'button').length, 2);
+  assert.ok(group('usage-header'), 'usage label, plan and refresh share a header');
+  assert.ok(page.nodes(group('usage-header')).some(n => n.tag === 'button'));
+  assert.equal(page.nodes().find(n => n.tag === 'summary').children.some(n => n?.tag === 'svg'), true);
+  assert.ok(group('actions'), 'login actions follow account rows');
+});
+
+test('collision card has concise unavailable status without duplicating section warning', async () => {
+  const page = fixture('en', { busy: false, accounts: [] }, endpoint => endpoint === 'status' ? { ok: true, value: { providers: { codex: { busy: false, accounts: [] } }, registrationError: 'fixture collision' } } : undefined);
+  page.render(); await page.settle();
+  assert.ok(!page.text().includes(page.dictionary.coexistence));
+  assert.ok(page.text().includes(page.dictionary.providerUnavailable));
+});
+
 for (const locale of ['en', 'ar']) test(`Codex account actions and guarded reset render and operate in ${locale}`, async () => {
   const page = fixture(locale, { busy: false, accounts: [{ key: 'a', account: 'fixture@example.test', plan: 'plus', expiresAt: 2000000000000, isDefault: true }], clientVersion: { version: '1.2.3', source: 'fallback' } });
   page.render(); await page.settle();
@@ -54,6 +75,25 @@ for (const locale of ['en', 'ar']) test(`Codex account actions and guarded reset
   assert.equal(page.calls.find(call => call.method.endsWith('.consumeReset')).payload.ticket, 'ticket');
 });
 
+
+test('reference reset affordance explains weekly guard without preparing a spend', async () => {
+  const page = fixture('en', { busy: false, accounts: [{ key: 'a' }] }, endpoint => endpoint === 'usage' ? { ok: true, value: { supported: true, windows: [{ kind: 'weekly', usedPercent: 79, resetsAt: 2000000000000 }], resetCredits: [{ id: 'fake' }] } } : undefined);
+  page.render(); await page.settle();
+  const use = page.nodes().find(n => n.tag === 'button' && n.children.includes(page.dictionary.useReset));
+  assert.equal(use.props['aria-disabled'], true);
+  assert.equal(use.props.title, page.dictionary.resetGuard);
+  use.props.onClick(); await page.settle();
+  assert.equal(page.calls.some(c => c.method.endsWith('.prepareReset')), false);
+});
+
+test('confirmed logout retains its own label and sends only the chosen account', async () => {
+  const page = fixture('en', { busy: false, accounts: [{ key: 'a', account: 'fake@example.test' }] });
+  page.render(); await page.settle(); page.click('logout'); page.render();
+  const dialog = page.nodes().find(n => n.props.role === 'dialog');
+  const logout = page.nodes(dialog).find(n => n.tag === 'button' && n.children.includes(page.dictionary.logout));
+  assert.ok(logout); logout.props.onClick(); await page.settle();
+  assert.equal(page.calls.find(c => c.method.endsWith('.logout')).payload.account, 'a');
+});
 
 test('automatic card loading reuses fresh tracker usage while explicit refresh bypasses it', async () => {
   const { PoolUsageTracker } = await import('../dist/providers/pool-usage.js');
@@ -85,7 +125,7 @@ test('usage loads once per appearance, failures do not auto-retry, removed accou
   page.click('addAccount'); await page.settle(); await page.settle();
   assert.doesNotMatch(page.text(), /fixture usage failure/);
   status.accounts = [{ key: 'a' }];
-  page.click('addAccount'); await page.settle(); await page.settle();
+  page.click('login'); await page.settle(); await page.settle();
   assert.equal(page.calls.filter(c => c.method.endsWith('.usage')).length, 2);
 });
 
@@ -108,7 +148,7 @@ test('remounted busy card recovers host authorization metadata and supports past
 for (const locale of ['en', 'ar']) test(`reset credits expose expiry, usability and prepared context in ${locale}`, async () => {
   const expiry = 2000000000000;
   const page = fixture(locale, { accounts: [{ key: 'a' }], busy: false }, endpoint => {
-    if (endpoint === 'usage') return { ok: true, value: { supported: true, windows: [], resetCredits: [{ id: 'expired', expiresAt: 1 }, { id: 'unknown' }, { id: 'future', expiresAt: expiry }] } };
+    if (endpoint === 'usage') return { ok: true, value: { supported: true, windows: [{ kind: 'weekly', usedPercent: 87, resetsAt: expiry }], resetCredits: [{ id: 'expired', expiresAt: 1 }, { id: 'unknown' }, { id: 'future', expiresAt: expiry }] } };
     if (endpoint === 'prepareReset') return { ok: true, value: { ticket: 'context-ticket', expiresAt: Date.now() + 60000, weeklyUsedPercent: 87, creditExpiresAt: expiry } };
   });
   page.render(); await page.settle();
@@ -151,7 +191,7 @@ test('start, unmount, remount on the same auth controller, paste then cancel fre
   };
   try {
     for (const action of ['submitCallback', 'cancelLogin']) {
-      const first = fixture('en', {}, respond); first.render(); await first.settle(); first.click('addAccount');
+      const first = fixture('en', {}, respond); first.render(); await first.settle(); first.click('login');
       await new Promise(resolve => setImmediate(resolve)); await first.settle();
       assert.equal((await controller.status()).busy, true); first.unmount();
       const next = fixture('en', {}, respond); next.render();

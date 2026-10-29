@@ -32,6 +32,15 @@ Pinned source remains v0.9.12, full commit `b8023110864494acefc6f5963c2a197d85dd
 
 The #128 descriptions above describe historical scope, not the current #129 implementation. Live authorization, provider responses and installed-host acceptance are not implied by fixture tests.
 
+## #129 visual-parity correction
+
+- Ported the Codex-only render hierarchy and relevant `styles`, `ClientVersionTag`, `statusText`, `usageWindowLabel`, `usageBarColor` semantics from `src/client/SubscriptionsSection.tsx:186-339,853-1073,1078-1105` at the same pinned commit. Ported applicable input/button/focus styles from `src/client/provider-settings-styles.ts:70-185`; no runtime dependency on the reference.
+- Kept geometry, order, density, token colors, compact textual star controls and disclosure SVG. Replaced literal font sizes with DSH font tokens and physical layout properties with logical ones for Arabic. Added bdi isolation, progress semantics, remount-safe authorization link and disabled-empty-submit behavior. Existing owned RPC controller, usage dedup/pruning/cache force distinction and reset expiry remain unchanged.
+- Retained Button/Input injection with native fallback. Added the source introduction to the owned accounts part, with only one section-level coexistence explanation and concise card collision state. Used the reference native modal dialog surface while preserving the existing owned confirmed logout flow rather than reverting to window.confirm.
+- Reference reset-action guards were adapted inline, with the stronger existing usable-id/expiry filter. Retained reference warning and acknowledgement copy; expired credits remain identified and do not inflate the available count.
+- Deliberately excluded Manage/provider settings/model selection, proxy, badge display, composer Speed, media and all non-Codex provider surfaces; these belong to later tickets. Exact source map, differences and controlled-render limitations are in `docs/ai/ticket-129-ui-parity.md`.
+- `scripts/codex-visual-fixture.mjs` reads the pinned reference without modifying it, removes later-ticket surfaces only, and renders its real component beside the owned card with fake RPC. The temporary fixture dependencies are not shipped or added to package dependencies. Arabic comparison supplies our translation to the reference (it has English/Chinese only).
+
 ## License
 
 MIT License
