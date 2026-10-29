@@ -1,6 +1,7 @@
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { createCodexAccounts } from './accounts.js';
+import { createCodexUsage } from './usage.js';
 
 export const CODEX_ACCOUNTS_METHOD = 'majed/subscriptions/codex';
 export const CODEX_ACCOUNTS_PATH = '/api/' + CODEX_ACCOUNTS_METHOD;
@@ -29,7 +30,7 @@ async function message(request) {
 /** Exact native Fetch registration delegates authentication/CSRF to DSH. */
 export function applyCodexAccounts(ctx, config = {}) {
   ctx.inject(['connection'], owner => {
-    let service, runtime, llm, loader, enabled = false, switching = false;
+    let service, usage, runtime, llm, loader, enabled = false, switching = false;
     const path = config.path || join(resolve(process.env.DSH_HOME || join(homedir(), '.dsh')), 'plugins', 'dsh-majed', 'codex-auth.json');
     const create = () => createCodexAccounts({
       path, settingsPath: config.catalogPath || path + '.catalog',
@@ -43,7 +44,54 @@ export function applyCodexAccounts(ctx, config = {}) {
       loader = moduleOwner.loader;
       moduleOwner.effect(() => async () => { await runtime?.dispose(); runtime = undefined; loader = undefined; }, 'dsh-majed: Codex public module loader');
     });
-    owner.effect(() => async () => { await runtime?.dispose(); await service?.dispose(); }, 'dsh-majed: Codex account disposal');
+    owner.effect(() => async () => { usage?.dispose(); await runtime?.dispose(); await service?.dispose(); }, 'dsh-majed: Codex account disposal');
+    const endpoints = ['providerSettings', 'setProviderSettings', 'status', 'login', 'manual', 'cancel', 'logout', 'setDefault', 'usage', 'prepareReset', 'consumeReset', 'speed', 'setSpeed', 'modelDefaults', 'setModelDefault'];
+    for (const endpoint of endpoints) {
+      const method = 'majed/subscriptions.' + endpoint, path = '/api/' + method;
+      owner.connection.fetch.register({ path, methods: ['POST'], requestBody: 'streaming', async fetch(request) {
+        let rpcId;
+        try {
+          if (request.method !== 'POST' || new URL(request.url).pathname !== path) throw error('invalid_request');
+          const input = await message(request);
+          if (!object(input) || !keys(input, ['type', 'rpcId', 'method', 'payload']) || input.type !== 'client-request' || input.method !== method || typeof input.rpcId !== 'string' || !/^[\w-]{1,128}$/.test(input.rpcId)) throw error('invalid_request');
+          rpcId = input.rpcId; const p = input.payload;
+          const fields = { status: [], providerSettings: ['provider', 'force'], setProviderSettings: ['provider', 'settings'], login: ['provider', 'account'], manual: ['provider', 'input'], cancel: ['provider'], logout: ['provider', 'account'], setDefault: ['provider', 'account'], usage: ['provider', 'account', 'force'], prepareReset: ['account'], consumeReset: ['account', 'ticket'], speed: ['sessionId'], setSpeed: ['sessionId', 'tier'], modelDefaults: ['provider'], setModelDefault: ['provider', 'model', 'effort'] };
+          if (!object(p) || !keys(p, fields[endpoint]) || ('provider' in p && p.provider !== 'codex') || ('account' in p && (typeof p.account !== 'string' || !/^[a-f0-9]{64}$/.test(p.account))) || ('force' in p && typeof p.force !== 'boolean')) throw error('invalid_request');
+          request.signal.throwIfAborted();
+          if (!enabled || switching || !service) throw error('module_disabled');
+          let value;
+          if (endpoint === 'status') {
+            const snapshot = await service.snapshot({ management: true });
+            value = { providers: { codex: { busy: snapshot.state === 'pending', accounts: snapshot.accounts.map(a => ({ key: a.id, account: a.label, expiresAt: a.expiresAt, isDefault: a.default, state: a.state })), ...(snapshot.loginFailure ? { detail: snapshot.loginFailure } : {}), clientVersion: { version: config.clientVersion || '0.165.0', source: config.clientVersion ? 'config' : 'fallback' } } } };
+          } else if (endpoint === 'login') value = await service.begin(p.account);
+          else if (endpoint === 'manual') {
+            if (typeof p.input !== 'string' || p.input.length > 4096) throw error('invalid_request');
+            try { value = await service.complete(p.input); } catch (failure) { if (failure.code !== 'login_not_pending') throw failure; value = await service.snapshot(); }
+          } else if (endpoint === 'cancel') value = await service.cancel();
+          else if (endpoint === 'logout') value = await service.signOut(p.account);
+          else if (endpoint === 'setDefault') value = await service.setDefault(p.account);
+          else if (['usage', 'prepareReset', 'consumeReset'].includes(endpoint)) {
+            if (!p.account || (endpoint === 'consumeReset' && (typeof p.ticket !== 'string' || p.ticket.length > 128))) throw error('invalid_request');
+            usage ||= createCodexUsage({ accounts: service, ...(config.fetch ? { fetch: config.fetch } : {}) });
+            value = endpoint === 'usage' ? await usage.read(p.account) : endpoint === 'prepareReset' ? await usage.prepare(p.account) : await usage.consume(p.account, p.ticket);
+          } else {
+            if (!runtime) throw error('runtime_unavailable');
+            if (endpoint === 'providerSettings') { if (p.force) await runtime.invalidate(); value = await runtime.providerSettings();
+              const snapshot = await service.snapshot({ management: true });
+              value.accounts = value.accounts.map(a => ({ ...a, label: snapshot.accounts.find(s => s.id === a.key)?.label || a.label }));
+            } else if (endpoint === 'setProviderSettings') value = await runtime.setProviderSettings(p.settings);
+            else if (endpoint === 'speed') value = await runtime.speed(p.sessionId);
+            else if (endpoint === 'setSpeed') value = await runtime.setSpeed(p.sessionId, p.tier);
+            else if (endpoint === 'modelDefaults') value = { provider: 'codex', models: (await runtime.providerSettings()).models };
+            else if (endpoint === 'setModelDefault') value = await runtime.configure({ model: p.model, defaultEffort: p.effort || null });
+          }
+          return json({ type: 'server-response', rpcId, result: { ok: true, value } });
+        } catch (failure) {
+          const code = allowedErrors.has(failure.code) || ['usage_unavailable', 'reset_unavailable', 'invalid_reset_ticket', 'reset_unconfirmed'].includes(failure.code) ? failure.code : 'service_unavailable';
+          return json(rpcId ? { type: 'server-response', rpcId, result: { ok: false, error: { code, message: code, details: {} } } } : { error: code });
+        }
+      } });
+    }
     owner.connection.fetch.register({ path: CODEX_ACCOUNTS_PATH, methods: ['POST'], requestBody: 'streaming', async fetch(request) {
       let rpcId;
       try {
@@ -91,7 +139,7 @@ export function applyCodexAccounts(ctx, config = {}) {
                 if (typeof llm.prepareCall !== 'function' || typeof llmModule.LlmAdapter?.prototype?.prepareCall !== 'function') throw error('runtime_unavailable');
                 const { createCodexRuntime } = await import('./runtime.js');
                 runtime = await createCodexRuntime({ accounts: service, llm, llmModule, path: config.catalogPath || path + '.catalog',
-                  ...(config.fetch ? { fetch: config.fetch } : {}), resolveAttachments: () => owner.get('attachments'),
+                  ...(config.fetch ? { fetch: config.fetch } : {}), resolveAttachments: () => owner.get('attachments'), resolveAgents: () => owner.get('agents'),
                   ...(config.clientVersion ? { clientVersion: config.clientVersion } : {}),
                 });
               }

@@ -6,7 +6,7 @@ import { createPrivateStore, createSettingsStore } from './storage.js';
 const fail = code => Object.assign(new Error(code), { code });
 // The stored label is the private verified identity; every public projection masks it.
 const mask = label => { const at = label.lastIndexOf('@'); return at > 0 ? label[0] + '•••' + label.slice(at) : label; };
-const publicAccount = account => ({ id: account.id, label: mask(account.session.label), state: account.state, expiresAt: account.session.expiresAt });
+const publicAccount = (account, management) => ({ id: account.id, label: management ? account.session.label : mask(account.session.label), state: account.state, expiresAt: account.session.expiresAt });
 export function createCodexAccounts({ path, settingsPath, fetch: fetchFn = globalThis.fetch, ports, timeoutMs, now = Date.now } = {}) {
   if (!path) throw fail('account_store_required');
   const store = createPrivateStore(path), settings = settingsPath ? createSettingsStore(settingsPath) : undefined, flow = new OAuthFlowManager(), refreshes = new Map();
@@ -16,10 +16,10 @@ export function createCodexAccounts({ path, settingsPath, fetch: fetchFn = globa
   const listeners = new Set();
   const changed = event => { for (const listener of listeners) listener(event); };
   function live() { if (disposed || disposing) throw fail('service_disposed'); }
-  async function snapshot() {
+  async function snapshot({ management = false } = {}) {
     live(); const data = await store.load();
     return { ...(current ? { authorizeUrl: current.attempt.authorizeUrl } : {}), loginState: state, ...(state === 'failed' && lastFailure ? { loginFailure: lastFailure } : {}), state: current ? state : data.accounts.some(a => a.state === 'connected' || a.state === 'paused') ? 'connected' : data.accounts.length ? 'reauthentication_required' : state,
-      accounts: data.accounts.map(a => ({ ...publicAccount(a), default: data.default === a.id && a.state === 'connected' })) };
+      accounts: data.accounts.map(a => ({ ...publicAccount(a, management), default: data.default === a.id && a.state === 'connected' })) };
   }
   // Owner settings belong to the account card: forget them with it, so a re-added identity starts clean.
   async function purgeSettings(id) {

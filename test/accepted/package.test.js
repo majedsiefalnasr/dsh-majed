@@ -7,6 +7,10 @@ import { execFileSync } from 'node:child_process';
 import { createContext, runInContext } from 'node:vm';
 
 const root = new URL('../../', import.meta.url);
+async function expectedClient() {
+  const ui = await readFile(new URL('modules/subscriptions/ui/bundle.js', root), 'utf8');
+  return (await readFile(new URL('client.js', root), 'utf8')).replace('/* SUBSCRIPTIONS_UI_BUNDLE */', ui.replace('const React = require("react");', '').replaceAll('__require("react")', 'React'));
+}
 
 test('real npm pack emits parseable JSON and the extracted lifecycle rebuilds its client', async t => {
   const directory = await mkdtemp(join(tmpdir(), 'dsh-majed-package-test-'));
@@ -19,14 +23,14 @@ test('real npm pack emits parseable JSON and the extracted lifecycle rebuilds it
   execFileSync('tar', ['-xzf', join(directory, pack.filename), '-C', directory]);
   execFileSync('npm', ['run', 'prepare'], { cwd: join(directory, 'package'), encoding: 'utf8' });
   assert.equal(await readFile(join(directory, 'package/dist/client.js'), 'utf8'),
-    await readFile(new URL('client.js', root), 'utf8'));
+    await expectedClient());
 });
 const manifest = JSON.parse(await readFile(new URL('package.json', root), 'utf8'));
 
 test('built public client is baseline-only and preserves its ModuleLoader identity', async () => {
   assert.equal(manifest.exports['./client'], './dist/client.js');
   const built = await readFile(new URL(manifest.exports['./client'], root), 'utf8');
-  assert.equal(built, await readFile(new URL('client.js', root), 'utf8'));
+  assert.equal(built, await expectedClient());
   const registrations = [];
   runInContext(built, createContext({ window: { __ModuleLoader__: { load: value => registrations.push(value) } } }));
   assert.deepEqual(registrations.map(value => value.id), ['dsh-majed']);

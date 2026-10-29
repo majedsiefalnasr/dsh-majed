@@ -1,0 +1,10 @@
+# Codex reference Settings port (S16 candidate)
+
+Source: https://github.com/V1ki/dsh-plugin-subscriptions/tree/7639ed9958a9a1c4159faa1f4e6e15e9ede60b7d/src/client
+Version: v0.9.11. Commit: 7639ed9958a9a1c4159faa1f4e6e15e9ede60b7d. License: MIT, copyright (c) 2026 V1ki. The complete MIT permission and warranty notice is retained in ../codex/PROVENANCE.md and applies to these adapted files.
+
+The TS/TSX files retain the reference section, account manager, model editor, styles, account/model helpers and locale dictionaries. Adaptations restrict visible providers to Codex, remove the proxy UI/requests, namespace RPC as majed/subscriptions.*, add Arabic copy, disclose unavailable provider tools, clear manual input after failure, and preserve polling while adding another account. Pool membership and model allowlists are saved but not applied: the manual pool consumer belongs to S09 (#95). Codex has no cache TTL control; the reference TTL is Claude-only.
+
+Generation is offline: ESBUILD=/path/to/esbuild node scripts/build-subscriptions-ui.mjs, requiring esbuild 0.25.x (the supplied /tmp/esb/node_modules/.bin/esbuild works). The committed bundle.js is inlined into the ModuleLoader factory by node scripts/build-baseline.mjs. Normal npm test/build uses the committed generated artifact and needs no compiler or reference plugin. No runtime dependencies were added. entry.ts is Majed's packaging adapter.
+
+Candidate limitations (not accepted parity): legacy account cards are still rendered alongside the reference section when runtime is enabled; the legacy source fallback remains for source-reading behavioral tests. The reference section currently requires runtime enablement even for account management. Composer usage badge is not yet ported. Arabic includes generic unavailable placeholders for untranslated reference keys and requires completion. Lifecycle/reconnect/refresh error behavior in the reference cards needs end-to-end consolidation rather than duplication. Controlled tests are not installed-build, browser, keyboard, screen-reader, mobile or provider acceptance.

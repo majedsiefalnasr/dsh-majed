@@ -2,6 +2,15 @@
 
 Updated: 2026-10-28. This is the resume entry point, not a feature specification.
 
+## S16 candidate checkpoint — 2026-10-29
+
+- Ticket #126's direct implementation contract authorizes the Codex-only reference v0.9.11 port on `impl/s16-subscriptions-port`, based on `1c4cfd1aa6389c63dfbfe7ef974d065d45d7b251`, in the isolated `dsh-majed-s16` worktree. It supersedes the older proposal-only implementation status for this candidate, not operational restrictions.
+- Initial inspection confirmed a clean candidate at that baseline and read the scope/execution gates, local ticket bodies, amended specification, reference Settings/account/model components and RPC/usage implementation, plus existing account/store/runtime/route integration. No product or test changes have been made; no provider, network, installed-state or credential access occurred.
+- Execution limitation: this delegated session has no remaining delegation depth. The mandatory independent Standards/Spec review procedure cannot be performed here; the Lead must arrange those reviews outside this worker. No substitute self-review or completed acceptance is claimed.
+- Lead dispositions for the second attempt: promptCacheTtl is Claude-only and must not be shown or persisted for Codex. Port and persist pool membership/model allowlists with visible English/Arabic "Saved; applies when manual pools arrive (S09)" disclosure; there is no pool consumer in S16. Do not introduce pool routing/failover. Controls with existing consumers must reach the real catalog/runtime; provider tools without consumers are unavailable.
+- Active bounded implementation contract: #126 Codex-only source port, rendered Settings -> admitted namespaced route -> injected account/usage transport -> visible outcome, plus real catalog/runtime consumer proof. Writes restricted to this candidate's ticket-relevant source/tests/docs. Verify focused RED/GREEN, full npm test and classifier; no network/providers/installed state/credentials, push or merge. Investigation budget: two failed diagnostic checks or 20 minutes per genuinely new blocker. Lead arranges independent reviews.
+- Candidate is incomplete and uncommitted/unmerged/unpushed. Second attempt has read gates, ticket and reference seams; product implementation and verification remain. Next allowed action: implement the disposed scope and controlled tests, then commit only when green. No installed/browser acceptance is claimed.
+
 ## Owner decisions
 
 - 2026-10-29: Owner decided to adopt the reference Subscriptions plugin's full experience (v0.9.11 `7639ed9`) into `modules/subscriptions` (port, not rewrite), full email on authenticated surfaces, Arabic/RTL, Majed's own protected store, Owner disables the installed reference plugin at install. Spec amended locally; ticket amendment is a PROPOSAL (see proposal "Amendment 2026-10-29"), unpublished pending Owner approval. Port implementation not started.

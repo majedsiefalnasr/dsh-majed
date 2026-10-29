@@ -1,6 +1,7 @@
 import { LlmAdapter, LlmError, attributionHeaders, bindHostLlm } from './upstream/host-llm.js';
 import { createHash } from 'node:crypto';
 import { createSettingsStore } from './storage.js';
+import { validateProviderSettings } from './provider-settings.js';
 import { fetchCodexModels, codexRequestBody, projectCodexMessages } from './upstream/providers/codex-helpers.js';
 import { resolveImages } from './upstream/translate/resolved.js';
 import { toResponsesInput, streamResponses } from './upstream/translate/responses.js';
@@ -44,12 +45,12 @@ function guardedBody(stream, signal) {
 }
 
 /** Account-bound adapter. Only the external provider transport is injectable. */
-export async function createCodexRuntime({ accounts, llm, llmModule, path, fetch: transport = globalThis.fetch, resolveAttachments = () => undefined, streamIdleTimeoutMs = 30000, clientVersion } = {}) {
+export async function createCodexRuntime({ accounts, llm, llmModule, path, fetch: transport = globalThis.fetch, resolveAttachments = () => undefined, streamIdleTimeoutMs = 30000, clientVersion, resolveAgents = () => undefined } = {}) {
   bindHostLlm(llmModule);
   if (!accounts || !llm?.registerAdapter || !path) throw failure('NO_ADAPTER');
   const store = createSettingsStore(path);
   const cache = new Map(), speedBySession = new Map(), lifecycle = new AbortController();
-  let disposed = false, generation = 0, registration;
+  let disposed = false, generation = 0, registration, displayName = (await store.load()).preferences.displayName;
   const live = () => { if (disposed) throw failure('NO_ADAPTER'); };
   const snapshotAccounts = async () => (await accounts.snapshot()).accounts.filter(a => a.state === 'connected');
   const notify = () => { generation++; cache.clear(); registration?.replace(['codex']); };
@@ -153,7 +154,10 @@ export async function createCodexRuntime({ accounts, llm, llmModule, path, fetch
           const replay = message?.source?.replayState?.response;
           return replay?.kind === 'majed-codex-replay' && replay.version === 1 && replay.key === key ? replay.items : undefined;
         };
-        const body = codexRequestBody({ ...options, model: bound.model }, toResponsesInput(messages, options.system, reasoningFor), bound.fast && speedBySession.get(options.sessionId) === 'fast');
+        const explicitSpeed = speedBySession.get(options.sessionId);
+        const subagent = resolveAgents()?.get(options.sessionId)?.session?.header?.origin === 'subagent';
+        const selectedSpeed = explicitSpeed || (subagent ? (await store.load()).preferences.subagentSpeeds?.[bound.model] : 'standard');
+        const body = codexRequestBody({ ...options, model: bound.model }, toResponsesInput(messages, options.system, reasoningFor), bound.fast && selectedSpeed === 'fast');
         // Credential refresh and attachment reads can outlive Owner revocation.
         // Revalidate the bound route for every send, including a 401 retry.
         const latest = await bounded(store.load(), watchdog.signal);
@@ -194,7 +198,7 @@ export async function createCodexRuntime({ accounts, llm, llmModule, path, fetch
     } finally { watchdog.stop(); group.delete(revocation); if (!group.size) inflight.delete(bound.account); }
   }
   class CodexDirectAdapter extends LlmAdapter {
-    providerInfo(provider) { return { id: provider, name: 'Codex (Subscription)' }; }
+    providerInfo(provider) { return { id: provider, name: displayName || 'Codex (Subscription)' }; }
     providerRetryPolicy(provider) { return subscriptionRetryPolicy(DEFAULT_RETRY, DEFAULT_RATE_LIMIT_WAIT, `codex: ${provider}`); }
     async listModels(provider) {
       const data = await store.load(), result = new Map();
@@ -219,7 +223,40 @@ export async function createCodexRuntime({ accounts, llm, llmModule, path, fetch
   const stopRefresh = startCatalogRefresh(async signal => {
     live(); generation++; cache.clear(); await available(signal); live(); registration.replace(['codex']);
   });
-  return { adapter, async snapshot() {
+  return { adapter,
+    async providerSettings() {
+      const data = await store.load(), entries = await available();
+      const models = [...new Map(entries.flatMap(e => e.models).map(m => [m.id, m])).values()];
+      const p = data.preferences;
+      return { provider: 'codex', settings: { ...(p.displayName ? { displayName: p.displayName } : {}), accounts: p.accounts || {},
+        ...(p.visibleModels ? { visibleModels: p.visibleModels } : {}), modelDisplayNames: Object.fromEntries(Object.entries(p.models || {}).filter(([, v]) => v.name).map(([k, v]) => [k, v.name])),
+        contextWindows: Object.fromEntries(Object.entries(p.models || {}).filter(([, v]) => v.contextWindow).map(([k, v]) => [k, v.contextWindow])), subagentSpeeds: p.subagentSpeeds || {} },
+        models: models.map(m => ({ ...m, efforts: m.reasoning?.efforts || [], configured: p.models?.[m.id]?.defaultEffort, defaultContextWindow: m.contextWindow, maxContextWindow: m.maxContextWindow || m.contextWindow })),
+        accounts: entries.map(e => ({ key: e.account.id, label: e.account.label, models: e.models, unavailable: !!e.failed })), tools: [], poolStatus: 'saved-not-applied' };
+    },
+    async setProviderSettings(raw) {
+      live(); const next = validateProviderSettings(raw), entries = await available();
+      const known = new Map(entries.flatMap(e => e.models).map(m => [m.id, m]));
+      for (const [id, tokens] of Object.entries(next.contextWindows || {})) if (!known.has(id) || tokens > (known.get(id).maxContextWindow || known.get(id).contextWindow || 0)) throw failure('INVALID_REQUEST');
+      for (const [id, tier] of Object.entries(next.subagentSpeeds || {})) if (tier === 'fast' && !known.get(id)?.fastTier) throw failure('INVALID_REQUEST');
+      if (Object.keys(next.accounts || {}).some(id => !entries.some(e => e.account.id === id))) throw failure('INVALID_REQUEST');
+      await store.transaction(data => {
+        for (const [id, prior] of Object.entries(data.preferences.accounts || {})) if (prior.independentEntry && !next.accounts?.[id]?.independentEntry) bump(consentEpochs, id);
+        const models = data.preferences.models ||= {};
+        for (const id of new Set([...known.keys(), ...Object.keys(models)])) {
+          models[id] ||= {};
+          models[id].hidden = next.visibleModels !== undefined && !next.visibleModels.includes(id);
+          models[id].name = next.modelDisplayNames?.[id] || '';
+          models[id].contextWindow = next.contextWindows?.[id] || null;
+        }
+        data.preferences.accounts = next.accounts || {};
+        data.preferences.subagentSpeeds = next.subagentSpeeds || {};
+        if (next.visibleModels) data.preferences.visibleModels = next.visibleModels; else delete data.preferences.visibleModels;
+        if (next.displayName) data.preferences.displayName = next.displayName; else delete data.preferences.displayName;
+      }, { signal: lifecycle.signal });
+      displayName = next.displayName; notify(); return this.providerSettings();
+    },
+    async snapshot() {
       live(); const data = await store.load(), entries = await available();
       return { enabled: true, autoEnrolled: false, models: await adapter.listModels('codex'), preferences: data.preferences,
         catalogs: entries.map(entry => ({ account: entry.account.id, source: entry.source, failed: !!entry.failed, models: entry.models })) };

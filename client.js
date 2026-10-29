@@ -24,6 +24,7 @@ window.__ModuleLoader__.load({
   factory(require) {
     const React = require('react');
     const h = React.createElement;
+    /* SUBSCRIPTIONS_UI_BUNDLE */
     let primitives = {};
     try { primitives = require('@deepseek-ai/dsh-client-ui-primitives') || {}; } catch (_) {}
 
@@ -678,7 +679,13 @@ window.__ModuleLoader__.load({
           h('label', null, t('codex.callback'), h('input', { type: 'text', 'data-codex-callback': true, value: callback, autoComplete: 'off', spellCheck: false, onChange: event => setCallback(event.target.value) })),
           h('div', { className: 'majed-management-controls' }, button('complete', 'complete', { callback }, !callback), button('cancel', 'cancel'))),
         showStatus && h('p', { role: failure ? 'alert' : 'status', 'aria-live': 'polite', className: 'majed-muted' }, t('codex.' + (failure || (busy ? 'working' : status)))),
-        value.enabled && value.runtimeEnabled && value.runtime && h(CodexModelSettings, { runtime: value.runtime, call, busy, t }));
+        value.enabled && value.runtimeEnabled && value.runtime && typeof MajedSubscriptionsUI === 'undefined' && h(CodexModelSettings, { runtime: value.runtime, call, busy, t }),
+        value.enabled && value.runtimeEnabled && typeof MajedSubscriptionsUI !== 'undefined' && h(MajedSubscriptionsUI.SubscriptionsSection, { rpc: ctx.connection.rpc, t: (key, params = {}) => {
+          const dictionary = t('management.direction') === 'rtl' ? MajedSubscriptionsUI.ar : MajedSubscriptionsUI.en;
+          let text = dictionary[key] || MajedSubscriptionsUI.en[key] || key;
+          for (const [name, replacement] of Object.entries(params)) text = text.replaceAll('{' + name + '}', String(replacement));
+          return text;
+        } }));
     }
 
     const approvalLabels = {

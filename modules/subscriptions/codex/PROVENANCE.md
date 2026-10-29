@@ -10,6 +10,10 @@ Source: V1ki/dsh-plugin-subscriptions, reviewed pin `9930c5ee5e3fa239db9031f47a0
 
 The upstream flow and grant behavior are characterized by Majed's accepted controlled-protocol tests (`test/accepted/codex-account.test.js` and `codex-settings.test.js`). No upstream test suite is claimed executed. Upstream uses additional provider/translation dependencies which are not imported by this bounded account integration. No new external runtime dependency is introduced.
 
+## S16 partial candidate additions
+
+The usage/reset mapping in `usage.js` and preference validation in `provider-settings.js` adapt v0.9.11 commit `7639ed9958a9a1c4159faa1f4e6e15e9ede60b7d` (https://github.com/V1ki/dsh-plugin-subscriptions), MIT. Majed adds injected transport, bounded JSON reads, sanitized errors and account-bound single-use redemption tickets. `native.js` exposes exact `majed/subscriptions.*` routes through the existing public Fetch registration and protected store. Authenticated reference status explicitly requests full emails; runtime snapshots retain masked identity. Reference settings map into existing direct model visibility, names, reasoning/context and independent-entry consumers; subagent speed uses public agents origin metadata. Pool membership/allowlists are persisted only and are not applied until S09. Codex cache TTL is rejected. See ../ui/PROVENANCE.md for incomplete UI status and generation.
+
 ## R02 direct runtime additions
 
 `upstream/UPSTREAM.json` records eight compiled input hashes, verified against the reviewed 0.9.9 artifact in `docs/reference-artifacts.json`. `upstream/compat.js`, `translate/{responses,resolved,sse}.js` and `providers/{common,rate-limit,catalog-refresh}.js` retain the reviewed compiled behavior with attribution headers and explicit namespace adaptations. `providers/codex-helpers.js` extracts only catalog discovery and pure request/tool-pairing helpers from compiled `providers/codex.js`. No upstream credential store, global proxy module or source plugin entry is imported. Its default transport uses native Fetch, while production always passes Majed's selected isolated transport.

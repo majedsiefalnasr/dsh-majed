@@ -36,7 +36,7 @@ test('production entry mounts disabled Codex Settings and supports protected acc
 });
 
 for (const language of ['en', 'ar']) test(`native Settings exposes Codex enable/login/callback/cancel controls (${language})`, async t => {
-  const source = await readFile(new URL('../../dist/client.js', import.meta.url), 'utf8');
+  const source = await readFile(new URL('../../client.js', import.meta.url), 'utf8');
   const calls = [];
   const harness = createBaselineHarness(source, { language, connection: { rpc: { async call(channel, method, payload) {
     calls.push({ channel, method, payload });
@@ -55,7 +55,7 @@ for (const language of ['en', 'ar']) test(`native Settings exposes Codex enable/
 });
 
 test('Subscriptions Settings separately enables native Codex dispatch and edits supported model settings', async t => {
-  const source = await readFile(new URL('../../dist/client.js', import.meta.url), 'utf8');
+  const source = await readFile(new URL('../../client.js', import.meta.url), 'utf8');
   const calls = [];
   const model = { id: 'fixture-codex', name: 'Fixture model', contextWindow: 120000, maxContextWindow: 200000, fastTier: true,
     reasoning: { efforts: [{ id: 'low', name: 'Low' }, { id: 'high', name: 'High' }], defaultEffort: 'high' } };
@@ -74,7 +74,7 @@ test('Subscriptions Settings separately enables native Codex dispatch and edits 
 });
 
 test('the Codex composer and /fast contribution control the same supported session speed and dispose cleanly', async t => {
-  const source = await readFile(new URL('../../dist/client.js', import.meta.url), 'utf8');
+  const source = await readFile(new URL('../../client.js', import.meta.url), 'utf8');
   let tier = 'standard', command, unregisters = 0;
   const harness = createBaselineHarness(source, { connection: { rpc: { async call(channel, method, payload) {
     assert.equal(method, 'majed/subscriptions/codex'); assert.equal(payload.sessionId, 'session-a');

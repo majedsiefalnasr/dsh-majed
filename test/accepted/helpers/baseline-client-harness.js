@@ -51,6 +51,7 @@ class ElementFixture extends EventTargetFixture {
     this.textContent = '';
     this.sheet = null;
   }
+  focus() {}
   get isConnected() { return this.documentRoot || !!this.parentElement?.isConnected; }
   setAttribute(name, value) { this.attributes.set(name, String(value)); }
   getAttribute(name) { return this.attributes.get(name) ?? null; }
@@ -114,6 +115,12 @@ function createReactFixture(makeElement = () => ({})) {
       return [state.value, (next) => { state.value = typeof next === 'function' ? next(state.value) : next; }];
     },
     useRef(initial) { return cell(() => ({ current: initial })); },
+    forwardRef(render) { return props => render(props, props.ref); },
+    useCallback(callback) { return callback; },
+    useMemo(factory) { return factory(); },
+    useId() { return cell(() => ({ id: 'fixture-' + (++React.ids) })).id; },
+    ids: 0,
+    useImperativeHandle(ref, create) { if (ref) ref.current = create(); },
     useSyncExternalStore(subscribe, snapshot) {
       const state = cell(() => ({ cleanup: subscribe(() => {}) }));
       assert.equal(typeof state.cleanup, 'function');
@@ -254,16 +261,22 @@ export function createBaselineHarness(source, { stored, extension, confirm = tru
     isSecureContext: true,
     confirm(message) { confirms.push(message); return typeof confirm === 'function' ? confirm(message) : confirm; },
     focus() {},
+    localStorage,
+    open() {},
   });
   if (extension !== undefined) window.__dshMajed = extension;
   const { React, mount } = createReactFixture((node) => {
     const element = new ElementFixture(String(node.type));
     element.focus = () => { document.activeElement = element; };
+    element.showModal = () => { element.open = true; };
+    element.close = () => { element.open = false; };
     return element;
   });
   const primitives = { Menu: 'fixture-menu' };
   const sandbox = vm.createContext({
-    window, document, localStorage, navigator: {}, Notification: NotificationFixture, AbortController,
+    window, document, localStorage, navigator: {}, Notification: NotificationFixture, AbortController, DOMException, HTMLElement: ElementFixture,
+    setInterval(fn, delay) { const id = ++nextId; timers.set(id, { fn, delay }); return id; },
+    clearInterval(id) { timers.delete(id); },
     MutationObserver: MutationObserverFixture,
     requestAnimationFrame(fn) { const id = ++nextId; frames.set(id, fn); return id; },
     cancelAnimationFrame(id) { frames.delete(id); },
