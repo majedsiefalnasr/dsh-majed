@@ -31,16 +31,18 @@ async function mount(t, names = ['alpha', 'beta']) {
   const fiber = ctx.plugin({ apply: context => apply(context, { managedMcp: { enabled: true, standaloneDisabled: true, stateDirectory: join(root, 'state'), userDirectory: root } }) });
   await fiber;
   t.after(async () => { await fiber.dispose(); await ctx.fiber.dispose(); await rm(root, { recursive: true, force: true }); });
+  const wire = { bytes: 0 };
   const post = async payload => {
     const response = await route.fetch(new Request('http://fixture/api/majed/mcp', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'client-request', rpcId: 'view-1', method: 'majed/mcp', payload }) }));
-    return (await response.json()).result;
+    const raw = await response.text(); wire.bytes = Buffer.byteLength(raw);
+    return JSON.parse(raw).result;
   };
   const select = name => ({ scope: 'project', sessionId: 'session-' + name, workspaceId: 'workspace-' + name });
   const call = (action, input = {}) => post({ action, scope: 'global', ...input });
   const project = (name, action, input = {}) => post({ action, ...select(name), ...input });
   const stdio = (name, extra = {}) => ({ serverName: name, transport: 'stdio', command: process.execPath, args: [fixture, join(root, name + '.jsonl'), name], reconnect: { enabled: false }, ...extra });
   const stored = async () => JSON.parse(await readFile(join(root, 'state', 'global.json'), 'utf8'));
-  return { root, dirs, ctx, call, project, post, select, stdio, stored };
+  return { root, dirs, ctx, call, project, post, select, stdio, stored, wire };
 }
 
 test('same server name in both scopes is a conflict with both entries visible', async t => {
@@ -57,24 +59,35 @@ test('same server name in both scopes is a conflict with both entries visible', 
   assert.deepEqual(row.entries.map(entry => entry.scope), ['global', 'project']);
 });
 
-test('shadow, fallback and disabled flags follow the documented plugin rule and disclaim native guarantees', async t => {
+test('shadow, fallback and effective apply only to enabled entries; disabled entries are never fallback', async t => {
   const { call, project, stdio, dirs } = await mount(t);
-  await call('save', { server: stdio('shared') });
-  const saved = await project('alpha', 'save', { server: { ...stdio('shared'), cwd: dirs.alpha } });
+  const globalSaved = await call('save', { server: stdio('shared') });
+  const projectSaved = await project('alpha', 'save', { server: { ...stdio('shared'), cwd: dirs.alpha } });
   const entry = view => view.value.names.find(value => value.serverName === 'shared');
+  const flags = view => entry(view).entries.map(value => [value.scope, value.enabled, value.shadowed, value.fallback]);
   let view = await project('alpha', 'scopeView');
   assert.equal(view.value.rule, 'project-overrides-global-within-project');
   assert.equal(view.value.nativeGuarantee, false);
-  assert.deepEqual(entry(view).entries.map(value => [value.scope, value.enabled, value.shadowed]), [['global', false, false], ['project', false, false]]);
+  assert.deepEqual(flags(view), [['global', false, false, false], ['project', false, false, false]]);
   assert.equal(entry(view).effective, null, 'disabled entries select nothing');
-  const enabled = await project('alpha', 'setEnabled', { serverName: 'shared', enabled: true, revision: saved.value.revision });
-  assert.equal(enabled.ok, true, JSON.stringify(enabled));
+  // Enabled project over a DISABLED global: the disabled global is shown as disabled, not as overridden or fallback.
+  const projectOn = await project('alpha', 'setEnabled', { serverName: 'shared', enabled: true, revision: projectSaved.value.revision });
+  assert.equal(projectOn.ok, true, JSON.stringify(projectOn));
   view = await project('alpha', 'scopeView');
   assert.equal(entry(view).effective, 'project');
-  assert.deepEqual(entry(view).entries.map(value => [value.scope, value.shadowed, value.fallback]), [['global', true, false], ['project', false, false]]);
-  await project('alpha', 'setEnabled', { serverName: 'shared', enabled: false, revision: enabled.value.revision });
+  assert.deepEqual(flags(view), [['global', false, false, false], ['project', true, false, false]]);
+  // Both enabled: the project override shadows the enabled global.
+  const globalOn = await call('setEnabled', { serverName: 'shared', enabled: true, revision: globalSaved.value.revision });
+  assert.equal(globalOn.ok, true, JSON.stringify(globalOn));
   view = await project('alpha', 'scopeView');
-  assert.deepEqual(entry(view).entries.map(value => [value.scope, value.shadowed, value.fallback]), [['global', false, true], ['project', false, false]]);
+  assert.equal(entry(view).effective, 'project');
+  assert.deepEqual(flags(view), [['global', true, true, false], ['project', true, false, false]]);
+  // Project disabled again: the enabled global becomes the fallback and is the effective entry.
+  const projectOff = await project('alpha', 'setEnabled', { serverName: 'shared', enabled: false, revision: projectOn.value.revision });
+  assert.equal(projectOff.ok, true, JSON.stringify(projectOff));
+  view = await project('alpha', 'scopeView');
+  assert.equal(entry(view).effective, 'global');
+  assert.deepEqual(flags(view), [['global', true, false, true], ['project', false, false, false]]);
 });
 
 test('credential values never appear in the view and entry revisions equal the per-scope list revisions', async t => {
@@ -164,6 +177,109 @@ test('long remote URLs are clipped so the bounded response holds for http defini
   assert.ok(size < 65536 / 2, 'one full http scope must leave room for a second one, got ' + size);
 });
 
+test('command and cwd never leak credentials: only a sanitized executable name is returned', async t => {
+  const { root, call, post, project } = await mount(t);
+  const { writeFile, mkdir } = await import('node:fs/promises');
+  await mkdir(join(root, 'state'), { recursive: true });
+  const rows = [
+    { serverName: 'leak', scope: 'global', enabled: false, transport: 'stdio', command: 'curl https://u:SECRETPW@h/?t=TOK', args: [], cwd: '/work/SECRETCWD/TOK', reconnect: { enabled: false } },
+    { serverName: 'assign', scope: 'global', enabled: false, transport: 'stdio', command: 'API_KEY=SECRETPW /usr/bin/node', args: [], reconnect: { enabled: false } },
+    { serverName: 'url', scope: 'global', enabled: false, transport: 'stdio', command: 'https://u:SECRETPW@h/TOK', args: [], reconnect: { enabled: false } },
+    { serverName: 'path', scope: 'global', enabled: false, transport: 'stdio', command: '/usr/local/bin/node', args: ['--x'], reconnect: { enabled: false } }];
+  await writeFile(join(root, 'state', 'global.json'), JSON.stringify({ servers: rows }));
+  const view = await call('scopeView');
+  assert.equal(view.ok, true, JSON.stringify(view));
+  const text = JSON.stringify(view);
+  for (const secret of ['SECRETPW', 'TOK', 'SECRETCWD']) assert.equal(text.includes(secret), false, secret + ' leaked');
+  const entry = name => view.value.names.find(value => value.serverName === name).entries[0];
+  assert.equal(entry('leak').executable, 'curl');
+  assert.equal(entry('path').executable, 'node');
+  assert.equal(entry('assign').executable, '(redacted)');
+  assert.equal(entry('url').executable, '(redacted)');
+  assert.equal(entry('leak').command, undefined);
+  assert.equal(entry('leak').cwd, undefined);
+  void project;
+});
+
+test('headers are masked to key names only and the mask is applied to both transports', async t => {
+  const { call, stdio } = await mount(t);
+  await call('save', { server: { serverName: 'remote', transport: 'streamable-http', url: 'http://127.0.0.1:9/mcp', headers: { Authorization: 'Bearer header-fixture-secret' }, reconnect: { enabled: false } } });
+  await call('save', { server: { ...stdio('local'), env: { TOKEN: 'env-fixture-secret' } } });
+  const view = await call('scopeView');
+  const text = JSON.stringify(view);
+  assert.equal(text.includes('header-fixture-secret') || text.includes('env-fixture-secret'), false);
+  const entry = name => view.value.names.find(value => value.serverName === name).entries[0];
+  assert.deepEqual(entry('remote').headers, { Authorization: '***' });
+  assert.deepEqual(entry('local').env, { TOKEN: '***' });
+});
+
+test('a long remote URL is clipped and flagged on the entry and on the response', async t => {
+  const { root, post } = await mount(t);
+  const { writeFile, mkdir } = await import('node:fs/promises');
+  await mkdir(join(root, 'state'), { recursive: true });
+  await writeFile(join(root, 'state', 'global.json'), JSON.stringify({ servers: [
+    { serverName: 'long', scope: 'global', enabled: false, transport: 'streamable-http', url: 'http://127.0.0.1:9/' + 'p'.repeat(300), reconnect: { enabled: false } },
+    { serverName: 'short', scope: 'global', enabled: false, transport: 'streamable-http', url: 'http://127.0.0.1:9/m', reconnect: { enabled: false } }] }));
+  const view = await post({ action: 'scopeView', scope: 'global' });
+  const entry = name => view.value.names.find(value => value.serverName === name).entries[0];
+  assert.equal(entry('long').url.length, 96);
+  assert.equal(entry('long').clipped, true);
+  assert.equal(entry('short').clipped, undefined);
+  assert.equal(view.value.truncated, true);
+});
+
+test('an unclipped small view reports truncated false with zero omissions', async t => {
+  const { call, stdio } = await mount(t);
+  await call('save', { server: stdio('small') });
+  const view = await call('scopeView');
+  assert.deepEqual([view.value.truncated, view.value.omittedServers, view.value.omittedKeys], [false, 0, 0]);
+});
+
+test('credential key lists are count- and length-bounded and the whole response stays within 65536 bytes with explicit truncation', async t => {
+  const { root, dirs, post, select, wire } = await mount(t);
+  const { writeFile, mkdir } = await import('node:fs/promises');
+  const { createHash } = await import('node:crypto');
+  await mkdir(join(root, 'state'), { recursive: true });
+  const heavy = scope => Array.from({ length: 32 }, (_, index) => ({ serverName: scope + '-' + index, scope, enabled: false, transport: 'stdio', command: 'x'.repeat(40), args: ['a'], cwd: 'c'.repeat(32), env: Object.fromEntries(Array.from({ length: 56 }, (_, key) => ['K' + String(key).padStart(2, '0') + 'k'.repeat(125), 'v'])), reconnect: { enabled: false } }));
+  const raw = JSON.stringify({ servers: heavy('global') });
+  assert.ok(Buffer.byteLength(raw) <= 262144, 'fixture stays within the store cap: ' + Buffer.byteLength(raw));
+  await writeFile(join(root, 'state', 'global.json'), raw);
+  await writeFile(join(root, 'state', 'project-' + createHash('sha256').update(dirs.alpha).digest('hex') + '.json'), JSON.stringify({ servers: heavy('project') }));
+  const view = await post({ action: 'scopeView', ...select('alpha') });
+  assert.equal(view.ok, true, JSON.stringify(view).slice(0, 200));
+  assert.ok(wire.bytes <= 65536, 'whole response must be bounded, got ' + wire.bytes);
+  assert.equal(view.value.truncated, true);
+  assert.ok(view.value.omittedKeys > 0, 'omittedKeys counts keys dropped from returned entries: ' + view.value.omittedKeys);
+  assert.equal(view.value.names.length + view.value.omittedServers, 64, 'every server is either returned or counted');
+  for (const row of view.value.names) for (const entry of row.entries) {
+    assert.ok(Object.keys(entry.env).length <= 8, 'env keys are count-bounded');
+    for (const key of Object.keys(entry.env)) assert.ok(key.length <= 32, 'env key names are length-bounded');
+  }
+});
+
+test('http header key lists are bounded in the same way', async t => {
+  const { root, post, wire } = await mount(t);
+  const { writeFile, mkdir } = await import('node:fs/promises');
+  await mkdir(join(root, 'state'), { recursive: true });
+  const rows = Array.from({ length: 32 }, (_, index) => ({ serverName: 'remote-' + index, scope: 'global', enabled: false, transport: 'streamable-http', url: 'http://127.0.0.1:9/m', headers: Object.fromEntries(Array.from({ length: 56 }, (_, key) => ['H' + String(key).padStart(2, '0') + 'h'.repeat(125), 'v'])), reconnect: { enabled: false } }));
+  await writeFile(join(root, 'state', 'global.json'), JSON.stringify({ servers: rows }));
+  const view = await post({ action: 'scopeView', scope: 'global' });
+  assert.equal(view.ok, true, JSON.stringify(view).slice(0, 200));
+  assert.ok(wire.bytes <= 65536, 'got ' + wire.bytes);
+  assert.equal(view.value.truncated, true);
+  assert.ok(view.value.omittedKeys > 0);
+  assert.ok(Object.keys(view.value.names[0].entries[0].headers).length <= 8);
+});
+
+test('characterization: names differing only by case are distinct, never a conflict, override or shadow', async t => {
+  const { call, project, stdio, dirs } = await mount(t);
+  await call('save', { server: stdio('Foo') });
+  await project('alpha', 'save', { server: { ...stdio('foo'), cwd: dirs.alpha } });
+  const view = await project('alpha', 'scopeView');
+  assert.deepEqual(view.value.names.map(value => [value.serverName, value.conflict, value.entries.length]), [['Foo', false, 1], ['foo', false, 1]]);
+  assert.deepEqual(view.value.names.flatMap(value => value.entries.map(entry => [entry.shadowed, entry.fallback])), [[false, false], [false, false]]);
+});
+
 // UI: the built client renders the combined view with exact guarantee wording (no browser; virtual tree fixtures).
 const source = await readFile(new URL('../../dist/client.js', import.meta.url), 'utf8');
 const listed = { ok: true, value: { enabled: true, runtime: 'native', scope: 'global', revision: 'rev', contexts: [{ sessionId: 'session-alpha', workspaceId: 'workspace-alpha', label: '/work/alpha' }], servers: [] } };
@@ -217,4 +333,117 @@ test('UI shows the existing alert and no stale view when the scope view is refus
   await view.one(node => node.props['aria-expanded'] !== undefined).props.onClick();
   await waitFor(() => view.nodes(node => node.props.role === 'alert').length === 1, 'alert');
   assert.equal(view.nodes(node => node.props['data-mcp-conflict'] !== undefined).length, 0);
+});
+
+const scopeSelect = view => view.one(node => node.type === 'select' && node.props.name === 'scope');
+const deferred = () => { let resolve; const promise = new Promise(done => { resolve = done; }); return { promise, resolve }; };
+const rowsFor = name => ({ ok: true, value: { enabled: true, runtime: 'native', scope: 'project', resolution: 'plugin-view-only', rule: 'project-overrides-global-within-project', nativeGuarantee: false, truncated: false, omittedServers: 0, omittedKeys: 0, names: [{ serverName: name, conflict: false, effective: null, entries: [{ scope: 'global', enabled: false, shadowed: false, fallback: false, transport: 'stdio', revision: 'a' }] }] } });
+
+test('UI shows effective line, shadowed and fallback labels, and the scope key sent for a project selection', async t => {
+  const calls = []; const { view, waitFor, text } = mountPanel(t, 'en', calls);
+  await waitFor(() => view.nodes(node => node.props['aria-expanded'] !== undefined).length === 1, 'toggle');
+  await scopeSelect(view).props.onChange({ target: { value: JSON.stringify(['session-alpha', 'workspace-alpha']) } });
+  view.render();
+  await view.one(node => node.props['aria-expanded'] !== undefined).props.onClick();
+  await waitFor(() => view.nodes(node => node.props['data-mcp-conflict'] === 'shared').length === 1, 'conflict row');
+  assert.deepEqual(calls.filter(payload => payload.action === 'scopeView').map(payload => [payload.scope, payload.sessionId, payload.workspaceId]), [['project', 'session-alpha', 'workspace-alpha']]);
+  assert.match(text(), /Plugin rule selects: project/);
+  assert.match(text(), /global - enabled - overridden by project \(plugin rule\)/);
+  assert.match(text(), /solo/);
+});
+
+test('UI labels an enabled global fallback and never labels a disabled entry as fallback', async t => {
+  const fallbackView = { ok: true, value: { ...viewed.value, names: [
+    { serverName: 'kept', conflict: true, effective: 'global', entries: [{ scope: 'global', enabled: true, shadowed: false, fallback: true, transport: 'stdio', revision: 'a' }, { scope: 'project', enabled: false, shadowed: false, fallback: false, transport: 'stdio', revision: 'b' }] }] } };
+  const harness = createBaselineHarness(source, { connection: { rpc: { async call(channel, method, payload) { return payload.action === 'scopeView' ? fallbackView : listed; } } } });
+  t.after(() => harness.dispose()); harness.apply();
+  const view = harness.render('majed-mcp');
+  const waitFor = async (predicate, what) => { for (let i = 0; i < 500; i += 1) { view.render(); if (predicate()) return; await new Promise(resolve => setTimeout(resolve, 2)); } assert.fail('timed out waiting for ' + what); };
+  await waitFor(() => view.nodes(node => node.props['aria-expanded'] !== undefined).length === 1, 'toggle');
+  await view.one(node => node.props['aria-expanded'] !== undefined).props.onClick();
+  await waitFor(() => view.nodes(node => node.props['data-mcp-conflict'] === 'kept').length === 1, 'row');
+  const lines = view.nodes(node => node.type === 'p').map(node => node.props.children.join('')).filter(value => /^(global|project) - /.test(value));
+  assert.deepEqual(lines, ['global - enabled - used as fallback (plugin rule)', 'project - disabled']);
+});
+
+test('UI shows a visible truncated notice with the counts when the view reports truncation', async t => {
+  const truncated = { ok: true, value: { ...viewed.value, truncated: true, omittedServers: 3, omittedKeys: 17 } };
+  const harness = createBaselineHarness(source, { connection: { rpc: { async call(channel, method, payload) { return payload.action === 'scopeView' ? truncated : listed; } } } });
+  t.after(() => harness.dispose()); harness.apply();
+  const view = harness.render('majed-mcp');
+  const waitFor = async (predicate, what) => { for (let i = 0; i < 500; i += 1) { view.render(); if (predicate()) return; await new Promise(resolve => setTimeout(resolve, 2)); } assert.fail('timed out waiting for ' + what); };
+  await waitFor(() => view.nodes(node => node.props['aria-expanded'] !== undefined).length === 1, 'toggle');
+  await view.one(node => node.props['aria-expanded'] !== undefined).props.onClick();
+  await waitFor(() => view.nodes(node => node.props['data-mcp-truncated'] !== undefined).length === 1, 'truncated notice');
+  const notice = view.one(node => node.props['data-mcp-truncated'] !== undefined);
+  assert.equal(notice.props.role, 'status');
+  const noticeText = notice.props.children.join('');
+  assert.match(noticeText, /truncated/i);
+  assert.match(noticeText, /3/); assert.match(noticeText, /17/);
+});
+
+test('UI shows no truncated notice for a complete view', async t => {
+  const calls = []; const { view, waitFor } = mountPanel(t, 'en', calls);
+  await waitFor(() => view.nodes(node => node.props['aria-expanded'] !== undefined).length === 1, 'toggle');
+  await view.one(node => node.props['aria-expanded'] !== undefined).props.onClick();
+  await waitFor(() => view.nodes(node => node.props['data-mcp-conflict'] === 'shared').length === 1, 'rows');
+  assert.equal(view.nodes(node => node.props['data-mcp-truncated'] !== undefined).length, 0);
+});
+
+test('switching scope clears the previous scope rows and ignores a late response from the previous scope', async t => {
+  const pending = { global: deferred(), project: deferred() }; const signals = [];
+  const harness = createBaselineHarness(source, { connection: { rpc: { async call(channel, method, payload, signal) {
+    if (payload.action !== 'scopeView') return listed;
+    signals.push([payload.scope, signal]); return pending[payload.scope].promise;
+  } } } });
+  t.after(() => harness.dispose()); harness.apply();
+  const view = harness.render('majed-mcp');
+  const waitFor = async (predicate, what) => { for (let i = 0; i < 500; i += 1) { view.render(); if (predicate()) return; await new Promise(resolve => setTimeout(resolve, 2)); } assert.fail('timed out waiting for ' + what); };
+  const names = () => view.nodes(node => node.props['data-mcp-scope-name'] !== undefined).map(node => node.props['data-mcp-scope-name']);
+  await waitFor(() => view.nodes(node => node.props['aria-expanded'] !== undefined).length === 1, 'toggle');
+  await view.one(node => node.props['aria-expanded'] !== undefined).props.onClick();
+  await waitFor(() => signals.length === 1, 'global view request');
+  // Switch to the project before the global response arrives.
+  await scopeSelect(view).props.onChange({ target: { value: JSON.stringify(['session-alpha', 'workspace-alpha']) } });
+  await waitFor(() => signals.length === 2, 'project view request');
+  assert.equal(signals[0][1].aborted, true, 'the previous scope request is aborted on a scope change');
+  pending.global.resolve(rowsFor('global-row')); await new Promise(resolve => setTimeout(resolve, 10)); view.render();
+  assert.deepEqual(names(), [], 'a late global response must not appear under the project selector');
+  pending.project.resolve(rowsFor('project-row'));
+  await waitFor(() => names().length === 1, 'project rows');
+  assert.deepEqual(names(), ['project-row']);
+  // Rows of an already displayed scope are cleared at once on the next change (no stale rows while loading).
+  pending.global2 = deferred(); pending.global = pending.global2;
+  await scopeSelect(view).props.onChange({ target: { value: 'global' } });
+  view.render();
+  assert.deepEqual(names(), [], 'project rows must not remain under the global selector');
+});
+
+test('a closed Scopes section still drops the previous scope rows on a scope change', async t => {
+  const calls = []; const { view, waitFor } = mountPanel(t, 'en', calls);
+  const toggle = () => view.one(node => node.props['aria-expanded'] !== undefined);
+  await waitFor(() => view.nodes(node => node.props['aria-expanded'] !== undefined).length === 1, 'toggle');
+  await toggle().props.onClick();
+  await waitFor(() => view.nodes(node => node.props['data-mcp-conflict'] === 'shared').length === 1, 'rows');
+  await toggle().props.onClick(); view.render();
+  await scopeSelect(view).props.onChange({ target: { value: JSON.stringify(['session-alpha', 'workspace-alpha']) } });
+  view.render();
+  await toggle().props.onClick();
+  view.render();
+  assert.equal(view.nodes(node => node.props['data-mcp-conflict'] === 'shared').length, 0, 'reopening shows no rows until the new scope loads');
+  await waitFor(() => view.nodes(node => node.props['data-mcp-conflict'] === 'shared').length === 1, 'new scope rows');
+});
+
+test('unmounting aborts an in-flight scope view request', async t => {
+  const signals = []; const never = new Promise(() => {});
+  const harness = createBaselineHarness(source, { connection: { rpc: { async call(channel, method, payload, signal) { if (payload.action !== 'scopeView') return listed; signals.push(signal); return never; } } } });
+  t.after(() => harness.dispose()); harness.apply();
+  const view = harness.render('majed-mcp');
+  const waitFor = async (predicate, what) => { for (let i = 0; i < 500; i += 1) { view.render(); if (predicate()) return; await new Promise(resolve => setTimeout(resolve, 2)); } assert.fail('timed out waiting for ' + what); };
+  await waitFor(() => view.nodes(node => node.props['aria-expanded'] !== undefined).length === 1, 'toggle');
+  await view.one(node => node.props['aria-expanded'] !== undefined).props.onClick();
+  await waitFor(() => signals.length === 1, 'view request');
+  assert.equal(signals[0].aborted, false);
+  view.unmount();
+  assert.equal(signals[0].aborted, true, 'unmount aborts the pending scope view so a late response cannot set state');
 });
