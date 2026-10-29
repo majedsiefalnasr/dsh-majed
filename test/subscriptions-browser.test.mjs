@@ -4,18 +4,19 @@ import vm from 'node:vm';
 import { readFile } from 'node:fs/promises';
 const code = await readFile(new URL('../dist/subscriptions-client.js', import.meta.url), 'utf8');
 function browser(locale = 'en', initialAnswer) {
-  let api, registered, timer, reconnect, dictionary;
+  let api, registered, timer, reconnect, dictionary, registrations = 0;
+  let referenceAnswer = () => Promise.reject(new Error('transport failure for /api/subscriptions-auth.proxyGet: HTTP 404'));
   let answer = initialAnswer ?? (() => Promise.resolve({ ok: true, value: { component: 'subscriptions' } }));
   const cleanups = [];
   const React = { createElement: (tag, props, ...children) => ({ tag, props, children }), useSyncExternalStore: (_, read) => read() };
   vm.runInNewContext(code + '\nresult(majedSubscriptionsFactory);', { result: factory => { api = factory(id => id === 'react' ? React : { IconSettingsOutlineMedium: 'svg' }); },
     setInterval: fn => { timer = fn; return 1; }, clearInterval() {}, Error });
-  const connection = { rpc: { call: (...args) => answer(...args) }, state: { subscribe: fn => { reconnect = fn; return () => {}; }, getSnapshot: () => 'connected' } };
+  const connection = { rpc: { call: (...args) => args[1] === 'subscriptions-auth.proxyGet' ? referenceAnswer(...args) : answer(...args) }, state: { subscribe: fn => { reconnect = fn; return () => {}; }, getSnapshot: () => 'connected' } };
   const ctx = { get: () => connection, inject: (_, fn) => fn(ctx), effect: fn => cleanups.push(fn()),
     locale: { register: (_, dictionaries) => { dictionary = dictionaries[locale]; return () => {}; }, bind: () => key => dictionary[key] },
-    slots: { inject: (_, fn) => { fn(); return () => { registered = undefined; }; }, register: (options, component) => { registered = { options, component }; return () => {}; } } };
+    slots: { inject: (_, fn) => { fn(); return () => { registered = undefined; }; }, register: (options, component) => { assert.equal(registered, undefined, 'no duplicate registration'); registrations++; registered = { options, component }; return () => {}; } } };
   api.applySubscriptions(ctx);
-  return { setAnswer(fn) { answer = fn; }, tick: () => timer(), reconnect: () => reconnect(),
+  return { setReferenceAnswer(fn) { referenceAnswer = fn; }, get registrations() { return registrations; }, setAnswer(fn) { answer = fn; }, tick: () => timer(), reconnect: () => reconnect(),
     async settle() { await Promise.resolve(); await Promise.resolve(); },
     get section() { return registered; }, cleanup() { cleanups.reverse().forEach(fn => fn?.()); },
   };
@@ -23,7 +24,7 @@ function browser(locale = 'en', initialAnswer) {
 function text(node) { return typeof node === 'string' ? node : node?.children?.flat(Infinity).map(text).join(' ') ?? ''; }
 test('present component registers one section with both empty parts, then withdraws on absence', async () => {
   const page = browser(); await page.settle();
-  assert.equal(page.section.options.id, 'subscriptions');
+  assert.equal(page.section.options.id, 'majed-subscriptions');
   assert.match(text(page.section.component()), /Subscription accounts.*No subscription accounts yet.*API providers.*No API providers yet/);
   page.setAnswer(() => Promise.reject(new Error('transport failure for /api/majed-subscriptions.status: HTTP 404')));
   page.tick(); await page.settle(); assert.equal(page.section, undefined); page.cleanup();
@@ -124,4 +125,55 @@ test('Arabic copy covers every new key and rendered content uses logical alignme
     assert.ok(part.props.style.paddingBlock); assert.ok(part.props.style.borderBlockEnd);
   }
   page.cleanup(); assert.equal(page.section, undefined);
+});
+
+for (const locale of ['en', 'ar']) {
+  test(`reference coexistence notice is localized and recovers on switch off: ${locale}`, async () => {
+    const page = browser(locale); await page.settle();
+    const notice = () => page.section.component().children.flat().find(node => node?.props?.role === 'status');
+    assert.equal(notice(), undefined);
+    page.setReferenceAnswer((channel, method, payload) => {
+      assert.equal(channel, '/api'); assert.equal(method, 'subscriptions-auth.proxyGet');
+      assert.equal(JSON.stringify(payload), '{}');
+      return Promise.resolve({ ok: true, value: {} });
+    });
+    page.reconnect(); await page.settle();
+    assert.match(text(notice()), locale === 'en' ? /reference plugin.*running.*only one.*switch.*off/i : /الإضافة المرجعية.*تعمل.*واحدة فقط.*أوقف/);
+    for (const id of ['codex', 'claude', 'grok', 'copilot', 'antigravity']) assert.ok(text(notice()).includes(id));
+    assert.equal(page.section.options.label(), locale === 'en' ? 'Subscriptions (Majed)' : 'الاشتراكات (Majed)');
+    page.tick(); await page.settle(); assert.equal(page.registrations, 1);
+    page.setReferenceAnswer(() => Promise.reject(new Error('transport failure for /api/subscriptions-auth.proxyGet: HTTP 404')));
+    page.tick(); await page.settle(); assert.equal(notice(), undefined); page.cleanup();
+  });
+}
+for (const response of [() => Promise.reject(new Error('offline')), () => Promise.reject(new Error('transport failure for /api/subscriptions-auth.proxyGet: HTTP 503')), () => Promise.resolve({ ok: false }), () => Promise.resolve(null)]) {
+  test('unknown reference probe never displays a notice or blocks our section', async () => {
+    const page = browser(); await page.settle();
+    page.setReferenceAnswer(() => Promise.resolve({ ok: true })); page.tick(); await page.settle();
+    page.setReferenceAnswer(response); page.tick(); await page.settle();
+    assert.ok(page.section);
+    assert.equal(page.section.component().children.flat().find(node => node?.props?.role === 'status'), undefined);
+    page.cleanup();
+  });
+}
+
+test('reference responses after a newer probe or disposal are ignored', async () => {
+  const page = browser(); await page.settle();
+  let resolve;
+  page.setReferenceAnswer(() => new Promise(done => { resolve = done; }));
+  page.tick();
+  page.setReferenceAnswer(() => Promise.reject(new Error('transport failure for /api/subscriptions-auth.proxyGet: HTTP 404')));
+  page.tick(); await page.settle(); resolve({ ok: true }); await page.settle();
+  assert.equal(page.section.component().children.flat().find(node => node?.props?.role === 'status'), undefined);
+  page.setReferenceAnswer(() => new Promise(done => { resolve = done; })); page.tick();
+  page.cleanup(); resolve({ ok: true }); await page.settle(); assert.equal(page.section, undefined);
+});
+test('owned global registrations in src use the Majed namespace', async () => {
+  for (const file of ['browser.ts', 'subscriptions.ts']) {
+    const source = await readFile(new URL(`../src/${file}`, import.meta.url), 'utf8');
+    const ids = [...source.matchAll(/(?:\bid:|\bpath:|\bmethod !==|\bNS =)\s*['"]([^'"]+)['"]/g)].map(match => match[1]);
+    assert.ok(ids.length, file);
+    for (const id of ids) assert.match(id, /^(?:\/api\/)?majed[.-]/, `${file}: ${id}`);
+    for (const [, label] of source.matchAll(/},?\)?\), ['"]([^'"]+)['"]\)/g)) assert.match(label, /^(?:dsh-)?majed:/, `${file}: ${label}`);
+  }
 });

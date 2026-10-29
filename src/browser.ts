@@ -26,14 +26,16 @@ export function applySubscriptions(root: Context): void {
     const t = ctx.locale.bind(NS);
     let present = false;
     let failing = false;
+    let referenceEnabled = false;
     let disposed = false;
     let sequence = 0;
     let withdraw: Dispose | undefined;
     const listeners = new Set<() => void>();
     function Section() {
-      const failed = React.useSyncExternalStore((fn: () => void) => { listeners.add(fn); return () => listeners.delete(fn); }, () => failing);
+      React.useSyncExternalStore((fn: () => void) => { listeners.add(fn); return () => listeners.delete(fn); }, () => `${failing}:${referenceEnabled}`);
       return h('div', { style: { textAlign: 'start', color: 'var(--dsw-alias-label-primary)', font: 'var(--dsw-font-s-14)' } },
-        failed ? h('p', { role: 'alert' }, t('unreachable')) : null,
+        referenceEnabled ? h('p', { role: 'status' }, t('coexistence')) : null,
+        failing ? h('p', { role: 'alert' }, t('unreachable')) : null,
         ...['accounts', 'providers'].map((part) => h('section', { key: part, style: { paddingBlock: 'var(--dsw-spacing-4)', borderBlockEnd: '1px solid var(--dsw-alias-border-l2)' } },
           h('h3', { style: { font: 'var(--dsw-font-s-strong-14)' } }, h(IconSettingsOutlineMedium, { 'aria-hidden': true }), t(part)),
           h('p', { style: { color: 'var(--dsw-alias-label-tertiary)' } }, t(`${part}Empty`)))));
@@ -41,13 +43,14 @@ export function applySubscriptions(root: Context): void {
     function update() {
       if (present && !withdraw) {
         withdraw = ctx.slots.inject('settings.section', () => ctx.slots.register({
-          name: 'settings.section', id: 'subscriptions', order: 90, label: () => t('title'),
+          name: 'settings.section', id: 'majed-subscriptions', order: 90, label: () => t('title'),
         }, Section));
       } else if (!present && withdraw) { withdraw(); withdraw = undefined; }
       listeners.forEach((listener) => listener());
     }
     async function probe() {
       const current = ++sequence;
+      void probeReference(current);
       try {
         const result = await connection.rpc.call('/api', 'majed-subscriptions.status', {});
         if (disposed || current !== sequence) return;
@@ -60,6 +63,19 @@ export function applySubscriptions(root: Context): void {
           present = false; failing = false;
         } else { present = true; failing = true; }
       }
+      isolate(update);
+    }
+    async function probeReference(current: number) {
+      let enabled = false;
+      try {
+        // Read-only sanitized local configuration; never retain or render its value.
+        const result = await connection.rpc.call('/api', 'subscriptions-auth.proxyGet', {});
+        enabled = result?.ok === true;
+      } catch {
+        // Missing route (404) is absent; other failures are unknown. Neither shows a notice.
+      }
+      if (disposed || current !== sequence) return;
+      referenceEnabled = enabled;
       isolate(update);
     }
     isolate(() => ctx.effect(() => isolate(() => {
