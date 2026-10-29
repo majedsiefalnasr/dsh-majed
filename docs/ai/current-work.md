@@ -4,7 +4,7 @@ Updated 2026-10-29 (Africa/Cairo).
 
 ## Phase
 
-**Subscriptions tickets published; implementation not started.** Spec #127 and its ten tickets #128-#137 (sub-issues, native blocking edges, `ready-for-agent`) were approved by the Owner. `/implement` starts with #128 only when the Owner says so.
+**Ticket #128 implemented in an isolated candidate; Owner live acceptance pending.** Spec #127 and tickets #128-#137 remain the approved plan. Only #128 is authorized in this worktree; no later ticket starts before its installed acceptance.
 
 ## Plan of record
 
@@ -61,9 +61,23 @@ Worked in this order, one at a time; each closes only after the Owner's live acc
 
 ## Repository state
 
-- `feat/subscriptions` on origin (docs only, no code); it tracks `origin/feat/subscriptions`.
+- #128 candidate: branch `impl/128-component`, worktree `dsh-majed-t128`, based on `feat/subscriptions` at `19331b6`. Local implementation only; unmerged and unpushed. Committed build output is `dist/`. Controlled tests and static findings are documented in `docs/ai/ticket-128-verification.md`; no live installation was performed.
+- The baseline classifier import referenced a missing generated adapter; the test script now derives it from the unchanged core source. All 166 classifier assertions pass.
+- Remaining priority: Owner installs the requested tarball, verifies row discovery/switching, English/Arabic rendering and core parity, then accepts or reports failures. No #129-#137 work is authorized.
 - Incident 2026-10-29: the first push went to `main` because the new branch tracked `origin/main` (`push.default=upstream`); `main` was fast-forwarded from `d6fe0e3` to `c7f8598` (19 docs files, no code). With the Owner's approval `main` was restored to `d6fe0e3` by a force push with lease. The installed plugin was pinned to `d6fe0e3` throughout and was unaffected.
+
+## #128 review corrections
+
+The Owner authorized exactly three corrections on `impl/128-component` from `9c60521`: first-probe failure semantics, browser setup isolation and explicit Further Notes dispositions. The bounded surgical-patch route is sufficient because behavior and acceptance were already decided; no design or later-ticket scope is opened. Allowed writes are this worktree and the requested tarball only. Verification: assembled browser/host/package seams, full classifier suite and fresh build comparison. Investigation budget: two failed diagnostic attempts or 20 minutes per blocker; stop at the reviewed #128 candidate, with no push or installed changes.
+
+Spec Further Notes status (exact Owner steps remain in [ticket verification](ticket-128-verification.md#spec-further-notes)):
+
+- GitHub subpath resolution: **UNPROVEN - Owner live check required for #128 acceptance**.
+- In-place row discovery: **UNPROVEN - Owner live check required for #128 acceptance**.
+- Third-party API remotes access: **UNPROVEN - deferred by the spec to #136, which must prove it or stop for a decision**.
+
+#128 is acceptance-ready only after the Owner's live check of the first two points, alongside the installed acceptance scenario. Static evidence and controlled fixtures are not live proof.
 
 ## Next allowed action
 
-`/implement` #128 when the Owner gives the go-ahead. Nothing beyond #128 starts before its live acceptance.
+Owner live acceptance of #128 using `/tmp/majed-t128/dsh-majed-0.2.0.tgz`. Review corrections add first-probe non-404 error visibility and synchronous/asynchronous Subscriptions setup isolation after all core registrations. Final controlled validation: 166/166 classifier assertions and 16/16 seam tests pass; build-match passes. Direct two-axis review and static/live boundaries are recorded in `docs/ai/ticket-128-review.md` and `docs/ai/ticket-128-verification.md`. Candidate remains local, unmerged and unpushed; no installed state or secrets accessed. No new deferred improvement was identified. Nothing beyond #128 starts before its live acceptance.
