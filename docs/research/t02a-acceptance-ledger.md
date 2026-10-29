@@ -5,7 +5,7 @@ Parent: [T02A / #4](https://github.com/majedsiefalnasr/dsh-majed/issues/4), part
 This is execution tracking against existing acceptance, not a new specification or a dependency waiver. Combined temporary feasibility acceptance was satisfied on 2026-10-24 at merge `80b4a43`, subject to the explicit fixture limitations below. This is not product/live acceptance or operational permission. [GitHub #4](https://github.com/majedsiefalnasr/dsh-majed/issues/4) was resolved as completed after evidence commit `9e4cfc3`; T03 / #8 is unblocked.
 
 **Gate scope:** T02A is the temporary exact-host, actual-client/public-service feasibility composition in
-[the approved ticket](../managers-tickets-draft.md#t02a--prove-authenticated-management-admission)
+[the approved ticket](../archive/managers-tickets-draft.md#t02a--prove-authenticated-management-admission)
 and [ADR 0008](../adr/0008-separate-management-admission-from-command-approval-provenance.md).
 It does not require production Manager CRUD, completed T03 product status/visual controls, operational
 login/state, Cutover or final T29 live acceptance before T03 can start. Requiring those would create a

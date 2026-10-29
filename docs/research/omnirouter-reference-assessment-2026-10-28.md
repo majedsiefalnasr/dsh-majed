@@ -27,7 +27,7 @@ Gateway authentication and usage are concrete but not subscription management: `
 
 ## Fit against the approved Subscriptions direction
 
-The comparison uses the Owner-requested dimensions, the [current phase record](../ai/current-work.md#L89-L96) and retained [subscription requirements](../managers-spec.md#L54-L88). Older detailed implementation defaults are background, not a way around the active redesign/freeze.
+The comparison uses the Owner-requested dimensions, the [current phase record](../ai/current-work.md#L89-L96) and retained [subscription requirements](../archive/managers-spec.md#L54-L88). Older detailed implementation defaults are background, not a way around the active redesign/freeze.
 
 | Subscriptions need | Bounded source finding | Practical disposition |
 |---|---|---|
@@ -44,7 +44,7 @@ The comparison uses the Owner-requested dimensions, the [current phase record](.
 
 **Useful v1 lesson and caution:** Smart source classifies recent message content, combines task-model metrics and emits staged metadata before returning a selected model. The ranking function filters static cost/latency and an optional model list, then maximizes aggregated `accuracy`; that number is not established as calibrated task accuracy. It can select the highest-accuracy listed model even when none meets the cost/latency filters. Its no-candidate branch returns a hard-coded `gpt-4o-mini` mapping with a different shape, while the caller expects `best_model['model']`. These source-level branches argue against copying fallback behavior or treating its limits as hard guarantees; they were not executed or expanded into a bug audit. [R8], [R9]
 
-Keep three concepts distinct in any later design: **observe a proposed routing decision without applying it**, **replay prompts against additional models**, and **execute tools/media again**. The v2 shadow-replay concept entails additional provider calls and data handling; it is not free metadata-only observation. It authorizes neither raw transcript collection/export nor paid evaluation, new account/provider failover, changed Auto enrollment, or replay of side-effecting tools, image/video jobs and quota operations. Majed's existing consent, privacy, cancellation, partial-output and non-replay boundaries remain separate acceptance requirements. [R1], [retained boundaries](../managers-spec.md#L110-L124), [evaluation gate](../managers-spec.md#L140-L147).
+Keep three concepts distinct in any later design: **observe a proposed routing decision without applying it**, **replay prompts against additional models**, and **execute tools/media again**. The v2 shadow-replay concept entails additional provider calls and data handling; it is not free metadata-only observation. It authorizes neither raw transcript collection/export nor paid evaluation, new account/provider failover, changed Auto enrollment, or replay of side-effecting tools, image/video jobs and quota operations. Majed's existing consent, privacy, cancellation, partial-output and non-replay boundaries remain separate acceptance requirements. [R1], [retained boundaries](../archive/managers-spec.md#L110-L124), [evaluation gate](../archive/managers-spec.md#L140-L147).
 
 ## License and reuse boundary
 

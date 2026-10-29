@@ -2,9 +2,9 @@
 
 # Published Managers, subscriptions and Auto ticket map
 
-**Pending publication reconciliation — 2026-10-25:** The Owner accepted the interim [ADR 0009](./adr/0009-allow-unknown-command-approval-origin.md) amendment locally: T02E now proves authenticated Approval admission and truthful origin auditing, allowing `unknown` where locality is unverifiable. T10 still requires exact-content Approval and its existing proof dependencies. Historical provenance-blocker statements below describe the earlier contract. No GitHub issue, state, label or dependency was changed or read back for this amendment; the published issue snapshot below is not evidence of reconciliation or completion under the revised contract.
+**Pending publication reconciliation — 2026-10-25:** The Owner accepted the interim [ADR 0009](../adr/0009-allow-unknown-command-approval-origin.md) amendment locally: T02E now proves authenticated Approval admission and truthful origin auditing, allowing `unknown` where locality is unverifiable. T10 still requires exact-content Approval and its existing proof dependencies. Historical provenance-blocker statements below describe the earlier contract. No GitHub issue, state, label or dependency was changed or read back for this amendment; the published issue snapshot below is not evidence of reconciliation or completion under the revised contract.
 
-The Owner also approved [ADR 0010](./adr/0010-allow-mcp-sdk-through-public-dsh-apis.md), permitting a verified public-API official MCP SDK alternative in T08 while retaining the native client as default. This local amendment also awaits publication reconciliation. The existing native-client evidence and dependencies remain; an SDK alternative needs its own proof.
+The Owner also approved [ADR 0010](../adr/0010-allow-mcp-sdk-through-public-dsh-apis.md), permitting a verified public-API official MCP SDK alternative in T08 while retaining the native client as default. This local amendment also awaits publication reconciliation. The existing native-client evidence and dependencies remain; an SDK alternative needs its own proof.
 
 The Owner subsequently approved the [provider-workflow delivery order](./managers-scope-revision.md#integration-approach): one complete provider first, then remaining providers, multi-account/pooling and deterministic Auto. The old eight-component proposal is superseded as a delivery sequence. This publication ledger remains a historical snapshot; no replacement ticket graph has been published or verified. Preserve issue history and explicit deferrals during later reconciliation.
 
@@ -28,9 +28,9 @@ No implementation, host/account operation or runtime/live test was performed dur
 
 ## Owner-approved admission/provenance amendment — 2026-10-23
 
-The Owner approved [ADR 0008](./adr/0008-separate-management-admission-from-command-approval-provenance.md): narrow T02A / #4 to its original management proof obligations and move trusted Command hook Approval provenance to required T02E / [#47](https://github.com/majedsiefalnasr/dsh-majed/issues/47). Native publication was read back and verified: 45 sub-issues (35 execution, 10 deferred), 92 blocker edges. The only new edges are T02E blocked by T01 / #3 and T10 / #15 blocked by T02E / #47; its existing T09 / #14 blocker remains. All original 90 edges are unchanged. Parent #1/#2 bodies, titles and states are unchanged; no issue was closed by the amendment.
+The Owner approved [ADR 0008](../adr/0008-separate-management-admission-from-command-approval-provenance.md): narrow T02A / #4 to its original management proof obligations and move trusted Command hook Approval provenance to required T02E / [#47](https://github.com/majedsiefalnasr/dsh-majed/issues/47). Native publication was read back and verified: 45 sub-issues (35 execution, 10 deferred), 92 blocker edges. The only new edges are T02E blocked by T01 / #3 and T10 / #15 blocked by T02E / #47; its existing T09 / #14 blocker remains. All original 90 edges are unchanged. Parent #1/#2 bodies, titles and states are unchanged; no issue was closed by the amendment.
 
-T03/T08/D03 retain their existing T02A dependencies. At amendment publication T02A remained open, requiring actual client/Settings, local/remote Owner admission, authenticated session/project scope, Skills invalidation and official MCP lifecycle. Combined temporary feasibility acceptance has since passed at `80b4a43`; see the [acceptance ledger](research/t02a-acceptance-ledger.md). Native #4 was resolved as completed after evidence commit `9e4cfc3`, unblocking T03 / #8; operational/live gates remain unchanged. T02E remains open with the unsupported provenance result; challenge issuance, Approval persistence and command run/test/event paths remain unavailable server-side. Editing compatible Hook stores still requires separate single-owner operational Cutover permission. T28M/T29 retain T10 and final local/remote command evidence. No runtime, live capability, authentication waiver or installed-state authorization is implied.
+T03/T08/D03 retain their existing T02A dependencies. At amendment publication T02A remained open, requiring actual client/Settings, local/remote Owner admission, authenticated session/project scope, Skills invalidation and official MCP lifecycle. Combined temporary feasibility acceptance has since passed at `80b4a43`; see the [acceptance ledger](../research/t02a-acceptance-ledger.md). Native #4 was resolved as completed after evidence commit `9e4cfc3`, unblocking T03 / #8; operational/live gates remain unchanged. T02E remains open with the unsupported provenance result; challenge issuance, Approval persistence and command run/test/event paths remain unavailable server-side. Editing compatible Hook stores still requires separate single-owner operational Cutover permission. T28M/T29 retain T10 and final local/remote command evidence. No runtime, live capability, authentication waiver or installed-state authorization is implied.
 
 The original publication totals above are historical; the following table is the amended current graph.
 
@@ -88,10 +88,10 @@ The original publication totals above are historical; the following table is the
 
 Status update, 2026-10-22: T01 / #3 is closed at its [local automated baseline boundary](<BASELINE.md#L43-L49>).
 The preceding publication ledger remains a record of publication, not a claim that every issue is still open.
-T02A / #4 initially accumulated [partial native signed-cookie admission evidence](<research/management-approval-provenance.md#native-signed-cookie-admission-characterization--2026-10-23>), in addition to the older preparatory dispatch/registry probe, before combined acceptance. The actual native authentication algorithm passes isolated memory-credential/HTTP-stream fixtures. Commit `a1c372b` adds [native filesystem Skills watcher evidence](research/management-approval-provenance.md#native-filesystem-skills-watcher-characterization--2026-10-23), with complete snapshots and independent invocation-policy transitions. Recovered [Settings bundle behavior](research/management-settings-proof.md) and [session/workspace service composition](research/management-scope-proof.md) add bounded partial evidence with explicit doubles and negative controls. The [bounded official MCP lifecycle proof](research/management-mcp-proof.md) adds actual registered-tool execution, error/deadline/cancellation and awaited disposal against a controlled stdio fixture with a result-corruption control. The [native admission/scope composition](research/management-composition-proof.md) now connects actual Owner admission and read-only canonical project resolution, with a reviewed authority-race fix. That historical checkpoint is superseded by the [combined acceptance ledger](research/t02a-acceptance-ledger.md): mounted native client, physical local/remote HTTP, authenticated scope and native Skills/official MCP effects have since been joined in controlled temporary composition. T02A / #4 closed after combined temporary-composition acceptance on 2026-10-24; production CRUD, per-agent isolation and live rollout remain later non-claims, not added circular prerequisites for T03.
+T02A / #4 initially accumulated [partial native signed-cookie admission evidence](<research/management-approval-provenance.md#native-signed-cookie-admission-characterization--2026-10-23>), in addition to the older preparatory dispatch/registry probe, before combined acceptance. The actual native authentication algorithm passes isolated memory-credential/HTTP-stream fixtures. Commit `a1c372b` adds [native filesystem Skills watcher evidence](../research/management-approval-provenance.md#native-filesystem-skills-watcher-characterization--2026-10-23), with complete snapshots and independent invocation-policy transitions. Recovered [Settings bundle behavior](../research/management-settings-proof.md) and [session/workspace service composition](../research/management-scope-proof.md) add bounded partial evidence with explicit doubles and negative controls. The [bounded official MCP lifecycle proof](../research/management-mcp-proof.md) adds actual registered-tool execution, error/deadline/cancellation and awaited disposal against a controlled stdio fixture with a result-corruption control. The [native admission/scope composition](../research/management-composition-proof.md) now connects actual Owner admission and read-only canonical project resolution, with a reviewed authority-race fix. That historical checkpoint is superseded by the [combined acceptance ledger](../research/t02a-acceptance-ledger.md): mounted native client, physical local/remote HTTP, authenticated scope and native Skills/official MCP effects have since been joined in controlled temporary composition. T02A / #4 closed after combined temporary-composition acceptance on 2026-10-24; production CRUD, per-agent isolation and live rollout remain later non-claims, not added circular prerequisites for T03.
 Under ADR 0008, trusted original local/remote Approval provenance now belongs to T02E / #47;
 it remains unsupported at the inspected exact Fetch seam and pauses command Approval/execution only.
-The [bounded T02E assessment](research/t02e-provenance-assessment.md) rechecks the decisive source:
+The [bounded T02E assessment](../research/t02e-provenance-assessment.md) rechecks the decisive source:
 exact Fetch receives only the Request and the paired proxy discards original source identity before
 issuing native Owner-authenticated traffic. This is an architectural information-loss finding,
 not a missing fixture or permission to trust labels. No positive attestation/replay proof or
@@ -102,7 +102,7 @@ T02B / #5 has [partial native Auto seam evidence](<research/auto-native-seams.md
 LLM/Agent/catalog checks and the unmodified native picker bundle pass. Scoped middleware also proves
 concrete interpolation/header/assistant attribution, but already evaluated prompt providers can retain
 Auto; full contributor coherence and mounted client/RPC acceptance remain unresolved. It stays open;
-no dependent gate is waived. A [pre-provider investigation](research/auto-pre-provider-seam.md) and
+no dependent gate is waived. A [pre-provider investigation](../research/auto-pre-provider-seam.md) and
 real-service ordering characterization rule out prepended assembly and awaited inbox notifications as
 solutions on this host. The explicit required-order probe fails; the unsupported seam needs Owner review
 before any scope change, and no operational or host-patching permission is implied.
@@ -113,19 +113,19 @@ shared budget across provider pools/refresh/endpoint. Failover activation remain
 this does not waive its gate.
 T02D / #7 has [partial local child evidence](<research/child-routing-seams.md>): actual native
 spawn/fork services with a synthetic adapter preserve admission, depth, capacity and settlement.
-A later [registered native tool increment](research/child-tool-preflight.md), merged at `99054ed`,
+A later [registered native tool increment](../research/child-tool-preflight.md), merged at `99054ed`,
 adds captured-policy denial, route-change effort validation and cancellation after metadata without
 additional child lifecycle. The suite passes 15 checks with zero network attempts. Successful
 parent-delivery tool admission is now established by a separate
-[public JSONL persistence increment](research/child-parent-delivery.md), including stored native
+[public JSONL persistence increment](../research/child-parent-delivery.md), including stored native
 descriptor and paired lifecycle cleanup. The historical no-persistence fixture remains unchanged.
-The [registered advisory inventory increment](research/child-advisory-inventory.md) additionally
+The [registered advisory inventory increment](../research/child-advisory-inventory.md) additionally
 proves filtered advertised inventory versus allowed exact unlisted resolution and subsequent admission,
 without inference during discovery. Parent reproduced green plus the inventory sensitivity failure;
 bounded independent review found no actionable defect. The subsequent
-[native preset increment](research/child-preset-ownership.md) proves requested scoped composition,
+[native preset increment](../research/child-preset-ownership.md) proves requested scoped composition,
 explicit route/effort, preserved parent, depth rejection and paired completion. The
-[approval ownership increment](research/child-permission-ownership.md) proves actual ToolRuntime
+[approval ownership increment](../research/child-permission-ownership.md) proves actual ToolRuntime
 and ApprovalService enforce delegated `never` before body/answerer, including audit and a live
 fixture answerer positive control. Parent reproduced their three/five checks and input-only failure
 controls; separate Standards/Spec reviews found no hard/specification defects. These are no longer
@@ -159,7 +159,7 @@ Reviewed implementation `4543f30` adds five native Settings readiness sections a
 Process-lifetime toggles do not activate Skills, MCP, Hooks, subscriptions or routing operations.
 The candidate's portable suite passes 56 tests; a parent rerun of the exact-host product composition
 passes with the production client and route over disposable local/remote HTTP, including native
-failure parsing and listener disposal. See the [product evidence](research/t03-settings-product-evidence.md)
+failure parsing and listener disposal. See the [product evidence](../research/t03-settings-product-evidence.md)
 on the integration branch. Independent Standards review found no actionable issues; Spec review found
 one release-documentation correction, now fixed in CHANGELOG (including the obsolete unshipped-resolver
 claim). No functional/security blocker was demonstrated for this partial increment. Browser theme/font 14/18,
@@ -185,8 +185,8 @@ edges capture the fixed graph, not permission to waive this gate.
 
 - [Expanded specification](./managers-spec.md).
 - [Approved ticket plan and detailed acceptance criteria](./managers-tickets-draft.md).
-- [Accepted Auto design rationale](./research/auto-mode-proposal.md).
-- [Release process](./RELEASING.md).
+- [Accepted Auto design rationale](../research/auto-mode-proposal.md).
+- [Release process](../RELEASING.md).
 
 No issue was closed, no execution was started, and no release/tag/commit/push was created
 by the original publication step. Subsequent execution status is recorded above. Existing untracked prototype work and installed Reference packages

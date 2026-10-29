@@ -1,6 +1,6 @@
 # Managers scope revision — accepted decisions and source comparison
 
-Date: 2026-10-25. Status: Owner-approved architecture and delivery amendments, reflected in the manager specification. The Owner approved the end-to-end-first subscription delivery approach after approving [ADR 0009](./adr/0009-allow-unknown-command-approval-origin.md) (interim Approval origin) and [ADR 0010](./adr/0010-allow-mcp-sdk-through-public-dsh-apis.md) (MCP runtime choice). This document records source comparison and the accepted changes; it does not authorize implementation, operational access or GitHub publication. Ticket reconciliation remains to be performed.
+Date: 2026-10-25. Status: Owner-approved architecture and delivery amendments, reflected in the manager specification. The Owner approved the end-to-end-first subscription delivery approach after approving [ADR 0009](../adr/0009-allow-unknown-command-approval-origin.md) (interim Approval origin) and [ADR 0010](../adr/0010-allow-mcp-sdk-through-public-dsh-apis.md) (MCP runtime choice). This document records source comparison and the accepted changes; it does not authorize implementation, operational access or GitHub publication. Ticket reconciliation remains to be performed.
 
 ## Goal and boundaries
 
@@ -61,13 +61,13 @@ Desktop-after-restart and paired-remote workflow evidence remain separate from f
 ## Source entry points
 
 - Local implementation: `modules/subscriptions/{index,auth,account}.js`, `modules/auth/`, `modules/catalog/`, `modules/skills/{index,native}.js`, `modules/mcp/index.js`.
-- Existing source/test pins and notices: [source provenance](./research/reference-source-provenance.md), [artifact manifest](./reference-artifacts.json), [Skills provenance](../modules/skills/PROVENANCE.md), [notices](../THIRD_PARTY_NOTICES.md).
+- Existing source/test pins and notices: [source provenance](../research/reference-source-provenance.md), [artifact manifest](./reference-artifacts.json), [Skills provenance](../modules/skills/PROVENANCE.md), [notices](../THIRD_PARTY_NOTICES.md).
 - [V1ki subscriptions source](https://github.com/V1ki/dsh-plugin-subscriptions/tree/9930c5ee5e3fa239db9031f47a0f6f30f7ffc443/src) and [OpenCode example](https://github.com/FishBottle7/opencode2dsh).
 - Subscription integration targets: [protected store](https://github.com/V1ki/dsh-plugin-subscriptions/blob/9930c5ee5e3fa239db9031f47a0f6f30f7ffc443/src/auth/store.ts), [PKCE](https://github.com/V1ki/dsh-plugin-subscriptions/blob/9930c5ee5e3fa239db9031f47a0f6f30f7ffc443/src/auth/pkce.ts), [OAuth](https://github.com/V1ki/dsh-plugin-subscriptions/blob/9930c5ee5e3fa239db9031f47a0f6f30f7ffc443/src/auth/oauth-flow.ts), [device flow](https://github.com/V1ki/dsh-plugin-subscriptions/blob/9930c5ee5e3fa239db9031f47a0f6f30f7ffc443/src/auth/device-flow.ts).
 - [PeterBon dispatch](https://github.com/PeterBon/dsh-hooks/blob/main/src/index.ts) and [runner](https://github.com/PeterBon/dsh-hooks/blob/main/src/runner.ts).
 - [Hyqhyq3 runtime](https://github.com/hyqhyq3/dsh-mcp-manager/blob/main/lib/index.js) and [manifest](https://github.com/hyqhyq3/dsh-mcp-manager/blob/main/package.json).
 - [Alone-tree runtime](https://github.com/alone-tree/dsh-skill-mcp-manager/blob/main/lib/index.js), [Skills implementation](https://github.com/alone-tree/dsh-skill-mcp-manager/blob/main/lib/skill.js) and [manifest](https://github.com/alone-tree/dsh-skill-mcp-manager/blob/main/package.json).
 - [Micheng source](https://github.com/MichengAI/dsh-skills-manager) and [DSH built-ins](https://github.com/deepseek-ai/deepseek-harness/tree/master/packages).
-- Existing [T02A acceptance ledger](./research/t02a-acceptance-ledger.md) distinguishes bounded native feasibility from installed-state/live acceptance.
+- Existing [T02A acceptance ledger](../research/t02a-acceptance-ledger.md) distinguishes bounded native feasibility from installed-state/live acceptance.
 
 Unpinned links above are discovery references only. Their source must be pinned and checked before implementation; public master does not establish compatibility with the installed host.

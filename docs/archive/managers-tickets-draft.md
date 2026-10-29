@@ -2,9 +2,9 @@
 
 # Managers, integrated subscriptions and Auto — draft execution tickets
 
-**Local amendment — 2026-10-25:** [ADR 0009](./adr/0009-allow-unknown-command-approval-origin.md) revises T02E and T10 below to allow truthful `unknown` Approval origin while preserving authenticated Owner admission and exact-command Approval. This supersedes older locality requirements in historical approval notes. GitHub issues/dependencies have not been updated by this edit; publication reconciliation is pending. No amended proof is marked complete.
+**Local amendment — 2026-10-25:** [ADR 0009](../adr/0009-allow-unknown-command-approval-origin.md) revises T02E and T10 below to allow truthful `unknown` Approval origin while preserving authenticated Owner admission and exact-command Approval. This supersedes older locality requirements in historical approval notes. GitHub issues/dependencies have not been updated by this edit; publication reconciliation is pending. No amended proof is marked complete.
 
-**MCP runtime amendment — 2026-10-25:** The Owner approved [ADR 0010](./adr/0010-allow-mcp-sdk-through-public-dsh-apis.md). T08 prefers the native DSH client and may use a Majed-owned official MCP SDK client through verified public DSH APIs for required capabilities the native client cannot provide. Keep T08's existing dependencies and scope. Native-client feasibility results do not prove an SDK alternative; T08 must supply that additional runtime evidence before using it. No published ticket or dependency was changed by this local amendment.
+**MCP runtime amendment — 2026-10-25:** The Owner approved [ADR 0010](../adr/0010-allow-mcp-sdk-through-public-dsh-apis.md). T08 prefers the native DSH client and may use a Majed-owned official MCP SDK client through verified public DSH APIs for required capabilities the native client cannot provide. Keep T08's existing dependencies and scope. Native-client feasibility results do not prove an SDK alternative; T08 must supply that additional runtime evidence before using it. No published ticket or dependency was changed by this local amendment.
 
 **Status: historical approved ticket decomposition with accepted local amendments; revised provider-workflow decomposition is pending. Not an implementation or operational authorization.**
 
@@ -20,7 +20,7 @@ On 2026-10-23 the Owner approved the narrow ADR 0008 amendment: retain T02A as t
 
 ## Authority, evidence and release boundaries
 
-Read together: [AGENTS.md](../AGENTS.md), [GLOSSARY.md](../GLOSSARY.md), [manager specification](./managers-spec.md), [ADRs 0001–0007](./adr/), and [accepted Auto decisions Q1–Q19](./research/auto-mode-proposal.md). Research inputs are [Pouch](./research/dsh-pouch-plugins.md), [Skills upstream](./research/dsh-skills-manager-upstream.md), [subscription parity and routing](./research/subscriptions-auto-routing.md), and [Jev feasibility](./research/jev-routing-feasibility.md). [Release instructions](./RELEASING.md) remain applicable, with the stronger local-and-remote evidence gate in ADR 0005.
+Read together: [AGENTS.md](../AGENTS.md), [GLOSSARY.md](../GLOSSARY.md), [manager specification](./managers-spec.md), [ADRs 0001–0007](../adr/), and [accepted Auto decisions Q1–Q19](../research/auto-mode-proposal.md). Research inputs are [Pouch](../research/dsh-pouch-plugins.md), [Skills upstream](../research/dsh-skills-manager-upstream.md), [subscription parity and routing](../research/subscriptions-auto-routing.md), and [Jev feasibility](../research/jev-routing-feasibility.md). [Release instructions](../RELEASING.md) remain applicable, with the stronger local-and-remote evidence gate in ADR 0005.
 
 Accepted ADRs/specification and Q1–Q19 take precedence over earlier research recommendations. In particular: private MCP persistence rather than config-editor ownership/profile YAML; native Owner admission rather than an origin-only gate; native basic Skills rather than shipping the stale vendored runtime; deterministic priority Auto rather than quota-driven exclusion or judge-owned retries. This draft does not silently amend the manager specification into an approved expanded implementation specification.
 
