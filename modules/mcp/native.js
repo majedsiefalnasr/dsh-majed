@@ -112,14 +112,43 @@ export function createManagedMcpService(ctx, options = {}) {
         return { ...visible, env: Object.fromEntries(Object.keys(env || {}).map(key => [key, '***'])), headers: Object.fromEntries(Object.keys(headers || {}).map(key => [key, '***'])), status: status === 'cleanup-failed' ? status : record.failed?.has(row.serverName) ? 'failed' : record.root && row.enabled && managers.length === 0 ? 'awaiting-agent' : statusName(status), probe: views.find(value => value.probe)?.probe || null, lastResult: views.find(value => value.lastResult)?.lastResult || null, runtimeCount: views.filter(value => value.status === 'mounted').length };
       }) };
   }
+  // Read-only combined view. The precedence below is this plugin's own documented rule, not a native
+  // guarantee: nothing here mounts, unmounts or reconciles a server, and the native tool registry decides
+  // what the model can actually call (see docs/research/m01-mcp-lifecycle-2026-10-28.md, G-mcp-scope).
+  const maskKeys = value => Object.fromEntries(Object.keys(value || {}).map(key => [key, '***']));
+  async function scopeView(record) {
+    const sources = [scopeRecord(), ...(record.root ? [record] : [])];
+    const entries = new Map();
+    for (const source of sources) {
+      const observed = await source.store.observe(), revision = token(source, observed.revision);
+      for (const row of validateServers(observed.value.servers)) {
+        // Compact on purpose: argument values and URL queries can carry credentials and are not needed to explain precedence.
+        const { env, headers, args, url, reconnect, timeout, instructionLimit, ...visible } = row;
+        if (url !== undefined) { const parsed = new URL(url), shown = parsed.origin + parsed.pathname; visible.url = shown.slice(0, 96); if (shown.length > 96) visible.clipped = true; }
+        if (args !== undefined) visible.argCount = args.length;
+        // Display-only clipping keeps two full scopes inside one 65536-byte route body; the per-scope list returns full values.
+        for (const key of ['command', 'cwd']) if (typeof visible[key] === 'string' && visible[key].length > 96) { visible[key] = visible[key].slice(0, 96); visible.clipped = true; }
+        if (!entries.has(row.serverName)) entries.set(row.serverName, []);
+        entries.get(row.serverName).push({ ...visible, scope: source.root ? 'project' : 'global', env: maskKeys(env), headers: maskKeys(headers), revision });
+      }
+    }
+    const names = [...entries].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([serverName, list]) => {
+      const override = list.find(entry => entry.scope === 'project' && entry.enabled);
+      const effective = override || list.find(entry => entry.enabled);
+      return { serverName, conflict: list.length > 1, effective: effective ? effective.scope : null,
+        entries: list.map(entry => ({ ...entry, shadowed: entry.scope === 'global' && !!override, fallback: entry.scope === 'global' && list.length > 1 && !override })) };
+    });
+    return { enabled: true, runtime: 'native', scope: record.root ? 'project' : 'global', resolution: 'plugin-view-only', rule: 'project-overrides-global-within-project', nativeGuarantee: false, names };
+  }
   function operation(payload, signal) {
     return queue(async () => {
       await ready;
       if (disposed) deny('unavailable');
       object(payload, ['action', 'scope', 'sessionId', 'workspaceId', 'server', 'originalName', 'serverName', 'enabled', 'revision']);
-      if (!['list', 'save', 'remove', 'setEnabled', 'reconnect', 'probe'].includes(payload.action)) deny('invalid_request');
+      if (!['list', 'scopeView', 'save', 'remove', 'setEnabled', 'reconnect', 'probe'].includes(payload.action)) deny('invalid_request');
       const record = await boundScope(payload, signal);
       signal.throwIfAborted();
+      if (payload.action === 'scopeView') return scopeView(record);
       if (['save', 'remove', 'setEnabled'].includes(payload.action)) {
         const saved = await record.store.update(async (current, revision) => {
           // Edits, removals and toggles must name the revision the client last saw; a stale

@@ -121,3 +121,101 @@ Tests named `characterization:` document existing behavior and had no RED. After
   path was not changed (outside this ticket's seam).
 - `test/mcp-runtime.test.js` is outside `npm test`; its restore test already failed at the base commit and was
   left alone.
+
+## Scope view slice
+
+Goal: a read-only combined view of global and project MCP definitions with the plugin's own precedence rule
+spelled out, without claiming native tool-name resolution. Ticket #97 stays PARTIAL.
+
+### What is provable in this plugin
+
+- Storage: `modules/mcp/native.js:24-31` keeps one private file per scope (`global.json`, or
+  `project-<sha256(projectPath)>.json`) in the plugin state directory. Scopes never share a file.
+- Mounting: the global manager mounts on the root context (`modules/mcp/native.js:28`); a project manager mounts per
+  agent on `agent.ctx` (`modules/mcp/native.js:88`). Same-name definitions in the two scopes are therefore both
+  allowed by this plugin: `validateServers` rejects duplicates only inside one list (`modules/mcp/index.js:38-43`).
+- The plugin's documented rule (a rule of this plugin, not a native guarantee): a project definition with the same
+  name overrides the global one in that project only; removing or disabling it shows the global one as a fallback.
+
+### What the installed native layer states (read-only inspection, installed rc.3)
+
+Sources were read from the installed app's asar (`dsh`, `dsh-mcp-client`, `dsh-tools`, `dsh-scope` all 0.2.1-rc.3);
+the repository's `node_modules` copies are older (0.0.1-rc.1 / scope 0.0.1-rc.5), so tests here do not exercise
+the installed package. Line numbers refer to each package's `lib/index.js` (README for README lines).
+
+- `dsh-mcp-client` `lib/index.js:769-773`: server-name reservations are kept per registration scope; agent-scoped
+  servers may reuse a namespace in another Agent. `lib/index.js:812-818`: `owner = scopeOf(ctx) ?? ctx.root`; a
+  duplicate is rejected only inside the same owner. A same name in the root scope and in an agent scope is not
+  rejected by this reservation.
+- `dsh-mcp-client` README:58 (`serverName` unique inside one registration scope), README:75 (tools are named
+  `mcp__<serverName>__<rawName>`), README:80 (a duplicate inside one scope fails to load), README:127
+  (independent Agent scopes may reuse a namespace). None of them states what happens for the same name in the
+  global scope and an agent scope.
+- `dsh-tools` `lib/index.js` (`register` doc, ~2969-2982): "Scoped tools shadow globals"; `get(name, scope)`
+  (~3078-3084) resolves scoped before global. `dsh-scope` `ScopedLayers.merge` (~165-176) and README:12: the
+  nearest scope wins a name.
+
+### Finding
+
+At the tool-registry level a tool registered through an agent context shadows an identically named global tool for
+that agent. That is a per-full-tool-name rule. It is not proven at server granularity: if the project server exposes
+a different tool set than the global one, the agent can see a mix of both (project tools plus the global tools the
+project did not shadow). No runtime proof against the installed rc.3 registry through this plugin's mounted agents
+was run in this slice. Therefore the route marks every response `resolution: 'plugin-view-only'` and
+`nativeGuarantee: false`.
+
+### Decision gate G-mcp-scope (Owner)
+
+Native same-name resolution is not proven at server granularity. Options:
+
+- A. Keep the plugin-view-only wording (this slice). No runtime change. Honest, but does not enforce override.
+- B. Add a runtime test against the installed rc.3 `ToolRegistry` with an agent scope, then claim tool-name
+  shadowing (still not server-level) in the UI.
+- C. Enforce the plugin rule: do not mount a global server in a project agent when a project definition of the same
+  name exists. Changes runtime behaviour; needs approval.
+- D. Forbid the same name in both scopes at save time. Simple and unambiguous, but removes the spec's override use.
+
+Recommended: A now, then B before any stronger wording.
+
+### What changed
+
+- `modules/mcp/native.js`: new `scopeView` action on the existing Owner-admitted route (no new route or setting). It
+  reads the global store and, for a project selector, that project's store; it never reconciles, mounts or writes.
+  Per name it returns `entries` per scope with `enabled`, `shadowed`, `fallback`, masked `env`/`headers` keys,
+  the same per-scope `revision` token as `list`, a `conflict` flag when both scopes define the name, and the
+  `effective` scope selected by the plugin rule. Argument values and URL queries are not returned (`argCount`
+  instead) and long command, cwd and URL values are clipped so two full scopes fit one 65536-byte body.
+- `client.js`: a collapsed "Scopes" toggle in the MCP panel (`aria-expanded`), a labelled region listing the view,
+  conflicts as `role="group"` rows with an accessible name, and wording that states the rule is a plugin rule and
+  native same-name resolution is not proven. English and Arabic labels; no new setting.
+- `test/accepted/mcp-scope-view.test.js`: 11 tests (production route with native-shaped project services and local
+  stdio fixtures; built `dist/client.js` through the baseline harness).
+
+### RED / GREEN (scope view)
+
+| Step | Test | RED (exit, assertion) | GREEN |
+|---|---|---|---|
+| 1 | same name in both scopes is a conflict, both entries visible | exit 1: `scopeView` refused as `invalid_request` (`ok` false) | exit 0 |
+| 2 | shadow, fallback, disabled flags and the disclaimer fields | exit 1: `rule` undefined | exit 0 |
+| 3 | compact entries (no argument values, no URL query) | exit 1: argument and URL query secrets present | exit 0 |
+| 4 | two full scopes fit one 65536-byte body | exit 1: got 99188 bytes | exit 0 |
+| 5 | long http URLs clipped | exit 1: got 138567 bytes | exit 0 |
+| 6 | UI Scopes toggle, conflict row, wording | exit 1: timed out waiting for the Scopes toggle | exit 0 |
+
+No RED was observed (characterization tests written after the behaviour, expected to pass): masked credentials and
+per-entry revisions equal to the list revisions; viewing writes nothing and a stale revision still fences edits;
+unknown, mixed and forged scopes refused and another project never exposed; Arabic wording and accessible names;
+UI alert when the view is refused. Two first runs failed for test mistakes, not product defects: a fixture over the
+262144-byte store cap, and an unknown payload key surfaces as the generic `unavailable` code on this route.
+
+### Verification (this slice)
+
+- `node --test test/accepted/mcp-*.test.js`: 27/27, exit 0.
+- `npm test`: 694/694 (baseline 683 + 11), exit 0. `node test/classify.test.cjs`: 166/166.
+
+### Remaining gaps
+
+- No runtime proof of native same-name resolution; the Owner decision G-mcp-scope is open.
+- The view shows definitions, not what the agent can actually call. It does not list discovered tools.
+- Revision tokens remain per-process. The unmounted `modules/managers/index.js` MCP upsert path is untouched.
+- No real browser, installed DSH or remote endpoint was exercised.
