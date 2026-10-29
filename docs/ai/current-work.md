@@ -4,7 +4,7 @@ Updated 2026-10-29 (Africa/Cairo).
 
 ## Phase
 
-**Subscriptions tickets published; implementation not started.** Spec #127 and its ten tickets #128-#137 (sub-issues, native blocking edges, `ready-for-agent`) were approved by the Owner. `/implement` starts with #128 only when the Owner says so.
+**Ticket #128 implemented in an isolated candidate; Owner live acceptance pending.** Spec #127 and tickets #128-#137 remain the approved plan. Only #128 is authorized in this worktree; no later ticket starts before its installed acceptance.
 
 ## Plan of record
 
@@ -61,9 +61,11 @@ Worked in this order, one at a time; each closes only after the Owner's live acc
 
 ## Repository state
 
-- `feat/subscriptions` on origin (docs only, no code); it tracks `origin/feat/subscriptions`.
+- #128 candidate: branch `impl/128-component`, worktree `dsh-majed-t128`, based on `feat/subscriptions` at `19331b6`. Local implementation only; unmerged and unpushed. Committed build output is `dist/`. Controlled tests and static findings are documented in `docs/ai/ticket-128-verification.md`; no live installation was performed.
+- The baseline classifier import referenced a missing generated adapter; the test script now derives it from the unchanged core source. All 166 classifier assertions pass.
+- Remaining priority: Owner installs the requested tarball, verifies row discovery/switching, English/Arabic rendering and core parity, then accepts or reports failures. No #129-#137 work is authorized.
 - Incident 2026-10-29: the first push went to `main` because the new branch tracked `origin/main` (`push.default=upstream`); `main` was fast-forwarded from `d6fe0e3` to `c7f8598` (19 docs files, no code). With the Owner's approval `main` was restored to `d6fe0e3` by a force push with lease. The installed plugin was pinned to `d6fe0e3` throughout and was unaffected.
 
 ## Next allowed action
 
-`/implement` #128 when the Owner gives the go-ahead. Nothing beyond #128 starts before its live acceptance.
+Owner live acceptance of #128 using `/tmp/majed-t128/dsh-majed-0.2.0.tgz`. Candidate code commit: `a1e7e2f`; final validation: 166/166 classifier assertions and 9/9 new seam tests pass, build-match passes. Direct two-axis review and static/live boundaries are recorded in `docs/ai/ticket-128-review.md` and `docs/ai/ticket-128-verification.md`. Nothing beyond #128 starts before its live acceptance.
