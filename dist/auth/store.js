@@ -169,10 +169,6 @@ function tokenHash(refreshToken) {
 export function authFilePath() {
     return dshHomePath('plugins', 'majed', 'subscriptions', 'auth.json');
 }
-/** Store location used before the plugin was renamed; migrated on first read. */
-function legacyAuthFilePath() {
-    return dshHomePath('plugins', 'router', 'auth.json');
-}
 /** Check that one durable session carries the fields every session needs. */
 function assertSessionShape(provider, account, value) {
     if (typeof value !== 'object' || value === null) {
@@ -205,21 +201,7 @@ export async function loadStore(path = authFilePath()) {
     catch (error) {
         if (error.code !== 'ENOENT')
             throw error;
-        // Migrate the pre-rename store once, preserving existing logins.
-        if (path !== authFilePath())
-            return {};
-        try {
-            text = await readFile(legacyAuthFilePath(), 'utf8');
-        }
-        catch (legacyError) {
-            if (legacyError.code === 'ENOENT')
-                return {};
-            throw legacyError;
-        }
-        const migrated = parseStore(text, legacyAuthFilePath());
-        await writeStore(migrated, path);
-        await rm(legacyAuthFilePath(), { force: true });
-        return migrated;
+        return {};
     }
     return parseStore(text, path);
 }

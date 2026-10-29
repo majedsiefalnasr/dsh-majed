@@ -12,7 +12,9 @@ export class CodexAuthController {
         this.changed = changed;
     }
     async status() {
+        const pending = this.flows.pending('codex');
         return { busy: this.flows.isBusy('codex') || this.finalizing > 0,
+            pendingAuth: pending ? { authorizeUrl: pending.authorizeUrl } : undefined,
             accounts: (await listAccounts('codex')).map(({ key, session }, index) => ({ key, isDefault: index === 0,
                 account: session.emailAddress ?? codexProfileClaims(session.idToken).emailAddress ?? session.accountId,
                 plan: session.planType, expiresAt: session.expiresAt })), detail: this.lastError };

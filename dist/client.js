@@ -59,7 +59,9 @@ var subscriptions$1 = {
 	"window_weekly": "Weekly",
 	"window_other": "Other window",
 	"resets": "Resets",
-	"resetCredits": "Reset credits",
+	"resetCredits": "Usable reset credits",
+	"creditExpiryUnknown": "Expiry unknown",
+	"creditExpired": "Expired",
 	"creditsUnavailable": "Reset credits could not be verified.",
 	"useReset": "Use reset credit",
 	"confirmLogout": "Log this account out? Its stored credentials will be removed.",
@@ -104,7 +106,9 @@ var subscriptions = {
 	"window_weekly": "أسبوعي",
 	"window_other": "فترة أخرى",
 	"resets": "إعادة التعيين",
-	"resetCredits": "أرصدة إعادة التعيين",
+	"resetCredits": "أرصدة إعادة التعيين المتاحة",
+	"creditExpiryUnknown": "انتهاء الصلاحية غير معروف",
+	"creditExpired": "منتهي الصلاحية",
 	"creditsUnavailable": "تعذر التحقق من أرصدة إعادة التعيين.",
 	"useReset": "استخدام رصيد إعادة تعيين",
 	"confirmLogout": "هل تريد تسجيل خروج هذا الحساب؟ ستُحذف بيانات اعتماده المخزنة.",
@@ -136,6 +140,8 @@ function createCodexCard(React, primitives, rpc, t) {
 		const [confirmation, setConfirmation] = React.useState(null);
 		const [acknowledged, setAcknowledged] = React.useState(false);
 		const alive = React.useRef(true);
+		const usageRequests = React.useRef(/* @__PURE__ */ new Map());
+		const accountKeys = React.useRef(/* @__PURE__ */ new Set());
 		const call = async (endpoint, payload = {}) => {
 			const response = await rpc.call("/api", `majed-subscriptions.${endpoint}`, {
 				provider: "codex",
@@ -180,23 +186,39 @@ function createCodexCard(React, primitives, rpc, t) {
 			}, 2e3);
 			return () => clearInterval(timer);
 		}, [status?.busy]);
-		const refreshUsage = async (account) => {
-			try {
-				const snapshot = await call("usage", {
-					account,
-					force: true
-				});
-				if (alive.current) setUsage((previous) => ({
-					...previous,
-					[account]: snapshot
-				}));
-			} catch (error$1) {
-				if (alive.current) setUsage((previous) => ({
-					...previous,
-					[account]: { error: error$1 instanceof Error ? error$1.message : String(error$1) }
-				}));
-			}
+		const refreshUsage = (account) => {
+			if (usageRequests.current.has(account)) return usageRequests.current.get(account);
+			const request = (async () => {
+				try {
+					const snapshot = await call("usage", {
+						account,
+						force: true
+					});
+					if (alive.current && accountKeys.current.has(account) && usageRequests.current.get(account) === request) setUsage((previous) => ({
+						...previous,
+						[account]: snapshot
+					}));
+				} catch (error$1) {
+					if (alive.current && accountKeys.current.has(account) && usageRequests.current.get(account) === request) setUsage((previous) => ({
+						...previous,
+						[account]: { error: error$1 instanceof Error ? error$1.message : String(error$1) }
+					}));
+				} finally {
+					if (usageRequests.current.get(account) === request) usageRequests.current.delete(account);
+				}
+			})();
+			usageRequests.current.set(account, request);
+			return request;
 		};
+		const accountsSignature = JSON.stringify((status?.accounts ?? []).map((account) => account.key));
+		React.useEffect(() => {
+			const keys = new Set((status?.accounts ?? []).map((account) => account.key));
+			const added = [...keys].filter((key) => !accountKeys.current.has(key));
+			accountKeys.current = keys;
+			for (const key of usageRequests.current.keys()) if (!keys.has(key)) usageRequests.current.delete(key);
+			setUsage((previous) => Object.fromEntries(Object.entries(previous).filter(([key]) => keys.has(key))));
+			for (const key of added) refreshUsage(key);
+		}, [accountsSignature]);
 		const button = (label, onClick, disabled = false) => h(Button, {
 			type: "button",
 			disabled: pending || disabled,
@@ -222,11 +244,11 @@ function createCodexCard(React, primitives, rpc, t) {
 					throw error$1;
 				}
 			});
-		}, status?.busy || !!status?.registrationError), login && status?.busy ? h("div", null, h("a", {
-			href: login.authorizeUrl,
+		}, status?.busy || !!status?.registrationError), status?.busy ? h("div", null, (status.pendingAuth ?? login)?.authorizeUrl ? h("a", {
+			href: (status.pendingAuth ?? login).authorizeUrl,
 			target: "_blank",
 			rel: "noopener noreferrer"
-		}, t("openAuthorization")), h(Input, {
+		}, t("openAuthorization")) : null, h(Input, {
 			value: input,
 			"aria-label": t("pasteCallback"),
 			dir: "ltr",
@@ -280,7 +302,7 @@ function createCodexCard(React, primitives, rpc, t) {
 					inlineSize: `${percent}%`,
 					blockSize: "100%"
 				} })), window$1.resetsAt ? h("p", null, t("resets"), ": ", h("bdi", null, date(window$1.resetsAt))) : null);
-			}), snapshot?.resetCredits ? h("p", null, t("resetCredits"), ": ", snapshot.resetCredits.length) : null, snapshot?.resetCreditsError ? h("p", { role: "alert" }, t("creditsUnavailable"), " ", snapshot.resetCreditsError) : null, snapshot?.resetCredits?.length ? button(t("useReset"), () => {
+			}), snapshot?.resetCredits ? h("details", null, h("summary", null, t("resetCredits"), ": ", snapshot.resetCredits.filter((credit) => credit.id && (credit.expiresAt === void 0 || credit.expiresAt > Date.now())).length), ...[...snapshot.resetCredits].sort((a, b) => (a.expiresAt ?? Infinity) - (b.expiresAt ?? Infinity)).map((credit, index) => h("p", { key: credit.id ?? index }, credit.expiresAt === void 0 ? t("creditExpiryUnknown") : h("span", null, t("expires"), ": ", h("bdi", null, date(credit.expiresAt)), credit.expiresAt <= Date.now() ? ` · ${t("creditExpired")}` : null)))) : null, snapshot?.resetCreditsError ? h("p", { role: "alert" }, t("creditsUnavailable"), " ", snapshot.resetCreditsError) : null, snapshot?.resetCredits?.some((credit) => credit.id && (credit.expiresAt === void 0 || credit.expiresAt > Date.now())) ? button(t("useReset"), () => {
 				action(async () => {
 					const prepared = await call("prepareReset", { account: account.key });
 					setAcknowledged(false);
@@ -295,7 +317,7 @@ function createCodexCard(React, primitives, rpc, t) {
 			role: "dialog",
 			"aria-modal": true,
 			"aria-label": confirmation.kind === "logout" ? t("confirmLogout") : t("confirmReset")
-		}, h("p", null, confirmation.kind === "logout" ? t("confirmLogout") : t("confirmReset")), confirmation.kind === "reset" ? h("label", null, h("input", {
+		}, h("p", null, confirmation.kind === "logout" ? t("confirmLogout") : t("confirmReset")), confirmation.kind === "reset" ? h("p", null, t("window_weekly"), ": ", h("bdi", null, `${confirmation.weeklyUsedPercent}%`), " · ", confirmation.creditExpiresAt === void 0 ? t("creditExpiryUnknown") : h("span", null, t("expires"), ": ", h("bdi", null, date(confirmation.creditExpiresAt)))) : null, confirmation.kind === "reset" ? h("label", null, h("input", {
 			type: "checkbox",
 			checked: acknowledged,
 			onChange: (event) => setAcknowledged(event.target.checked)
