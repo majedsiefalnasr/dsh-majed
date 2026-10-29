@@ -45,9 +45,9 @@ export function createCommandModes(isLive = () => true, { settings, now } = {}) 
 }
 
 /** Exact native Fetch registration: DSH supplies BrowserAuth + Owner admission before delivery. */
-export function applyCommandMode(ctx) {
+export function applyCommandMode(ctx, options = {}) {
   let live = () => false; // fail closed until the native sessions service is bound
-  const modes = createCommandModes(id => live(id));
+  const modes = createCommandModes(id => live(id), options);
   ctx.inject(['connection'], owner => {
     owner.effect(() => () => modes.resetAll(), 'dsh-majed: command mode reset');
     live = id => !!owner.get('sessions')?.get(id);

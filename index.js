@@ -9,6 +9,7 @@ import { applyManagedMcp } from './modules/mcp/native.js';
 import { applyCommandApproval } from './modules/hooks/approval.js';
 import { applyCommandMode } from './modules/command-mode/index.js';
 import { applyNativeApiReferences } from './modules/catalog/native-api-mount.js';
+import { applyPolicySettings } from './modules/command-policy/settings-mount.js';
 
 export { AUTO_ROUTE_ID };
 
@@ -20,7 +21,10 @@ export function apply(ctx, config = {}) {
   applyJudgment(ctx, config.judgment);
   applyCodexAccounts(ctx, config.codexAccounts || {});
   applyCommandApproval(ctx, config.hooksApproval || {});
-  applyCommandMode(ctx);
+  const policyOptions = { ...(config.commandPolicy || {}) };
+  const ownerPolicy = applyPolicySettings(ctx, policyOptions);
+  const commandModes = applyCommandMode(ctx, { settings: ownerPolicy.settings });
+  policyOptions.ledger = commandModes.policy;
   applyNativeApiReferences(ctx, config.nativeApi || {});
   // Deterministic Auto routing is opt-in and explicitly enabled; no automatic
   // activation here. The Auto core (candidate enrollment, eligibility filtering,
