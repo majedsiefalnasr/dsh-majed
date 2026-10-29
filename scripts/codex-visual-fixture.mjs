@@ -24,7 +24,7 @@ import {SubscriptionsSection} from '${out}/reference-scoped.tsx';
 import {en as original} from '/tmp/upstream-0.9.12/src/client/locales.ts';
 const dictionaries=${JSON.stringify({en,ar})}; const mapping=${JSON.stringify(sourceMap)};
 const params=new URLSearchParams(location.search), locale=params.get('locale')||'en', state=params.get('state')||'accounts', theme=params.get('theme')||'light';
-document.documentElement.dir=locale==='ar'?'rtl':'ltr'; document.body.dataset.dsDarkTheme=theme==='dark'?'true':'';
+document.documentElement.lang=locale; document.documentElement.dir=locale==='ar'?'rtl':'ltr'; document.body.dataset.dsDarkTheme=theme==='dark'?'true':'';
 if(theme==='dark') document.body.classList.add('dark');
 const now=1893456000000; Date.now=()=>now;
 const accounts=state==='accounts'||state==='reset'?[{key:'fake-a',account:'alpha@example.test',plan:'plus',isDefault:true},{key:'fake-b',account:'beta@example.test',plan:'pro',isDefault:false}]:[];

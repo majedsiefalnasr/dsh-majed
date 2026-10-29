@@ -56,6 +56,10 @@ Browser evidence was captured using available bsk tools only (session xefd, now 
 
 Limits: controlled palette tokens/native fallback controls, not installed DSH primitive rendering or exact installed theme values. No pixel-diff metric, computed contrast measurement, mobile acceptance or live-provider claim. Both languages cover all requested states, using EN/light and AR/dark (not a full language×theme matrix). Installed acceptance remains pending.
 
+## Lead independent visual review
+
+Lead independently rendered the reproducible fixture after correction: English/light accounts and Arabic/dark accounts at identical fake state. Provider/account boundaries, compact controls, usage bars, reset disclosure and footer density visibly align; logical RTL placement differs deliberately from upstream physical CSS. Evidence attachments: EN `sha256:9ec92a882d38b7c669d4c4d7ab5cd28cd26762aba46c3f2f808ba3e9d2e27c52`; AR `sha256:0ee7d6fcbb5ffe4ee17f4fd6d26777d2f46e233a86de25bcbb456e2bf099266a`. These are fixture observations, not installed DSH primitives or pixel-equality proof. Reviewer P3 fixed: generator now sets document language from selected locale as well as direction. Temporary browser session and server stopped.
+
 ## Regression and verification evidence
 
 Red: `/tmp/majed-t129-ui/red.log` intentionally fails added hierarchy/collision expectations against the former article. Green after presentation port: `/tmp/majed-t129-ui/green.log`. Tests assert provider header identity/version grouping, compact account controls, usage refresh grouping, disclosure SVG, action group and no duplicate full warning, alongside all existing action/security/cache regressions.
