@@ -17,6 +17,8 @@ const token = (record, revision) => createHmac('sha256', revisionKey).update(JSO
 const identifier = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value);
 const statusName = value => ({ configured: 'saved', mounted: 'active', 'activation-failed': 'failed', 'cleanup-failed': 'cleanup-failed', 'probe-passed': 'probe-passed', 'probe-failed': 'probe-failed', probing: 'probing' })[value] || 'saved';
 
+const maskKeys = value => Object.fromEntries(Object.keys(value || {}).map(key => [key, '***']));
+
 export function createManagedMcpService(ctx, options = {}) {
   const queue = serial(), scopes = new Map(), agents = new Map(); let disposed = false;
   const directory = resolve(options.stateDirectory || join(process.env.DSH_HOME || join(homedir(), '.dsh'), 'majed', 'mcp'));
@@ -109,17 +111,70 @@ export function createManagedMcpService(ctx, options = {}) {
         const { env, headers, ...visible } = row;
         const views = managers.flatMap(manager => manager.snapshot().filter(value => value.serverName === row.serverName));
         const status = views.some(value => ['activation-failed', 'cleanup-failed'].includes(value.status)) ? views.find(value => ['activation-failed', 'cleanup-failed'].includes(value.status)).status : views[0]?.status;
-        return { ...visible, env: Object.fromEntries(Object.keys(env || {}).map(key => [key, '***'])), headers: Object.fromEntries(Object.keys(headers || {}).map(key => [key, '***'])), status: status === 'cleanup-failed' ? status : record.failed?.has(row.serverName) ? 'failed' : record.root && row.enabled && managers.length === 0 ? 'awaiting-agent' : statusName(status), probe: views.find(value => value.probe)?.probe || null, lastResult: views.find(value => value.lastResult)?.lastResult || null, runtimeCount: views.filter(value => value.status === 'mounted').length };
+        return { ...visible, env: maskKeys(env), headers: maskKeys(headers), status: status === 'cleanup-failed' ? status : record.failed?.has(row.serverName) ? 'failed' : record.root && row.enabled && managers.length === 0 ? 'awaiting-agent' : statusName(status), probe: views.find(value => value.probe)?.probe || null, lastResult: views.find(value => value.lastResult)?.lastResult || null, runtimeCount: views.filter(value => value.status === 'mounted').length };
       }) };
+  }
+  // Read-only combined view. The precedence below is this plugin's own documented rule, not a native
+  // guarantee: nothing here mounts, unmounts or reconciles a server, and the native tool registry decides
+  // what the model can actually call (see docs/research/m01-mcp-lifecycle-2026-10-28.md, G-mcp-scope).
+  // Bounds: at most VIEW_KEYS credential key names per entry, each at most VIEW_KEY_CHARS long, and the
+  // whole response at most VIEW_BYTES (60000, leaving headroom under 65536 bytes).
+  // Anything clipped or omitted sets truncated:true and is counted; nothing is silently dropped.
+  const VIEW_BYTES = 60000, VIEW_KEYS = 8, VIEW_KEY_CHARS = 32;
+  function boundedMask(value, entry) {
+    const keys = Object.keys(value || {}), shown = keys.slice(0, VIEW_KEYS);
+    if (keys.length > shown.length || shown.some(key => key.length > VIEW_KEY_CHARS)) entry.clipped = true;
+    return { result: maskKeys(Object.fromEntries(shown.map(key => [key.slice(0, VIEW_KEY_CHARS), 1]))), omitted: keys.length - shown.length };
+  }
+  // Display-only executable name. A command string can embed credentials (URL userinfo, VAR=value, query tokens),
+  // so only a plain basename is shown; anything that looks like a URL or an assignment is replaced.
+  function executableName(command) {
+    const first = String(command).trim().split(/\s+/)[0] || '';
+    if (!first || /[:@=?#]/.test(first)) return { executable: '(redacted)' };
+    const base = first.split(/[/\\]+/).filter(Boolean).pop() || '(redacted)';
+    return base.length > 64 ? { executable: base.slice(0, 64), clipped: true } : { executable: base };
+  }
+  async function scopeView(record) {
+    const sources = [scopeRecord(), ...(record.root ? [record] : [])];
+    const entries = new Map(); let omittedKeys = 0, truncated = false;
+    for (const source of sources) {
+      const observed = await source.store.observe(), revision = token(source, observed.revision);
+      for (const row of validateServers(observed.value.servers)) {
+        // Compact on purpose: argument values, URL queries, command lines and directories can carry credentials and are not needed to explain precedence.
+        const { env, headers, args, url, command, cwd, reconnect, timeout, instructionLimit, ...visible } = row;
+        if (url !== undefined) { const parsed = new URL(url), shown = parsed.origin + parsed.pathname; visible.url = shown.slice(0, 96); if (shown.length > 96) visible.clipped = true; }
+        if (args !== undefined) visible.argCount = args.length;
+        if (command !== undefined) { const { clipped, ...name } = executableName(command); Object.assign(visible, name); if (clipped) visible.clipped = true; }
+        const envMask = boundedMask(env, visible), headerMask = boundedMask(headers, visible);
+        omittedKeys += envMask.omitted + headerMask.omitted; truncated ||= visible.clipped === true;
+        if (!entries.has(row.serverName)) entries.set(row.serverName, []);
+        entries.get(row.serverName).push({ ...visible, scope: source.root ? 'project' : 'global', env: envMask.result, headers: headerMask.result, revision });
+      }
+    }
+    const names = [...entries].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([serverName, list]) => {
+      // Fallback and effective apply only to ENABLED entries; a disabled entry is shown as disabled, never as fallback.
+      const override = list.find(entry => entry.scope === 'project' && entry.enabled);
+      const effective = override || list.find(entry => entry.enabled);
+      return { serverName, conflict: list.length > 1, effective: effective ? effective.scope : null,
+        entries: list.map(entry => ({ ...entry, shadowed: entry.scope === 'global' && entry.enabled && !!override, fallback: entry.scope === 'global' && entry.enabled && list.length > 1 && !override })) };
+    });
+    const head = { enabled: true, runtime: 'native', scope: record.root ? 'project' : 'global', resolution: 'plugin-view-only', rule: 'project-overrides-global-within-project', nativeGuarantee: false };
+    // Whole-response bound: drop trailing names (never partial rows) until the serialized view fits.
+    let kept = names.length, size = Buffer.byteLength(JSON.stringify({ ...head, truncated: true, omittedServers: names.length, omittedKeys, names: [] }));
+    const sizes = names.map(row => Buffer.byteLength(JSON.stringify(row)) + 1);
+    kept = 0; while (kept < names.length && size + sizes[kept] <= VIEW_BYTES) { size += sizes[kept]; kept += 1; }
+    const omittedServers = names.length - kept;
+    return { ...head, truncated: truncated || omittedServers > 0 || omittedKeys > 0, omittedServers, omittedKeys, names: names.slice(0, kept) };
   }
   function operation(payload, signal) {
     return queue(async () => {
       await ready;
       if (disposed) deny('unavailable');
       object(payload, ['action', 'scope', 'sessionId', 'workspaceId', 'server', 'originalName', 'serverName', 'enabled', 'revision']);
-      if (!['list', 'save', 'remove', 'setEnabled', 'reconnect', 'probe'].includes(payload.action)) deny('invalid_request');
+      if (!['list', 'scopeView', 'save', 'remove', 'setEnabled', 'reconnect', 'probe'].includes(payload.action)) deny('invalid_request');
       const record = await boundScope(payload, signal);
       signal.throwIfAborted();
+      if (payload.action === 'scopeView') return scopeView(record);
       if (['save', 'remove', 'setEnabled'].includes(payload.action)) {
         const saved = await record.store.update(async (current, revision) => {
           // Edits, removals and toggles must name the revision the client last saw; a stale
