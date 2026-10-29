@@ -84,3 +84,32 @@ Ticket #103 acceptance remains PARTIAL and the ticket stays open.
 Not changed: the `_activation` binding in `reviewEntry` is intentionally unused as a variable; it exists only to omit `enabled` from the fingerprinted content (rest destructuring). Remaining gaps are unchanged: no browser control for duplicate/import/export/trash/enable, origin `unknown`, revisions do not survive restart, no real browser/installed/paired acceptance.
 
 Final after corrections: `node --test` on `hooks-approval`, `hooks-definitions`, `hooks-inert` = 33/33; full `npm test` = 623/623 (616 + 7 new: 6 in `hooks-definitions`, 1 in `hooks-approval`); classifier 166/166; `git diff --check` clean.
+
+## Settings controls
+
+Slice 2 (2026-10-29): the existing `CommandApprovalSection` in `client.js` now calls the existing route actions
+`duplicate`, `setEnabled`, `remove`/`restore`/`purge`, `export`, `previewImport` and `import`. No new route,
+setting or host change. Every mutating call sends the per-entry `revision` returned by the last `list` (the
+duplicate source, the trashed entry); the route's refusal codes (`stale_revision`, `exists`, `invalid_approval`,
+`state_changed`, `not_found`, `store_full`, `bundle_too_large`, `invalid_request`) are mapped to visible text. Purge is
+two-step (Purge, then Confirm permanent delete; Keep in trash cancels). Import is two-step (paste, Preview import,
+then Import; disabled unless at least one item is `new` and none is `invalid`). The panel states that nothing is
+executed. Arabic labels were added beside the English ones in `approvalLabels`.
+
+Tests: `test/accepted/hooks-approval.test.js` (built `dist/client.js` through `createBaselineHarness`, production
+service through the Fetch route; bounded waits, no fixed sleeps). Assertions cover rendered text and the persisted
+service state.
+
+| Control | Test | RED | GREEN |
+| --- | --- | --- | --- |
+| Duplicate + state labels | Settings Duplicate creates a disabled unapproved draft ... refuses a taken id or a stale revision | exit 1 (`timed out waiting for Duplicate button`) | exit 0 |
+| Enable / Disable | Settings Enable is refused without a valid Approval ... Disable keeps the consent | exit 1 (`timed out waiting for button Enable`) | exit 0 |
+| Trash / Restore / Purge | Settings Trash, Restore and Purge ... purge needs an explicit confirmation step | exit 1 (`timed out waiting for trashed state`) | exit 0 |
+| Export / Import preview | Settings Export shows bounded JSON ...; Import previews new/exists/duplicate | exit 1 (`timed out waiting for button Export hooks`) | exit 0 |
+
+Note: the Duplicate GREEN needed two harness-level fixes in the test only (the submit handler must return the call so
+the test can await it, and refusal text is awaited with the bounded `waitFor`).
+
+Remaining gaps (unchanged): origin stays `unknown`; no stdin binding or display metadata; revisions are per-process
+and not restart-durable; no real browser, installed-desktop or paired-device proof; mobile deferred to the Owner.
+Route gaps: none found for these controls (no route was added).
