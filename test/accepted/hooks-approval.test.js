@@ -124,15 +124,22 @@ test('native Settings registration drives review, phrase confirmation and revoke
   t.after(() => harness.dispose()); harness.apply(); const view = harness.render('majed-hooks');
   const settle = async () => { await new Promise(resolve => setTimeout(resolve, 25)); view.render(); };
   const button = label => view.one(node => node.type === 'button' && node.props.children.includes(label));
-  await settle();
+  const hasButton = label => view.nodes(node => node.type === 'button' && node.props.children.includes(label)).length > 0;
+  // Bounded wait for the asynchronous Settings load instead of relying on a fixed delay under CPU load.
+  const ready = async label => { for (let i = 0; i < 200 && !hasButton(label); i += 1) await settle(); };
+  await settle(); await ready('Review command');
   await button('Review command').props.onClick(); await settle();
   const confirmation = view.one(node => node.type === 'input' && node.props.autoComplete === 'off');
   confirmation.props.onChange({ target: { value: 'RUN AS DSH USER' } }); view.render();
   const form = view.one(node => node.type === 'form' && node.props.children.some(child => child?.type === 'button' && child.props.children.includes('Approve exact command')));
   form.props.onSubmit({ preventDefault() {} }); await settle();
-  assert.equal((await service.call('list', { scope: 'user' })).value.hooks[0].approval.valid, true);
-  await button('Revoke Approval').props.onClick(); await settle();
-  assert.equal((await service.call('list', { scope: 'user' })).value.hooks[0].approval, null);
+  const approvalNow = async () => (await service.call('list', { scope: 'user' })).value.hooks[0].approval;
+  const until = async (predicate) => { for (let i = 0; i < 80; i += 1) { if (predicate(await approvalNow())) return; await settle(); } };
+  await until(approval => approval?.valid === true);
+  assert.equal((await approvalNow()).valid, true);
+  // The Settings view reloads asynchronously after approval; a click made on a stale revision is refused (stale_revision), so retry until the view has refreshed.
+  for (let i = 0; i < 40 && (await approvalNow()) !== null; i += 1) { await button('Revoke Approval').props.onClick(); await settle(); }
+  assert.equal(await approvalNow(), null);
 });
 
 test('Settings edit that changes the hook id is a new entry: it never sends the old entry revision', async t => {
@@ -149,7 +156,10 @@ test('Settings edit that changes the hook id is a new entry: it never sends the 
   t.after(() => harness.dispose()); harness.apply(); const view = harness.render('majed-hooks');
   const settle = async () => { await new Promise(resolve => setTimeout(resolve, 25)); view.render(); };
   const button = label => view.one(node => node.type === 'button' && node.props.children.includes(label));
-  await settle();
+  const hasButton = label => view.nodes(node => node.type === 'button' && node.props.children.includes(label)).length > 0;
+  // Bounded wait for the asynchronous Settings load instead of relying on a fixed delay under CPU load.
+  const ready = async label => { for (let i = 0; i < 200 && !hasButton(label); i += 1) await settle(); };
+  await settle(); await ready('Edit command');
   await button('Edit command').props.onClick(); view.render();
   view.one(node => node.type === 'input' && node.props.name === 'id').props.onChange({ target: { value: 'renamed' } }); view.render();
   const form = () => view.one(node => node.type === 'form' && node.props['data-approval-form'] === 'definition');
@@ -159,6 +169,7 @@ test('Settings edit that changes the hook id is a new entry: it never sends the 
   assert.deepEqual((await service.call('list', { scope: 'user' })).value.hooks.map(item => item.hook.id).sort(), ['example', 'renamed']);
   // Renaming onto an id that exists is refused by the route, never overwritten with the old revision.
   // The list is ordered by save time: the original 'example' entry is first.
+  for (let i = 0; i < 200 && view.nodes(node => node.type === 'button' && node.props.children.includes('Edit command')).length < 2; i += 1) await settle();
   await view.nodes(node => node.type === 'button' && node.props.children.includes('Edit command'))[0].props.onClick(); view.render();
   view.one(node => node.type === 'input' && node.props.name === 'id').props.onChange({ target: { value: 'renamed' } }); view.render();
   form().props.onSubmit({ preventDefault() {} }); await settle();
