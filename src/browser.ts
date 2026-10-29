@@ -8,13 +8,21 @@ interface Context {
   effect(callback: () => Dispose, label: string): unknown;
 }
 export function applySubscriptions(root: Context): void {
-  root.inject(['connection', 'slots', 'locale'], (ctx) => {
+  const report = (error: unknown) => console.error('dsh-majed: Subscriptions setup failed', error);
+  function isolate<T>(callback: () => T): T | undefined {
+    try {
+      const result = callback();
+      if (result && typeof (result as any).then === 'function') return Promise.resolve(result).catch(report) as T;
+      return result;
+    } catch (error) { report(error); }
+  }
+  isolate(() => root.inject(['connection', 'slots', 'locale'], (ctx) => isolate(() => {
     const connection = ctx.get('connection');
     const React = require('react');
     const h = React.createElement;
     const { IconSettingsOutlineMedium } = require('@deepseek-ai/dsh-client-ui-primitives');
     const NS = 'majed.subscriptions';
-    ctx.effect(() => ctx.locale.register(NS, { en: en.subscriptions, ar: ar.subscriptions }), 'dsh-majed: subscriptions dictionaries');
+    isolate(() => ctx.effect(() => isolate(() => ctx.locale.register(NS, { en: en.subscriptions, ar: ar.subscriptions })), 'dsh-majed: subscriptions dictionaries'));
     const t = ctx.locale.bind(NS);
     let present = false;
     let failing = false;
@@ -43,18 +51,18 @@ export function applySubscriptions(root: Context): void {
       try {
         const result = await connection.rpc.call('/api', 'majed-subscriptions.status', {});
         if (disposed || current !== sequence) return;
-        if (result.ok && result.value?.component === 'subscriptions') { present = true; failing = false; }
-        else { failing = true; }
+        present = true;
+        failing = !(result?.ok && result.value?.component === 'subscriptions');
       } catch (error) {
         if (disposed || current !== sequence) return;
         // The public RPC transport exposes HTTP status in this exact error string.
         if (error instanceof Error && error.message === 'transport failure for /api/majed-subscriptions.status: HTTP 404') {
           present = false; failing = false;
-        } else { failing = true; }
+        } else { present = true; failing = true; }
       }
-      update();
+      isolate(update);
     }
-    ctx.effect(() => {
+    isolate(() => ctx.effect(() => isolate(() => {
       void probe();
       const unsubscribe = connection.state.subscribe(() => {
         if (connection.state.getSnapshot() === 'connected') void probe();
@@ -62,6 +70,6 @@ export function applySubscriptions(root: Context): void {
       // Row switches do not reconnect the shared connection; periodically reconcile presence.
       const timer = setInterval(() => { void probe(); }, 3000);
       return () => { disposed = true; sequence++; clearInterval(timer); unsubscribe(); withdraw?.(); listeners.clear(); };
-    }, 'dsh-majed: subscriptions presence');
-  });
+    }), 'dsh-majed: subscriptions presence'));
+  })));
 }

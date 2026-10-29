@@ -25,20 +25,30 @@ var subscriptions = {
 //#endregion
 //#region src/browser.ts
 function applySubscriptions(root) {
-	root.inject([
+	const report = (error) => console.error("dsh-majed: Subscriptions setup failed", error);
+	function isolate(callback) {
+		try {
+			const result = callback();
+			if (result && typeof result.then === "function") return Promise.resolve(result).catch(report);
+			return result;
+		} catch (error) {
+			report(error);
+		}
+	}
+	isolate(() => root.inject([
 		"connection",
 		"slots",
 		"locale"
-	], (ctx) => {
+	], (ctx) => isolate(() => {
 		const connection = ctx.get("connection");
 		const React = require("react");
 		const h = React.createElement;
 		const { IconSettingsOutlineMedium } = require("@deepseek-ai/dsh-client-ui-primitives");
 		const NS = "majed.subscriptions";
-		ctx.effect(() => ctx.locale.register(NS, {
+		isolate(() => ctx.effect(() => isolate(() => ctx.locale.register(NS, {
 			en: subscriptions$1,
 			ar: subscriptions
-		}), "dsh-majed: subscriptions dictionaries");
+		})), "dsh-majed: subscriptions dictionaries"));
 		const t = ctx.locale.bind(NS);
 		let present = false;
 		let failing = false;
@@ -80,20 +90,21 @@ function applySubscriptions(root) {
 			try {
 				const result = await connection.rpc.call("/api", "majed-subscriptions.status", {});
 				if (disposed || current !== sequence) return;
-				if (result.ok && result.value?.component === "subscriptions") {
-					present = true;
-					failing = false;
-				} else failing = true;
+				present = true;
+				failing = !(result?.ok && result.value?.component === "subscriptions");
 			} catch (error) {
 				if (disposed || current !== sequence) return;
 				if (error instanceof Error && error.message === "transport failure for /api/majed-subscriptions.status: HTTP 404") {
 					present = false;
 					failing = false;
-				} else failing = true;
+				} else {
+					present = true;
+					failing = true;
+				}
 			}
-			update();
+			isolate(update);
 		}
-		ctx.effect(() => {
+		isolate(() => ctx.effect(() => isolate(() => {
 			probe();
 			const unsubscribe = connection.state.subscribe(() => {
 				if (connection.state.getSnapshot() === "connected") probe();
@@ -109,8 +120,8 @@ function applySubscriptions(root) {
 				withdraw?.();
 				listeners.clear();
 			};
-		}, "dsh-majed: subscriptions presence");
-	});
+		}), "dsh-majed: subscriptions presence"));
+	})));
 }
 
 //#endregion

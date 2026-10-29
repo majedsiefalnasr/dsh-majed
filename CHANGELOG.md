@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Show the localized Subscriptions cannot-reach message on an initial non-404 probe failure, recover on success and remove the section on 404; isolate Subscriptions browser setup failures from core preferences and notifications.
+
 - Add the disabled-by-default Subscriptions component row, authenticated presence probe and conditional empty Settings section in English and Arabic.
 - Add committed TypeScript/tsdown output under `dist/`, reproducible-build checks, packaging and host/browser seam tests. Existing core preferences remain unchanged; live acceptance is pending.
 

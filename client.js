@@ -1770,7 +1770,6 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
     return {
       inject: ['slots', 'locale', 'uiWorkspace'],
       apply(ctx) {
-        subscriptions.applySubscriptions(ctx);
         appCtx = ctx;
         ctx.effect(() => () => { appCtx = null; live.forEach((n) => { try { n.close(); } catch (_) {} }); live.clear(); }, 'dsh-majed: notification cleanup');
         ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsh-majed: dictionaries');
@@ -1862,6 +1861,11 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
             varStyle.remove(); sizeStyle.remove();
           };
         }, 'dsh-majed: apply settings');
+
+        // Optional component setup must never interrupt the core registrations above.
+        try {
+          Promise.resolve(subscriptions.applySubscriptions(ctx)).catch((error) => console.error('dsh-majed: Subscriptions setup failed', error));
+        } catch (error) { console.error('dsh-majed: Subscriptions setup failed', error); }
       },
     };
   },

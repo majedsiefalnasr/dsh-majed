@@ -20,7 +20,8 @@ The code-review skill requests independent parallel reviewers. Nested delegation
 - Optional host fiber does not become a dependency of the core host.
 - Single browser loader registration embeds a compiled closure; no unsupported internal module id lookup.
 - Slot injection disposer verified against dsh-client-ui-renderer/lib/client.js:1353-1368 in the extracted DSH source.
-- Presence reconciles even when a switch does not reconnect; absent route withdraws the section. Initial unknown failures remain hidden to avoid exposing a disabled component.
+- Presence reconciles even when a switch does not reconnect; only HTTP 404 withdraws the section. All other failures, including the first probe, show the localized cannot-reach message. Successful recovery restores both parts.
+- Review fixes isolate Subscriptions setup after core registration, including deferred callbacks and rejected setup operations; the assembled-entry regression verifies core slot/effect registration survives.
 - Packed exports and disabled row covered. Fresh build comparison covered. Core classifier 166 assertions preserved.
 - Residual: true installed/HMR, GitHub transport, API-remote grant behavior and visual RTL require Owner checks as recorded in ticket-128-verification.md. Lightweight browser fixtures test rendered element trees, not a browser engine. Host authentication fixtures model the statically verified host boundary rather than running DSH itself.
 

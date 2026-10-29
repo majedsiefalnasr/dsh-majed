@@ -10,7 +10,9 @@ Approved bounded outcome: GitHub #128, Component row and empty Subscriptions sec
 
 ### GitHub-installed subpath resolution
 
-**statically supported (evidence: package exports and DSH package-based row resolution); unproven, needs live check.**
+**UNPROVEN - Owner live check required for #128 acceptance**
+
+Static package exports and DSH package-based row resolution support the pattern, not live GitHub installation.
 
 - Installed third-party example read: /Users/majedsiefalnasr/.dsh/profiles/desktop/node_modules/billion-context/package.json:7-15 exports both the root and dsh-compaction-gate subpath. This supports the component pattern, not GitHub installation specifically.
 - /tmp/dsh-asar/dsh/node_modules/@deepseek-ai/dsh-plugin-manager/lib/index.js:2166-2200 reads inserted rows and resolves metadata using their module names. Source provenance: existing read-only extraction of app.asar; the literal app.asar/dsh path is not a normal readable directory on this host.
@@ -19,14 +21,18 @@ Approved bounded outcome: GitHub #128, Component row and empty Subscriptions sec
 
 ### In-place update adds rows without restart
 
-**statically supported (evidence: HMR reconcile path); unproven, needs live check.**
+**UNPROVEN - Owner live check required for #128 acceptance**
+
+The static HMR reconcile path supports the scenario but does not prove live row discovery.
 
 - /tmp/dsh-asar/dsh/node_modules/@deepseek-ai/dsh-plugin-manager/lib/index.js:2355-2371 calls hmr.reconcileProfile; 2398 emits plugin-manager/changed. declaredRows at 2166-2200 re-reads bundle patch files. Research doc sections 2 and 4 explain fiber disposal and metadata discovery.
 - Owner check: on an existing 0.2.0 installation with core on, update in place to this artifact through the supported plugin update path. Without restarting, reopen Plugins > Majed and verify the new disabled row appears; enable/disable it, and confirm Settings appears/disappears within the presence poll interval, with core preferences/fonts still working. If DSH reports restart-required, record it rather than treating static support as proof.
 
 ### Third-party browser access to API-provider remotes
 
-**statically supported (evidence: generated browser descriptors); unproven, needs live check before #136.**
+**UNPROVEN - deferred by the spec to #136, which must prove it or stop for a decision**
+
+Generated browser descriptors are static evidence only, not proof of third-party access.
 
 - /tmp/dsh-asar/dsh/node_modules/@deepseek-ai/dsh-api-remotes/lib/types/client/index.js:7-40 includes settingsControllerRemote and llmRemote in the client remote composition.
 - /tmp/dsh-asar/dsh/node_modules/@deepseek-ai/dsh-api-remotes/lib/client.js:3023-3244 defines credentials/describe,set,unset and settings/describe,mutate; 7439-7571 defines llm/discoverModels and listConfigurableProviders. Descriptors show a browser API, not proof of a third-party grant.
@@ -38,7 +44,8 @@ Approved bounded outcome: GitHub #128, Component row and empty Subscriptions sec
 - /tmp/dsh-asar/dsh/node_modules/@deepseek-ai/dsh-client-connection/lib/index.js:736-750 applies Host/Origin and authenticated Peer checks; 826-835 additionally rejects a non-Owner exact route with 403. The component uses connection.fetch.register, not a raw public web route.
 - Reference /tmp/upstream-0.9.12/src/auth/rpc.ts:275-310 and 636-672 supplies the compatible envelope and exact route registration recipe.
 - Client connection at /tmp/dsh-asar/dsh/node_modules/@deepseek-ai/dsh-client-connection/lib/client.node.js:329-339 exposes missing route as the exact HTTP 404 error string; 542-549 exposes state subscription.
-- A generic failure before any successful presence confirmation leaves the section hidden: absence and an unreachable never-observed component cannot be distinguished safely. After confirmed presence, failures show a clear localized alert until recovery or a definitive route-absent response.
+- Only the probe route's HTTP 404 means OFF: the section is absent/unregistered. Every other failure (transport error, timeout, 5xx or malformed body), including the first probe before any confirmed presence, registers the section and shows the localized cannot-reach alert. A later successful probe restores the two parts without the alert; a later 404 removes the section.
+- Subscriptions setup runs last in the assembled core entry and catches synchronous and asynchronous errors with the `dsh-majed: Subscriptions` console.error prefix. Injection callbacks, primitive resolution, locale/effect registration and the apply call are isolated. The assembled-entry fixture forces these failures and checks that all 11 core slot registrations and core effects still register; it does not establish installed runtime parity.
 - Row switches need not reconnect. Presence is reconciled on load, connected state changes and every three seconds. All timers/listeners/section registrations are disposed with the browser half; stale responses are ignored.
 
 ## Build and design
@@ -51,4 +58,4 @@ The baseline classifier suite referenced a missing lib/classify.cjs. A test-only
 
 ## Residual acceptance
 
-Controlled tests cannot establish desktop HMR, remote authentication cookies, actual browser RTL rendering, actual UI module injection or installed 0.2.0 parity. Owner live acceptance remains required and issue #128 is left open. No push, installed plugin modification, profile write or secret access performed.
+Controlled tests cannot establish desktop HMR, remote authentication cookies, actual browser RTL rendering, actual UI module injection or installed 0.2.0 parity. #128 is acceptance-ready only after the Owner's live check of GitHub-installed subpath resolution and in-place row discovery using the exact steps above, alongside the remaining installed acceptance scenario. Owner live acceptance remains required and issue #128 is left open. No push, installed plugin modification, profile write or secret access performed.
