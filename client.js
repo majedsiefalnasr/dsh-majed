@@ -595,12 +595,30 @@ window.__ModuleLoader__.load({
         id: 'Hook name', command: 'Full command or script path', events: 'Events (comma separated)', cwd: 'Working directory (within selected scope)', watched: 'Watched files (one per line)', source: 'Command source', inline: 'Inline command', file: 'Script file',
         save: 'Save command', review: 'Review command', revoke: 'Revoke Approval', remove: 'Remove command', approve: 'Approve exact command', cancel: 'Cancel review', phrase: 'Type RUN AS DSH USER',
         error: 'The request was refused. Refresh and review the saved command again.', approved: 'Approved', unapproved: 'Needs review', scope: 'Scope', user: 'User', edit: 'Edit command', fingerprint: 'Reviewed fingerprint', expiry: 'Review expires',
+        duplicate: 'Duplicate', newId: 'New hook name', enable: 'Enable', disable: 'Disable', restore: 'Restore', purge: 'Purge', confirmPurge: 'Confirm permanent delete', keepTrash: 'Keep in trash', trashTitle: 'Trash',
+        purgeWarning: 'Purge permanently deletes this command definition and cannot be undone.', state_trashed: 'Trashed (disabled, unapproved)',
+        exportHooks: 'Export hooks', exportTitle: 'Exported definitions (no Approval, revision or environment values)', importTitle: 'Import definitions', bundle: 'Bundle JSON', preview: 'Preview import', importHooks: 'Import', invalidJson: 'The pasted text is not valid JSON.',
+        previewNote: 'Only new items are imported; imported commands are unapproved and disabled.', item_new: 'new', item_exists: 'already exists (skipped)', item_duplicate: 'repeated in bundle (skipped)', item_invalid: 'invalid (import refused)', bundle_too_large: 'Refused: the bundle is too large to export or import.',
+        invalid_approval: 'Refused: this command has no currently valid Approval. Review and approve it first.', state_changed: 'Refused: the command or its watched files changed. Review it again.',
+        nothing: 'Nothing is executed by these controls. Duplicates and imports are saved as disabled drafts that need review.',
+        state_draft: 'Needs review (saved draft, disabled)', state_approved: 'Approved (disabled)', state_active: 'Approved and enabled (execution is still unavailable)', state_enabled_invalid: 'Enabled, but its Approval is no longer valid: review required (execution is unavailable)',
+        createCopy: 'Create copy',
+        stale_revision: 'This command changed since it was listed. Refresh and try again.', exists: 'A command with that name already exists.', invalid_request: 'Refused: the request is not valid.', not_found: 'Refused: the command no longer exists. Refresh the list.', store_full: 'Refused: the command store is full.',
       },
       ar: { title: 'الموافقة على أوامر الخطافات', refresh: 'تحديث الأوامر المحفوظة', disabled: 'الموافقة على الأوامر معطلة في إعدادات المضيف.',
         disclosure: 'تعمل الأوامر على مضيف DSH بصلاحيات مستخدم نظام التشغيل وخارج بيئة معزولة. مصدر الطلب المحلي أو البعيد غير معروف. التنفيذ غير متاح.',
         id: 'اسم الخطاف', command: 'الأمر الكامل أو مسار النص البرمجي', events: 'الأحداث (مفصولة بفاصلة)', cwd: 'مجلد العمل (ضمن النطاق المحدد)', watched: 'الملفات المراقبة (ملف لكل سطر)', source: 'مصدر الأمر', inline: 'أمر مباشر', file: 'ملف نص برمجي',
         save: 'حفظ الأمر', review: 'مراجعة الأمر', revoke: 'إلغاء الموافقة', remove: 'إزالة الأمر', approve: 'الموافقة على الأمر المطابق', cancel: 'إلغاء المراجعة', phrase: 'اكتب RUN AS DSH USER',
         error: 'رُفض الطلب. حدّث البيانات وراجع الأمر المحفوظ مجددًا.', approved: 'تمت الموافقة', unapproved: 'يحتاج إلى مراجعة', scope: 'النطاق', user: 'المستخدم', edit: 'تعديل الأمر', fingerprint: 'بصمة المحتوى المراجع', expiry: 'تنتهي المراجعة',
+        duplicate: 'تكرار', newId: 'اسم الخطاف الجديد', enable: 'تفعيل', disable: 'تعطيل', restore: 'استعادة', purge: 'حذف نهائي', confirmPurge: 'تأكيد الحذف النهائي', keepTrash: 'الإبقاء في المحذوفات', trashTitle: 'المحذوفات',
+        purgeWarning: 'يحذف الحذف النهائي تعريف هذا الأمر نهائيًا ولا يمكن التراجع عنه.', state_trashed: 'في المحذوفات (معطل، غير موافق عليه)',
+        exportHooks: 'تصدير الخطافات', exportTitle: 'التعريفات المصدّرة (دون موافقة أو مراجعة أو قيم بيئة)', importTitle: 'استيراد التعريفات', bundle: 'JSON الحزمة', preview: 'معاينة الاستيراد', importHooks: 'استيراد', invalidJson: 'النص الملصق ليس JSON صالحًا.',
+        previewNote: 'تُستورد العناصر الجديدة فقط؛ الأوامر المستوردة غير موافق عليها ومعطلة.', item_new: 'جديد', item_exists: 'موجود مسبقًا (يُتخطى)', item_duplicate: 'مكرر في الحزمة (يُتخطى)', item_invalid: 'غير صالح (رُفض الاستيراد)', bundle_too_large: 'رُفض: الحزمة أكبر من أن تُصدَّر أو تُستورد.',
+        invalid_approval: 'رُفض: لا توجد موافقة صالحة حاليًا لهذا الأمر. راجعه ووافق عليه أولًا.', state_changed: 'رُفض: تغيّر الأمر أو ملفاته المراقبة. راجعه مجددًا.',
+        nothing: 'لا ينفّذ أي شيء بهذه الأدوات. تُحفظ النسخ والاستيرادات كمسودات معطلة تحتاج إلى مراجعة.',
+        state_draft: 'يحتاج إلى مراجعة (مسودة محفوظة، معطلة)', state_approved: 'تمت الموافقة (معطل)', state_active: 'تمت الموافقة ومفعّل (التنفيذ ما زال غير متاح)', state_enabled_invalid: 'مفعّل، لكن موافقته لم تعد صالحة: المراجعة مطلوبة (التنفيذ غير متاح)',
+        createCopy: 'إنشاء نسخة',
+        stale_revision: 'تغيّر هذا الأمر منذ عرضه. حدّث القائمة وأعد المحاولة.', exists: 'يوجد أمر بهذا الاسم مسبقًا.', invalid_request: 'رُفض: الطلب غير صالح.', not_found: 'رُفض: الأمر لم يعد موجودًا. حدّث القائمة.', store_full: 'رُفض: مخزن الأوامر ممتلئ.',
       },
     };
     function CommandApprovalSection({ ctx, t }) {
@@ -608,7 +626,10 @@ window.__ModuleLoader__.load({
       const [state, setState] = React.useState(null), [error, setError] = React.useState(false), [review, setReview] = React.useState(null);
       const [phrase, setPhrase] = React.useState(''), [draft, setDraft] = React.useState({ id: '', command: '', source: 'inline', events: 'SessionStart', cwd: '', watched: '' });
       const [scopeKey, setScopeKey] = React.useState('user');
+      const [dup, setDup] = React.useState(null), [purging, setPurging] = React.useState(null);
+      const [exported, setExported] = React.useState(null), [bundleText, setBundleText] = React.useState(''), [preview, setPreview] = React.useState(null);
       const [busy, setBusy] = React.useState(false); const active = React.useRef(null);
+      const triggers = React.useRef({}), keepRef = React.useRef(null), returnFocus = React.useRef(null);
       async function call(action, input = {}, selectedKey = scopeKey) {
         if (active.current) return;
         const controller = new AbortController(); active.current = controller; setBusy(true); setError(false);
@@ -620,37 +641,60 @@ window.__ModuleLoader__.load({
           const selector = selectedKey === 'user' ? { scope: 'user' } : { scope: 'project', sessionId: context.sessionId, workspaceId: context.workspaceId };
           const result = await ctx.connection.rpc.call('/api', 'majed/hooks/approval', { action, ...selector, ...input }, controller.signal);
           if (controller.signal.aborted || active.current !== controller) return;
-          if (!result?.ok || !result.value) throw new Error('refused');
+          if (!result?.ok || !result.value) throw new Error(result?.error?.code || 'refused');
           if (action === 'review') { setReview(result.value); setPhrase(''); }
-          else { setState(result.value); setReview(null); setPhrase(''); }
-        } catch { if (active.current === controller) { setError(true); setReview(null); setPhrase(''); } }
+          else if (action === 'export') setExported(JSON.stringify(result.value.bundle, null, 2));
+          else if (action === 'previewImport') setPreview({ text: input.bundle, items: result.value.items });
+          else { setState(result.value); setReview(null); setPhrase(''); setDup(null); setPurging(null); setExported(null); setPreview(null); if (action === 'import') setBundleText(''); }
+        } catch (failure) { if (active.current === controller) { setError(failure?.message && labels[failure.message] ? failure.message : true); setReview(null); setPhrase(''); if (action === 'list') { setState(previous => previous && { ...previous, hooks: [], trash: [] }); setPreview(null); setDup(null); setPurging(null); setExported(null); } } }
         finally { clearTimeout(timer); if (active.current === controller) { active.current = null; setBusy(false); } }
       }
       React.useEffect(() => { call('list'); return () => { active.current?.abort(); active.current = null; }; }, [ctx]);
-      const button = (label, action, disabled = false) => h('button', { type: 'button', className: 'majed-management-refresh', disabled: busy || disabled, onClick: action }, label);
+      // Purge confirmation: focus the safe choice when it opens; return focus to the Purge control when it is cancelled.
+      React.useEffect(() => {
+        if (purging) keepRef.current?.focus?.();
+        else if (returnFocus.current) { triggers.current[returnFocus.current]?.focus?.(); returnFocus.current = null; }
+      }, [purging]);
+      const button = (label, action, disabled = false, subject, ref) => h('button', { type: 'button', className: 'majed-management-refresh', disabled: busy || disabled, onClick: action, ...(ref ? { ref } : {}), ...(subject ? { 'aria-label': label + ': ' + subject } : {}) }, label);
       const field = (name, multiline = false) => h('label', { key: name }, labels[name], h(multiline ? 'textarea' : 'input', {
         name, 'aria-label': labels[name], value: draft[name], maxLength: name === 'id' ? 128 : name === 'events' ? 256 : name === 'watched' ? 8192 : 4096, disabled: busy,
         onChange: event => { setDraft({ ...draft, [name]: event.target.value }); setReview(null); },
       }));
-      return h('section', { 'aria-label': labels.title, className: 'majed-command-approval', 'data-majed-approval': '' },
+      return h('section', { 'aria-label': labels.title, className: 'majed-command-approval', 'data-majed-approval': '', dir: t('management.direction') },
         h('h3', null, labels.title), h('p', null, labels.disclosure), button(labels.refresh, () => call('list')),
-        error && h('p', { role: 'alert' }, labels.error),
+        error && h('p', { role: 'alert' }, labels[error] || labels.error),
         state?.enabled === false && h('p', { role: 'status' }, labels.disabled),
         state?.enabled === true && h('div', null,
-          h('label', null, labels.scope, h('select', { name: 'scope', 'aria-label': labels.scope, value: scopeKey, disabled: busy, onChange: event => { const key = event.target.value; setScopeKey(key); setReview(null); setPhrase(''); call('list', {}, key); } },
+          h('label', null, labels.scope, h('select', { name: 'scope', 'aria-label': labels.scope, value: scopeKey, disabled: busy, onChange: event => { const key = event.target.value; setScopeKey(key); setReview(null); setPhrase(''); setDup(null); setPurging(null); setExported(null); setPreview(null); call('list', {}, key); } },
             h('option', { value: 'user' }, labels.user), (state.contexts || []).map(value => h('option', { key: value.workspaceId, value: JSON.stringify([value.sessionId, value.workspaceId]) }, value.label)))),
           h('form', { 'data-approval-form': 'definition', onSubmit: event => { event.preventDefault(); const hook = { ...draft.base, id: draft.id, command: draft.command, events: draft.events.split(',').map(value => value.trim()), source: draft.source, enabled: false, watchedFiles: draft.watched.split('\n').map(value => value.trim()).filter(Boolean) }; if (draft.cwd) hook.cwd = draft.cwd; else delete hook.cwd; call('save', { hook, revision: draft.base && draft.id === draft.base.id ? draft.revision : undefined }); } },
             field('id'), h('label', null, labels.source, h('select', { name: 'source', value: draft.source, disabled: busy, onChange: event => setDraft({ ...draft, source: event.target.value }) }, h('option', { value: 'inline' }, labels.inline), h('option', { value: 'file' }, labels.file))), field('command', true), field('events'), field('cwd'), field('watched', true),
             h('button', { type: 'submit', className: 'majed-management-refresh', disabled: busy }, labels.save)),
-          (state.hooks || []).map(({ hook, approval, revision }) => h('div', { key: hook.id }, h('strong', null, hook.id), h('pre', null, hook.command),
-            h('p', null, approval?.valid ? labels.approved : labels.unapproved),
-            button(labels.edit, () => { setDraft({ base: hook, revision, id: hook.id, command: hook.command, source: hook.source, events: hook.events.join(','), cwd: hook.cwd || '', watched: (hook.watchedFiles || []).join('\n') }); setReview(null); setPhrase(''); }),
-            button(labels.review, () => call('review', { id: hook.id })), button(labels.revoke, () => call('revoke', { id: hook.id, revision })), button(labels.remove, () => call('remove', { id: hook.id, revision }))))),
+          h('p', null, labels.nothing),
+          (state.hooks || []).map(({ hook, approval, revision, state: hookState }) => { const shown = hook.enabled && !approval?.valid ? 'enabled_invalid' : hookState || 'draft'; return h('div', { key: hook.id }, h('strong', null, hook.id), h('pre', null, hook.command),
+            h('p', { 'data-hook-state': shown }, labels['state_' + shown]),
+            button(labels.edit, () => { setDraft({ base: hook, revision, id: hook.id, command: hook.command, source: hook.source, events: hook.events.join(','), cwd: hook.cwd || '', watched: (hook.watchedFiles || []).join('\n') }); setReview(null); setPhrase(''); }, false, hook.id),
+            button(labels.review, () => call('review', { id: hook.id }), false, hook.id), button(labels.revoke, () => call('revoke', { id: hook.id, revision }), false, hook.id), button(labels.remove, () => call('remove', { id: hook.id, revision }), false, hook.id),
+            button(hook.enabled ? labels.disable : labels.enable, () => call('setEnabled', { id: hook.id, enabled: !hook.enabled, revision }), false, hook.id),
+            button(labels.duplicate, () => setDup({ id: hook.id, newId: '' }), false, hook.id),
+            dup?.id === hook.id && h('form', { 'data-approval-form': 'duplicate', onSubmit: event => { event.preventDefault(); return call('duplicate', { id: hook.id, newId: dup.newId, revision }); } },
+              h('label', null, labels.newId, h('input', { name: 'newId', 'aria-label': labels.newId, value: dup.newId, maxLength: 128, disabled: busy, onChange: event => setDup({ ...dup, newId: event.target.value }) })),
+              h('button', { type: 'submit', className: 'majed-management-refresh', disabled: busy || !dup.newId.trim(), 'aria-label': labels.createCopy + ': ' + hook.id }, labels.createCopy))); }),
+          (state.trash || []).length > 0 && h('div', { 'data-approval-trash': '' }, h('h4', null, labels.trashTitle), state.trash.map(({ hook, revision }) => h('div', { key: hook.id }, h('strong', null, hook.id), h('p', { 'data-hook-state': 'trashed' }, labels.state_trashed),
+            button(labels.restore, () => call('restore', { id: hook.id, revision }), false, hook.id), button(labels.purge, () => setPurging(hook.id), false, hook.id, element => { if (element) triggers.current[hook.id] = element; else delete triggers.current[hook.id]; }),
+            purging === hook.id && h('div', { role: 'alertdialog', 'aria-label': labels.confirmPurge + ': ' + hook.id, 'aria-describedby': 'majed-purge-warning-' + hook.id }, h('p', { id: 'majed-purge-warning-' + hook.id }, labels.purgeWarning),
+              button(labels.confirmPurge, () => call('purge', { id: hook.id, revision }), false, hook.id), button(labels.keepTrash, () => { returnFocus.current = hook.id; setPurging(null); }, false, hook.id, element => { keepRef.current = element; }))))),
+          h('div', null, button(labels.exportHooks, () => call('export')), exported !== null && h('div', null, h('p', null, labels.exportTitle), h('textarea', { name: 'exported', 'aria-label': labels.exportTitle, readOnly: true, dir: 'ltr', value: exported }))),
+          h('form', { 'data-approval-form': 'import', onSubmit: event => { event.preventDefault(); let bundle; try { bundle = JSON.parse(bundleText); } catch { setError('invalidJson'); return; } return call('previewImport', { bundle }); } },
+            h('label', null, labels.importTitle, h('textarea', { name: 'bundle', 'aria-label': labels.bundle, dir: 'ltr', value: bundleText, maxLength: 24576, disabled: busy, onChange: event => { setBundleText(event.target.value); setPreview(null); } })),
+            h('button', { type: 'submit', className: 'majed-management-refresh', disabled: busy || !bundleText.trim() }, labels.preview)),
+          preview && h('div', { 'data-approval-preview': '' }, h('p', null, labels.previewNote), preview.items.map((item, index) => h('p', { key: index, 'data-import-item': item.status }, item.id + ': ' + labels['item_' + item.status])),
+            button(labels.importHooks, () => call('import', { bundle: preview.text }), !preview.items.some(item => item.status === 'new') || preview.items.some(item => item.status === 'invalid')))),
         review && h('form', { 'data-approval-form': 'confirmation', onSubmit: event => { event.preventDefault(); call('approve', { id: review.review.id, nonce: review.nonce, phrase }); } },
           h('pre', { dir: 'ltr' }, JSON.stringify(review.review, null, 2)), h('p', null, labels.expiry + ': ' + new Date(review.expiresAt).toLocaleTimeString()),
           h('label', null, labels.phrase, h('input', { name: 'confirmation', value: phrase, dir: 'ltr', autoComplete: 'off', maxLength: 64, disabled: busy, onChange: event => setPhrase(event.target.value) })),
-          h('button', { type: 'submit', className: 'majed-management-refresh', disabled: busy || phrase !== 'RUN AS DSH USER' }, labels.approve),
-          button(labels.cancel, () => { setReview(null); setPhrase(''); })));
+          h('button', { type: 'submit', className: 'majed-management-refresh', disabled: busy || phrase !== 'RUN AS DSH USER', 'aria-label': labels.approve + ': ' + review.review.id }, labels.approve),
+          button(labels.cancel, () => { setReview(null); setPhrase(''); }, false, review.review.id)));
     }
 
     function ManagedMcpSection({ ctx, t }) {

@@ -100,7 +100,7 @@ class ElementFixture extends EventTargetFixture {
 
 // Explicit render/re-render; no automatic scheduling, portals, synthetic events,
 // layout, StrictMode, or concurrent rendering. Tests invoke rendered handlers.
-function createReactFixture() {
+function createReactFixture(makeElement = () => ({})) {
   let current = null;
   const cell = (init) => {
     assert.ok(current, 'hooks must run in a rendered public slot component');
@@ -149,7 +149,28 @@ function createReactFixture() {
         try { output = node.type(node.props); } finally { current = null; }
         return resolve(output, `${path}.output`, pending);
       }
-      return { ...node, props: { ...node.props, children: resolve(node.props.children, `${path}.children`, pending) } };
+      const resolved = { ...node, props: { ...node.props, children: resolve(node.props.children, `${path}.children`, pending) } };
+      if (node.props.ref) refPaths.set(path, resolved);
+      return resolved;
+    }
+    // Host-element refs only: a stub element per path, attached before effects run and detached with null,
+    // like React's commit order. There is no layout, real focus, tab order or accessibility tree.
+    const refPaths = new Map(), refStubs = new Map(), elements = new WeakMap();
+    const detach = (ref) => { if (typeof ref === 'function') ref(null); else if (ref) ref.current = null; };
+    function syncRefs(nextRefs) {
+      const kept = new Map();
+      for (const [path, entry] of [...refStubs]) {
+        if (!nextRefs.has(path)) { detach(entry.ref); refStubs.delete(path); }
+        else if (nextRefs.get(path).props.ref !== entry.ref) { detach(entry.ref); kept.set(path, entry.element); refStubs.delete(path); }
+      }
+      for (const [path, node] of nextRefs) {
+        let entry = refStubs.get(path);
+        if (!entry) {
+          entry = { ref: node.props.ref, element: kept.get(path) || makeElement(node) }; refStubs.set(path, entry);
+          if (typeof entry.ref === 'function') entry.ref(entry.element); else entry.ref.current = entry.element;
+        }
+        elements.set(node, entry.element);
+      }
     }
     const view = {
       render(nextProps = props) {
@@ -157,8 +178,10 @@ function createReactFixture() {
         props = nextProps;
         const pending = [];
         visited = new Set();
+        refPaths.clear();
         tree = resolve(React.createElement(Component, props), 'root', pending);
         for (const [path, instance] of instances) if (!visited.has(path)) { cleanup(instance); instances.delete(path); }
+        syncRefs(refPaths);
         pending.forEach((fn) => fn());
         return view;
       },
@@ -174,9 +197,12 @@ function createReactFixture() {
         return found;
       },
       one(predicate) { const nodes = view.nodes(predicate); assert.equal(nodes.length, 1); return nodes[0]; },
+      // The stub element a ref received for this rendered node (undefined when the node has no ref).
+      elementOf(node) { return elements.get(node); },
       unmount() {
         if (unmounted) return;
         unmounted = true;
+        syncRefs(new Map());
         for (const instance of instances.values()) cleanup(instance);
       },
     };
@@ -230,7 +256,11 @@ export function createBaselineHarness(source, { stored, extension, confirm = tru
     focus() {},
   });
   if (extension !== undefined) window.__dshMajed = extension;
-  const { React, mount } = createReactFixture();
+  const { React, mount } = createReactFixture((node) => {
+    const element = new ElementFixture(String(node.type));
+    element.focus = () => { document.activeElement = element; };
+    return element;
+  });
   const primitives = { Menu: 'fixture-menu' };
   const sandbox = vm.createContext({
     window, document, localStorage, navigator: {}, Notification: NotificationFixture, AbortController,
