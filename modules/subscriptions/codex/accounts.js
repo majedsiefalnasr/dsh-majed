@@ -1,16 +1,16 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { OAuthFlowManager } from './oauth-flow.js';
 import { codexFlow, grant } from './protocol.js';
-import { createPrivateStore } from './storage.js';
+import { createPrivateStore, createSettingsStore } from './storage.js';
 
 const fail = code => Object.assign(new Error(code), { code });
 // The stored label is the private verified identity; every public projection masks it.
 const mask = label => { const at = label.lastIndexOf('@'); return at > 0 ? label[0] + '•••' + label.slice(at) : label; };
 const publicAccount = account => ({ id: account.id, label: mask(account.session.label), state: account.state, expiresAt: account.session.expiresAt });
-export function createCodexAccounts({ path, fetch: fetchFn = globalThis.fetch, ports, timeoutMs, now = Date.now } = {}) {
+export function createCodexAccounts({ path, settingsPath, fetch: fetchFn = globalThis.fetch, ports, timeoutMs, now = Date.now } = {}) {
   if (!path) throw fail('account_store_required');
-  const store = createPrivateStore(path), flow = new OAuthFlowManager(), refreshes = new Map();
-  let current, state = 'disconnected', disposed = false, starting, disposing = false, loginGeneration = 0;
+  const store = createPrivateStore(path), settings = settingsPath ? createSettingsStore(settingsPath) : undefined, flow = new OAuthFlowManager(), refreshes = new Map();
+  let current, lastFailure, state = 'disconnected', disposed = false, starting, disposing = false, loginGeneration = 0;
   const lifecycle = new AbortController();
   const controllers = new Set();
   const listeners = new Set();
@@ -18,14 +18,20 @@ export function createCodexAccounts({ path, fetch: fetchFn = globalThis.fetch, p
   function live() { if (disposed || disposing) throw fail('service_disposed'); }
   async function snapshot() {
     live(); const data = await store.load();
-    return { ...(current ? { authorizeUrl: current.attempt.authorizeUrl } : {}), loginState: state, state: current ? state : data.accounts.some(a => a.state === 'connected' || a.state === 'paused') ? 'connected' : data.accounts.length ? 'reauthentication_required' : state,
-      accounts: data.accounts.map(a => ({ ...publicAccount(a), default: data.default === a.id })) };
+    return { ...(current ? { authorizeUrl: current.attempt.authorizeUrl } : {}), loginState: state, ...(state === 'failed' && lastFailure ? { loginFailure: lastFailure } : {}), state: current ? state : data.accounts.some(a => a.state === 'connected' || a.state === 'paused') ? 'connected' : data.accounts.length ? 'reauthentication_required' : state,
+      accounts: data.accounts.map(a => ({ ...publicAccount(a), default: data.default === a.id && a.state === 'connected' })) };
+  }
+  // Owner settings belong to the account card: forget them with it, so a re-added identity starts clean.
+  async function purgeSettings(id) {
+    if (!settings) return;
+    const data = await settings.load();
+    if (data.preferences.accounts?.[id] || data.catalogs[id]) await settings.transaction(data => { delete data.preferences.accounts?.[id]; delete data.catalogs[id]; });
   }
   // `reconnect` is an explicit account id: only then may a verified identity replace an existing record.
   async function begin(reconnect) {
     live(); if (current || starting) throw fail('login_pending');
     if (reconnect && !(await store.load()).accounts.some(a => a.id === reconnect)) throw fail('account_not_found');
-    const generation = loginGeneration;
+    const generation = loginGeneration; lastFailure = undefined;
     starting = flow.start('codex', { ...codexFlow, ...(timeoutMs ? { timeoutMs } : {}), listen: { ...codexFlow.listen, ...(ports ? { ports } : {}) } });
     let attempt;
     try { attempt = await starting; } finally { starting = undefined; }
@@ -43,22 +49,26 @@ export function createCodexAccounts({ path, fetch: fetchFn = globalThis.fetch, p
         const code = await attempt.waitCode();
         const session = await grant(fetchFn, { grant_type: 'authorization_code', code, code_verifier: attempt.pkce.verifier, redirect_uri: attempt.redirectUri }, { signal: AbortSignal.any([controller.signal, AbortSignal.timeout(30_000)]), now: now() });
         if (entry.cancelled || disposed || current !== entry) return;
+        let created;
         await store.transaction(data => {
           if (entry.cancelled || disposed || current !== entry) throw fail('cancelled');
           const id = createHash('sha256').update(JSON.stringify([session.accountId, session.user || session.accountId])).digest('hex');
           const record = { id, revision: randomUUID(), session, state: 'connected' };
           const index = data.accounts.findIndex(a => a.id === id);
           if (entry.reconnect) {
+            if (!data.accounts.some(a => a.id === entry.reconnect)) throw fail('account_not_found');
             if (id !== entry.reconnect) throw fail('identity_mismatch');
             if (data.accounts[index].state === 'paused') record.state = 'paused';
             data.accounts[index] = record;
           } else if (index >= 0) throw fail('duplicate_account');
           else data.accounts.push(record);
           data.default ||= id;
+          created = index < 0 ? id : undefined;
         }, { signal: controller.signal });
+        if (created) await purgeSettings(created);
         if (!entry.cancelled && !disposing && !disposed) { state = 'connected'; changed(); }
       } catch (error) {
-        if (['duplicate_account', 'identity_mismatch'].includes(error.code)) entry.failure = error.code;
+        if (['duplicate_account', 'identity_mismatch', 'account_not_found'].includes(error.code)) entry.failure = lastFailure = error.code;
         if (current === entry) state = entry.cancelled ? 'cancelled' : 'failed';
       }
       finally { controllers.delete(controller); if (current === entry) current = undefined; }
@@ -118,18 +128,29 @@ export function createCodexAccounts({ path, fetch: fetchFn = globalThis.fetch, p
       Object.assign(record, { state: 'signed_out', revision: randomUUID(), session: { accountId: record.session.accountId, ...(record.session.user ? { user: record.session.user } : {}), label: record.session.label } });
     }, { signal: lifecycle.signal }); changed({ revoked: id }); return snapshot();
   }
+  // Pause only acts on a connected account and resume only on a paused one; setDefault only selects a connected one.
+  // Anything else is refused with invalid_state before anything is written.
   async function mutate(id, remove, paused) {
     live(); await store.transaction(data => {
       const record = data.accounts.find(a => a.id === id);
       if (!record) throw fail('account_not_found');
       if (paused !== undefined) {
         // Pause is a host-owned state change: it revokes prepared routes, retains credentials and settings.
-        if (record.state === 'reauthentication_required') throw fail('reauthentication_required');
-        if ((record.state === 'paused') !== paused) { if (paused) changed({ revoked: id }); record.state = paused ? 'paused' : 'connected'; record.revision = randomUUID(); }
+        if (record.state !== (paused ? 'connected' : 'paused')) throw fail('invalid_state');
+        if (paused) changed({ revoked: id });
+        record.state = paused ? 'paused' : 'connected'; record.revision = randomUUID();
+        if (!paused) data.default ||= id;
       }
-      else if (remove) { changed({ revoked: id }); data.accounts = data.accounts.filter(a => a.id !== id); if (data.default === id) data.default = data.accounts[0]?.id || null; }
+      else if (remove) {
+        changed({ revoked: id }); data.accounts = data.accounts.filter(a => a.id !== id);
+        // Never hand the default to an account that cannot be used.
+        if (data.default === id) data.default = data.accounts.find(a => a.state === 'connected')?.id || null;
+      }
+      else if (record.state !== 'connected') throw fail('invalid_state');
       else data.default = id;
-    }, { signal: lifecycle.signal }); changed(remove || paused ? { revoked: id } : undefined); return snapshot();
+    }, { signal: lifecycle.signal });
+    if (remove) await purgeSettings(id);
+    changed(remove || paused ? { revoked: id } : undefined); return snapshot();
   }
   // Host-only runtime seam. These credentials never enter management snapshots.
   async function session(id, { force = false, signal } = {}) {

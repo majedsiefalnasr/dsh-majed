@@ -560,7 +560,7 @@ window.__ModuleLoader__.load({
       React.useEffect(() => { mounted.current = true; call('status'); return () => { mounted.current = false; active.current?.abort(); active.current = null; }; }, [ctx]);
       const button = (action, label, payload, disabled = false) => h('button', { type: 'button', className: 'majed-management-refresh', 'data-codex-action': action, disabled: busy || disabled, onClick: () => call(action, payload) }, t('codex.' + label));
       const pending = value.state === 'pending';
-      const status = ['failed', 'cancelled'].includes(value.loginState) ? value.loginState : value.state;
+      const status = value.loginState === 'failed' && ['duplicate_account', 'identity_mismatch'].includes(value.loginFailure) ? value.loginFailure : ['failed', 'cancelled'].includes(value.loginState) ? value.loginState : value.state;
       // Only an HTTPS authorize URL from the fixed provider can become a link.
       const authorizeUrl = typeof value.authorizeUrl === 'string' && value.authorizeUrl.startsWith('https://auth.openai.com/oauth/authorize?') ? value.authorizeUrl : null;
       return h('div', { 'data-majed-codex': true, dir: t('management.direction') },

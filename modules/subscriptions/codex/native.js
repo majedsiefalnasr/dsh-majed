@@ -7,7 +7,7 @@ export const CODEX_ACCOUNTS_PATH = '/api/' + CODEX_ACCOUNTS_METHOD;
 const error = code => Object.assign(new Error(code), { code });
 const object = value => value && typeof value === 'object' && !Array.isArray(value);
 const keys = (value, allowed) => Object.keys(value).every(key => allowed.includes(key));
-const allowedErrors = new Set(['invalid_request', 'module_disabled', 'runtime_unavailable', 'invalid_callback', 'login_not_pending', 'login_pending', 'account_not_found', 'account_paused', 'duplicate_account', 'identity_mismatch', 'reauthentication_required', 'refresh_failed', 'unsafe_account_store', 'corrupt_account_store', 'INVALID_REQUEST', 'NO_ADAPTER', 'DUPLICATE_ADAPTER']);
+const allowedErrors = new Set(['invalid_request', 'module_disabled', 'runtime_unavailable', 'invalid_callback', 'login_not_pending', 'login_pending', 'account_not_found', 'account_paused', 'invalid_state', 'duplicate_account', 'identity_mismatch', 'reauthentication_required', 'refresh_failed', 'unsafe_account_store', 'corrupt_account_store', 'INVALID_REQUEST', 'NO_ADAPTER', 'DUPLICATE_ADAPTER']);
 const json = value => Response.json(value, { headers: { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' } });
 
 async function message(request) {
@@ -32,7 +32,7 @@ export function applyCodexAccounts(ctx, config = {}) {
     let service, runtime, llm, loader, enabled = false, switching = false;
     const path = config.path || join(resolve(process.env.DSH_HOME || join(homedir(), '.dsh')), 'plugins', 'dsh-majed', 'codex-auth.json');
     const create = () => createCodexAccounts({
-      path,
+      path, settingsPath: config.catalogPath || path + '.catalog',
       ...(config.fetch ? { fetch: config.fetch } : {}), ...(config.ports ? { ports: config.ports } : {}),
     });
     owner.inject(['llm'], runtimeOwner => {
