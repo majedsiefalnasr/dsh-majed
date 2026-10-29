@@ -21,10 +21,11 @@ export function createCommandModes(isLive = () => true, { settings, now } = {}) 
   const bump = sessionId => epochs.set(sessionId, (epochs.get(sessionId) ?? 0) + 1);
   // Every read of authority checks liveness itself: a closed session, even if its id reappears, is dropped and reads as Ask me.
   const drop = sessionId => { modes.delete(sessionId); bump(sessionId); };
-  const prune = () => { for (const id of [...modes.keys()]) if (!isLive(id)) drop(id); };
+  const closed = sessionId => { drop(sessionId); policy.closeSession(sessionId); }; // a closed session loses mode, epoch-fenced decisions and ledger
+  const prune = () => { for (const id of [...modes.keys()]) if (!isLive(id)) closed(id); };
   const get = sessionId => {
     if (!modes.has(sessionId)) return 'ask';
-    if (!isLive(sessionId)) { drop(sessionId); return 'ask'; }
+    if (!isLive(sessionId)) { closed(sessionId); return 'ask'; }
     return modes.get(sessionId);
   };
   const policy = createPolicyLedger({ getMode: get, getEpoch: id => epochs.get(id) ?? 0, isLive, settings: () => (typeof settings === 'function' ? settings() : settings), ...(now ? { now } : {}) });
@@ -35,7 +36,7 @@ export function createCommandModes(isLive = () => true, { settings, now } = {}) 
       if (mode === 'ask') modes.delete(sessionId); else modes.set(sessionId, mode);
       bump(sessionId); // any mode event fences decisions made under the previous mode
     },
-    reset: sessionId => { drop(sessionId); }, // can only reduce authority to Ask me
+    reset: sessionId => { drop(sessionId); policy.reset(sessionId); }, // can only reduce authority to Ask me; clears that session's history and pending decisions, keeps the ids-only replay fence
     resetAll: () => { for (const id of [...modes.keys()]) bump(id); modes.clear(); policy.clear(); },
     entries: () => { prune(); return [...modes]; },
     evaluate: (sessionId, request) => policy.evaluate(sessionId, request),

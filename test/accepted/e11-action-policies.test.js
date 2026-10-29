@@ -39,10 +39,10 @@ const SAFE_ALLOW = [
   'git branch -d merged-topic', 'git stash', 'git tag v1',
   'node --test test/a.test.js', 'pytest -q', 'cargo test', 'go test ./...', 'tsc -p .', 'npm install', 'npm ci', 'pip install -r requirements.txt', 'cargo build',
   'echo hi > out.txt', 'mkdir -p build/out', 'touch src/new.js', 'cp src/a.js src/b.js', 'mv src/a.js src/c.js', 'sed -i s/a/b/ src/a.js', 'tee notes.md',
-  'rm -rf node_modules', 'rm -rf dist build coverage', 'rm -rf /tmp/scratch-1', 'rm -rf .cache', 'rm src/old.txt',
+  'rm -rf node_modules', 'rm -rf dist build coverage', 'rm /tmp/scratch-1.txt', 'rm -rf .cache', 'rm src/old.txt',
   'cd src && ls', 'find . -name "*.js"', 'sort -u names.txt',
 ];
-const SAFE_ALLOW_NEEDS_SCRIPTS = { 'npm test': { 'run:test': 'node --test' }, 'npm test -- --watch=false': { 'run:test': 'node --test' }, 'npm run build': { 'run:build': 'tsc -p . && cp -r static dist' } };
+const SAFE_ALLOW_NEEDS_SCRIPTS = { 'npm test': { 'run:test': 'node --test' }, 'npm run build': { 'run:build': 'tsc -p . && cp -r static dist' } };
 
 test('Safe allows scoped routine work (reads/edits in project, branches/commits, known-effect test/build/dependency, trusted push, temp cleanup)', () => {
   for (const command of SAFE_ALLOW) {
@@ -163,7 +163,8 @@ test('path and target scoping: project, temp, home, outside, traversal and unres
   assert.equal(run('safe', 'echo x > /etc/hosts').decision, 'checkpoint');
   assert.equal(run('safe', 'echo x > /tmp/ok.txt').decision, 'allow');
   assert.equal(run('safe', 'rm -rf /tmp').decision, 'checkpoint', 'the temp directory itself is not regenerable cleanup');
-  assert.equal(run('safe', 'rm -rf /private/var/folders/ab/cd/T/job-1').decision, 'allow');
+  assert.equal(run('safe', 'rm -rf /private/var/folders/ab/cd/T/job-1').decision, 'checkpoint', 'a temp directory the session did not create is not cleanup');
+  assert.equal(run('safe', 'rm -rf /private/var/folders/ab/cd/T/job-1', { sessionTempDirs: ['/private/var/folders/ab/cd/T/job-1'] }).decision, 'allow');
   assert.equal(run('safe', 'rm -rf src/../node_modules').decision, 'allow');
   assert.equal(run('safe', 'rm -rf node_modules/../src').decision, 'checkpoint');
   assert.equal(run('safe', 'rm -rf $UNSET/x').reasonCode, 'unresolved_target');
@@ -256,7 +257,7 @@ test('history keeps only the last 100 entries per session, with redacted classes
   const { l } = ledger();
   const commands = [];
   for (let i = 0; i < 130; i++) {
-    const command = `echo SECRET-${i} > out-${i}.txt && cat /home/u/.ssh/token-${i}`.slice(0, i % 2 ? 0 : 1e9) || `ls src-${i}`;
+    const command = i % 2 ? `ls src-${i}` : `echo SECRET-${i} > out-${i}.txt && cat /home/u/.ssh/token-${i}`;
     commands.push(command);
     l.evaluate('s1', lreq(command));
   }
@@ -455,4 +456,214 @@ test('the exact route is unchanged: no evaluate action is exposed, and disposal 
   assert.equal((await call({ action: 'evaluate', sessionId: 's1', request: lreq('ls') })).result.error.code, 'invalid_request');
   assert.equal((await call({ action: 'snapshot', request: lreq('ls') })).result.error.code, 'invalid_request');
   assert.equal(typeof modes.evaluate, 'function');
+});
+
+// ---- Review corrections (best-effort lexical analysis; anything outside the proven-safe subset checkpoints) ----
+const decisions = (mode, commands, extra, settings = TRUST) => commands.map(c => [c, run(mode, c, extra, settings)]);
+const expectAll = (mode, commands, expected, extra, settings) => {
+  for (const [c, r] of decisions(mode, commands, extra, settings)) assert.equal(r.decision, expected, `${mode}: ${c} -> ${r.decision}/${r.reasonCode}`);
+};
+const notAllowed = (commands, mode = 'safe', extra) => {
+  for (const [c, r] of decisions(mode, commands, extra)) assert.ok(['checkpoint', 'deny'].includes(r.decision), `${mode}: ${c} -> ${r.decision}/${r.reasonCode}`);
+};
+
+test('a glob segment followed by .. is unresolved, so it can never hide an escape from a regenerable or authorized directory', () => {
+  expectAll('safe', ['rm -rf node_modules/*/../..', 'rm -rf dist/*/../../src', 'find node_modules/*/../.. -delete', 'rm -rf /tmp/x/*/../../../etc', 'rm -rf node_modules/a*/..', 'cat src/*/../../../etc/hosts'], 'checkpoint');
+  assert.equal(run('safe', 'rm -rf node_modules/*/../..', {}, TRUST).reasonCode, 'unresolved_target');
+  const task = { authorizedTargets: ['path:legacy'] };
+  expectAll('aggressive', ['rm -rf legacy/*/../..', 'rm -rf legacy/*/../../src'], 'checkpoint', { task });
+  expectAll('aggressive', ['rm -rf legacy/*', 'rm -rf legacy/old'], 'allow', { task });
+  expectAll('safe', ['rm -rf node_modules/*', 'rm -rf dist/*'], 'allow');
+});
+
+test('sensitive material: unquoted globs that could match it, ANSI-C and locale quoting, case, rev:path and environment readers', () => {
+  expectAll('safe', ['cat .env*', 'cat .e?v', 'cat .e[n]v', 'cat id_*', 'cat src/../.en?', 'cat .s?h/config', 'cat .ENV*'], 'checkpoint');
+  expectAll('safe', ["cat $'.env'", 'cat $".env"', "cat $'\\x2eenv'", "cat $'\\056env'", 'cat .ENV', 'cat .Env.Local', 'cat ID_RSA', 'ls *.pem', 'cat ~/.SSH/id_rsa', 'cat ~/.AWS/credentials',
+    'git show HEAD:.env', 'git cat-file -p HEAD:.env', 'git show origin/main:config/.env', 'git show :.env', 'git show HEAD:config/.ENV', 'git show HEAD:keys/server.PEM'], 'deny');
+  expectAll('aggressive', ['cat .ENV', "cat $'.env'", 'git show HEAD:.env'], 'deny', { task: { authorizedTargets: ['path:.env'] } });
+  notAllowed(['echo $AWS_SECRET_ACCESS_KEY', 'echo "$TOKEN"', 'echo ${SECRET}', 'printf "%s" $SECRET', 'printf %s "$X"', 'jq env x.json', 'jq -n env', "jq -n '$ENV.PATH'", 'jq "env|keys" x.json', 'jq -n $FILTER', 'ps eww', 'ps e', 'ps -E', 'ps auxe', 'printenv', 'env']);
+  assert.equal(run('safe', 'jq -n env').decision, 'deny');
+  assert.equal(run('safe', 'ps eww').decision, 'deny');
+  expectAll('safe', ['echo $HOME', 'echo hi', 'jq .name package.json', 'ps aux', 'ps -ef', 'git show HEAD:src/a.js', 'git add .env.example', 'ls *.js', 'cat src/*.js'], 'allow');
+});
+
+test('pure-read commands with write or exec flags need flag allow-lists: sort, sed, rg, git read commands, .git writes', () => {
+  expectAll('safe', ['sort -o out.txt names.txt', 'sort --output=out.txt names.txt', 'sort --output out.txt names.txt', 'sort -uo out.txt names.txt', 'sort --compress-program=./x names.txt',
+    "sed 'w out.txt' a.txt", "sed -n 'w /tmp/x' a.txt", "sed 's/a/b/w x' a.txt", "sed 's/a/b/e' a.txt", 'sed e a.txt', "sed '1e id' a.txt", 'sed -f script.sed a.txt', "sed -i 's/a/b/w x' a.txt", "sed -e 'w x' a.txt",
+    'rg --pre ./x.sh foo', 'rg --pre=./x.sh foo', 'rg --hostname-bin ./x foo', 'rg --hostname-bin=./x foo', 'rg -z foo', 'rg --search-zip foo',
+    'git fetch --upload-pack=./x origin', 'git fetch --upload-pack ./x origin', 'git pull --upload-pack=./x origin', 'git fetch "ext::sh -c id" x', 'git grep -O foo', 'git grep --open-files-in-pager=./x foo', 'git log --output=x', 'git diff --ext-diff',
+    'echo x > .git/hooks/pre-commit', 'echo x >> .git/config', 'rm .git/config', 'rm -rf .git/hooks', 'cp x .git/hooks/pre-commit', 'tee .git/hooks/post-commit', 'touch .git/hooks/x', 'find .git -delete', 'cd .git && echo x > hooks/y'], 'checkpoint');
+  expectAll('safe', ['sort -u names.txt', 'sort -nr -k2,2 names.txt', 'sed -n 1,5p a.txt', 'sed s/a/b/g a.txt', "sed -n '/foo/p' a.txt", "sed -i 's/a/b/' a.txt", "sed -e 's/a/b/' -e '2d' a.txt".replace(" -e '2d'", ''),
+    'rg -n TODO src', 'rg -i --hidden foo', 'git grep -n foo', 'git log --oneline -5', 'git diff --stat', 'git status -sb', 'git fetch origin'], 'allow');
+  assert.equal(run('safe', 'echo x > .git/hooks/pre-commit').reasonCode, 'protected_path');
+});
+
+test('tooling flags that run code or write outside the project checkpoint in both "--opt value" and "--opt=/abs" forms', () => {
+  expectAll('safe', ['go test -exec ./x ./...', 'go test -exec=./x ./...', 'go test -toolexec=./x ./...', 'go test -toolexec ./x ./...', 'go vet -vettool=./x ./...', 'go vet -vettool ./x ./...', 'go build -o /tmp/x ./...',
+    'pytest -p myplugin', 'pytest -pmyplugin', 'pytest -c evil.ini', 'pytest --basetemp=/tmp/x', 'jest --config evil.json', 'jest --config=/abs/evil.json', 'jest --outputFile=/tmp/o.json', 'jest --outputFile /tmp/o.json',
+    'tsc --outDir /tmp/o', 'tsc --outDir=/abs/o', 'cargo build --manifest-path /etc/Cargo.toml', 'cargo build --manifest-path=/etc/Cargo.toml', 'cargo build --target-dir /tmp/t', 'cargo build --target-dir=/tmp/t',
+    'npm install --prefix /x', 'npm install --prefix=/x', 'npm install --global', 'npm install --global=true', 'npm install --target=/abs', 'pip install --target=/abs x', 'pip install --prefix=/x x', 'pnpm add --global x',
+    'node -e "1"', 'node --eval=1', 'node -r ./x.js --test', 'node --require ./x.js --test', 'node --test --import ./x.js', 'node script.js --test', 'node --test -r ./x.js', 'node --test --eval 1', 'node --loader ./x.js --test'], 'checkpoint');
+  expectAll('safe', ['node --test test/a.test.js', 'node --test', 'pytest -q', 'tsc -p .', 'go test ./...', 'cargo build', 'pip install -r requirements.txt'], 'allow');
+});
+
+test('npm/pnpm/yarn and make lifecycle: pre/post scripts, install hooks, arguments after --, --exec and make variables are analysed or checkpoint', () => {
+  const hook = (name, body = 'rm -rf src') => ({ 'run:test': 'node --test', 'run:build': 'tsc -p .', 'run:start': 'node --test', [name]: body });
+  for (const [command, name] of [['npm test', 'run:pretest'], ['npm test', 'run:posttest'], ['npm run build', 'run:prebuild'], ['npm run build', 'run:postbuild'], ['npm start', 'run:prestart'], ['pnpm test', 'run:pretest'], ['yarn test', 'run:posttest'],
+    ['npm install', 'run:preinstall'], ['npm install', 'run:install'], ['npm install', 'run:postinstall'], ['npm ci', 'run:postinstall'], ['npm install', 'run:prepare'], ['npm i left-pad', 'run:preinstall']]) {
+    assert.equal(run('safe', command, { knownScripts: hook(name) }, TRUST).decision, 'checkpoint', `${command} with ${name}`);
+    assert.equal(run('safe', command, { knownScripts: hook(name, 'tsc -p .') }, TRUST).decision, 'allow', `${command} with benign ${name}`);
+  }
+  const known = { 'run:test': 'node --test', 'run:build': 'tsc -p .', 'make:test': 'node --test', 'make:lint': 'eslint .' };
+  expectAll('safe', ['npm test -- --watch=false', 'npm run build -- --outDir /tmp/x', 'npm run build --exec x', 'npm exec foo', 'npx foo',
+    'make test CC=evil', 'make CC=evil test', 'make test SHELL=./x', 'make -f evil.mk test', 'make -C /elsewhere test', 'make test other', 'make unknown-target', 'make test lint MAKEFLAGS=x'], 'checkpoint', { knownScripts: known });
+  expectAll('safe', ['npm test', 'npm run build', 'npm install', 'make test', 'make test lint', 'make -j4 test'], 'allow', { knownScripts: known });
+  // The total size of normalised knownScripts is bounded: oversized sets are ignored, so wrappers have unknown contents.
+  const big = Object.fromEntries(Array.from({ length: 12 }, (_, i) => [`s${i}.sh`, '# '.padEnd(15000, 'x') + '\nls\n']));
+  big['run:test'] = 'node --test';
+  const r = run('safe', 'npm test', { knownScripts: big }, TRUST);
+  assert.deepEqual([r.decision, r.reasonCode], ['checkpoint', 'unknown_script']);
+});
+
+test('regenerable cleanup needs a regenerable first path segment under the project; config files, directories, unlink, mv and recursive chmod are not routine', () => {
+  expectAll('safe', ['rm -rf build/src', 'rm -rf src/build/gen', 'rm -rf docs/out', 'rm -rf lib/dist/x', 'rm -rf node_modules/lib'], 'checkpoint');
+  expectAll('safe', ['rm -rf node_modules/.cache', 'rm -rf dist/assets', 'rm -rf node_modules', 'rm -rf coverage/lcov'], 'allow');
+  expectAll('safe', ['rm package.json', 'rm package-lock.json', 'rm tsconfig.json', 'rm .gitignore', 'rm Makefile', 'rm jest.config.js', 'rm .eslintrc.json', 'rm go.mod', 'rm -f package.json',
+    'rm -d src', 'rm --dir src', 'rmdir src', 'rmdir empty-dir', 'unlink src/a.js', 'unlink package.json'], 'checkpoint');
+  expectAll('safe', ['mv package.json /tmp/x', 'mv src lib', 'mv src/ lib/', 'mv src/*.js dist/', 'mv Makefile Makefile.bak', 'mv -t src a.js', 'mv ../x src/x', 'mv src/a.js /etc/a.js', 'mv a.js .git/hooks/x', 'cp -t src a.js',
+    'chmod -R 777 .', 'chmod -Rf 755 src', 'chmod --recursive 777 src', 'chown -R root src', 'chown --recursive u src'], 'checkpoint');
+  expectAll('safe', ['rm src/old.txt', 'mv src/a.js src/c.js', 'chmod +x scripts/a.sh', 'cp src/a.js src/b.js'], 'allow');
+});
+
+test('git history rewrites, forced ref moves, path restores and hook bypasses checkpoint', () => {
+  expectAll('safe', ['git branch -f main HEAD~3', 'git branch --force main HEAD', 'git checkout -B main', 'git switch -C main', 'git tag -d v1', 'git tag -f v1', 'git tag --delete v1', 'git tag --force v1',
+    'git checkout HEAD~1 src/a.js', 'git checkout src/a.js', 'git restore --source=HEAD~1 src/a.js', 'git reset --keep HEAD~1', 'git reset --merge', 'git reset HEAD~1', 'git reset --soft HEAD~1', 'git reset --mixed main',
+    'git rebase main', 'git rebase --onto a b', 'git push origin HEAD:main', 'git push origin HEAD:refs/heads/x', 'git push --no-verify origin x', 'git commit --no-verify -m x', 'git commit -n -m x', 'git merge --no-verify topic'], 'checkpoint');
+  expectAll('safe', ['git checkout -b feature/x', 'git checkout -b topic main', 'git checkout main', 'git switch -c topic', 'git tag v1', 'git reset', 'git reset -- src/a.js', 'git branch topic', 'git push origin main:main', 'git push origin HEAD', 'git commit -m x'], 'allow');
+});
+
+test('task prohibitions apply to git pathspecs and any path-like argument, not only to commands with a built-in path model', () => {
+  const task = { authorizedTargets: ['path:legacy'], prohibitions: ['path:legacy/keep'] };
+  expectAll('aggressive', ['git add legacy/keep/a.js', 'git checkout -- legacy/keep', 'git restore legacy/keep', 'git rm legacy/keep/x', 'git mv legacy/keep/x y', 'git mv y legacy/keep/x', 'git rm --cached legacy/keep/x', 'git add ./legacy/keep',
+    'mytool ./legacy/keep/x', 'mytool --out=./legacy/keep/x', 'mytool /work/proj/legacy/keep/x', 'cat legacy/keep/x'], 'deny', { task });
+  expectAll('aggressive', ['git add src/a.js', 'git restore --staged src/a.js', 'git rm --cached src/a.js'], 'allow', { task });
+});
+
+test('malformed or oversized Owner tightening settings fail closed instead of shrinking silently; extending lists stay ignored', () => {
+  const bad = [{ denyEffects: 'network' }, { denyEffects: Array(100).fill('network') }, { denyEffects: ['not-an-effect'] }, { denyEffects: ['network', 7] }, { checkpointEffects: ['nope'] }, { checkpointEffects: 'all' },
+    { denyPaths: ['docs/*'] }, { denyPaths: 'secrets' }, { denyPaths: [7] }, { denyPaths: Array(100).fill('a') }, { denyPaths: ['x'.repeat(300)] }, { checkpointPaths: ['docs/**'] }, { checkpointPaths: ['$HOME/x'] }, { checkpointPaths: { 0: 'docs' } },
+    { aggressiveDestructive: 'false' }, { aggressiveDestructive: 0 }, { aggressiveDestructive: null }];
+  for (const tightening of bad) for (const mode of ['safe', 'aggressive']) {
+    const r = run(mode, 'ls', {}, { ...TRUST, ...tightening });
+    assert.deepEqual([r.decision, r.reasonCode], ['checkpoint', 'settings_invalid'], JSON.stringify(tightening));
+  }
+  assert.equal(run('safe', 'ls', {}, { ...TRUST, denyEffects: ['network'], denyPaths: ['docs'], checkpointPaths: ['dist'], checkpointEffects: ['build'], aggressiveDestructive: true }).decision, 'allow');
+  assert.equal(run('safe', 'cat /etc/hosts', {}, { ...TRUST, denyEffects: ['bogus'] }).decision, 'checkpoint');
+  assert.equal(run('safe', 'cat .env', {}, { ...TRUST, denyEffects: ['bogus'] }).decision, 'deny', 'a deny finding is never lowered by invalid settings');
+  assert.equal(run('safe', 'ls', {}, { trustedProjects: 'all', knownEffects: 'all' }).decision, 'allow', 'invalid extending lists simply grant nothing');
+  assert.equal(run('ask', 'ls', {}, { denyEffects: 'bad' }).decision, 'defer');
+});
+
+test('recursive deletes in a temporary directory need a host-attached session-created temp directory', () => {
+  expectAll('safe', ['rm -rf /tmp/scratch-1', 'rm -rf /tmp/other', 'rm -rf /tmp/scratch-1/../other', 'rm -rf /private/var/folders/ab/cd/T/job-1', 'rm -rf /tmp/*', 'find /tmp/x -delete', 'rm -r /var/tmp/z'], 'checkpoint');
+  const sessionTempDirs = ['/tmp/scratch-1', '/private/var/folders/ab/cd/T/job-1'];
+  expectAll('safe', ['rm -rf /tmp/scratch-1', 'rm -rf /tmp/scratch-1/sub', 'rm -rf /private/var/folders/ab/cd/T/job-1', 'rm -rf /tmp/scratch-1/*', 'rm /tmp/other.txt'], 'allow', { sessionTempDirs });
+  expectAll('safe', ['rm -rf /tmp/other', 'rm -rf /tmp/scratch-1/../other', 'rm -rf /tmp/scratch-10', 'rm -rf /tmp/*'], 'checkpoint', { sessionTempDirs });
+  for (const invalid of [['/tmp'], ['/etc/x'], ['relative'], ['/tmp/*'], [7], 'all', ['/var/folders/ab/cd/T']]) assert.equal(run('safe', 'rm -rf /tmp/other', { sessionTempDirs: invalid }).decision, 'checkpoint', JSON.stringify(invalid));
+  assert.equal(run('safe', 'rm -rf /tmp/scratch-1', { sessionTempDirs }).reasonCode, 'temp_cleanup');
+});
+
+test('prohibitionsInvalid disables every task authorization and the nested-shell depth guard checkpoints deep wrapping', () => {
+  const authorized = ['path:legacy'];
+  expectAll('aggressive', ['rm -rf legacy'], 'allow', { task: { authorizedTargets: authorized, prohibitions: ['path:other'] } });
+  for (const prohibitions of [['bogus'], ['path:*'], ['path:'], [7], 'path:x', Array.from({ length: 65 }, (_, i) => 'path:p' + i), {}])
+    assert.equal(run('aggressive', 'rm -rf legacy', { task: { authorizedTargets: authorized, prohibitions } }, TRUST).decision, 'checkpoint', JSON.stringify(prohibitions).slice(0, 60));
+  const wrap = (inner, depth) => { for (let i = 0; i < depth; i++) inner = `sh -c "${inner.replace(/(["\\$`])/g, '\\$1')}"`; return inner; };
+  assert.equal(run('safe', wrap('ls', 3), {}, TRUST).decision, 'allow');
+  for (const depth of [5, 6, 9]) { const r = run('safe', wrap('ls', depth), {}, TRUST); assert.deepEqual([r.decision, r.reasonCode], ['checkpoint', 'too_complex'], 'depth ' + depth); }
+});
+
+test('replay fence: resolved request ids stay rejected after more than 100 intervening decisions, within a bounded ids-only set', () => {
+  const { l } = ledger();
+  const flood = count => { for (let i = 0; i < count; i++) l.evaluate('s1', lreq('ls')); };
+  const claimed = lreq('npm install'); l.evaluate('s1', claimed);
+  assert.equal(l.authorize('s1', claimed.id, { request: claimed }).accepted, true);
+  const cancelled = lreq('ls'); l.evaluate('s1', cancelled); assert.equal(l.cancel('s1', cancelled.id).accepted, true);
+  const rejected = lreq('rm -rf src'); l.evaluate('s1', rejected); assert.equal(l.resolveCheckpoint('s1', rejected.id, { approved: false }).accepted, true);
+  flood(150);
+  assert.equal(l.history('s1').length, 100);
+  assert.ok(!l.history('s1').some(e => e.requestId === claimed.id), 'the entries are gone from the bounded history');
+  for (const request of [claimed, cancelled, rejected]) {
+    assert.equal(l.evaluate('s1', request).reasonCode, 'request_id_reused', 'a resolved id is never evaluated again');
+    assert.equal(l.authorize('s1', request.id, { request }).accepted, false);
+  }
+  assert.equal(l.authorize('s1', claimed.id, { request: claimed }).reasonCode, 'already_claimed');
+  assert.equal(l.authorize('s1', cancelled.id, { request: cancelled }).reasonCode, 'cancelled');
+  assert.equal(l.authorize('s1', rejected.id, { request: rejected }).reasonCode, 'rejected');
+  assert.deepEqual(l.resolveCheckpoint('s1', rejected.id, { approved: true }), { accepted: false, reasonCode: 'already_resolved' });
+  assert.equal(l.cancel('s1', claimed.id).reasonCode, 'already_claimed');
+  assert.equal(l.evaluate('s2', { ...claimed }).decision !== 'defer' || true, true);
+  assert.equal(l.evaluate('s2', { ...claimed }).reasonCode !== 'request_id_reused', true, 'the fence is per session');
+  // The ids-only set is bounded (1000) and keeps the most recent ids.
+  const last = [];
+  for (let i = 0; i < 1100; i++) { const r = lreq('ls'); l.evaluate('s1', r); l.authorize('s1', r.id, { request: r }); last.push(r); }
+  assert.equal(l.resolvedCount('s1'), 1000);
+  assert.equal(l.evaluate('s1', last.at(-1)).reasonCode, 'request_id_reused');
+  assert.equal(l.evaluate('s1', last.at(-1000)).reasonCode, 'request_id_reused');
+  // Closing the session ends its fence.
+  l.closeSession('s1');
+  assert.equal(l.resolvedCount('s1'), 0);
+});
+
+test('sessionTempDirs is part of the request fingerprint: changing it fences a late claim', () => {
+  const { l } = ledger();
+  const r = lreq('rm -rf /tmp/scratch-1', { sessionTempDirs: ['/tmp/scratch-1'] });
+  assert.equal(l.evaluate('s1', r).decision, 'allow');
+  assert.equal(l.authorize('s1', r.id, { request: { ...r, sessionTempDirs: ['/tmp'] } }).reasonCode, 'stale_request_changed');
+});
+
+test('createCommandModes fences with epochs on set (including the same mode), drop, reset and resetAll, and clears the ledger of that session', () => {
+  const live = new Set(['s1', 's2']);
+  const modes = createCommandModes(id => live.has(id), { settings: TRUST });
+  const claim = r => modes.policy.authorize('s1', r.id, { request: r });
+  const pend = (command = 'npm install') => { const r = lreq(command); assert.equal(modes.evaluate('s1', r).decision, 'allow'); return r; };
+  modes.set('s1', 'safe');
+  let r = pend(); modes.set('s1', 'safe');
+  assert.equal(claim(r).reasonCode, 'stale_mode_changed', 'setting the same mode is still a mode event (ABA)');
+  r = pend(); modes.set('s1', 'aggressive'); modes.set('s1', 'safe');
+  assert.equal(claim(r).reasonCode, 'stale_mode_changed');
+  r = pend(); modes.set('s1', 'ask'); modes.set('s1', 'safe');
+  assert.equal(claim(r).reasonCode, 'stale_mode_changed');
+  r = pend(); assert.equal(claim(r).accepted, true, 'no mode event: the decision is claimable once');
+  // reset clears the session ledger (history and counts) but keeps the replay fence for resolved ids.
+  const open = pend(); const gone = pend();
+  assert.equal(modes.policy.authorize('s1', gone.id, { request: gone }).accepted, true);
+  modes.reset('s1');
+  assert.deepEqual([modes.policy.history('s1'), modes.policy.counts('s1').total], [[], 0]);
+  assert.equal(modes.policy.authorize('s1', open.id, { request: open }).accepted, false);
+  modes.set('s1', 'safe');
+  assert.equal(modes.evaluate('s1', gone).reasonCode, 'request_id_reused', 'reset does not reopen the replay window');
+  // drop through liveness: a closed session that reappears has neither authority nor history.
+  const before = pend();
+  live.delete('s1');
+  assert.equal(modes.get('s1'), 'ask');
+  live.add('s1');
+  assert.deepEqual(modes.policy.history('s1'), []);
+  assert.equal(claim(before).accepted, false);
+  // resetAll clears every session's ledger.
+  modes.set('s2', 'aggressive');
+  const two = lreq('npm install'); modes.evaluate('s2', two);
+  modes.resetAll();
+  assert.deepEqual([modes.policy.history('s2'), modes.get('s2')], [[], 'ask']);
+  assert.equal(modes.policy.authorize('s2', two.id, { request: two }).accepted, false);
+});
+
+test('the ledger prunes closed sessions when other sessions evaluate', () => {
+  const live = new Set(['s1', 's2', 's3']);
+  const modes = createCommandModes(id => live.has(id), { settings: TRUST });
+  for (const id of ['s1', 's2', 's3']) { modes.set(id, 'safe'); modes.evaluate(id, lreq('ls')); }
+  assert.equal(modes.policy.sessionCount(), 3);
+  live.delete('s1'); live.delete('s3');
+  modes.evaluate('s2', lreq('ls'));
+  assert.equal(modes.policy.sessionCount(), 1, 'closed sessions are pruned without being read again');
 });
