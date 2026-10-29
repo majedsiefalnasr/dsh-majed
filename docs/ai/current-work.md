@@ -4,7 +4,7 @@ Updated 2026-10-29 (Africa/Cairo).
 
 ## Phase
 
-**Specification for the Subscriptions component** (`/to-spec`), after `/grill-with-docs` rounds 1 and 2 were accepted by the Owner. No implementation is authorized until the spec, its test seams and the ticket breakdown are approved.
+**Ticket breakdown for the Subscriptions component** (`/to-tickets`). The spec and its test seams were approved by the Owner and published as #127 (`ready-for-agent`). No implementation is authorized until the ticket breakdown is approved and published.
 
 ## Plan of record
 
@@ -39,6 +39,11 @@ Updated 2026-10-29 (Africa/Cairo).
 - Research (2026-10-29): `docs/research/dsh-plugin-components-2026-10-29.md`, `docs/research/subscriptions-reference-inventory-2026-10-29.md`, `docs/research/opencode-and-native-api-providers-2026-10-29.md`.
 - Reference source: https://github.com/V1ki/dsh-plugin-subscriptions tag `v0.9.12` (`b802311`), MIT. OpenCode method: https://github.com/FishBottle7/opencode2dsh v0.3.14, MIT.
 
+## Repository state
+
+- `feat/subscriptions` pushed to origin at `c7f8598` (docs only, no code).
+- Incident 2026-10-29: the first push went to `main` because the new branch tracked `origin/main` (`push.default=upstream`); `main` was fast-forwarded from `d6fe0e3` to `c7f8598` (19 docs files, no code). The installed plugin is pinned in the profile lockfile to `d6fe0e3` and is unaffected. Restoring `main` needs a force push and the Owner's decision. The branch now tracks `origin/feat/subscriptions`.
+
 ## Next allowed action
 
-Present the spec draft and its test seams to the Owner; publish it as a GitHub issue only after approval, then propose the ticket breakdown.
+Present the ticket breakdown to the Owner; publish the tickets (sub-issues of #127, native blocking edges) only after approval. Obtain the Owner's decision on restoring `main`.
