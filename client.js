@@ -264,6 +264,8 @@ window.__ModuleLoader__.load({
       'codex.pending': 'Waiting for sign-in. Open the link on the host, or paste the full callback URL here from a remote device.',
       'codex.disconnected': 'No Codex account connected.', 'codex.connected': 'Account connected.', 'codex.disabled': 'Account management is disabled.',
       'codex.failed': 'Login failed or expired. Try connecting again.', 'codex.cancelled': 'Login cancelled.', 'codex.reauthentication_required': 'Sign in again to reconnect this account.',
+      'codex.accounts': 'accounts', 'codex.expires': 'Token expires', 'codex.usage': 'Usage', 'codex.usageUnavailable': 'Not available yet — usage and reset windows arrive with the usage feature.',
+      'codex.badge_connected': 'Connected', 'codex.badge_paused': 'Paused', 'codex.badge_signed_out': 'Signed out', 'codex.badge_reauthentication_required': 'Sign-in required', 'codex.badge_error': 'Error',
       'codex.error': 'Account operation failed. Refresh status or reconnect. No credential details are displayed.', 'codex.working': 'Working…',
       'codex.modelsEnable': 'Enable Codex models', 'codex.modelsDisable': 'Disable Codex models', 'codex.catalog': 'Refresh model catalog',
       'codex.model': 'Model', 'codex.modelName': 'Display name', 'codex.hidden': 'Hide from picker', 'codex.effort': 'Default reasoning effort', 'codex.providerDefault': 'Provider default',
@@ -286,6 +288,8 @@ window.__ModuleLoader__.load({
       'codex.pending': 'بانتظار تسجيل الدخول. افتح الرابط على المضيف أو ألصق رابط العودة الكامل هنا من جهاز بعيد.',
       'codex.disconnected': 'لا يوجد حساب Codex متصل.', 'codex.connected': 'الحساب متصل.', 'codex.disabled': 'إدارة الحساب معطلة.',
       'codex.failed': 'فشل تسجيل الدخول أو انتهت مهلته. حاول الربط مجددًا.', 'codex.cancelled': 'تم إلغاء تسجيل الدخول.', 'codex.reauthentication_required': 'سجّل الدخول مجددًا لإعادة ربط هذا الحساب.',
+      'codex.accounts': 'حسابات', 'codex.expires': 'ينتهي الرمز', 'codex.usage': 'الاستهلاك', 'codex.usageUnavailable': 'غير متاح بعد — يظهر الاستهلاك ومواعيد التصفير مع ميزة الاستهلاك.',
+      'codex.badge_connected': 'متصل', 'codex.badge_paused': 'متوقف مؤقتًا', 'codex.badge_signed_out': 'مسجّل الخروج', 'codex.badge_reauthentication_required': 'يلزم تسجيل الدخول', 'codex.badge_error': 'خطأ',
       'codex.error': 'فشلت عملية الحساب. حدّث الحالة أو أعد الربط. لا تُعرض تفاصيل بيانات الاعتماد.', 'codex.working': 'جارٍ التنفيذ…',
       'codex.modelsEnable': 'تفعيل نماذج Codex', 'codex.modelsDisable': 'تعطيل نماذج Codex', 'codex.catalog': 'تحديث قائمة النماذج',
       'codex.model': 'النموذج', 'codex.modelName': 'اسم العرض', 'codex.hidden': 'إخفاء من محدد النماذج', 'codex.effort': 'جهد الاستدلال الافتراضي', 'codex.providerDefault': 'افتراضي المزود',
@@ -587,7 +591,13 @@ window.__ModuleLoader__.load({
           }
         } catch (error) {
           if (current()) {
+            if (action === 'complete') setCallback('');
             setFailure(error.code === 'runtime_unavailable' ? 'runtimeUnavailable' : ['duplicate_account', 'identity_mismatch', 'account_paused'].includes(error.code) ? error.code : 'error');
+            if (action === 'complete' && error.code === 'login_not_pending') {
+              // The loopback callback may already have completed the login: show the real state, not an error.
+              setFailure(false);
+              try { const snapshot = await ctx.connection.rpc.call('/api', 'majed/subscriptions/codex', { action: 'status', mode: 'passive' }, controller.signal); if (snapshot.ok && current()) setValue(previous => ({ ...snapshot.value, runtime: previous.runtime })); } catch { setFailure('error'); }
+            }
             if (action === 'refresh') {
               // A rejected grant can still commit reauthentication-required state.
               // Hide stale actionable metadata while querying the public snapshot;
@@ -606,35 +616,69 @@ window.__ModuleLoader__.load({
         finally { clearTimeout(timer); controller.signal.removeEventListener('abort', cancel); if (active.current === controller) { active.current = null; if (mounted.current) setBusy(false); } }
       };
       React.useEffect(() => { mounted.current = true; call('status'); return () => { mounted.current = false; active.current?.abort(); active.current = null; }; }, [ctx]);
-      const button = (action, label, payload, disabled = false) => h('button', { type: 'button', className: 'majed-management-refresh', 'data-codex-action': action, disabled: busy || disabled, onClick: () => call(action, payload) }, t('codex.' + label));
+      const button = (action, label, payload, disabled = false, extra = {}) => h('button', { type: 'button', className: 'majed-management-refresh majed-pill' + (extra.primary ? ' majed-pill--primary' : ''), 'data-codex-action': action, disabled: busy || disabled, onClick: () => call(action, payload) }, t('codex.' + label));
       const pending = value.state === 'pending';
+      // An automatic loopback completion happens outside this page: observe it instead of waiting for a manual paste.
+      React.useEffect(() => {
+        if (!pending) return undefined;
+        let stopped = false, timer;
+        const tick = async () => {
+          if (stopped) return;
+          if (!active.current) {
+            try {
+              const snapshot = await ctx.connection.rpc.call('/api', 'majed/subscriptions/codex', { action: 'status', mode: 'passive' });
+              if (!stopped && !active.current && mounted.current && snapshot.ok && snapshot.value.state !== 'pending') { setValue(previous => ({ ...snapshot.value, runtime: previous.runtime })); setCallback(''); return; }
+            } catch { /* The next tick retries; the visible state is unchanged. */ }
+          }
+          if (!stopped) timer = setTimeout(tick, 2000);
+        };
+        timer = setTimeout(tick, 2000);
+        return () => { stopped = true; clearTimeout(timer); };
+      }, [pending, ctx]);
       const status = value.loginState === 'failed' && ['duplicate_account', 'identity_mismatch'].includes(value.loginFailure) ? value.loginFailure : ['failed', 'cancelled'].includes(value.loginState) ? value.loginState : value.state;
       // Only an HTTPS authorize URL from the fixed provider can become a link.
       const authorizeUrl = typeof value.authorizeUrl === 'string' && value.authorizeUrl.startsWith('https://auth.openai.com/oauth/authorize?') ? value.authorizeUrl : null;
-      return h('div', { 'data-majed-codex': true, dir: t('management.direction') },
-        h('h3', null, t('codex.title')), h('p', null, t('codex.description')),
-        h('div', { className: 'majed-management-controls' }, button('enable', value.enabled ? 'disable' : 'enable', { enabled: !value.enabled }), button('status', 'status')),
-        value.enabled && h('div', { className: 'majed-management-controls' }, button('runtime', value.runtimeEnabled ? 'modelsDisable' : 'modelsEnable', { enabled: !value.runtimeEnabled }, !value.runtimeAvailable),
+      const accounts = value.accounts || [];
+      const connectedCount = accounts.filter(account => account.state === 'connected').length;
+      const dotState = !value.enabled ? 'off' : connectedCount ? 'on' : accounts.length ? 'warn' : 'off';
+      // A stale terminal login message beside a usable account is noise; show it only while no account explains the state.
+      const showStatus = failure || busy || pending || !accounts.length || !(connectedCount && ['connected', 'cancelled', 'disconnected'].includes(status));
+      const expires = account => { try { return account.expiresAt ? new Date(account.expiresAt).toLocaleString(t('management.direction') === 'rtl' ? 'ar' : undefined) : ''; } catch { return ''; } };
+      return h('section', { className: 'majed-provider-card', 'data-majed-codex': true, dir: t('management.direction') },
+        h('header', { className: 'majed-provider-head' },
+          h('span', { className: 'majed-dot majed-dot--' + dotState, 'aria-hidden': 'true' }),
+          h('h3', { className: 'majed-provider-title' }, t('codex.title')),
+          h('span', { className: 'majed-provider-count' }, value.enabled ? accounts.length + ' ' + t('codex.accounts') : t('codex.disabled'))),
+        h('div', { className: 'majed-management-controls majed-provider-toolbar' }, button('enable', value.enabled ? 'disable' : 'enable', { enabled: !value.enabled }), value.enabled && button('status', 'status'),
+          value.enabled && button('runtime', value.runtimeEnabled ? 'modelsDisable' : 'modelsEnable', { enabled: !value.runtimeEnabled }, !value.runtimeAvailable),
           value.runtimeEnabled && button('catalog', 'catalog')),
-        value.runtimeEnabled && value.runtime && h(CodexModelSettings, { runtime: value.runtime, call, busy, t }),
-        value.enabled && h('div', { className: 'majed-management-controls' }, button('begin', 'begin', {}, pending),
-          pending && button('cancel', 'cancel')),
-        pending && h('div', null, authorizeUrl && h('a', { href: authorizeUrl, target: '_blank', rel: 'noreferrer noopener' }, t('codex.open')),
-          h('label', null, t('codex.callback'), h('input', { type: 'text', 'data-codex-callback': true, value: callback, autoComplete: 'off', spellCheck: false, onChange: event => setCallback(event.target.value) })),
-          button('complete', 'complete', { callback }, !callback)),
-        h('p', { role: failure ? 'alert' : 'status', 'aria-live': 'polite' }, t('codex.' + (failure || (busy ? 'working' : status)))),
-        ...(value.accounts || []).map(account => h('div', { key: account.id }, h('p', null, account.label),
-          h('p', null, t('codex.' + account.state)), h('div', { className: 'majed-management-controls' },
-            button('refresh', 'refresh', { account: account.id }, account.state !== 'connected' && account.state !== 'reauthentication_required'), button('default', 'default', { account: account.id }, account.default || account.state !== 'connected'),
+        !value.enabled && h('p', { className: 'majed-muted' }, t('codex.description')),
+        ...accounts.map(account => h('article', { key: account.id, className: 'majed-account-card majed-account-card--' + account.state, 'data-account-state': account.state },
+          h('div', { className: 'majed-account-head' },
+            h('button', { type: 'button', className: 'majed-star' + (account.default ? ' is-default' : ''), 'data-codex-action': 'default', title: t('codex.default'), 'aria-label': t('codex.default'), 'aria-pressed': !!account.default,
+              disabled: busy || account.default || account.state !== 'connected', onClick: () => call('default', { account: account.id }) }, account.default ? '★' : '☆'),
+            h('div', { className: 'majed-account-id' }, h('p', { className: 'majed-account-label' }, account.label), h('span', { className: 'majed-badge majed-badge--' + account.state }, t('codex.badge_' + account.state))),
+            account.state !== 'signed_out' && account.state !== 'error' && button('signOut', 'signOut', { account: account.id })),
+          account.state !== 'connected' && h('p', { className: 'majed-muted' }, t('codex.' + account.state)),
+          expires(account) && account.state === 'connected' && h('div', { className: 'majed-account-meta' }, t('codex.expires'), ' ', expires(account)),
+          h('div', { className: 'majed-account-usage' }, h('span', { className: 'majed-account-usage-title' }, t('codex.usage')), h('span', { className: 'majed-muted' }, t('codex.usageUnavailable'))),
+          h('div', { className: 'majed-management-controls majed-account-actions' },
+            button('refresh', 'refresh', { account: account.id }, account.state !== 'connected' && account.state !== 'reauthentication_required'),
             account.state === 'connected' && button('pause', 'pause', { account: account.id }), account.state === 'paused' && button('resume', 'resume', { account: account.id }),
-            ['signed_out', 'reauthentication_required'].includes(account.state) && h('button', { type: 'button', className: 'majed-management-refresh', 'data-codex-action': 'reconnect', disabled: busy || pending, onClick: () => call('begin', { account: account.id }) }, t('codex.reconnect')),
-            account.state !== 'signed_out' && account.state !== 'error' && button('signOut', 'signOut', { account: account.id }),
-            confirming !== account.id && h('button', { type: 'button', className: 'majed-management-refresh', 'data-codex-action': 'remove', disabled: busy, onClick: () => setConfirming(account.id) }, t('codex.remove'))),
-          confirming === account.id && h('div', { role: 'alertdialog' }, h('p', null, t('codex.removeConfirm')), h('div', { className: 'majed-management-controls' },
-            h('button', { type: 'button', className: 'majed-management-refresh', 'data-codex-action': 'confirmRemove', disabled: busy, onClick: async () => { await call('remove', { account: account.id }); setConfirming(null); } }, t('codex.confirmRemove')),
-            h('button', { type: 'button', className: 'majed-management-refresh', 'data-codex-action': 'keep', disabled: busy, onClick: () => setConfirming(null) }, t('codex.keep')))),
-          account.state === 'signed_out' && h('p', null, t('codex.signOutNote')),
-          value.runtimeEnabled && value.runtime && account.state === 'connected' && h(CodexAccountSettings, { account, preferences: value.runtime?.preferences?.accounts?.[account.id], call, busy, t }))));
+            ['signed_out', 'reauthentication_required'].includes(account.state) && h('button', { type: 'button', className: 'majed-management-refresh majed-pill majed-pill--primary', 'data-codex-action': 'reconnect', disabled: busy || pending, onClick: () => call('begin', { account: account.id }) }, t('codex.reconnect')),
+            confirming !== account.id && h('button', { type: 'button', className: 'majed-management-refresh majed-pill majed-pill--danger', 'data-codex-action': 'remove', disabled: busy, onClick: () => setConfirming(account.id) }, t('codex.remove'))),
+          confirming === account.id && h('div', { role: 'alertdialog', className: 'majed-account-confirm' }, h('p', null, t('codex.removeConfirm')), h('div', { className: 'majed-management-controls' },
+            h('button', { type: 'button', className: 'majed-management-refresh majed-pill majed-pill--danger', 'data-codex-action': 'confirmRemove', disabled: busy, onClick: async () => { await call('remove', { account: account.id }); setConfirming(null); } }, t('codex.confirmRemove')),
+            h('button', { type: 'button', className: 'majed-management-refresh majed-pill', 'data-codex-action': 'keep', disabled: busy, onClick: () => setConfirming(null) }, t('codex.keep')))),
+          account.state === 'signed_out' && h('p', { className: 'majed-muted' }, t('codex.signOutNote')),
+          value.runtimeEnabled && value.runtime && account.state === 'connected' && h('details', { className: 'majed-account-more' }, h('summary', null, t('codex.saveAccount')),
+            h(CodexAccountSettings, { account, preferences: value.runtime?.preferences?.accounts?.[account.id], call, busy, t })))),
+        value.enabled && !pending && h('div', { className: 'majed-management-controls' }, button('begin', 'begin', {}, false)),
+        pending && h('div', { className: 'majed-login-panel' }, authorizeUrl && h('a', { className: 'majed-pill majed-pill--primary', href: authorizeUrl, target: '_blank', rel: 'noreferrer noopener' }, t('codex.open')),
+          h('label', null, t('codex.callback'), h('input', { type: 'text', 'data-codex-callback': true, value: callback, autoComplete: 'off', spellCheck: false, onChange: event => setCallback(event.target.value) })),
+          h('div', { className: 'majed-management-controls' }, button('complete', 'complete', { callback }, !callback), button('cancel', 'cancel'))),
+        showStatus && h('p', { role: failure ? 'alert' : 'status', 'aria-live': 'polite', className: 'majed-muted' }, t('codex.' + (failure || (busy ? 'working' : status)))),
+        value.enabled && value.runtimeEnabled && value.runtime && h(CodexModelSettings, { runtime: value.runtime, call, busy, t }));
     }
 
     const approvalLabels = {
@@ -947,6 +991,33 @@ window.__ModuleLoader__.load({
 .majed-management-refresh{font:inherit;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-module-platform);border:1px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md);padding:.5em 1em;white-space:normal}
 .majed-management-refresh:focus-visible{outline:2px solid var(--dsw-alias-label-primary);outline-offset:2px}
 .majed-management-refresh[aria-disabled="true"]{opacity:.5}
+.majed-provider-card{display:grid;gap:12px;min-width:0;padding:16px;margin-block:12px;border:1px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-lg,12px);background:var(--dsw-alias-bg-module-platform)}
+.majed-provider-head{display:flex;align-items:center;gap:10px;min-width:0}
+.majed-provider-title{margin:0;font:var(--dsw-font-m-18);flex:1 1 auto;min-width:0}
+.majed-provider-count,.majed-muted{color:var(--dsw-alias-label-secondary,inherit);opacity:.8;margin:0}
+.majed-dot{width:9px;height:9px;border-radius:50%;flex:none;background:#8a8a8a}
+.majed-dot--on{background:#2fb344}.majed-dot--warn{background:#e8a317}
+.majed-account-card{display:grid;gap:10px;min-width:0;padding:12px 14px;border:1px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md)}
+.majed-account-card--paused{border-style:dashed}
+.majed-account-head{display:flex;align-items:center;gap:10px;min-width:0}
+.majed-account-id{display:flex;align-items:center;gap:8px;flex:1 1 auto;min-width:0;flex-wrap:wrap}
+.majed-account-label{margin:0;font-weight:600;overflow-wrap:anywhere}
+.majed-account-meta{font-size:.9em;opacity:.8}
+.majed-account-usage{display:flex;justify-content:space-between;gap:8px;padding-top:8px;border-top:1px solid var(--dsw-alias-border-l2);font-size:.9em}
+.majed-account-usage-title{font-weight:600}
+.majed-badge{padding:1px 8px;border-radius:999px;font-size:.8em;border:1px solid var(--dsw-alias-border-l2)}
+.majed-badge--connected{color:#2fb344;border-color:currentColor}.majed-badge--paused,.majed-badge--reauthentication_required{color:#e8a317;border-color:currentColor}.majed-badge--signed_out,.majed-badge--error{opacity:.7}
+.majed-star{font:inherit;font-size:1.2em;line-height:1;padding:2px 4px;background:none;border:0;color:var(--dsw-alias-label-primary);cursor:pointer}
+.majed-star.is-default{color:#e8a317}.majed-star:disabled{cursor:default}
+.majed-pill{border-radius:999px;padding:.35em .9em;text-decoration:none;display:inline-flex;align-items:center}
+.majed-pill--primary{border-color:var(--dsw-alias-label-primary);font-weight:600}
+.majed-pill--danger{color:#e5484d}
+.majed-pill:disabled{opacity:.5}
+.majed-account-actions{gap:.5em}
+.majed-account-more summary{cursor:pointer}
+.majed-login-panel{display:grid;gap:10px;min-width:0}
+.majed-login-panel label{display:grid;gap:4px;min-width:0}
+.majed-login-panel input{max-width:100%;min-width:0;box-sizing:border-box;font:inherit;color:inherit;background:var(--dsw-alias-bg-module-platform);border:1px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md);padding:.4em .6em}
 .majed-skills form,.majed-skills label{display:grid;gap:.5em;margin-block:.5em;min-width:0}
 .majed-skills input,.majed-skills textarea,.majed-skills select{box-sizing:border-box;max-width:100%;font:inherit;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-module-platform);border:1px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md)}
 .majed-skills pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit}

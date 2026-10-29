@@ -88,7 +88,8 @@ export function createCodexAccounts({ path, settingsPath, fetch: fetchFn = globa
   }
   async function cancel() {
     live(); ++loginGeneration; const entry = current, opening = starting;
-    state = 'cancelled';
+    // Only an actual login can be cancelled; cancelling nothing must not leave a stale 'cancelled' beside a connected account.
+    if (entry || opening) state = 'cancelled';
     if (opening) await opening.catch(() => {});
     if (entry) { entry.cancelled = true; entry.controller.abort(); entry.attempt.cancel(); await entry.done; }
     return snapshot();

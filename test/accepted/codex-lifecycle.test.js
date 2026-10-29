@@ -355,3 +355,23 @@ for (const [language, note] of [['en', 'Sign out only deletes credentials stored
     assert.equal(texts.filter(x => x === note).length, 1, 'the note renders exactly once, for the signed-out account only');
     assert.ok(texts.some(x => /already connected|متصلة بالفعل/.test(x)), 'the automatic-callback duplicate code renders its own message: ' + JSON.stringify(texts));
   });
+
+for (const language of ['en', 'ar']) test(`Codex accounts render as provider/account cards without a stale cancelled line beside a connected account (${language})`, async t => {
+  const { createBaselineHarness } = await import('./helpers/baseline-client-harness.js');
+  const source = await readFile(new URL('../../client.js', import.meta.url), 'utf8');
+  const id = 'a'.repeat(64);
+  const harness = createBaselineHarness(source, { language, connection: { rpc: { async call(channel, method, payload) {
+    if (method === 'majed/settings/status') return { ok: true, value: { module: payload.module, enabled: true, state: 'ready' } };
+    return { ok: true, value: { enabled: true, state: 'connected', loginState: 'cancelled', runtimeAvailable: false, runtimeEnabled: false,
+      accounts: [{ id, label: 'f•••@example.test', state: 'connected', default: true, expiresAt: 4102444800000 }] } };
+  } } } });
+  t.after(() => harness.dispose()); harness.apply(); const view = harness.render('majed-subscriptions');
+  for (let i = 0; i < 20; i++) await new Promise(resolve => setImmediate(resolve)); view.render();
+  assert.ok(view.one(n => n.type === 'section' && n.props['data-majed-codex'] === true), 'one provider card');
+  assert.ok(view.one(n => n.type === 'article' && n.props['data-account-state'] === 'connected'), 'one account card');
+  const star = view.one(n => n.props['data-codex-action'] === 'default');
+  assert.equal(star.props['aria-pressed'], true);
+  const leaves = node => typeof node === 'string' ? [node] : Array.isArray(node) ? node.flatMap(leaves) : node?.props ? leaves(node.props.children) : [];
+  const all = view.nodes(() => true).flatMap(n => leaves(n.props?.children));
+  assert.equal(all.some(x => /Login cancelled|تم إلغاء تسجيل الدخول/.test(x)), false, 'no stale cancelled message');
+});
