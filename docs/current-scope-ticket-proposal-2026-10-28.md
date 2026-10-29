@@ -557,6 +557,20 @@ The pre-publication read-only issue inventory on 2026-10-28 contains 77 records.
 | #46 D10 | Reference removal/stable promotion remain separately gated; operational proof does not automatically authorize them. |
 | No existing issue | E01–E12, S06 OpenCode, S15 native API, new Manager deltas, A07 and split follow-ups need approved publication mapping, not fabricated issue IDs. |
 
+## Amendment 2026-10-29 — adopt the reference Subscriptions experience (proposal only, not published)
+
+Owner decisions (2026-10-29): port the reference plugin's complete Subscriptions behavior into Majed's `modules/subscriptions` (adapt, do not rewrite), show full account emails on authenticated Settings/usage surfaces, add Arabic/RTL, keep Majed's protected 0600 store, and the Owner disables the installed reference plugin when Majed's build is installed. Source: V1ki/dsh-plugin-subscriptions v0.9.11 (`7639ed9958a9a1c4159faa1f4e6e15e9ede60b7d`, MIT). The specification now records this under "Subscriptions, API references, search and media". Parents #1/#2 and all closed history stay unchanged; nothing here is published. Publication needs the same Q138-style Owner approval.
+
+| Record | Proposed change |
+| --- | --- |
+| #48 S01a | Amend acceptance: login opens the provider page and completes automatically through the host loopback callback with the page polling status; manual paste only as fallback; provider card and account card parity with the reference (full email, default star, plan, expiry, sign-out); removing masked-identity wording. Keep partial status and existing evidence. |
+| #61 S07 | Replace "masked cards" with full identity on authenticated surfaces; add Manage dialog parity (alias, include in pool, independent entry, per-account allowlist) while bounded manual pools stay with S09. |
+| #67 S10 | Pull the Codex usage path forward as a standalone slice (plan, 5-hour/weekly windows, reset time, refresh, reset credits with confirmed single-use use); add the composer usage badge. Blocked only by S01. Other providers follow independently. |
+| #68 S11 / #94 S08 | Retain; the Manage dialog's cache TTL and model-list editing are delivered through S08/S11 acceptance using the ported controls. |
+| #57–#60 | Reuse the ported card/manage/usage shell; only the provider protocol differs. |
+| New S16 (proposed) | Adopt the reference Subscriptions Settings shell for Codex: provider/account cards, Add account with automatic completion, Manage dialog, Arabic/RTL, provenance and notices. Blocked by S01 (#48 partial, existing). Blocks S07/S10 UI acceptance. |
+| #96 S15, #73–#74, #115–#125 | No change. O02a rehearsal (#115) gains the ported UI in its Codex account rollback scope. |
+
 ## Dependency interpretation and publication sequence
 
 The per-slice **Blocked by** fields are the proposed product edges. Ranges mean every slice in that range. Additional provider-specific paths (for example Grok media after S03) acquire only their actual required provider edge at publication; they must not hold a separately supported provider path hostage. G0–G7 are explicit external evidence/permission gates, never assumed completed issues.
