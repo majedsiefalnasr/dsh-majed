@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Correct #129 Codex visual parity with the pinned reference provider header, compact account rows, usage header/windows/reset disclosure, login guidance and native reset dialog. Preserve owned security/actions and EN/AR RTL; keep the full coexistence warning only at section level. Add a deterministic real-DOM reference comparison fixture and hierarchy regressions. Installed acceptance remains pending.
+
 - Correct #129 review findings: never import or remove foreign credential files, automatically load and reconcile account usage, recover pending authorization after card remount, and retain reset-credit expiry/confirmation context. Extend bounded Responses, retry-policy and assembled auth failure regression coverage.
 
 - Port pinned reference v0.9.12 Codex and shared accounts, OAuth/PKCE, translation, catalog, internal pools and rate-limit retry into the optional, default-off Subscriptions component (#129).

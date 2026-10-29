@@ -4,6 +4,17 @@ Updated 2026-10-29 (Africa/Cairo).
 
 ## Phase
 
+**LATEST OVERRIDE: #129 UI parity correction candidate complete locally; #129 remains OPEN.** Owner rejected the installed simplified card; direct correction work started at `085692c` on `impl/129-codex` (Lead integration at assignment `3796839`). Only this worktree and `/tmp/majed-t129-ui` were written; sibling authoritative current-work was read only. No #130+, installed/profile/credential/account/provider/login/restart/push/merge operations.
+
+- Completed: port scoped pinned-reference provider/account/usage/auth/reset render hierarchy, control styles and guidance; retain EN/AR logical RTL and owned controls/security. Remove duplicate full warning from card; section warning remains. Core/backend source untouched.
+- Evidence: `docs/ai/ticket-129-ui-parity.md` records exact source map, exclusions, intentional differences, real React DOM fixture paths, browser screenshot attachment hashes and limits. `scripts/codex-visual-fixture.mjs` generates `/tmp/majed-t129-ui/index.html` and JS with the actual scoped reference beside owned card, fake RPC/identities only. EN/light and AR/dark logged-out, pending, accounts/usage/reset, collision and modal states inspected. Not installed/native-theme proof or full language×theme matrix.
+- Final gates: classifier 166/166; Node tests 235/235 (all previous 230 retained plus five hierarchy/collision/guard/logout checks); build passes; fresh committed-build match passes; git diff whitespace clean. Logs `/tmp/majed-t129-ui/{build-final,test-final,build-match,pack}.log`; craft detector `/tmp/majed-t129-ui/craft-detect.json` = `[]`.
+- Package: `/tmp/majed-t129-ui/dsh-majed-0.2.0.tgz`, 70 files, SHA256 `f98a740cdc82c6a44ea506087470f0c41d99939d5ca0c8152cec0debd2dc829a`. Local candidate only, unmerged/unpushed. Browser session and static fixture server stopped; background gates collected.
+- Review: direct Standards pass for namespace/token/RTL/provenance/security scope; direct Spec pass for requested hierarchy and retained actions, with documented controlled-theme/native-primitive and screenshot-export limits. Independent two-axis review cannot run at delegation depth; it remains a Lead integration gate, not claimed complete.
+- Budget: one failed fixture diagnostic (canonical /private/tmp importer path), corrected on second build; no unresolved blocker. Next allowed action: Lead reviews scoped candidate and evidence, then obtains explicit installation/live acceptance permission; no automatic installation or #130+.
+
+Older phase text below is historical and superseded by this override.
+
 **CURRENT OVERRIDE: #128 accepted and closed; #129 authorized.** This worktree is `dsh-majed-t129`, branch `impl/129-codex`, baseline `e796366`. The direct Owner instruction and Lead record supersede the historical #128 freeze below. Only #129 is active; no #130+ implementation is authorized.
 
 ## #129 bounded contract and source inventory
