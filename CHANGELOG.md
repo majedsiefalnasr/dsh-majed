@@ -4,6 +4,9 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Avoid the reference plugin's Settings collision with the `majed-subscriptions` section, titled "Subscriptions (Majed)", and show an English/Arabic coexistence notice only when its read-only probe succeeds.
+- Require a full DSH restart after installing or updating: the Owner verified that new component rows are not discovered in place without restart.
+
 - Show the localized Subscriptions cannot-reach message on an initial non-404 probe failure, recover on success and remove the section on 404; isolate Subscriptions browser setup failures from core preferences and notifications.
 
 - Add the disabled-by-default Subscriptions component row, authenticated presence probe and conditional empty Settings section in English and Arabic.

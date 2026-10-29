@@ -4,11 +4,12 @@
     "description": "Bidirectional (RTL/LTR) text support for Arabic, Persian and Hebrew, GenUI RTL mirroring, and extra Settings > General options such as an app-UI font size."
   },
   "subscriptions": {
-    "title": "Subscriptions",
+    "title": "Subscriptions (Majed)",
     "accounts": "Subscription accounts",
     "providers": "API providers",
     "accountsEmpty": "No subscription accounts yet.",
     "providersEmpty": "No API providers yet.",
-    "unreachable": "The Subscriptions host component cannot be reached. Reconnect or check the component on the Plugins page."
+    "unreachable": "The Subscriptions host component cannot be reached. Reconnect or check the component on the Plugins page.",
+    "coexistence": "The reference plugin dsh-plugin-subscriptions is running too. Only one plugin can serve the shared provider ids (codex, claude, grok, copilot, antigravity) at a time; switch the reference plugin off before using providers from this component."
   }
 }

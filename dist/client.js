@@ -27,23 +27,25 @@ var module = { exports: {} }; var exports = module.exports;
 
 //#region locale/en.json
 var subscriptions$1 = {
-	"title": "Subscriptions",
+	"title": "Subscriptions (Majed)",
 	"accounts": "Subscription accounts",
 	"providers": "API providers",
 	"accountsEmpty": "No subscription accounts yet.",
 	"providersEmpty": "No API providers yet.",
-	"unreachable": "The Subscriptions host component cannot be reached. Reconnect or check the component on the Plugins page."
+	"unreachable": "The Subscriptions host component cannot be reached. Reconnect or check the component on the Plugins page.",
+	"coexistence": "The reference plugin dsh-plugin-subscriptions is running too. Only one plugin can serve the shared provider ids (codex, claude, grok, copilot, antigravity) at a time; switch the reference plugin off before using providers from this component."
 };
 
 //#endregion
 //#region locale/ar.json
 var subscriptions = {
-	"title": "الاشتراكات",
+	"title": "الاشتراكات (Majed)",
 	"accounts": "حسابات الاشتراك",
 	"providers": "موفرو API",
 	"accountsEmpty": "لا توجد حسابات اشتراك بعد.",
 	"providersEmpty": "لا يوجد موفرو API بعد.",
-	"unreachable": "يتعذر الوصول إلى مكوّن الاشتراكات على المضيف. أعد الاتصال أو تحقق من المكوّن في صفحة الإضافات."
+	"unreachable": "يتعذر الوصول إلى مكوّن الاشتراكات على المضيف. أعد الاتصال أو تحقق من المكوّن في صفحة الإضافات.",
+	"coexistence": "الإضافة المرجعية dsh-plugin-subscriptions تعمل أيضًا. يمكن لإضافة واحدة فقط تقديم معرّفات الموفّرين المشتركة (codex, claude, grok, copilot, antigravity) في الوقت نفسه؛ أوقف الإضافة المرجعية قبل استخدام الموفّرين من هذا المكوّن."
 };
 
 //#endregion
@@ -76,19 +78,21 @@ function applySubscriptions(root) {
 		const t = ctx.locale.bind(NS);
 		let present = false;
 		let failing = false;
+		let referenceEnabled = false;
 		let disposed = false;
 		let sequence = 0;
 		let withdraw;
 		const listeners = /* @__PURE__ */ new Set();
 		function Section() {
+			React.useSyncExternalStore((fn) => {
+				listeners.add(fn);
+				return () => listeners.delete(fn);
+			}, () => `${failing}:${referenceEnabled}`);
 			return h("div", { style: {
 				textAlign: "start",
 				color: "var(--dsw-alias-label-primary)",
 				font: "var(--dsw-font-s-14)"
-			} }, React.useSyncExternalStore((fn) => {
-				listeners.add(fn);
-				return () => listeners.delete(fn);
-			}, () => failing) ? h("p", { role: "alert" }, t("unreachable")) : null, ...["accounts", "providers"].map((part) => h("section", {
+			} }, referenceEnabled ? h("p", { role: "status" }, t("coexistence")) : null, failing ? h("p", { role: "alert" }, t("unreachable")) : null, ...["accounts", "providers"].map((part) => h("section", {
 				key: part,
 				style: {
 					paddingBlock: "var(--dsw-spacing-4)",
@@ -99,7 +103,7 @@ function applySubscriptions(root) {
 		function update() {
 			if (present && !withdraw) withdraw = ctx.slots.inject("settings.section", () => ctx.slots.register({
 				name: "settings.section",
-				id: "subscriptions",
+				id: "majed-subscriptions",
 				order: 90,
 				label: () => t("title")
 			}, Section));
@@ -111,6 +115,7 @@ function applySubscriptions(root) {
 		}
 		async function probe() {
 			const current = ++sequence;
+			probeReference(current);
 			try {
 				const result = await connection.rpc.call("/api", "majed-subscriptions.status", {});
 				if (disposed || current !== sequence) return;
@@ -126,6 +131,15 @@ function applySubscriptions(root) {
 					failing = true;
 				}
 			}
+			isolate(update);
+		}
+		async function probeReference(current) {
+			let enabled = false;
+			try {
+				enabled = (await connection.rpc.call("/api", "subscriptions-auth.proxyGet", {}))?.ok === true;
+			} catch {}
+			if (disposed || current !== sequence) return;
+			referenceEnabled = enabled;
 			isolate(update);
 		}
 		isolate(() => ctx.effect(() => isolate(() => {
