@@ -5,7 +5,7 @@
 
 ## Project
 
-`dsh-majed` is a plugin for **DeepSeek Harness (DSH)**: host half `index.js`, browser half `client.js`. It must never patch DSH itself; everything goes through public extension points. Each feature is a separate DSH plugin component (a Loader row) that the user can switch off without disabling the plugin; see `docs/adr/0011-features-are-dsh-plugin-components.md`.
+`dsh-majed` is a plugin for **DeepSeek Harness (DSH)**: host half `index.js`, browser half `client.js`. It must never patch DSH itself; everything goes through public extension points. Each feature is a separate DSH plugin component (a Loader row) that the user can switch off without disabling the plugin; see `docs/adr/0001-features-are-components-of-one-plugin.md`.
 
 - Current version and history: `package.json`, `CHANGELOG.md`. Release process: `docs/RELEASING.md`. Third-party code: `THIRD_PARTY_NOTICES.md`.
 - Command: `npm test`.

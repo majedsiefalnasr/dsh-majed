@@ -20,16 +20,19 @@ Updated 2026-10-29 (Africa/Cairo).
 4. Image/video tools and gallery, `/fast` and speed select, composer usage badge and its display setting, and proxy settings are part of Subscriptions, after accounts and usage work.
 5. Fresh logins; no credential import from the reference plugin.
 6. English and Arabic (RTL) only.
-7. Old ADRs reviewed: 0001, 0002 and 0006 superseded by 0011–0013; 0005 kept; 0003, 0004, 0007–0010 stay on the archived branch.
-8. Components: core row `majed` (0.2.0 preferences, only browser half) plus row `majed-subscriptions`; later features get their own rows (ADR-0011).
-9. Same provider ids as the reference; our component ships off; the Owner swaps with switches; own storage, RPC prefix and tool names (ADR-0012).
-10. Port the reference as-is under MIT with provenance (ADR-0013).
+7. Old ADRs dropped from this branch (kept on the archived integration branch); ADRs rewritten from 0001 (decision 18).
+8. Components: core row `majed` (0.2.0 preferences, only browser half) plus row `majed-subscriptions`; later features get their own rows (ADR-0001).
+9. Same provider ids as the reference; our component ships off; the Owner swaps with switches; own storage, RPC prefix and tool names (ADR-0002).
+10. Port the reference as an owned fork under MIT with provenance: first port close to the original, improvements as separate tickets after acceptance, later upstream releases optional (ADR-0003).
 11. OpenCode Zen: minimal adapter, catalog and status card under id `opencode-zen`; no sidecar, IP pool or binary download; ToS risk accepted; last ticket.
 12. API providers through DSH's public `dsh-api-remotes` seam; DSH settings are the only store, shared with Settings > Models.
 13. One Settings section "Subscriptions" with two parts (Subscription accounts, API providers), built from DSH primitives and design tokens; usage badge, Speed, `/fast` and media toolviews stay where the reference puts them.
 14. All five reference providers are ported; Antigravity last among them.
 15. Governance files carried to this branch; new CHANGELOG from 0.2.0; glossary limited to current terms.
 16. Ticket order: component + empty section → Codex end to end → Manage/model list/pool/proxy → usage badge/Speed/`/fast` → Claude → Grok with image/video/x_search → Copilot → Antigravity → API providers → OpenCode Zen.
+
+17. Distribution: keep installing from GitHub; commit the built output in its own directory with a test that it matches the source (ADR-0004). npm publishing could be a later ticket.
+18. ADRs only for hard-to-reverse, surprising decisions with real trade-offs: 0001 components, 0002 reference provider ids, 0003 owned fork, 0004 committed build. Live verification stays an `AGENTS.md` rule; API-provider storage and OpenCode Zen scope live in the spec.
 
 ## Sources
 
