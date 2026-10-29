@@ -111,9 +111,11 @@ const SENSITIVE_NAMES = /^(credentials(\.json)?|secrets?\.(json|ya?ml|key)|servi
 /** Case-insensitive: file systems that fold case must not turn `.ENV` into a bypass. */
 export function isSensitivePath(text) {
   if (typeof text !== 'string' || text.length > 512) return false;
+  if (/[*?[]/.test(text) && !/^\*\.(?:js|md|txt|json|ts|tsx|jsx|css|html|yml|yaml)$/i.test(text)) return false;
   const lower = text.toLowerCase();
   const segments = lower.split('/').filter(Boolean);
   if (segments.some(s => SENSITIVE_SEGMENTS.has(s) || s.endsWith('.keychain-db'))) return true;
+  if (segments.some(s => /[*?[]/.test(s)) && safeReadGlob(text)) return false;
   const last = segments.at(-1) || '';
   if (/^\.env(\..+)?$/.test(last) && !/\.(example|sample|template|dist)$/.test(last)) return true;
   if (SENSITIVE_NAMES.test(last)) return true;
@@ -142,11 +144,13 @@ function globRegex(segment) {
 }
 /** True when a glob word could expand to a sensitive file or directory name. */
 export function globMaySensitive(text) {
+  if (text.split('/').some((segment, index, all) => segment === '..' && all.slice(0, index).some(part => /[*?[]/.test(part)))) return false;
   const segments = text.split('/').filter(Boolean);
   return segments.some((segment, index) => {
-    if (!/[*?[]/.test(segment) || !/[^*?[\]!^-]/.test(segment.replace(/\[[^\]]*\]/g, ''))) return false; // a bare wildcard has no literal anchor
+    if (!/[*?[]/.test(segment)) return false;
     const re = globRegex(segment);
     if (!re) return true;
+    if (!/[^*?[\]!^-]/.test(segment.replace(/\[[^\]]*\]/g, ''))) return false; // bare glob is handled as a checkpoint, not a sensitive-name match
     return (index === segments.length - 1 ? [...SENSITIVE_FILE_PROBES, ...SENSITIVE_DIR_PROBES] : SENSITIVE_DIR_PROBES).some(name => re.test(name));
   });
 }
@@ -271,7 +275,10 @@ function tokenize(src) {
     if (c === '#' && !cur) { while (i < src.length && src[i] !== '\n') i++; continue; }
     if (c === '`') { flags.add('subst'); endWord(); i++; continue; }
     if (c === '$' && src[i + 1] === '(') { flags.add('subst'); endWord(); i += 2; continue; }
-    if (c === '(' || c === ')') { flags.add('group'); endSegment(false); i++; continue; }
+    if (c === '(' || c === ')') {
+      if (src.slice(i, i + 7) === ':(glob)') { add(':(glob)'); i += 7; continue; }
+      flags.add('group'); endSegment(false); i++; continue;
+    }
     if (c === ';') { endSegment(false); i += src[i + 1] === ';' ? 2 : 1; continue; }
     if (c === '&') {
       if (src[i + 1] === '&') { endSegment(false); i += 2; continue; }
@@ -351,6 +358,7 @@ function useCwd(st, cwd) {
   else st.add(F('allow', 'read-project', 'routine_known_effect'));
 }
 function readPath(word, st, cwd) {
+  if (word.glob && sensitiveReadGlob(word.text)) st.add(globMaySensitive(word.text) ? F('deny', 'sensitive', 'sensitive_data') : F('checkpoint', 'sensitive', 'sensitive_data'));
   const r = resolveWord(word, cwd);
   if (r.unresolved) return st.add(F('checkpoint', 'unknown', 'unresolved_target'));
   st.touched.push(r.abs);
@@ -411,6 +419,14 @@ function split(args) {
 }
 const hasFlag = (flags, ...names) => flags.some(f => names.includes(f.text));
 const cluster = (flags, letter) => flags.some(f => new RegExp(`^-[a-zA-Z]*${letter}[a-zA-Z]*$`).test(f.text));
+function gitPathOperand(text) {
+  const magic = text.match(/^:\([^)]*\)(.*)$/);
+  if (magic) return magic[1].replace(/^\//, '');
+  if (text.startsWith(':')) return text.slice(1);
+  const colon = text.indexOf(':');
+  if (colon === 0) return text.slice(1); // `:` pathspecs name paths relative to the index.
+  return colon > 0 && !text.includes('://') ? text.slice(colon + 1) : text;
+}
 function pathLikeScan(args, st, cwd) {
   for (const w of args) {
     const m = /^-{1,2}[A-Za-z][\w-]*=(.+)$/.exec(w.text);
@@ -515,6 +531,22 @@ function sqlHandler(name, args, st) {
 const GIT_READ_SUBS = new Set(['status', 'diff', 'log', 'show', 'blame', 'rev-parse', 'ls-files', 'ls-tree', 'describe', 'shortlog', 'cat-file', 'grep', 'rev-list', 'for-each-ref', 'show-ref', 'merge-base', 'diff-tree', 'name-rev', 'whatchanged', 'version']);
 // Flags of git read commands that write files, run programs or leave the repository (deny-list; only `git grep` has a full allow-list).
 const GIT_READ_BAD = /^(--no-index|--output(-indicator-.*)?|--ext-diff|--open-files-in-pager|--exec|--upload-pack|--receive-pack|--paginate|--textconv|--git-dir|--work-tree|--exec-path)(=|$)/;
+function broadGlob(text) {
+  return text.split('/').some(segment => /[*?[]/.test(segment) && !/^[^*?[\]!^-]*\.(?:js|md|txt|json|ts|tsx|jsx|css|html|yml|yaml)$/.test(segment));
+}
+function broadReadArgument(words, word) {
+  return ['cat', 'head', 'tail', 'wc', 'ls', 'tree', 'file', 'stat', 'du', 'less', 'more', 'od', 'xxd', 'sha256sum', 'shasum', 'md5sum', 'md5', 'nl', 'realpath', 'readlink'].includes(words[0]?.text) && words.indexOf(word) > 0;
+}
+function sensitiveReadGlob(text) {
+  return globMaySensitive(text) || !safeReadGlob(text);
+}
+function safeReadGlob(text) {
+  return text.split('/').filter(segment => /[*?[]/.test(segment)).every(segment => /^.*\.(?:js|md|txt|json|ts|tsx|jsx|css|html|yml|yaml)$/i.test(segment));
+}
+function safeGitPathGlob(text) {
+  const operand = text.match(/^:\([^)]*\)(.*)$/)?.[1].replace(/^\//, '') ?? gitPathOperand(text);
+  return safeReadGlob(operand);
+}
 const GIT_GREP_SHORT = new Set('aIivwhHEGFPnclLopWzq'.split('')), GIT_GREP_VALUE = new Set('ABCef'.split(''));
 const GIT_GREP_LONG = /^--(cached|untracked|ignore-case|invert-match|word-regexp|line-number|column|count|files-with-matches|files-without-match|only-matching|extended-regexp|fixed-strings|basic-regexp|perl-regexp|text|recurse-submodules|full-name|heading|break|null|show-function|function-context|max-depth|no-color|color|quiet|all-match|and|or|not|no-recursive|threads|max-count|context|after-context|before-context|no-ignore-case|recursive)$/;
 /** Only `s/re/repl/[gpI0-9]`, `Np`, `N,Mp`, `/re/p`, `Nd`, `/re/d`, `$d`, `p`, `d`, `q` style commands are accepted; `w`, `e`, `r`, `R`, `W` and flags `w`/`e` are not. */
@@ -549,15 +581,27 @@ function gitHandler(args, st, cwd) {
   switch (sub) {
     case 'grep':
       if (!gitGrepFlagsSafe(flags)) return unknown(st);
+      for (const p of pos) {
+        const text = gitPathOperand(p.text);
+        if (/(?:^|\/)(?:\.env(?:\..*)?|credentials(?:\.json)?|id_(?:rsa|dsa|ecdsa|ed25519)|[^/]+\.(?:pem|key))$/i.test(text.replace(/\*\*\//g, '')) || globMaySensitive(text) && !safeGitPathGlob(p.text)) st.add(F('deny', 'sensitive', 'sensitive_data'));
+        if (isSensitivePath(text.replace(/\*\*\//g, '')) || /(?:^|\/)\.env(?:\.|$)|(?:^|\/)(?:credentials|id_(?:rsa|dsa|ecdsa|ed25519)|[^/]+\.(?:pem|key))(?:$|\/)/i.test(text) || sensitiveWord(p.text)) st.add(F('deny', 'sensitive', 'sensitive_data'));
+        if (/[/]|^\.|^~/.test(text)) touch({ ...p, text }, st, gcwd);
+      }
       return st.add(F('allow', 'read-project', 'routine_known_effect'));
     case 'status': case 'diff': case 'log': case 'show': case 'blame': case 'rev-parse': case 'ls-files': case 'ls-tree': case 'describe': case 'shortlog':
     case 'cat-file': case 'rev-list': case 'for-each-ref': case 'show-ref': case 'merge-base': case 'diff-tree': case 'name-rev': case 'whatchanged': case 'version':
       if (ft.some(f => GIT_READ_BAD.test(f))) return unknown(st);
+      for (const p of pos) {
+        const text = gitPathOperand(p.text);
+        if (isSensitivePath(text.replace(/\*\*\//g, '')) || globMaySensitive(text) && !safeGitPathGlob(p.text)) st.add(F('deny', 'sensitive', 'sensitive_data'));
+        if (sensitiveWord(p.text)) st.add(F('deny', 'sensitive', 'sensitive_data'));
+        if (/[/]|^\.|^~/.test(text)) touch({ ...p, text }, st, gcwd);
+      }
       return st.add(F('allow', 'read-project', 'routine_known_effect'));
     case 'reflog': return pos.length === 0 || pos[0].text === 'show' ? st.add(F('allow', 'read-project', 'routine_known_effect')) : unknown(st);
     case 'remote': return pos.length === 0 || ['show', 'get-url'].includes(pos[0].text) ? st.add(F('allow', 'read-project', 'routine_known_effect')) : unknown(st);
     case 'config': return ft.some(f => ['--get', '--get-all', '--get-regexp', '--list', '-l'].includes(f)) ? st.add(F('allow', 'read-project', 'routine_known_effect')) : unknown(st);
-    case 'commit': return noVerify || cluster(flags, 'n') ? rewrite() : local();
+    case 'commit': return noVerify || cluster(flags, 'n') || ft.includes('--amend') ? rewrite() : local();
     case 'merge': return noVerify ? rewrite() : local();
     case 'add': case 'cherry-pick': case 'revert': case 'init': case 'mv': return local();
     case 'tag': return cluster(flags, 'd') || cluster(flags, 'f') || ft.includes('--delete') || ft.includes('--force') ? rewrite() : local();
@@ -647,9 +691,9 @@ function pkgHandler(name, args, st, cwd) {
   if (sub === 'publish') return st.add(F('checkpoint', 'publish', 'publish_effect'));
   if (dd || flags.some(f => PKG_EXEC_FLAG.test(f.text))) return unknown(st); // arguments after `--` and exec flags reach unknown programs
   if (flags.some(f => PKG_OUTSIDE_FLAG.test(f.text))) return st.add(F('checkpoint', 'outside-write', 'outside_project'));
-  if (sub === 'test' || sub === 't' || sub === 'tst') return runWithHooks('test', st, cwd) || unknownScript(name, args, st, cwd);
-  if (sub === 'start') return runWithHooks('start', st, cwd) || unknownScript(name, args, st, cwd);
-  if (sub === 'run' || sub === 'run-script') return pos[1] && !pos[1].var && runWithHooks(pos[1].text, st, cwd) || unknownScript(name, args, st, cwd);
+  if (sub === 'test' || sub === 't' || sub === 'tst') return pos.length > 1 ? st.add(F('checkpoint', 'unknown', 'unknown_script')) : runWithHooks('test', st, cwd) || unknownScript(name, args, st, cwd);
+  if (sub === 'start') return pos.length > 1 ? st.add(F('checkpoint', 'unknown', 'unknown_script')) : runWithHooks('start', st, cwd) || unknownScript(name, args, st, cwd);
+  if (sub === 'run' || sub === 'run-script') return pos.length > 2 ? st.add(F('checkpoint', 'unknown', 'unknown_script')) : pos[1] && !pos[1].var && runWithHooks(pos[1].text, st, cwd) || unknownScript(name, args, st, cwd);
   if (PKG_DEP.has(sub)) {
     if (PKG_INSTALL.has(sub)) for (const key of INSTALL_HOOKS) if (st.scripts.has('run:' + key)) namedScript('run:' + key, st, cwd);
     return dependencySafe(pos.slice(1), flags, st);
@@ -931,16 +975,42 @@ function analyzeSegment(seg, st, cwd) {
   st.words += words.length + redirs.length;
   if (st.words > MAX_WORDS) { st.add(F('checkpoint', 'unknown', 'too_complex')); return cwd; }
   const all = [...words, ...redirs.map(r => r.word).filter(Boolean)];
+  const isGit = words.some(w => w.text === 'git');
   for (const w of all) {
+    if (w.text.includes(' ') || w.text.includes('\t')) {
+      const normalized = finalize({ ...w, glob: false }, st.home).text;
+      if (sensitiveWord(normalized)) st.add(F('deny', 'sensitive', 'sensitive_data'));
+      const possiblePath = isGit ? gitPathOperand(w.text) : normalized;
+      const { abs } = resolveWord({ ...w, text: possiblePath, glob: false }, cwd);
+      if ((isGit || /[/]|^\.|^~/.test(normalized)) && relates(abs, st.project ?? '/') === false) st.add(F('checkpoint', 'read-outside', 'outside_project'));
+      if (isGit && /^(?:HEAD|[A-Za-z0-9._/-]+):/.test(w.text)) {
+        const pathText = gitPathOperand(w.text);
+        if (isSensitivePath(pathText)) st.add(F('deny', 'sensitive', 'sensitive_data'));
+        touch({ ...w, text: pathText, glob: false }, st, cwd);
+      }
+      continue;
+    }
+    const sensitiveLiteral = /^\*\.(?:js|md|txt|json|ts|tsx|jsx|css|html|yml|yaml)$/i.test(w.text);
     if (sensitiveWord(w.text)) st.add(F('deny', 'sensitive', 'sensitive_data'));
-    else if (w.sensGlob) st.add(F('checkpoint', 'sensitive', 'sensitive_data')); // a glob that could expand to credentials
+    else if (w.glob && !sensitiveLiteral && broadReadArgument(words, w) && sensitiveReadGlob(w.text) && !w.text.split('/').some((segment, index, all) => segment === '..' && all.slice(0, index).some(part => /[*?[]/.test(part)))) st.add(F('checkpoint', 'sensitive', 'sensitive_data'));
+    else if (w.sensGlob && !w.glob) st.add(F('checkpoint', 'sensitive', 'sensitive_data')); // dynamic or unresolved sensitive-looking argument
   }
   // Task prohibitions apply to any path-like argument, whatever the command: git pathspecs get no special model.
-  const isGit = words.some(w => w.text === 'git');
   for (const w of words.slice(1)) {
+    if (w.text.startsWith(':(')) {
+      const pathText = gitPathOperand(w.text);
+      if (isSensitivePath(pathText)) st.add(F('deny', 'sensitive', 'sensitive_data'));
+      const target = { ...w, text: pathText, glob: /[*?[]/.test(pathText) };
+      touch(target, st, cwd);
+      continue;
+    }
     const m = /^--?[A-Za-z][\w-]*=(.+)$/.exec(w.text), text = m ? m[1] : w.text;
     if (w.var || (text.startsWith('-') && !m)) continue;
-    if (isGit || /[/]|^\.|^~/.test(text)) touch({ ...w, text }, st, cwd);
+    if (isGit || /[/]|^\.|^~/.test(text)) {
+      const pathText = isGit ? gitPathOperand(text) : text;
+      const target = { ...w, text: pathText, glob: /[*?[]/.test(pathText) };
+      if (pathText !== text || /[/]|^\.|^~/.test(pathText)) touch(target, st, cwd);
+    }
   }
   for (const r of redirs) {
     if (!r.word || r.word.text === '/dev/null') continue;
@@ -952,12 +1022,14 @@ function analyzeSegment(seg, st, cwd) {
   return runCommand(words.slice(i), st, cwd, seg.pipe);
 }
 function sensitiveWord(text) {
-  if (text.length > 512 || /\s/.test(text)) return false;
+  if (text.length > 512) return false;
+  if (/[*?[]/.test(text) && !/^\.env\*$/i.test(text) && !safeReadGlob(text) && !text.includes('..')) return false;
   if (isSensitivePath(text)) return true;
   const eq = text.indexOf('=');
   if (text.startsWith('-') && eq > 0 && isSensitivePath(text.slice(eq + 1))) return true;
-  const colon = text.indexOf(':'); // rev:path as used by `git show HEAD:.env`
-  return !text.startsWith('-') && colon >= 0 && !text.includes('://') && isSensitivePath(text.slice(colon + 1));
+  const pathText = gitPathOperand(text);
+  const magicPath = text.match(/^:\([^)]*\)(.*)$/)?.[1];
+  return ((pathText !== text || text.startsWith(':')) && isSensitivePath(pathText)) || (magicPath !== undefined && isSensitivePath(pathText));
 }
 
 // ---------------------------------------------------------------- decision

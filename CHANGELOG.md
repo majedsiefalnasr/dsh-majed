@@ -36,11 +36,13 @@ All notable changes to `dsh-majed` are documented here. The format follows
     sensitive data, key exposure, catastrophic targets and task prohibitions.
   - The shell analysis is best-effort lexical analysis of a documented subset
     (no symlink or filesystem resolution). Anything outside the subset
-    checkpoints, but the subset is not proven exhaustive. Pure-read commands are
-    allowed only with flag allow-lists (sort, sed, rg, git read commands);
-    tooling flags that run code or redirect output, npm/make lifecycle scripts,
-    `--` arguments, make variables, `.git` writes, history rewrites, recursive
-    permission changes and globs that could match credentials all checkpoint.
+    checkpoints, but the subset is not proven exhaustive. Pure-read commands use
+    flag validation for sort, sed and rg; most Git read commands use deny-lists,
+    not full allow-lists, and `node --test` accepts unknown long flags. Tooling
+    flags that run code or redirect output, unsafe npm/make
+    lifecycle arguments, `.git` writes, history rewrites (including amend),
+    recursive permission changes and sensitive-capable globs checkpoint. `find .
+    -print` is allowed; it is not a command-wide checkpoint.
   - Owner settings can only extend known safe effects/trusted projects or
     tighten; malformed or oversized tightening lists checkpoint with
     `settings_invalid`. Project/agent request fields and one-off approvals

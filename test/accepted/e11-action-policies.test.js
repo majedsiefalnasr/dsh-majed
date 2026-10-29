@@ -459,6 +459,23 @@ test('the exact route is unchanged: no evaluate action is exposed, and disposal 
 });
 
 // ---- Review corrections (best-effort lexical analysis; anything outside the proven-safe subset checkpoints) ----
+test('review pass checkpoints whitespace-sensitive paths, broad read globs, forwarded package args, git pathspecs and amend', () => {
+  assert.equal(run('safe', 'cat "space dir/.env"').decision, 'deny');
+  assert.equal(run('safe', 'cat *').decision, 'checkpoint');
+  assert.equal(run('safe', 'cat ?').decision, 'checkpoint');
+  assert.equal(run('safe', 'cat [ab]').decision, 'checkpoint');
+  expectAll('safe', ['cat *.js', 'cat *.md', 'cat src/*.js'], 'allow');
+  const scripts = { 'run:test': 'node --test' };
+  for (const cmd of ['npm run test /tmp/payload.test.js', 'pnpm run test extra', 'yarn run test extra', 'npm test extra'])
+    assert.equal(run('safe', cmd, { scripts }).decision, 'checkpoint', cmd);
+  const task = { prohibitions: ['path:src/private'], authorizedTargets: ['path:legacy'] };
+  assert.equal(run('safe', 'git show HEAD:src/private', { task }).decision, 'deny');
+  assert.equal(run('safe', 'git show HEAD:legacy/private', { task }).decision, 'allow');
+  assert.equal(run('safe', "git show ':(glob)**/.env'").decision, 'deny');
+  assert.equal(run('safe', "git grep ':(top,glob)**/.env'").decision, 'deny');
+  expectAll('safe', ['git show HEAD:.env', 'git show HEAD:config/credentials.json', "git show ':(glob)**/*.pem'"], 'deny');
+  expectAll('safe', ['git commit --amend', 'git commit --amend --no-edit'], 'checkpoint');
+});
 const decisions = (mode, commands, extra, settings = TRUST) => commands.map(c => [c, run(mode, c, extra, settings)]);
 const expectAll = (mode, commands, expected, extra, settings) => {
   for (const [c, r] of decisions(mode, commands, extra, settings)) assert.equal(r.decision, expected, `${mode}: ${c} -> ${r.decision}/${r.reasonCode}`);
@@ -477,7 +494,7 @@ test('a glob segment followed by .. is unresolved, so it can never hide an escap
 });
 
 test('sensitive material: unquoted globs that could match it, ANSI-C and locale quoting, case, rev:path and environment readers', () => {
-  expectAll('safe', ['cat .env*', 'cat .e?v', 'cat .e[n]v', 'cat id_*', 'cat src/../.en?', 'cat .s?h/config', 'cat .ENV*'], 'checkpoint');
+  expectAll('safe', ['cat .env*', 'cat .e?v', 'cat .e[n]v', 'cat id_*', 'cat src/../.en?', 'cat .s?h/config', 'cat .ENV*'], 'deny');
   expectAll('safe', ["cat $'.env'", 'cat $".env"', "cat $'\\x2eenv'", "cat $'\\056env'", 'cat .ENV', 'cat .Env.Local', 'cat ID_RSA', 'ls *.pem', 'cat ~/.SSH/id_rsa', 'cat ~/.AWS/credentials',
     'git show HEAD:.env', 'git cat-file -p HEAD:.env', 'git show origin/main:config/.env', 'git show :.env', 'git show HEAD:config/.ENV', 'git show HEAD:keys/server.PEM'], 'deny');
   expectAll('aggressive', ['cat .ENV', "cat $'.env'", 'git show HEAD:.env'], 'deny', { task: { authorizedTargets: ['path:.env'] } });
