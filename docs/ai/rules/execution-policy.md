@@ -1,6 +1,6 @@
 # Execution policy
 
-Owner-confirmed policy, 2026-10-26; phase precedence clarified 2026-10-27. Read before resuming specification implementation or launching delegated work. [Scope control](scope-control.md) and [current work](../current-work.md) determine whether execution is authorized; the delivery instructions below apply only after their implementation gate opens.
+Owner-confirmed policy, 2026-10-26; phase precedence clarified 2026-10-27; model candidates updated by the Owner 2026-10-28. Read before resuming specification implementation or launching delegated work. [Scope control](scope-control.md) and [current work](../current-work.md) determine whether execution is authorized; the delivery instructions below apply only after their implementation gate opens.
 
 ## Delivery
 
