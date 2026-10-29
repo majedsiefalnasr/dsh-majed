@@ -187,3 +187,26 @@ test('reconnect completion reports account_not_found, not a TypeError or a phant
   await assert.rejects(service.complete(callback.href), { code: 'account_not_found' });
   assert.deepEqual(JSON.parse(await readFile(config.path, 'utf8')), { version: 1, accounts: [], default: null });
 });
+
+test('cancel with no pending login never leaves a stale cancelled state beside a connected account', async t => {
+  const { service } = await fixture(t);
+  await login(service);
+  const view = await service.cancel();
+  assert.equal(view.loginState, 'connected');
+  assert.equal(view.state, 'connected');
+  assert.equal(view.accounts.length, 1);
+});
+
+test('a loopback callback that already completed makes a late manual completion a clean login_not_pending, account stays connected', async t => {
+  const { service } = await fixture(t);
+  await login(service);
+  const id = (await service.snapshot()).accounts[0].id;
+  const attempt = await service.begin(id);
+  const url = new URL(attempt.authorizeUrl), callback = new URL(url.searchParams.get('redirect_uri'));
+  callback.searchParams.set('code', 'fixture-code'); callback.searchParams.set('state', url.searchParams.get('state'));
+  await fetch(callback.href.replace('localhost', '127.0.0.1')).catch(() => {});
+  for (let i = 0; i < 50 && (await service.snapshot()).loginState === 'pending'; i++) await new Promise(r => setTimeout(r, 10));
+  assert.equal((await service.snapshot()).loginState, 'connected');
+  await assert.rejects(service.complete(callback.href), /login_not_pending/);
+  assert.equal((await service.snapshot()).state, 'connected');
+});
