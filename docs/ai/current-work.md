@@ -4,6 +4,8 @@ Updated: 2026-10-28. This is the resume entry point, not a feature specification
 
 ## Owner decisions
 
+- 2026-10-29: Owner decided to adopt the reference Subscriptions plugin's full experience (v0.9.11 `7639ed9`) into `modules/subscriptions` (port, not rewrite), full email on authenticated surfaces, Arabic/RTL, Majed's own protected store, Owner disables the installed reference plugin at install. Spec amended locally; ticket amendment is a PROPOSAL (see proposal "Amendment 2026-10-29"), unpublished pending Owner approval. Port implementation not started.
+
 - The Owner replaced autonomous feature implementation with a checkpoint, inventory and replanning sequence; approved the revised order and evidence distinctions, then requested durable operating rules.
 - External plugins supply implementation examples only. Majed must not require them at runtime.
 - Preserve and push project work after content review, separating integration, candidate and WIP status. Backup is not acceptance or permission to merge.
