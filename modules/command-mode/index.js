@@ -1,4 +1,5 @@
 import { readMessage } from '../../lib/management/settings.js';
+import { createPolicyLedger } from '../command-policy/index.js';
 
 export const COMMAND_MODE_METHOD = 'majed/command-mode';
 export const COMMAND_MODE_PATH = '/api/' + COMMAND_MODE_METHOD;
@@ -9,24 +10,36 @@ const keysOnly = (value, keys) => Object.keys(value).every(key => keys.includes(
 const failure = (code, status) => Object.assign(new Error(code), { code, status });
 const json = (value, status = 200) => Response.json(value, { status, headers: { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' } });
 
-/** Host-owned, in-memory only. Absent means Ask me, so a restart can only reduce authority. */
-export function createCommandModes(isLive = () => true) {
+/**
+ * Host-owned, in-memory only. Absent means Ask me, so a restart can only reduce authority.
+ * `evaluate` is the host-side E11 entry: it reads the host-held mode and applies the deterministic
+ * local policy. It does not intercept native approvals (gate G2) and is not exposed on the route.
+ */
+export function createCommandModes(isLive = () => true, { settings, now } = {}) {
   const modes = new Map();
+  const epochs = new Map();
+  const bump = sessionId => epochs.set(sessionId, (epochs.get(sessionId) ?? 0) + 1);
   // Every read of authority checks liveness itself: a closed session, even if its id reappears, is dropped and reads as Ask me.
-  const prune = () => { for (const id of [...modes.keys()]) if (!isLive(id)) modes.delete(id); };
+  const drop = sessionId => { modes.delete(sessionId); bump(sessionId); };
+  const prune = () => { for (const id of [...modes.keys()]) if (!isLive(id)) drop(id); };
+  const get = sessionId => {
+    if (!modes.has(sessionId)) return 'ask';
+    if (!isLive(sessionId)) { drop(sessionId); return 'ask'; }
+    return modes.get(sessionId);
+  };
+  const policy = createPolicyLedger({ getMode: get, getEpoch: id => epochs.get(id) ?? 0, isLive, settings: () => (typeof settings === 'function' ? settings() : settings), ...(now ? { now } : {}) });
   return {
-    get(sessionId) {
-      if (!modes.has(sessionId)) return 'ask';
-      if (!isLive(sessionId)) { modes.delete(sessionId); return 'ask'; }
-      return modes.get(sessionId);
-    },
+    get,
     set(sessionId, mode) {
       if (!COMMAND_MODES.includes(mode)) throw failure('invalid_request', 400);
       if (mode === 'ask') modes.delete(sessionId); else modes.set(sessionId, mode);
+      bump(sessionId); // any mode event fences decisions made under the previous mode
     },
-    reset: sessionId => { modes.delete(sessionId); },
-    resetAll: () => modes.clear(),
+    reset: sessionId => { drop(sessionId); }, // can only reduce authority to Ask me
+    resetAll: () => { for (const id of [...modes.keys()]) bump(id); modes.clear(); policy.clear(); },
     entries: () => { prune(); return [...modes]; },
+    evaluate: (sessionId, request) => policy.evaluate(sessionId, request),
+    policy,
   };
 }
 
