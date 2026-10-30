@@ -213,10 +213,14 @@ test('a timed-out discovery falls back to the account\'s last known catalog', as
     const settings = new ProviderSettingsStore(join(dir, 'settings.json'))
     const raw = new Hanging()
     const route = new AccountPreferencesAdapter({ provider: 'codex', adapter: raw, settings, accounts: async () => [{ key: 'a', label: 'A' }], pool: () => undefined, discoveryTimeoutMs: 20 })
-    assert.deepEqual((await route.listModels('codex')).map(model => model.id), ['m:/模型'])
-    await consume(route, 'm:/模型')
-    assert.ok(raw.calls.includes('stream:a:m:/模型'))
-    raw.known = undefined
-    await assert.rejects(consume(route, 'm:/模型'), /No eligible/)
+    // AbortSignal.timeout timers are unref'd: without a ref'd handle the runner can see an empty event loop while the hung read waits.
+    const keepAlive = setInterval(() => {}, 1_000)
+    try {
+      assert.deepEqual((await route.listModels('codex')).map(model => model.id), ['m:/模型'])
+      await consume(route, 'm:/模型')
+      assert.ok(raw.calls.includes('stream:a:m:/模型'))
+      raw.known = undefined
+      await assert.rejects(consume(route, 'm:/模型'), /No eligible/)
+    } finally { clearInterval(keepAlive) }
   } finally { await rm(dir, { recursive: true, force: true }) }
 })

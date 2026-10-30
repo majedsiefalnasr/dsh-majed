@@ -330,7 +330,7 @@ export function apply(ctx: Context, config: Config = {}): void {
               case 'consumeReset': await resets.redeem(string('account'), string('ticket'), AbortSignal.any([request.signal, AbortSignal.timeout(20_000)])); break;
             }
             result = { ok: true, value };
-          } catch (error) { result = { ok: false, error: { code: 'subscriptions/error', message: safeDiagnostic(error, [payload.password, (payload.proxy as { password?: unknown } | undefined)?.password]), details: {} } }; }
+          } catch (error) { result = { ok: false, error: { code: 'subscriptions/error', message: safeDiagnostic(error, [payload.password, (payload.proxy as { password?: unknown } | undefined)?.password], [payload.username, (payload.proxy as { username?: unknown } | undefined)?.username]), details: {} } }; }
           return Response.json({ type: 'server-response', rpcId: body.rpcId, result });
         },
       }), `dsh-majed: ${method} route`);

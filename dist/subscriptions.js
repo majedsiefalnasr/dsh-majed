@@ -414,7 +414,7 @@ export function apply(ctx, config = {}) {
                         result = { ok: true, value };
                     }
                     catch (error) {
-                        result = { ok: false, error: { code: 'subscriptions/error', message: safeDiagnostic(error, [payload.password, payload.proxy?.password]), details: {} } };
+                        result = { ok: false, error: { code: 'subscriptions/error', message: safeDiagnostic(error, [payload.password, payload.proxy?.password], [payload.username, payload.proxy?.username]), details: {} } };
                     }
                     return Response.json({ type: 'server-response', rpcId: body.rpcId, result });
                 },

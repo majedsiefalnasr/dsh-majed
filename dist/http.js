@@ -17,6 +17,7 @@ import { ProxyAgent, fetch as undiciFetch } from 'undici';
 import { chmod, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { getDefaultAutoSelectFamilyAttemptTimeout, setDefaultAutoSelectFamilyAttemptTimeout } from 'node:net';
 import { dirname } from 'node:path';
+import { DIAGNOSTIC_INPUT_LIMIT, sanitizeDiagnostic } from './diagnostic.js';
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths';
 /**
  * undici's own fetch, typed to the DOM fetch signature: its bundled types are
@@ -73,31 +74,27 @@ const probes = new Set();
 export function proxyFilePath() {
     return dshHomePath('plugins', 'majed', 'subscriptions', 'proxy.json');
 }
-/**
- * Secret-bearing key names: the plain words plus any compound key ending in them
- * (`access_token`, `clientSecret`, `apiKey`), bare or wrapped in single or double quotes.
- */
-const SECRET_KEY = String.raw `["']?[\w.-]*?(?:password|passwd|token|secret|api[_-]?key)["']?`;
-/** A secret value: a quoted string (escapes honoured, any nesting depth) or a bare run up to a separator. */
-const SECRET_VALUE = String.raw `"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|[^\s,;}\]]+`;
-const SECRET_PAIR = new RegExp(`(${SECRET_KEY}\\s*[:=]\\s*)(?:${SECRET_VALUE})`, 'gi');
-/**
- * Render a failure for the client or a log without credentials: known secrets (the stored proxy
- * password and the caller's `secrets`, raw and URL-encoded), URL userinfo, auth headers, and any
- * `password`/`token`/`secret`/`api key` pair, including quoted JSON members at any depth.
- */
-export function safeDiagnostic(error, secrets = []) {
-    let text = error instanceof Error ? error.message : String(error);
-    for (const secret of [current.password, ...secrets]) {
-        if (typeof secret !== 'string' || !secret)
-            continue;
-        for (const value of [secret, encodeURIComponent(secret)])
-            text = text.split(value).join('[redacted]');
+/** Render any thrown value as bounded text; hostile `toString`/`message` getters never throw out. */
+function boundedText(value) {
+    try {
+        const text = value instanceof Error ? value.message : String(value);
+        return typeof text === 'string' ? text.slice(0, DIAGNOSTIC_INPUT_LIMIT) : '';
     }
-    return text.replace(/(https?:\/\/)[^\s/@]+(?::[^\s/@]*)?@/gi, '$1[redacted]@')
-        .replace(/((?:proxy-)?authorization\s*[:=]\s*)(?:basic|bearer)\s+[^\s,;]+/gi, '$1[redacted]')
-        .replace(SECRET_PAIR, '$1[redacted]')
-        .slice(0, 1024);
+    catch {
+        return '';
+    }
+}
+/**
+ * Render a failure for the client or a log without credentials. The text is bounded first, then the
+ * known secrets (the stored proxy password and the caller's `secrets`, with the stored/caller `usernames`
+ * for combined `user:password` and Basic forms) are removed in raw, URL-encoded, JSON-escaped and base64
+ * spellings, then URL userinfo of any scheme, auth/cookie headers, bare `Bearer`/`Basic` credentials and
+ * sensitive key/value pairs are removed, structurally for embedded JSON. See `diagnostic.ts` for the exact
+ * algorithm and its limits: unknown secrets in free text with no recognisable shape cannot be detected.
+ * Only the rendered text changes; credentials and transport are never altered.
+ */
+export function safeDiagnostic(error, secrets = [], usernames = []) {
+    return sanitizeDiagnostic(boundedText(error), [current.password, ...secrets], [current.username, ...usernames]);
 }
 function errorMessage(error) {
     return safeDiagnostic(error);
@@ -110,19 +107,19 @@ function errorMessage(error) {
  * 127.0.0.1) fails as an `AggregateError` with an empty message, so its
  * per-address `errors` entries are folded in too.
  */
-export function describeFetchError(error, secrets = []) {
+export function describeFetchError(error, secrets = [], usernames = []) {
     const parts = [];
     let node = error;
     for (let depth = 0; depth < 4 && node !== undefined && node !== null; depth += 1) {
         const layer = node;
         if (Array.isArray(layer.errors)) {
-            for (const child of layer.errors) {
-                const childText = child instanceof Error && child.message !== '' ? child.message : String(child);
+            for (const child of layer.errors.slice(0, 8)) {
+                const childText = boundedText(child);
                 if (childText !== '' && !parts.includes(childText))
                     parts.push(childText);
             }
         }
-        let text = layer instanceof Error ? layer.message : String(node);
+        let text = boundedText(node);
         const code = layer.code;
         if (typeof code === 'string' && code !== '') {
             if (text === '')
@@ -137,7 +134,7 @@ export function describeFetchError(error, secrets = []) {
             break;
         node = next;
     }
-    return safeDiagnostic(parts.join(' → '), secrets);
+    return safeDiagnostic(parts.join(' → ').slice(0, DIAGNOSTIC_INPUT_LIMIT), secrets, usernames);
 }
 function withError(error) {
     configError = errorMessage(error);
@@ -429,6 +426,7 @@ export async function proxiedFetch(input, init = {}) {
  */
 export async function proxyTestConnection(target = DEFAULT_PROXY_TEST_URL, draft, signal) {
     const secrets = [draft?.password];
+    const usernames = [draft?.username];
     let parsed;
     try {
         parsed = new URL(target);
@@ -437,7 +435,7 @@ export async function proxyTestConnection(target = DEFAULT_PROXY_TEST_URL, draft
         }
     }
     catch (error) {
-        return { ok: false, viaProxy: false, error: safeDiagnostic(error, secrets) };
+        return { ok: false, viaProxy: false, error: safeDiagnostic(error, secrets, usernames) };
     }
     await ensureReady();
     let probeAgent;
@@ -458,7 +456,7 @@ export async function proxyTestConnection(target = DEFAULT_PROXY_TEST_URL, draft
             closeProbe = true;
         }
         catch (error) {
-            return { ok: false, viaProxy: false, error: safeDiagnostic(error, secrets) };
+            return { ok: false, viaProxy: false, error: safeDiagnostic(error, secrets, usernames) };
         }
     }
     else {
@@ -481,7 +479,7 @@ export async function proxyTestConnection(target = DEFAULT_PROXY_TEST_URL, draft
         return { ok: true, viaProxy, status: response.status, latencyMs: Date.now() - started };
     }
     catch (error) {
-        return { ok: false, viaProxy, latencyMs: Date.now() - started, error: describeFetchError(error, secrets) };
+        return { ok: false, viaProxy, latencyMs: Date.now() - started, error: describeFetchError(error, secrets, usernames) };
     }
     finally {
         probes.delete(controller);
