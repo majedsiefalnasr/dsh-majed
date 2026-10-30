@@ -117,22 +117,29 @@ for (const locale of ['en', 'ar']) {
     await act(async () => ui.page.unmount());
   });
 
-  test(`manager re-reads latest settings so another client's field edit survives while this draft's field wins in ${locale}`, async () => {
+  test(`manager sends loaded original plus draft so the server patches only this draft's field in ${locale}`, async () => {
     const latest = catalog({ tools: { image_generate: false }, contextWindows: { m2: 150 }, displayName: 'Other client' });
-    let reads = 0;
+    const loaded = catalog();
     const ui = await mountManager(locale, {
-      providerSettings: () => ok(++reads === 1 ? catalog() : latest),
+      providerSettings: () => ok(loaded),
       setModelDefault: () => ok({}), setProviderSettings: () => ok({}),
     });
     const { root } = ui;
     const webSearch = root.findAllByType('input').filter(node => node.props.type === 'checkbox').find(node => node.parent.children.some(child => typeof child === 'string' && child.includes(ui.t('modelsWebSearch'))));
     await act(async () => webSearch.props.onChange({ target: { checked: false } }));
+    const readsBefore = ui.called('providerSettings').length;
     await act(async () => ui.save().props.onClick());
-    const saved = ui.called('setProviderSettings').at(-1).payload.settings;
-    assert.equal(saved.tools.web_search, false, 'this draft field is saved');
-    assert.equal(saved.tools.image_generate, false, "the other client's field survives");
-    assert.equal(JSON.stringify(saved.contextWindows), JSON.stringify({ m2: 150 }));
-    assert.equal(saved.displayName, 'Other client', 'an untouched display name follows the latest value');
+    assert.equal(ui.called('providerSettings').length, readsBefore, 'saving performs no client-side re-read/merge');
+    const { settings, original } = ui.called('setProviderSettings').at(-1).payload;
+    assert.equal(settings.tools.web_search, false, 'this draft field is saved');
+    assert.deepEqual(original, loaded.settings, 'the loaded snapshot travels as the patch baseline');
+    // What the server does with it: only the changed field lands on top of another client's write.
+    const { mergeIntent } = await import('../dist/preference-merge.js');
+    const merged = mergeIntent(latest.settings, original, settings);
+    assert.equal(merged.tools.web_search, false);
+    assert.equal(merged.tools.image_generate, false, "the other client's field survives");
+    assert.equal(JSON.stringify(merged.contextWindows), JSON.stringify({ m2: 150 }));
+    assert.equal(merged.displayName, 'Other client', 'an untouched display name follows the latest value');
     assert.equal(ui.closed.length, 1);
     await act(async () => ui.page.unmount());
   });

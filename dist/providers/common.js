@@ -379,19 +379,49 @@ export async function withAbortSignal(work, signal) {
     });
 }
 /**
- * Run `work` with an aborting signal. Resolves undefined when the timeout
- * fires (the fetch is aborted); other failures propagate.
+ * One overall deadline for a multi-step read: aborts after `timeoutMs` or when `parent` aborts. Explicit
+ * controller + timer (see {@link withTimeout}); call `release()` when the read is finished to drop the timer.
  */
-export function withTimeout(work, timeoutMs) {
-    const signal = AbortSignal.timeout(timeoutMs);
+export function deadlineSignal(timeoutMs, parent) {
+    const controller = new AbortController();
+    const onParent = () => controller.abort(parent?.reason);
+    const timer = setTimeout(() => controller.abort(new DOMException('The operation timed out.', 'TimeoutError')), timeoutMs);
+    const release = () => { clearTimeout(timer); parent?.removeEventListener('abort', onParent); };
+    if (parent?.aborted === true)
+        controller.abort(parent.reason);
+    else
+        parent?.addEventListener('abort', onParent, { once: true });
+    return { signal: controller.signal, release };
+}
+/**
+ * Run `work` with an aborting signal. Resolves undefined when the timeout
+ * fires or the optional caller `parent` signal aborts (the fetch is aborted);
+ * other failures propagate.
+ */
+export function withTimeout(work, timeoutMs, parent) {
+    // An explicit controller + timer instead of AbortSignal.timeout/any: Node holds composite signals
+    // weakly, so a hung `work` that keeps no reference to its signal could lose the timeout event.
+    const controller = new AbortController();
+    let timer;
+    const onParent = () => controller.abort(parent?.reason);
+    const cleanup = () => {
+        if (timer !== undefined)
+            clearTimeout(timer);
+        parent?.removeEventListener('abort', onParent);
+    };
     const aborted = new Promise(resolve => {
-        if (signal.aborted)
-            resolve(undefined);
-        else
-            signal.addEventListener('abort', () => resolve(undefined), { once: true });
+        controller.signal.addEventListener('abort', () => { cleanup(); resolve(undefined); }, { once: true });
+        if (parent?.aborted === true)
+            controller.abort(parent.reason);
+        else {
+            parent?.addEventListener('abort', onParent, { once: true });
+            timer = setTimeout(() => controller.abort(new DOMException('The operation timed out.', 'TimeoutError')), timeoutMs);
+        }
     });
+    const signal = controller.signal;
     return Promise.race([
-        work(signal).then(value => (signal.aborted ? undefined : value), (error) => {
+        work(signal).then(value => { cleanup(); return signal.aborted ? undefined : value; }, (error) => {
+            cleanup();
             if (signal.aborted)
                 return undefined;
             throw error;

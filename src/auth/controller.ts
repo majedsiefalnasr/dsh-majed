@@ -8,7 +8,8 @@ export class CodexAuthController {
   private finalizing = 0;
   private lastError?: string;
   private disposed = false;
-  constructor(private flows: OAuthFlowManager, private changed: (account?: string) => void) {}
+  constructor(private flows: OAuthFlowManager, private changed: (account?: string) => void,
+    private describe: (error: unknown) => string = error => error instanceof Error ? error.message : String(error)) {}
   async status() {
     const pending = this.flows.pending('codex');
     return { busy: this.flows.isBusy('codex') || this.finalizing > 0,
@@ -38,7 +39,7 @@ export class CodexAuthController {
       this.changed(account);
     } catch (error) {
       if (this.claim === claim && !(error instanceof Error && error.message === 'login cancelled')) {
-        this.lastError = error instanceof Error ? error.message : String(error);
+        this.lastError = this.describe(error);
       }
     } finally { this.finalizing--; }
   }

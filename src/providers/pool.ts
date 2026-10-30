@@ -218,7 +218,7 @@ export class PoolAdapter extends LlmAdapter {
       // logged-out provider throwing AUTH): the pool serves as long as ONE
       // member resolves, mirroring stream()'s failover semantics.
       try {
-        resolved.push(await withAbortSignal(() => adapter.resolveOwnModel(member.provider, member.model, member.account), signal))
+        resolved.push(await withAbortSignal(() => adapter.resolveOwnModel(member.provider, member.model, member.account, signal), signal))
         eligible.push(member)
       } catch (error: unknown) {
         signal?.throwIfAborted()

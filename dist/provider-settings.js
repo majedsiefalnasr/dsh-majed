@@ -3,6 +3,7 @@ import { mkdir, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths';
 import { PROVIDER_IDS } from './auth/store.js';
+import { mergeIntent } from './preference-merge.js';
 export const PROVIDER_TOOLS = {
     codex: ['image_generate', 'web_search'],
     claude: [],
@@ -188,11 +189,27 @@ export class ProviderSettingsStore {
         }
         return enabled;
     }
-    set(provider, input) {
+    /** Replace the provider's whole preferences (legacy full-document save). */
+    async set(provider, input) {
         const preferences = validatePreferences(provider, input);
+        return this.commit(provider, () => preferences);
+    }
+    /**
+     * Atomic field-level update: applies the editor's intent (`draft` against `original`, both as the
+     * client loaded them) to the preferences current at write time, inside the serialized write chain.
+     * Fields the editor did not change keep whatever a concurrent writer saved (account alias vs pool
+     * selection vs model names vs tool switches); two edits of the very same field resolve last-writer-wins.
+     */
+    async update(provider, original, draft) {
+        const before = validatePreferences(provider, original);
+        const after = validatePreferences(provider, draft);
+        return this.commit(provider, latest => validatePreferences(provider, mergeIntent(latest, before, after)));
+    }
+    commit(provider, compute) {
         const run = this.writes.then(async () => {
             const next = structuredClone(this.current);
             const before = next.providers[provider]?.tools ?? {};
+            const preferences = compute(structuredClone(next.providers[provider] ?? {}));
             next.providers[provider] = preferences;
             if (PROVIDER_TOOLS[provider].some(tool => (before[tool] !== false) !== (preferences.tools?.[tool] !== false))) {
                 next.toolHistory.push({ at: Date.now(), provider, tools: preferences.tools ?? {} });

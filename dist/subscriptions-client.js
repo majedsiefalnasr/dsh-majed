@@ -589,33 +589,6 @@ function accountModelRows(account, preferences) {
 		unavailable: true
 	}))];
 }
-/** The model editor owns everything except the separately managed accounts. */
-function mergeLatestAccounts(draft, latest, original = {}) {
-	return mergeIntent(latest, original, draft);
-}
-/** Apply only fields changed by this editor, including explicit deletions. */
-function mergeIntent(latest, original, draft) {
-	const result = { ...latest };
-	const before = original, after = draft;
-	for (const key of new Set([...Object.keys(before), ...Object.keys(after)])) {
-		if (JSON.stringify(before[key]) === JSON.stringify(after[key])) continue;
-		const old = before[key], next = after[key], fresh = result[key];
-		if (next && typeof next === "object" && !Array.isArray(next)) result[key] = mergeIntent(fresh && typeof fresh === "object" ? fresh : {}, old && typeof old === "object" ? old : {}, next);
-		else if (next === void 0) delete result[key];
-		else result[key] = next;
-	}
-	return result;
-}
-/** Only touched accounts replace their latest preferences; other settings survive. */
-function mergeAccountChanges(latest, changes) {
-	return {
-		...latest,
-		accounts: {
-			...latest.accounts,
-			...changes
-		}
-	};
-}
 
 //#endregion
 //#region src/settings/model-filter.ts
@@ -1390,19 +1363,24 @@ function ProviderAccountManager({ provider, name, rpc, t, onClose }) {
 				savedEfforts++;
 				if (!alive.current) return;
 			}
-			const latest = await callSubscriptionsAuth(rpc, "providerSettings", { provider });
-			if (!alive.current) return;
-			const { displayName: _staleName, promptCacheTtl: _staleTtl,...rest } = mergeAccountChanges(models.settings === void 0 ? latest.settings : mergeLatestAccounts(models.settings, latest.settings, models.original), Object.fromEntries(Object.entries(changes).map(([key, draft]) => [key, mergeIntent(latest.settings.accounts?.[key] ?? {}, catalog?.settings.accounts?.[key] ?? {}, draft)])));
-			const savedName = nameDirty ? displayName.trim() : latest.settings.displayName;
-			const savedTtl = cacheTtlDirty ? cacheTtl : latest.settings.promptCacheTtl;
+			const original = catalog?.settings ?? {};
+			const { accounts: _accounts, displayName: _name, promptCacheTtl: _ttl,...unchanged } = original;
+			const savedName = nameDirty ? displayName.trim() : original.displayName;
+			const savedTtl = cacheTtlDirty ? cacheTtl : original.promptCacheTtl;
+			const { accounts: _editorAccounts, displayName: _editorName, promptCacheTtl: _editorTtl,...editorFields } = models.settings ?? unchanged;
 			const settings = {
-				...rest,
+				...editorFields,
+				...original.accounts || Object.keys(changes).length ? { accounts: {
+					...original.accounts,
+					...changes
+				} } : {},
 				...savedName ? { displayName: savedName } : {},
 				...savedTtl ? { promptCacheTtl: savedTtl } : {}
 			};
 			await callSubscriptionsAuth(rpc, "setProviderSettings", {
 				provider,
-				settings
+				settings,
+				original
 			});
 			notifyDisplayNameChange(provider, settings.displayName);
 			if (alive.current) onClose();

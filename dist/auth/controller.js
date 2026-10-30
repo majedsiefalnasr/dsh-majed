@@ -3,13 +3,15 @@ import { codexFlow, codexProfileClaims, exchangeCodexCode } from '../providers/c
 export class CodexAuthController {
     flows;
     changed;
+    describe;
     claim = 0;
     finalizing = 0;
     lastError;
     disposed = false;
-    constructor(flows, changed) {
+    constructor(flows, changed, describe = error => error instanceof Error ? error.message : String(error)) {
         this.flows = flows;
         this.changed = changed;
+        this.describe = describe;
     }
     async status() {
         const pending = this.flows.pending('codex');
@@ -48,7 +50,7 @@ export class CodexAuthController {
         }
         catch (error) {
             if (this.claim === claim && !(error instanceof Error && error.message === 'login cancelled')) {
-                this.lastError = error instanceof Error ? error.message : String(error);
+                this.lastError = this.describe(error);
             }
         }
         finally {

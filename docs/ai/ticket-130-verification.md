@@ -133,12 +133,46 @@ Every pass is a single left-to-right scan or a bounded parse; the former lazy `[
 
 - Unknown secrets in free text cannot be guaranteed removed. A bare secret with no key, scheme, userinfo or known form around it (for example `failed for sk-live-abc123`) is not detectable and is echoed; the only defence is not rendering untrusted text, and the sanitizer is a best-effort filter. Generic bounded text replaces the message only when the work budget is exceeded, not for every unrecognised shape, to keep useful errors such as `connect ECONNREFUSED`.
 - Bare `Bearer`/`Basic` detection is heuristic; short lowercase tokens after lowercase prose (`basic token`) are left alone.
-- The `ProxyTestResult` and RPC error paths are sanitized. Two other raw `error.message` uses remain in `src/subscriptions.ts` (`resetCreditsError` in usage and the registration `collision` string); they carry upstream HTTP/reference text and are not routed through the sanitizer. Not changed in this tiny fix.
+- The `ProxyTestResult` and RPC error paths are sanitized. The former raw `error.message` surfaces in `src/subscriptions.ts` are closed by the boundary pass below.
 - Fixture-level proof only; no installed DSH, real proxy or account.
 
-### Remaining P3 (documented, not fixed here)
+### Remaining P3 (as of `0e631a7`; closed by the boundary pass below)
 
-- Read-modify-write races on endpoint state (for example `proxySet` reading `current.password` then persisting, and `setProviderSettings` merges) are not serialized; concurrent calls can lose an update.
-- Some RPC operations lack a request-context-bound timeout (the pool and probe paths have bounds; others rely on the host or provider).
-- The two unsanitized `error.message` surfaces above.
-- Not claimed: that all review findings are clean. The "13 initial findings" reconciliation above is still open; independent re-review and Owner installed/live acceptance remain pending.
+The unserialized read-modify-write races, the missing context-bound timeouts and the two unsanitized `error.message` surfaces recorded here were closed in the section below. Not claimed: that all review findings are clean. The "13 initial findings" reconciliation above is still open; independent re-review and Owner installed/live acceptance remain pending.
+
+## Boundary pass: error surfaces, concurrency, bounded discovery
+
+Scope (Owner request): close real remaining boundaries, no more cosmetic redaction additions. Local, fixture-level only.
+
+### 1. Browser-facing error text (`src/subscriptions.ts` `browserSafeError`)
+
+- `resetCreditsError` (usage), the registration `collision` (status `registrationError`), the Codex login failure (`status.detail`, via `CodexAuthController`'s injectable `describe`) and any `OAuthEndpointError` that reaches the RPC catch are reduced at the upstream/transport boundary to `<label> endpoint error (HTTP <status>)` plus the upstream OAuth `code` only when it matches `^[A-Za-z0-9_.:-]{1,64}$`. Upstream body text (`error_description`, `detail`) never reaches the browser. This changes the former `status.detail` text (`fixture exchange failure`) to `codex login endpoint error (HTTP 400): <code>`.
+- Other errors (for example the registration collision thrown by the host) go through the existing bounded `safeDiagnostic`; the collision is built when `status` is read, after the stored proxy credential has loaded, so the known proxy password is redacted there. Validation messages stay useful.
+- Exact limit: an arbitrary bare unknown secret inside a non-OAuth error message (no key, scheme or known value) is still not detectable and is echoed up to the bound (2000 characters). The sanitizer does not certify detection of unknown bare secrets; generic text is only applied to upstream OAuth responses, where the shape is known.
+- Tests: `test/bounded-130.test.mjs` (full serialized `status`/`usage` nested-failure responses never contain the secret; `upstream endpoint error (HTTP 502)` drops free-text codes; collision redacts the known proxy password and stays bounded) and updated `test/codex-owned.test.mjs`.
+
+### 2. Concurrency (`src/provider-settings.ts`, `src/http.ts`, browser save)
+
+- `ProviderSettingsStore.update(provider, original, draft)` applies the client's draft intent as a field-level patch (`src/preference-merge.ts` `mergeIntent`, `undefined` = delete) to the preferences current inside the serialized write chain, so concurrent clients editing different fields (account alias, pool membership, model display name, tools, context windows) no longer overwrite each other. `setProviderSettings` takes optional `original`; the manager sends the snapshot it loaded plus its draft and no longer re-reads and merges client-side. Without `original` the legacy full-document `set` is kept (replaces the document).
+- `proxySetConfig` writes run through a module-level promise chain; a rejected write does not poison the queue; an explicit `password: null` clear is not resurrected by a concurrent bypass-only write; an omitted password keeps the stored one.
+- Partial-save retry and client draft intent are unchanged: effort defaults are saved first and counted (`modelsPartialSave`), then one patch is sent.
+- Exact limits: two clients editing the same field are last-writer-wins (no conflict error or revision); the legacy `set` path replaces the whole document; serialization is per process (one plugin host), not across processes.
+- Tests: `test/concurrency-130.test.mjs` (6) and `test/manage-ui-matrix.test.mjs`.
+
+### 3. Bounded discovery (`src/providers/common.ts`, `codex.ts`, `src/subscriptions.ts`)
+
+- `resolveModel`, `contextLimits`, `supportsFastTier`, `fastCapableModels`, account catalog reads, `providerSettings`, `modelDefaults`, `setModelDefault` and the `setProviderSettings` bounds check are bounded by `DISCOVERY_TIMEOUT_MS` (10 s, one overall deadline per read) and by the caller `request.signal`; a hung in-flight catalog no longer hangs the RPC (unavailable accounts are marked `unavailable`). The shared catalog fetch is not tied to one caller's signal, so one caller aborting does not cancel another.
+- `withTimeout` and the new `deadlineSignal` use an explicit controller and timer. Root cause found while testing: `AbortSignal.timeout`/`AbortSignal.any` composites are held weakly, so a hung operation that kept no reference could lose the timeout and hang for tens of seconds.
+- `context_window` from the catalog must be a positive safe integer (NaN, floats, Infinity, negatives, strings, null entries are ignored); defaults are clamped to the maximum. `contextLimits` returns the minimum default and minimum maximum across the accounts that list a model; the UI shows and the server enforces that same bound (only changed windows are checked).
+- Tests: `test/bounded-130.test.mjs` (11, fake hung `fetch`).
+
+### 4. Reference parity and cleanup
+
+- The reference cross-provider pool-family warning is preserved (`dsh-majed: pool "<id>": cross-provider members are ignored; only <owner> accounts are pooled`).
+- Dead `ensureConnectAttemptTimeout`, `restoreConnectAttemptTimeout` and `MIN_CONNECT_ATTEMPT_TIMEOUT_MS` (no callers; they mutated a process-global Node default) were removed from `src/http.ts`.
+- Disposal probe abort was already covered (`test/final-130.test.mjs`, probe aborts on `disposeProxyTransport`).
+
+### Evidence and remaining gaps
+
+- `npm test` 406/406 (389 + 6 concurrency + 11 bounded); `npm run check:build` and `git diff --check` clean (see the commit for the archive hash in current-work).
+- Gaps (not hidden): no real installed DSH, proxy, account or provider traffic; unknown bare secrets in non-OAuth text are not detectable; same-field concurrent edits last-writer-wins; independent re-review and Owner live acceptance remain pending. Nothing here is labelled a P3 deferral.

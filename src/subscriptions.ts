@@ -20,8 +20,8 @@ import { PoolUsageTracker } from './providers/pool-usage.js';
 import { buildAccountPools, poolKey, type PoolDefinition, type PoolMemberRef } from './providers/pool-family.js';
 import { ResetRedemption } from './providers/reset-redemption.js';
 import { proxiedFetch, proxyGetConfig, proxySetConfig, proxyTestConnection, safeDiagnostic, disposeProxyTransport, type ProxyDraft } from './http.js';
-import { DISCOVERY_TIMEOUT_MS, withTimeout, type ModelEntry } from './providers/common.js';
-import { ProviderSettingsStore, PROVIDER_TOOLS } from './provider-settings.js';
+import { DISCOVERY_TIMEOUT_MS, OAuthEndpointError, deadlineSignal, withTimeout, type ModelEntry } from './providers/common.js';
+import { ProviderSettingsStore, PROVIDER_TOOLS, validatePreferences } from './provider-settings.js';
 import { defaultEffortOf, loadModelDefaults, setDefaultEffort } from './model-defaults.js';
 import { ImageAccountPool } from './providers/image-pool.js';
 import { CodexWebSearchProvider } from './providers/codex-search.js';
@@ -94,6 +94,19 @@ function readProxyTestPayload(payload: Record<string, unknown>): { url?: string;
   }
   return { ...url === undefined ? {} : { url: url as string }, ...draft === undefined ? {} : { proxy: draft } };
 }
+/**
+ * Text for an error that is shown in the browser. An upstream HTTP error body is untrusted free text whose
+ * secrets cannot be recognised, so only its status survives; every other failure goes through the bounded
+ * structural sanitizer (known proxy credentials plus recognisable secret shapes; see docs/ai/ticket-130-verification.md for limits).
+ */
+function browserSafeError(error: unknown, label: string): string {
+  if (error instanceof OAuthEndpointError) {
+    // The provider's error code is kept only when it looks like a code (never free text).
+    const code = error.oauthCode !== undefined && /^[A-Za-z0-9_.:-]{1,64}$/.test(error.oauthCode) ? `: ${error.oauthCode}` : '';
+    return `${label} endpoint error (HTTP ${String(error.status)})${code}`;
+  }
+  return safeDiagnostic(error);
+}
 export function apply(ctx: Context, config: Config = {}): void {
   const preferences = new ProviderSettingsStore();
   void loadModelDefaults().catch(() => ctx.logger.warn('dsh-majed: model defaults unavailable'));
@@ -103,9 +116,16 @@ export function apply(ctx: Context, config: Config = {}): void {
   const imagePool = new ImageAccountPool({ enabled: config.pool?.enabled !== false && (config.pool?.autoAccounts ?? config.pool?.autoFamilies ?? true),
     onWarn: message => ctx.logger.warn(`dsh-majed: ${message}`) });
   let handle: ReturnType<Context['llm']['registerAdapter']> | undefined;
+  // The raw registration error stays server-side; the browser gets `collisionText()`, built after the stored proxy
+  // credential has loaded so safeDiagnostic can redact it. `collision` is only the presence flag.
   let collision: string | undefined;
+  let collisionError: unknown;
   let disposed = false;
   const ownAlias = (key: string) => { const settings = preferences.get('codex').accounts; return settings && Object.hasOwn(settings, key) ? settings[key]?.alias : undefined; };
+  const collisionText = async () => {
+    await proxyGetConfig().catch(() => undefined); // loads the stored proxy credential so it can be redacted
+    return browserSafeError(collisionError, 'codex registration');
+  };
   let pool: PoolAdapter;
   let adapter: CodexAdapter;
   const changed = (account?: string) => {
@@ -120,11 +140,11 @@ export function apply(ctx: Context, config: Config = {}): void {
     const session = await tokens.session(account);
     const snapshot = await fetchCodexUsage(session, proxiedFetch, signal);
     try { return { ...snapshot, resetCredits: await fetchCodexResetCredits(session, proxiedFetch, signal) }; }
-    catch (error) { return { ...snapshot, resetCreditsError: error instanceof Error ? error.message : String(error) }; }
+    catch (error) { return { ...snapshot, resetCreditsError: browserSafeError(error, 'codex reset credits') }; }
   };
   const usage = new PoolUsageTracker((provider, account) => provider === 'codex'
     ? () => readUsage(account, AbortSignal.timeout(20_000)) : undefined);
-  const auth = new CodexAuthController(flows, changed);
+  const auth = new CodexAuthController(flows, changed, error => browserSafeError(error, 'codex login'));
   const resets = new ResetRedemption(readUsage,
     async (account, credit, request, signal) => consumeCodexResetCredit(await tokens.session(account), credit, request, proxiedFetch, signal),
     account => usage.invalidate('codex', account));
@@ -173,13 +193,16 @@ export function apply(ctx: Context, config: Config = {}): void {
       }
       for (const [id, members] of Object.entries(config.pool?.families ?? {})) {
         const owner = members[0]?.provider;
-        if (owner) families.set(poolKey(owner, id), { members: members.filter(member => member.provider === owner) });
+        if (!owner) continue;
+        const kept = members.filter(member => member.provider === owner);
+        if (kept.length < members.length) ctx.logger.warn(`dsh-majed: pool "${id}": cross-provider members are ignored; only ${owner} accounts are pooled`);
+        families.set(poolKey(owner, id), { members: kept });
       }
       return families;
     }, tiers: config.pool?.enabled === false ? {} : config.pool?.tiers ?? {},
     onWarn: message => ctx.logger.warn(`dsh-majed: ${message}`) });
   try { handle = ctx.llm.registerAdapter(['codex'], presented); }
-  catch (error) { collision = error instanceof Error ? error.message : String(error); }
+  catch (error) { collisionError = error; collision = 'Codex registration is unavailable'; }
   ctx.effect(() => () => { disposed = true; auth.dispose(); void disposeProxyTransport(); }, 'dsh-majed: subscriptions auth disposal');
   if (handle) ctx.effect(() => startCatalogRefresh(async signal => {
     if ((await tokens.list()).length && !signal.aborted) await adapter.listOwnModels('codex', undefined, signal);
@@ -212,6 +235,27 @@ export function apply(ctx: Context, config: Config = {}): void {
     });
   });
 
+  /**
+   * Each account's own catalog, one bounded read per account: a hung or failing account is marked
+   * `unavailable` after DISCOVERY_TIMEOUT_MS (or when the caller's signal aborts) instead of hanging the RPC.
+   */
+  const readAccountCatalogs = async (preferCached: boolean, signal: AbortSignal) => {
+    const accounts = await tokens.list();
+    return Promise.all(accounts.map(async ({ key, session }) => {
+      const models = await withTimeout(accountSignal => adapter.listOwnModels('codex', key, accountSignal, preferCached), DISCOVERY_TIMEOUT_MS, signal).catch(() => undefined);
+      return { key, label: session.emailAddress ?? key, models: models ?? [], ...(models === undefined ? { unavailable: true } : {}) };
+    }));
+  };
+  /**
+   * The context bounds shown AND enforced for one model: the minimum default and the minimum maximum over every
+   * account that lists it, so the UI limit is a value each account can honour. Undefined when no account lists it.
+   */
+  const boundsFor = async (model: string, catalogs: { key: string; models: readonly { id: string }[] }[], signal: AbortSignal) => {
+    const limits = (await Promise.all(catalogs.filter(account => account.models.some(entry => entry.id === model))
+      .map(account => adapter.contextLimits(model, account.key, signal).catch(() => undefined)))).filter(entry => entry !== undefined);
+    return limits.length ? { default: Math.min(...limits.map(entry => entry.default)), max: Math.min(...limits.map(entry => entry.max)) } : undefined;
+  };
+
   ctx.inject(['connection'], ctx => {
     const connection = ctx.get('connection') as unknown as { fetch: { register(route: object): () => unknown } };
     const endpoints = ['status', 'login', 'manual', 'cancel', 'logout', 'setDefault', 'usage', 'prepareReset', 'consumeReset', 'providerSettings', 'setProviderSettings', 'modelDefaults', 'setModelDefault', 'proxyGet', 'proxySet', 'proxyTest'];
@@ -228,6 +272,7 @@ export function apply(ctx: Context, config: Config = {}): void {
           const payload = body.payload ?? {};
           const string = (key: string) => { const value = payload[key]; if (typeof value !== 'string' || !value) throw new Error(`payload.${key} must be a non-empty string`); return value; };
           let result;
+          const releases: (() => void)[] = [];
           try {
             if (disposed) throw new Error('Subscriptions component is disabled');
             if (endpoint !== 'status' && payload.provider !== undefined && payload.provider !== 'codex') throw new Error('Only Codex is available');
@@ -237,7 +282,7 @@ export function apply(ctx: Context, config: Config = {}): void {
                 const state = await auth.status();
                 // Never resolve npm client metadata for a provider with no saved login.
                 if (state.accounts.length && !collision && !config.codexClientVersion) await version.resolve();
-                value = { ok: true, component: 'subscriptions', version: '0.2.0', registrationError: collision,
+                value = { ok: true, component: 'subscriptions', version: '0.2.0', registrationError: collision === undefined ? undefined : await collisionText(),
                   providers: { codex: { ...state, displayName: preferences.get('codex').displayName,
                     accounts: state.accounts.map(account => ({ ...account, alias: ownAlias(account.key) })), clientVersion: config.codexClientVersion ? { version: config.codexClientVersion, source: 'config' }
                     : version.current() ?? { version: CODEX_CLIENT_VERSION, source: 'fallback' } } } };
@@ -253,52 +298,67 @@ export function apply(ctx: Context, config: Config = {}): void {
               }
               case 'proxyTest': { const input = readProxyTestPayload(payload); value = await proxyTestConnection(input.url, input.proxy, request.signal); break; }
               case 'setProviderSettings': {
-                const windows = (payload.settings as { contextWindows?: Record<string, number> } | undefined)?.contextWindows;
-                for (const [model, value] of Object.entries(windows ?? {})) {
-                  const limits = await adapter.contextLimits(model);
-                  if (!Number.isSafeInteger(value) || value < 1 || value > limits.max) throw new Error('Context window is outside the advertised bounds');
+                // Schema first: contextWindows is checked as positive safe integers before anything iterates it.
+                const draft = validatePreferences('codex', payload.settings);
+                // `original` (the snapshot the editor loaded) turns the save into an atomic field-level patch;
+                // without it the whole provider document is replaced (legacy full save).
+                const original = payload.original === undefined ? undefined : validatePreferences('codex', payload.original);
+                const touched = Object.entries(draft.contextWindows ?? {}).filter(([model, window]) => original?.contextWindows?.[model] !== window);
+                if (touched.length) {
+                  const catalogs = await readAccountCatalogs(false, request.signal);
+                  for (const [model, window] of touched) {
+                    const bound = await boundsFor(model, catalogs, request.signal) ?? await adapter.contextLimits(model, undefined, request.signal);
+                    if (window > bound.max) throw new Error('Context window is outside the advertised bounds');
+                  }
                 }
-                await preferences.set('codex', payload.settings); pool.invalidate(); handle?.replace(['codex']); break;
+                request.signal.throwIfAborted();
+                if (original === undefined) await preferences.set('codex', draft);
+                else await preferences.update('codex', original, draft);
+                pool.invalidate(); handle?.replace(['codex']); break;
               }
               case 'providerSettings': {
                 const force = readForce(payload);
+                // One overall budget for the whole read (sequential bounded steps would add up to several budgets).
+                const budget = deadlineSignal(DISCOVERY_TIMEOUT_MS, request.signal); releases.push(budget.release); const deadline = budget.signal;
                 await loadModelDefaults();
                 if (force) { adapter.clearAccountCatalog(); pool.invalidate(); handle?.replace(['codex']); }
-                const accounts = await tokens.list();
-                const catalogs = await Promise.all(accounts.map(async ({ key, session }) => {
-                  const models = await adapter.listOwnModels('codex', key, AbortSignal.timeout(20_000), !force).catch(() => undefined);
-                  return { key, label: session.emailAddress ?? key, models: models ?? [], ...(models === undefined ? { unavailable: true } : {}) };
-                }));
-                const models = await adapter.listModels('codex');
-                const fast = new Set(await adapter.fastCapableModels());
+                const catalogs = await readAccountCatalogs(!force, deadline);
+                const bounded = <T>(work: (signal: AbortSignal) => Promise<T>) => withTimeout(work, DISCOVERY_TIMEOUT_MS, deadline).catch(() => undefined);
+                const [listed, fastIds, tiers] = await Promise.all([
+                  bounded(() => adapter.listModels('codex')),
+                  bounded(signal => adapter.fastCapableModels(signal)),
+                  bounded(() => pool.modelsForProvider('codex')),
+                ]);
+                const models = listed ?? [];
+                const fast = new Set(fastIds ?? []);
                 // Configured tier rows resolve through the pool, which never consults the per-model override or
                 // speed for the tier id: offering controls on them would save cleanly and change nothing.
-                const tierIds = new Set((await pool.modelsForProvider('codex').catch(() => [])).map(tier => tier.id));
+                const tierIds = new Set((tiers ?? []).map(tier => tier.id));
                 const rows = await Promise.all(models.map(async model => {
-                  const info = await adapter.resolveModel('codex', model.id).catch(() => undefined);
-                  const limits = (await Promise.all(catalogs.filter(account => account.models.some(entry => entry.id === model.id))
-                    .map(account => adapter.contextLimits(model.id, account.key).catch(() => undefined)))).filter(entry => entry !== undefined);
+                  const info = await bounded(signal => adapter.resolveModel('codex', model.id, signal));
+                  const bound = await boundsFor(model.id, catalogs, deadline);
                   return { ...model, efforts: tierIds.has(model.id) ? [] : info?.reasoning?.efforts ?? [], configured: defaultEffortOf('codex', model.id), fastTier: !tierIds.has(model.id) && fast.has(model.id),
-                    ...(limits.length ? { defaultContextWindow: Math.min(...limits.map(entry => entry.default)), maxContextWindow: Math.min(...limits.map(entry => entry.max)) } : {}) };
+                    ...(bound ? { defaultContextWindow: bound.default, maxContextWindow: bound.max } : {}) };
                 }));
                 value = { provider: 'codex', settings: preferences.get('codex'), accounts: catalogs, models: rows, tools: PROVIDER_TOOLS.codex }; break;
               }
               case 'modelDefaults': {
                 // Reference `modelDefaults.catalog`: re-read from the live model info (the picker's own source), so the
                 // offered efforts match the picker exactly and the configured default merges in through the adapter.
+                const budget = deadlineSignal(DISCOVERY_TIMEOUT_MS, request.signal); releases.push(budget.release); const deadline = budget.signal;
                 if (readForce(payload)) { version.invalidate(); adapter.clearAccountCatalog(); pool.invalidate(); handle?.replace(['codex']); }
                 await loadModelDefaults();
                 const catalog: { provider: string; models: { id: string; name: string; efforts: { id: string; name: string }[]; configured?: string }[] }[] = [];
                 if ((await ctx.llm.listProviders()).some(entry => entry.id === 'codex')) {
-                  let listed: readonly { id: string; name: string }[] | undefined;
-                  try { listed = await ctx.llm.listModels('codex'); } catch { listed = undefined; }
+                  const listed = await withTimeout(() => ctx.llm.listModels('codex'), DISCOVERY_TIMEOUT_MS, deadline).catch(() => undefined);
                   if (listed !== undefined) {
                     // Configured tier rows resolve through the pool and never consult the per-model default: leave them out.
-                    const tierIds = new Set((await pool.modelsForProvider('codex').catch(() => [])).map(tier => tier.id));
+                    const tierIds = new Set((await withTimeout(() => pool.modelsForProvider('codex'), DISCOVERY_TIMEOUT_MS, deadline).catch(() => undefined) ?? []).map(tier => tier.id));
+                    const candidates = listed.filter(model => !tierIds.has(model.id) && !parseAccountModelId(model.id));
+                    const infos = await Promise.all(candidates.map(model => withTimeout(signal => ctx.llm.resolveModelInfo('codex', model.id, signal), DISCOVERY_TIMEOUT_MS, deadline).catch(() => undefined)));
                     const models = [];
-                    for (const model of listed) {
-                      if (tierIds.has(model.id) || parseAccountModelId(model.id)) continue;
-                      const info = await ctx.llm.resolveModelInfo('codex', model.id).catch(() => undefined);
+                    for (const [index, model] of candidates.entries()) {
+                      const info = infos[index];
                       if (info === undefined) continue;
                       const override = defaultEffortOf('codex', model.id);
                       models.push({ id: model.id, name: model.name, efforts: info.reasoning?.efforts.map(effort => ({ id: effort.id, name: effort.name })) ?? [],
@@ -312,7 +372,7 @@ export function apply(ctx: Context, config: Config = {}): void {
               case 'setModelDefault': {
                 const model = string('model');
                 const effort = payload.effort === undefined ? undefined : string('effort');
-                const info = await adapter.resolveModel('codex', model).catch(() => undefined);
+                const info = await withTimeout(signal => adapter.resolveModel('codex', model, signal), DISCOVERY_TIMEOUT_MS, request.signal).catch(() => undefined);
                 if (effort && info?.reasoning?.efforts.length && !info.reasoning.efforts.some(entry => entry.id === effort)) throw new Error(`model ${model} does not advertise a "${effort}" reasoning effort`);
                 await setDefaultEffort('codex', model, effort); handle?.replace(['codex']); break;
               }
@@ -330,7 +390,7 @@ export function apply(ctx: Context, config: Config = {}): void {
               case 'consumeReset': await resets.redeem(string('account'), string('ticket'), AbortSignal.any([request.signal, AbortSignal.timeout(20_000)])); break;
             }
             result = { ok: true, value };
-          } catch (error) { result = { ok: false, error: { code: 'subscriptions/error', message: safeDiagnostic(error, [payload.password, (payload.proxy as { password?: unknown } | undefined)?.password], [payload.username, (payload.proxy as { username?: unknown } | undefined)?.username]), details: {} } }; }
+          } catch (error) { result = { ok: false, error: { code: 'subscriptions/error', message: error instanceof OAuthEndpointError ? browserSafeError(error, 'upstream') : safeDiagnostic(error, [payload.password, (payload.proxy as { password?: unknown } | undefined)?.password], [payload.username, (payload.proxy as { username?: unknown } | undefined)?.username]), details: {} } }; } finally { for (const release of releases) release(); }
           return Response.json({ type: 'server-response', rpcId: body.rpcId, result });
         },
       }), `dsh-majed: ${method} route`);

@@ -100,7 +100,7 @@ export class AccountPreferencesAdapter extends LlmAdapter {
                         yield* raw.streamAccount(options, key);
                     };
                 if (property === 'resolveOwnModel')
-                    return async (provider, model, account) => raw.resolveOwnModel(provider, model, await keyFor(account, model));
+                    return async (provider, model, account, signal) => raw.resolveOwnModel(provider, model, await keyFor(account, model), signal);
                 const value = Reflect.get(target, property);
                 return typeof value === 'function' ? value.bind(target) : value;
             } });
@@ -150,7 +150,7 @@ export class AccountPreferencesAdapter extends LlmAdapter {
         const model = independent?.model ?? id;
         if (independent)
             await this.requireAccount(account, model, true, signal);
-        const info = await withAbortSignal(() => this.options.adapter.resolveOwnModel(provider, model, account), signal);
+        const info = await withAbortSignal(() => this.options.adapter.resolveOwnModel(provider, model, account, signal), signal);
         const label = independent ? (await withAbortSignal(this.options.accounts, signal)).find(entry => entry.key === account)?.label ?? account : undefined;
         const owner = this;
         const named = this.present(model, info);

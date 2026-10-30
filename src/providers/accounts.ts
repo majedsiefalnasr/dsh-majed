@@ -54,7 +54,7 @@ export interface AccountAwareAdapter extends LlmAdapter {
    * otherwise bounce straight back into the pool forever. The optional account
    * lets adapters with account-specific limits resolve that member conservatively.
    */
-  resolveOwnModel(provider: string, model: string, account?: string): Promise<LlmResolvedModelInfo>
+  resolveOwnModel(provider: string, model: string, account?: string, signal?: AbortSignal): Promise<LlmResolvedModelInfo>
   /** Drop cached catalogs: one account, or every account when omitted (login/logout). */
   clearAccountCatalog(account?: string): void
 }

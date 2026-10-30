@@ -15,7 +15,6 @@
  */
 import { ProxyAgent, fetch as undiciFetch } from 'undici';
 import { chmod, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
-import { getDefaultAutoSelectFamilyAttemptTimeout, setDefaultAutoSelectFamilyAttemptTimeout } from 'node:net';
 import { dirname } from 'node:path';
 import { DIAGNOSTIC_INPUT_LIMIT, sanitizeDiagnostic } from './diagnostic.js';
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths';
@@ -30,32 +29,6 @@ const dispatchFetch = undiciFetch;
 export const DEFAULT_PROXY_TEST_URL = 'https://api.x.ai/v1/models';
 /** Probe deadline; a hung proxy must not pin the Settings dialog forever. */
 export const DEFAULT_PROXY_TEST_TIMEOUT_MS = 15_000;
-/**
- * Minimum per-address connect attempt budget for Node's Happy Eyeballs
- * (`net.autoSelectFamilyAttemptTimeout`). Node's default is 250ms, which is
- * shorter than one TCP handshake to Cloudflare-fronted hosts (registry.npmjs.org,
- * chatgpt.com) on a high-latency link: every address then fails with
- * ETIMEDOUT and the whole fetch dies even though curl succeeds.
- */
-export const MIN_CONNECT_ATTEMPT_TIMEOUT_MS = 1500;
-/**
- * Raise the process-wide Happy Eyeballs attempt timeout to at least `minMs`.
- * Never lowers a host-configured value. The setting is per process (there is
- * no per-dispatcher knob that survives the host's global dispatcher), so the
- * plugin restores the previous value on dispose.
- * @param minMs - the floor to enforce.
- * @returns the value in effect before the call.
- */
-export function ensureConnectAttemptTimeout(minMs = MIN_CONNECT_ATTEMPT_TIMEOUT_MS) {
-    const previous = getDefaultAutoSelectFamilyAttemptTimeout();
-    if (previous < minMs)
-        setDefaultAutoSelectFamilyAttemptTimeout(minMs);
-    return previous;
-}
-/** Restore a value captured by {@link ensureConnectAttemptTimeout}. */
-export function restoreConnectAttemptTimeout(previous) {
-    setDefaultAutoSelectFamilyAttemptTimeout(previous);
-}
 /** Disabled configuration: the module state before the first load. */
 const DISABLED = { enabled: false, url: '', bypass: [] };
 /** Current config; updated by every load/apply/save. */
@@ -68,6 +41,8 @@ let configError;
 let ready;
 /** Bumped by every disposal so a load that was in flight cannot repopulate released state. */
 let epoch = 0;
+/** Tail of the serialized `proxySetConfig` write chain. */
+let proxyWrites = Promise.resolve();
 /** In-flight `proxyTestConnection` probes, aborted on disposal. */
 const probes = new Set();
 /** Absolute path of the proxy config file. */
@@ -366,7 +341,14 @@ export async function proxyGetConfig() {
  * @param input - the client's payload.
  * @returns the resulting view (secrets omitted).
  */
-export async function proxySetConfig(input) {
+export function proxySetConfig(input) {
+    // Serialized: each write reads the stored password/bypass it keeps ("omitted = keep") only after every
+    // earlier write has landed, so two clients can never lose each other's credential or list.
+    const run = proxyWrites.then(() => writeProxyConfig(input));
+    proxyWrites = run.then(() => undefined, () => undefined);
+    return run;
+}
+async function writeProxyConfig(input) {
     await ensureReady();
     const password = input.password === undefined
         ? current.password

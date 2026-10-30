@@ -5,7 +5,7 @@ import type { AccountPreferences, PromptCacheTtlSetting, ProviderPreferences } f
 type SubscriptionProvider = 'codex'
 type SubscriptionsKey = string
 import { callSubscriptionsAuth } from './subscriptions-rpc.js'
-import { accountModelRows, accountPoolSelection, mergeAccountChanges, mergeLatestAccounts, mergeIntent } from './account-preferences.js'
+import { accountModelRows, accountPoolSelection } from './account-preferences.js'
 import type { AccountCatalogRow } from './account-preferences.js'
 import { ProviderModelEditor } from './ProviderModelEditor.js'
 import type { ProviderModelEditorHandle } from './ProviderModelEditor.js'
@@ -99,20 +99,21 @@ export function ProviderAccountManager({ provider, name, rpc, t, onClose }: Prop
         savedEfforts++
         if (!alive.current) return
       }
-      // Re-read before writing: another client may have saved since this
-      // dialog loaded, and a stale snapshot must never be written back.
-      const latest = await callSubscriptionsAuth<Catalog>(rpc, 'providerSettings', { provider })
-      if (!alive.current) return
-      const base = models.settings === undefined ? latest.settings : mergeLatestAccounts(models.settings, latest.settings, models.original)
-      const { displayName: _staleName, promptCacheTtl: _staleTtl, ...rest } = mergeAccountChanges(base, Object.fromEntries(Object.entries(changes).map(([key, draft]) => [key, mergeIntent(latest.settings.accounts?.[key] ?? {}, catalog?.settings.accounts?.[key] ?? {}, draft)])))
-      const savedName = nameDirty ? displayName.trim() : latest.settings.displayName
-      const savedTtl = cacheTtlDirty ? cacheTtl : latest.settings.promptCacheTtl
-      const settings = {
-        ...rest,
+      // Send what this dialog loaded (`original`) next to what the user wants (`settings`): the
+      // server applies only the difference to the preferences current at write time, inside its
+      // serialized write chain, so another client's concurrent edit of a different field is never lost.
+      const original: ProviderPreferences = catalog?.settings ?? {}
+      const { accounts: _accounts, displayName: _name, promptCacheTtl: _ttl, ...unchanged } = original
+      const savedName = nameDirty ? displayName.trim() : original.displayName
+      const savedTtl = cacheTtlDirty ? cacheTtl : original.promptCacheTtl
+      const { accounts: _editorAccounts, displayName: _editorName, promptCacheTtl: _editorTtl, ...editorFields } = models.settings ?? unchanged
+      const settings: ProviderPreferences = {
+        ...editorFields,
+        ...(original.accounts || Object.keys(changes).length ? { accounts: { ...original.accounts, ...changes } } : {}),
         ...(savedName ? { displayName: savedName } : {}),
         ...(savedTtl ? { promptCacheTtl: savedTtl } : {}),
       }
-      await callSubscriptionsAuth(rpc, 'setProviderSettings', { provider, settings })
+      await callSubscriptionsAuth(rpc, 'setProviderSettings', { provider, settings, original })
       notifyDisplayNameChange(provider, settings.displayName)
       if (alive.current) onClose()
     } catch (error) {

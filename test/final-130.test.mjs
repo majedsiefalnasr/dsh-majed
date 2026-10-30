@@ -55,8 +55,9 @@ async function mount({ accounts = ['a', 'b'], hang = [], config = {} } = {}) {
 }
 
 test('P2 pool assembly: a hung account sits out and the healthy account still serves in bounded time', async () => {
-  const realTimeout = AbortSignal.timeout;
+  const realTimeout = AbortSignal.timeout, realSetTimeout = globalThis.setTimeout;
   AbortSignal.timeout = ms => realTimeout.call(AbortSignal, ms >= 10_000 ? 50 : ms); // economical stand-in for the 10s/20s bounds
+  globalThis.setTimeout = (fn, ms, ...rest) => realSetTimeout(fn, ms >= 10_000 ? 50 : ms, ...rest); // withTimeout uses an explicit timer
   const host = await mount({ hang: ['b'] });
   const keepAlive = setInterval(() => {}, 1_000); // AbortSignal.timeout timers are unref'd; hold the loop open while the hung read waits
   try {
@@ -65,7 +66,7 @@ test('P2 pool assembly: a hung account sits out and the healthy account still se
     for await (const chunk of host.adapter.stream({ provider: 'codex', model: 'fast-model', messages: [] })) void chunk;
     assert.ok(Date.now() - started < 5_000, 'bounded time');
     assert.deepEqual(host.requests, ['a'], 'the healthy account served the request');
-  } finally { clearInterval(keepAlive); host.dispose(); AbortSignal.timeout = realTimeout; }
+  } finally { clearInterval(keepAlive); host.dispose(); AbortSignal.timeout = realTimeout; globalThis.setTimeout = realSetTimeout; }
 });
 
 test('P2 pool assembly: account policy lookup ignores inherited Object.prototype keys', async () => {

@@ -174,7 +174,8 @@ test('auth RPC rejects mismatched state, reports exchange failure, and cancels a
     await component.call('login'); await component.call('manual', { input: 'fake-code' });
     for (let i = 0; i < 10; i++) await new Promise(resolve => setImmediate(resolve));
     status = (await component.call('status')).value.providers.codex;
-    assert.match(status.detail, /fixture exchange failure/); assert.equal(status.busy, false);
+    // The upstream body ('fixture exchange failure') is untrusted: the browser sees only the HTTP status.
+    assert.match(status.detail, /^codex login endpoint error \(HTTP 400\)/); assert.doesNotMatch(status.detail, /fixture exchange failure/); assert.equal(status.busy, false);
   } finally { component.dispose(); globalThis.fetch = saved; }
 });
 
