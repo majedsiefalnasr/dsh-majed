@@ -30,8 +30,8 @@ import { registerWithAlias } from './tools/registration.js';
 import { AccountPreferencesAdapter, accountAllowsPool, accountModelId, parseAccountModelId } from './providers/account-preferences.js';
 import type { ClaudeSession, ProviderId } from './auth/store.js';
 import { ClaudeAuthController, type ClaudeLoginMethod } from './auth/claude-controller.js';
-import { readClaudeCodeCredentials, refreshClaudeSynced, SYSTEM_CLAUDE_CREDS_IO, type ClaudeCredsIo } from './auth/claude-code-creds.js';
-import { ClaudeAdapter, CLAUDE_CLI_FALLBACK_VERSION, CLAUDE_PREEMPT_MS, fetchClaudeUsage, isClaudePermanentRefreshError, refreshClaude } from './providers/claude.js';
+import { readClaudeCodeCredentials, recordClaudeEmail, refreshClaudeSynced, SYSTEM_CLAUDE_CREDS_IO, type ClaudeCredsIo, type ClaudeProfileLookup } from './auth/claude-code-creds.js';
+import { ClaudeAdapter, CLAUDE_CLI_FALLBACK_VERSION, CLAUDE_PREEMPT_MS, fetchClaudeProfile, fetchClaudeUsage, isClaudePermanentRefreshError, refreshClaude } from './providers/claude.js';
 import { ClaudeCliVersionCache } from './providers/claude-cli-version.js';
 import { DEFAULT_PROMPT_CACHE_TTL, type PromptCacheTtl } from './translate/anthropic.js';
 import { presentedVersion } from './providers/npm-cli-version.js';
@@ -153,10 +153,11 @@ const CLAUDE_ENDPOINTS = new Set(['status', 'login', 'manual', 'cancel', 'logout
  * it, so production always uses the real Claude Code credential store; tests pass a fake so they never touch the
  * Keychain or `~/.claude`.
  */
-export interface ApplyOptions { claudeCredsIo?: ClaudeCredsIo }
+export interface ApplyOptions { claudeCredsIo?: ClaudeCredsIo; claudeProfile?: ClaudeProfileLookup }
 
 export function apply(ctx: Context, config: Config = {}, options: ApplyOptions = {}): void {
   const claudeCredsIo = options.claudeCredsIo ?? SYSTEM_CLAUDE_CREDS_IO;
+  const claudeIdentity = { profile: options.claudeProfile ?? fetchClaudeProfile };
   const preferences = new ProviderSettingsStore();
   void loadModelDefaults().catch(() => ctx.logger.warn('dsh-majed: model defaults unavailable'));
   const flows = new OAuthFlowManager();
@@ -222,7 +223,7 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
         const lifecycle = claudeLifecycle.signal;
         lifecycle.throwIfAborted();
         const next = session.keychainBound === true
-          ? await refreshClaudeSynced(session, bound => refreshClaude(bound, lifecycle), claudeCredsIo, lifecycle)
+          ? await refreshClaudeSynced(session, bound => refreshClaude(bound, lifecycle), claudeCredsIo, lifecycle, claudeIdentity)
           : await refreshClaude(session, lifecycle);
         lifecycle.throwIfAborted();
         return next;
@@ -233,7 +234,7 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
     ? () => readUsage(account, AbortSignal.timeout(20_000))
     : provider === 'claude' ? async () => fetchClaudeUsage(await claudeTokens.session(account), proxiedFetch, AbortSignal.timeout(20_000), () => claudeVersion.resolve()) : undefined);
   const auth = new CodexAuthController(flows, changed, error => browserSafeError(error, 'codex login'));
-  const claudeAuth = new ClaudeAuthController(flows, claudeChanged, error => browserSafeError(error, 'claude login'), () => readClaudeCodeCredentials(claudeCredsIo));
+  const claudeAuth = new ClaudeAuthController(flows, claudeChanged, error => browserSafeError(error, 'claude login'), () => readClaudeCodeCredentials(claudeCredsIo), session => recordClaudeEmail(session, claudeIdentity, claudeLifecycle.signal));
   const resets = new ResetRedemption(readUsage,
     async (account, credit, request, signal) => consumeCodexResetCredit(await tokens.session(account), credit, request, proxiedFetch, signal),
     account => usage.invalidate('codex', account));

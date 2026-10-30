@@ -210,10 +210,11 @@ interface ClaudeTokenResponse {
   scope?: string
 }
 
-/** Best-effort account profile; login must not fail when this does. */
-async function fetchClaudeProfile(accessToken: string): Promise<Pick<ClaudeSession, 'emailAddress' | 'subscriptionType'>> {
+/** Best-effort account profile; login must not fail when this does (a failure or abort yields `{}`). */
+export async function fetchClaudeProfile(accessToken: string, signal?: AbortSignal): Promise<Pick<ClaudeSession, 'emailAddress' | 'subscriptionType'>> {
   try {
     const response = await proxiedFetch(CLAUDE_PROFILE_URL, {
+      ...signal === undefined ? {} : { signal },
       headers: { authorization: `Bearer ${accessToken}` },
     })
     if (!response.ok) return {}

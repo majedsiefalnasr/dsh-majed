@@ -22,7 +22,9 @@ export class ClaudeAuthController {
   private disposed = false;
   constructor(private flows: OAuthFlowManager, private changed: (account?: string) => void,
     private describe: (error: unknown) => string = error => error instanceof Error ? error.message : String(error),
-    private readImported: () => ClaudeSession | undefined = () => readClaudeCodeCredentials()) {}
+    private readImported: () => ClaudeSession | undefined = () => readClaudeCodeCredentials(),
+    /** Adds the account email to an imported session (profile lookup, best effort); identity by default. */
+    private identify: (session: ClaudeSession) => Promise<ClaudeSession> = async session => session) {}
 
   async status() {
     const pending = this.flows.pending('claude');
@@ -43,10 +45,14 @@ export class ClaudeAuthController {
       if (imported !== undefined) {
         // An OAuth attempt may be in flight from an earlier click; claiming supersedes it whether it still waits for
         // its code or is already exchanging one. The cancel frees the listener so `busy` clears.
-        this.claim++;
+        const claim = ++this.claim;
         this.flows.pending('claude')?.cancel();
-        // Imported accounts are bound: only they sync refreshes back to Claude Code's credential store.
-        const session: ClaudeSession = { ...imported, keychainBound: true };
+        // Imported accounts are bound: only they sync refreshes back to Claude Code's credential store. The email is
+        // recorded on the stored session (lookup is bounded); a cancel, logout or disposal meanwhile supersedes the
+        // import, exactly as it supersedes an OAuth attempt.
+        const session: ClaudeSession = { ...await this.identify({ ...imported, keychainBound: true }), keychainBound: true };
+        // Superseded meanwhile (logout, cancel, a newer login or disposal): nothing is persisted, as before the lookup existed.
+        if (this.disposed || this.claim !== claim) return { authorizeUrl: '' };
         const account = accountKeyOf('claude', session);
         await saveAccountSession('claude', account, session);
         this.lastError = undefined;
