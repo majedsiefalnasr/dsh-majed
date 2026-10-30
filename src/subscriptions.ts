@@ -208,6 +208,7 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
     catch (error) { return { ...snapshot, resetCreditsError: browserSafeError(error, 'codex reset credits') }; }
   };
   // Claude (reference v0.9.12 `case 'claude'`): its own token manager, catalog, client version, and cache lifetime.
+  const claudeLifecycle = new AbortController();
   const claudeVersion = new ClaudeCliVersionCache();
   const presentClaudeVersion = presentedVersion(claudeVersion);
   const claudeChanged = (account?: string) => { if (!disposed) { claudeAdapter.clearAccountCatalog(account); health.clear('claude', account); usage.invalidate('claude', account); pool?.invalidate(); claudeHandle?.replace(['claude']); } };
@@ -215,7 +216,17 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
     makeOptions: () => ({ preemptMs: CLAUDE_PREEMPT_MS,
       // Only keychain-imported accounts sync with Claude Code's own store; OAuth accounts refresh standalone so
       // several accounts never fight over the Keychain entry (reference index.ts).
-      refresh: session => session.keychainBound === true ? refreshClaudeSynced(session, refreshClaude, claudeCredsIo) : refreshClaude(session),
+      // The lifecycle signal stops a refresh that outlives disposal: no token request, no store read or write-back,
+      // and the final check below keeps a late result from reaching the TokenManager save.
+      refresh: async session => {
+        const lifecycle = claudeLifecycle.signal;
+        lifecycle.throwIfAborted();
+        const next = session.keychainBound === true
+          ? await refreshClaudeSynced(session, bound => refreshClaude(bound, lifecycle), claudeCredsIo, lifecycle)
+          : await refreshClaude(session, lifecycle);
+        lifecycle.throwIfAborted();
+        return next;
+      },
       isPermanent: isClaudePermanentRefreshError }),
     onAccountRemoved: claudeChanged });
   const usage = new PoolUsageTracker((provider, account) => provider === 'codex'
@@ -276,18 +287,22 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
       const families = new Map<string, PoolDefinition>();
       if (config.pool?.autoAccounts ?? config.pool?.autoFamilies ?? true) {
         // Discover each account separately and bound each read: a hang or failure sits that account out
-        // instead of failing the whole assembly (reference index.ts `families`).
-        try {
-          const accounts = (await tokens.list()).map(entry => entry.key);
-          const catalogs = (await Promise.all(accounts.map(async account => {
-            const models = await withTimeout(signal => adapter.listOwnModels('codex', account, signal, true), POOL_USAGE_TIMEOUT_MS)
-              .catch(() => undefined);
-            const settings = preferences.get('codex').accounts;
-            const policy = settings && Object.hasOwn(settings, account) ? settings[account] : undefined;
-            return models === undefined ? undefined : { account, models: models.filter(model => accountAllowsPool(policy, model.id)) };
-          }))).filter(entry => entry !== undefined);
-          if (catalogs.length > 0) for (const [key, definition] of buildAccountPools({ codex: { catalogs } })) families.set(key, definition);
-        } catch { /* Discovery failures are already reported by the owning adapter. */ }
+        // instead of failing the whole assembly (reference index.ts `families`). Codex and Claude alike.
+        const sources: Parameters<typeof buildAccountPools>[0] = {};
+        await Promise.all(([['codex', tokens, adapter], ['claude', claudeTokens, claudeAdapter]] as const).map(async ([provider, accountTokens, raw]) => {
+          try {
+            const accounts = (await accountTokens.list()).map(entry => entry.key);
+            const catalogs = (await Promise.all(accounts.map(async account => {
+              const models = await withTimeout(signal => raw.listOwnModels(provider, account, signal, true), POOL_USAGE_TIMEOUT_MS)
+                .catch(() => undefined);
+              const settings = preferences.get(provider).accounts;
+              const policy = settings && Object.hasOwn(settings, account) ? settings[account] : undefined;
+              return models === undefined ? undefined : { account, models: models.filter(model => accountAllowsPool(policy, model.id)) };
+            }))).filter(entry => entry !== undefined);
+            if (catalogs.length > 0) sources[provider] = { catalogs };
+          } catch { /* Discovery failures are already reported by the owning adapter. */ }
+        }));
+        for (const [key, definition] of buildAccountPools(sources)) families.set(key, definition);
       }
       for (const [id, members] of Object.entries(config.pool?.families ?? {})) {
         const owner = members[0]?.provider;
@@ -302,9 +317,9 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
   try { handle = ctx.llm.registerAdapter(['codex'], presented); }
   catch (error) { collisionError = error; collision = 'Codex registration is unavailable'; }
 
-  try { claudeHandle = ctx.llm.registerAdapter(['claude'], claudeAdapter); }
+  try { claudeHandle = ctx.llm.registerAdapter(['claude'], presentedClaude); }
   catch (error) { claudeCollisionError = error; claudeCollision = 'Claude registration is unavailable'; }
-  ctx.effect(() => () => { disposed = true; auth.dispose(); claudeAuth.dispose(); void disposeProxyTransport(); }, 'dsh-majed: subscriptions auth disposal');
+  ctx.effect(() => () => { disposed = true; claudeLifecycle.abort(); auth.dispose(); claudeAuth.dispose(); void disposeProxyTransport(); }, 'dsh-majed: subscriptions auth disposal');
   // Keep keychain-bound Claude accounts synced with Claude Code's own store (reference `claude background sync timer`).
   // One interval, bounded: each tick reads the account list and refreshes only bound sessions, errors are swallowed
   // (TokenManager already reports permanent failures), and dispose clears the timer.
@@ -313,6 +328,8 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
       if (disposed || !claudeHandle) return;
       void claudeTokens.list().then(accounts => {
         for (const { key, session } of accounts) {
+          // The list read can outlive disposal: do nothing once the component is gone.
+          if (disposed || claudeLifecycle.signal.aborted) return;
           if (session.keychainBound !== true) continue;
           claudeTokens.session(key).catch(() => { /* Best-effort: TokenManager surfaces failures via onRemoved. */ });
         }

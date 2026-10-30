@@ -5,6 +5,7 @@ import { test, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, stat, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { apply, CLAUDE_KEYCHAIN_SYNC_MS } from '../dist/subscriptions.js';
 import { ClaudeAuthController } from '../dist/auth/claude-controller.js';
 import { OAuthFlowManager } from '../dist/auth/oauth-flow.js';
@@ -47,7 +48,7 @@ function host({ io, config = {}, collideClaude = false } = {}) {
     return (await response.json()).result;
   }, dispose() { cleanups.splice(0).reverse().forEach(fn => fn()); } };
 }
-const home = async name => { process.env.DSH_HOME = await mkdtemp(`/tmp/majed-t129/claude-${name}-`); return process.env.DSH_HOME; };
+const home = async name => { process.env.DSH_HOME = await mkdtemp(join(tmpdir(), `majed-t129-claude-${name}-`)); return process.env.DSH_HOME; };
 const forbidFetch = () => { const saved = globalThis.fetch; const urls = []; globalThis.fetch = async url => { urls.push(String(url)); throw new Error('network forbidden'); }; return { urls, restore() { globalThis.fetch = saved; } }; };
 const noSecrets = (value, label) => { const text = JSON.stringify(value); for (const secret of SECRETS) assert.equal(text.includes(secret), false, `${label} leaks ${secret}`); };
 const settle = () => new Promise(resolve => setImmediate(resolve));
@@ -92,7 +93,7 @@ test('write-back merges only the three token fields, and only when the store sti
 });
 
 test('refreshClaudeSynced prefers a fresher token already in Claude Code store and refreshes + writes back otherwise', async () => {
-  const session = { accessToken: 'fake-imported-access', refreshToken: 'fake-imported-refresh', expiresAt: Date.now() - 1000, scopes: 's' };
+  const session = { accessToken: 'fake-imported-access', refreshToken: 'fake-imported-refresh', expiresAt: Date.now() - 1000, scopes: 's', emailAddress: 'imported@example.test', keychainBound: true };
   const rotated = fakeIo({ keychain: blob({ accessToken: 'fake-rotated-access', refreshToken: 'fake-rotated-refresh', expiresAt: FAR }) });
   let refreshes = 0;
   const viaSource = await refreshClaudeSynced(session, async () => { refreshes++; throw new Error('must not refresh'); }, rotated.io);
@@ -386,7 +387,7 @@ test('the background sync is one bounded timer: it reads only bound accounts, st
     assert.equal(CLAUDE_KEYCHAIN_SYNC_MS, 5 * 60_000);
     const store = await import('../dist/auth/store.js');
     const expired = Date.now() - 1000;
-    await store.saveAccountSession('claude', 'bound', { accessToken: 'fake-claude-access', refreshToken: 'fake-claude-refresh', expiresAt: expired, scopes: 's', keychainBound: true });
+    await store.saveAccountSession('claude', 'bound', { accessToken: 'fake-claude-access', refreshToken: 'fake-claude-refresh', expiresAt: expired, scopes: 's', emailAddress: 'imported@example.test', keychainBound: true });
     await store.saveAccountSession('claude', 'plain', { accessToken: 'fake-claude-access', refreshToken: 'fake-claude-refresh', expiresAt: expired, scopes: 's' });
     const fetchGuard = forbidFetch();
     try {

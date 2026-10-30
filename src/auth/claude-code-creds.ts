@@ -7,7 +7,7 @@
  * of an account imported that way (its `keychainBound` flag).
  */
 import { execFileSync } from 'node:child_process'
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import type { ClaudeSession } from './store.js'
@@ -129,6 +129,9 @@ export const SYSTEM_CLAUDE_CREDS_IO: ClaudeCredsIo = {
   },
   writeFileRaw(path, raw) {
     try {
+      // Hardening over the reference: never write through a symlink planted at the credentials path. The
+      // check-then-write is still not atomic (accepted residual risk, see docs/ai/ticket-132-verification.md).
+      if (existsSync(path) && lstatSync(path).isSymbolicLink()) return false
       const dir = dirname(path)
       if (!existsSync(dir)) mkdirSync(dir, { recursive: true, mode: 0o700 })
       writeFileSync(path, raw, { encoding: 'utf8', mode: 0o600 })
@@ -203,23 +206,45 @@ export function writeBackClaudeCodeCredentials(
 }
 
 /**
+ * Whether Claude Code's store still holds the SAME account as the stored session, so its tokens may be adopted.
+ * The only stable identity a blob carries is its email address: when both sides carry one they must match. Without
+ * a comparable pair, only refresh-token continuity (the store holds the very refresh token this account already
+ * owns) proves it is the same login. Anything else is a different or unknown account and is never adopted.
+ */
+function sameAccount(stored: ClaudeSession, source: ClaudeSession): boolean {
+  if (stored.emailAddress !== undefined && source.emailAddress !== undefined) return stored.emailAddress === source.emailAddress
+  return stored.refreshToken === source.refreshToken
+}
+
+/**
  * Refresh a Claude session, first checking whether Claude Code's own store already holds a fresher token (rotated by
  * the `claude` CLI or another consumer) before hitting the OAuth endpoint ourselves, and writing our own refresh
  * back to that store so every consumer of the account stays synced. Called only for `keychainBound` accounts.
+ *
+ * Differences from the reference, on purpose: a source session is adopted only when it is provably the same account
+ * (see {@link sameAccount}), because Claude Code may have switched to another login; a different account needs an
+ * explicit new import and is never persisted under this one. Every returned session keeps `keychainBound`, so the
+ * binding survives the TokenManager save. The optional `signal` is the component lifecycle: once aborted, nothing
+ * reads or writes Claude Code's store and nothing is returned for persisting.
  * @param session - the session TokenManager wants refreshed.
  * @param doRefresh - the actual OAuth refresh-token grant (network call).
  * @param io - the credential store IO (production default; tests inject fakes).
- * @returns the freshest available session.
+ * @param signal - aborted when the owning component is disposed.
+ * @returns the freshest available session, still bound.
  */
 export async function refreshClaudeSynced(
   session: ClaudeSession,
   doRefresh: (session: ClaudeSession) => Promise<ClaudeSession>,
   io: ClaudeCredsIo = SYSTEM_CLAUDE_CREDS_IO,
+  signal?: AbortSignal,
 ): Promise<ClaudeSession> {
+  signal?.throwIfAborted()
   const fromSource = readClaudeCodeCredentials(io)
-  const base = fromSource !== undefined && fromSource.accessToken !== session.accessToken ? fromSource : session
-  if (base.expiresAt > Date.now() + 60_000) return base
-  const next = await doRefresh(base)
+  const adopt = fromSource !== undefined && fromSource.accessToken !== session.accessToken && sameAccount(session, fromSource)
+  const base: ClaudeSession = adopt ? { ...fromSource, keychainBound: true } : session
+  if (base.expiresAt > Date.now() + 60_000) return { ...base, keychainBound: true }
+  const next: ClaudeSession = { ...await doRefresh(base), keychainBound: true }
+  signal?.throwIfAborted()
   writeBackClaudeCodeCredentials(next, base.accessToken, io)
   return next
 }
