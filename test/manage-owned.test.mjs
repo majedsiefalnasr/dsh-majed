@@ -5,7 +5,7 @@ import { apply } from '../dist/subscriptions.js';
 
 function host() {
   const routes = new Map(), cleanups = []; let adapter;
-  const ctx = { logger: { warn() {} }, llm: { registerAdapter(_, value) { adapter = value; return { replace() {} }; },
+  const ctx = { logger: { warn() {} }, llm: { registerAdapter(ids, value) { if (ids[0] === 'codex') adapter = value; return { replace() {} }; },
       listProviders: () => [{ id: 'codex', name: 'Codex' }], listModels: provider => adapter.listModels(provider), resolveModelInfo: (provider, model) => adapter.resolveModel(provider, model) },
     get: () => ({ fetch: { register(route) { routes.set(route.path, route); return () => routes.delete(route.path); } } }),
     inject(names, fn) { if ([].concat(names).includes('connection')) fn(ctx); }, effect(fn) { const off = fn(); if (off) cleanups.push(off); } };

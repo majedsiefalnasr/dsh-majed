@@ -74,7 +74,7 @@ async function mount({ fetchFn, accounts = ['a', 'b'], config = {}, keepHome = f
   for (const account of accounts) await saveAccountSession('codex', account, { accountId: account, email: `${account}@example.test`, accessToken: `synthetic-${account}`, refreshToken: 'synthetic-refresh', expiresAt: 4_000_000_000_000 });
   const saved = globalThis.fetch; globalThis.fetch = fetchFn;
   const routes = new Map(), cleanups = [], warnings = []; let adapter;
-  const ctx = { logger: { warn: message => warnings.push(message) }, llm: { registerAdapter(_, value) { adapter = value; if (config.collide) throw new Error(config.collide); return { replace() {} }; },
+  const ctx = { logger: { warn: message => warnings.push(message) }, llm: { registerAdapter(ids, value) { if (ids[0] === 'codex') adapter = value; if (config.collide) throw new Error(config.collide); return { replace() {} }; },
       listProviders: async () => [{ id: 'codex' }], listModels: async () => (await adapter.listModels('codex')), resolveModelInfo: (_, id, signal) => adapter.resolveModel('codex', id, signal) },
     get: name => name === 'connection' ? { fetch: { register(route) { routes.set(route.path, route); return () => routes.delete(route.path); } } } : undefined,
     inject(names, fn) { if ([].concat(names).includes('connection')) fn(ctx); }, effect(fn) { const off = fn(); if (off) cleanups.push(off); } };

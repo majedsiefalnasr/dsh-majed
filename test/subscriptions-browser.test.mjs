@@ -190,7 +190,9 @@ test('owned global registrations in src use the Majed namespace', async () => {
     assert.ok(ids.length, file);
     // Deliberately shared provider-native model IDs and the reference's speed-tier option ids are not owned
     // global registrations (ADR-0002); the tier ids are values sent to the `setSpeed` endpoint.
-    for (const id of ids.filter(id => !['gpt-5.1-codex', 'gpt-5.1-codex-mini', 'gpt-5.1', 'standard', 'fast'].includes(id))) assert.match(id, /^(?:\/api\/)?majed[.-]/, `${file}: ${id}`);
+    // #132: Claude's provider-native model IDs (`claude-*`) are shared the same way, and `oauth`/`keychain` are the values of the
+    // Claude login `method` enum sent to the `login` endpoint, not a registration.
+    for (const id of ids.filter(id => !['gpt-5.1-codex', 'gpt-5.1-codex-mini', 'gpt-5.1', 'standard', 'fast', 'oauth', 'keychain'].includes(id) && !/^claude-/.test(id))) assert.match(id, /^(?:\/api\/)?majed[.-]/, `${file}: ${id}`);
     for (const [, label] of source.matchAll(/},?\)?\), ['"]([^'"]+)['"]\)/g)) assert.match(label, /^(?:dsh-)?majed:/, `${file}: ${label}`);
   }
 });
