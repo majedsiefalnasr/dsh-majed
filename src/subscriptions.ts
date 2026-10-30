@@ -197,11 +197,14 @@ export function apply(ctx: Context, config: Config = {}): void {
                 }));
                 const models = await adapter.listModels('codex');
                 const fast = new Set(await adapter.fastCapableModels());
+                // Configured tier rows resolve through the pool, which never consults the per-model override or
+                // speed for the tier id: offering controls on them would save cleanly and change nothing.
+                const tierIds = new Set((await pool.modelsForProvider('codex').catch(() => [])).map(tier => tier.id));
                 const rows = await Promise.all(models.map(async model => {
                   const info = await adapter.resolveModel('codex', model.id).catch(() => undefined);
                   const limits = (await Promise.all(catalogs.filter(account => account.models.some(entry => entry.id === model.id))
                     .map(account => adapter.contextLimits(model.id, account.key).catch(() => undefined)))).filter(entry => entry !== undefined);
-                  return { ...model, efforts: info?.reasoning?.efforts ?? [], configured: defaultEffortOf('codex', model.id), fastTier: fast.has(model.id),
+                  return { ...model, efforts: tierIds.has(model.id) ? [] : info?.reasoning?.efforts ?? [], configured: defaultEffortOf('codex', model.id), fastTier: !tierIds.has(model.id) && fast.has(model.id),
                     ...(limits.length ? { defaultContextWindow: Math.min(...limits.map(entry => entry.default)), maxContextWindow: Math.min(...limits.map(entry => entry.max)) } : {}) };
                 }));
                 value = { provider: 'codex', settings: preferences.get('codex'), accounts: catalogs, models: rows, tools: PROVIDER_TOOLS.codex }; break;
