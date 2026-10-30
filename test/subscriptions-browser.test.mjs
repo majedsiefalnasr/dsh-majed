@@ -8,7 +8,7 @@ function browser(locale = 'en', initialAnswer) {
   let referenceAnswer = () => Promise.reject(new Error('transport failure for /api/subscriptions-auth.proxyGet: HTTP 404'));
   let answer = initialAnswer ?? (() => Promise.resolve({ ok: true, value: { component: 'subscriptions' } }));
   const cleanups = [];
-  const React = { createElement: (tag, props, ...children) => ({ tag, props, children }), useSyncExternalStore: (_, read) => read() };
+  const React = { forwardRef: fn => fn, createElement: (tag, props, ...children) => ({ tag, props, children }), useSyncExternalStore: (_, read) => read() };
   vm.runInNewContext(code + '\nresult(majedSubscriptionsFactory);', { result: factory => { api = factory(id => id === 'react' ? React : { IconSettingsOutlineMedium: 'svg' }); },
     setInterval: fn => { timer = fn; return 1; }, clearInterval() {}, Error });
   const connection = { rpc: { call: (...args) => args[1] === 'subscriptions-auth.proxyGet' ? referenceAnswer(...args) : answer(...args) }, state: { subscribe: fn => { reconnect = fn; return () => {}; }, getSnapshot: () => 'connected' } };
@@ -75,7 +75,7 @@ test('assembled core entry completes registrations when Subscriptions setup thro
     vm.runInNewContext(assembled, {
       window: { __ModuleLoader__: { load: ({ factory }) => { entry = factory(id => {
         if (id === '@deepseek-ai/dsh-client-ui-primitives' && failure === 'primitives') throw new Error('primitives failed');
-        return id === 'react' ? { createElement() {} } : {};
+        return id === 'react' ? { forwardRef: fn => fn, createElement() {} } : {};
       }); } } },
       console: { error: (...args) => errors.push(args) }, Error,
       setInterval() {}, clearInterval() {},

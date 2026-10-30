@@ -15,7 +15,7 @@ function harness() {
   const ctx = {
     llm: { registerAdapter() { return { replace() {} }; } }, logger: { warn() {} },
     get: (name) => services[name], reflect: { get: (name) => services[name] },
-    inject: (_, fn) => fn(ctx), effect: (fn) => fn(),
+    inject: (names, fn) => { if ([].concat(names).every(name => services[name] !== undefined)) fn(ctx); }, effect: (fn) => fn(),
   };
   return { ctx, services, routes, get font() { return font; }, async call(owner = true, body = {}) {
     // DSH's shared /api transport authenticates and owner-gates exact routes.
@@ -32,7 +32,7 @@ function harness() {
 test('Owner can probe the mounted component; unauthenticated calls are rejected', async () => {
   const host = harness();
   apply(host.ctx);
-  assert.equal(host.routes.size, 9);
+  assert.equal(host.routes.size, 16);
   const response = await host.call();
   assert.equal(response.status, 200);
   const envelope = await response.json();

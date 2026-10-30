@@ -24,7 +24,7 @@ function host({ collision = false } = {}) {
     if (collision) throw new Error('provider codex already registered');
     adapter = value; return { replace() {} };
   } }, get: () => ({ fetch: { register(route) { routes.set(route.path, route); return () => routes.delete(route.path); } } }),
-  effect(fn) { const cleanup = fn(); if (cleanup) cleanups.push(cleanup); }, inject(_, fn) { fn(ctx); } };
+  effect(fn) { const cleanup = fn(); if (cleanup) cleanups.push(cleanup); }, inject(names, fn) { if ([].concat(names).includes('connection')) fn(ctx); } };
   apply(ctx, { codexClientVersion: '1.2.3', models: { codex: [{ id: 'fixture-model', name: 'Fixture model' }] } });
   return { get adapter() { return adapter; }, async call(endpoint, payload = {}) {
     const method = `majed-subscriptions.${endpoint}`;
@@ -174,7 +174,8 @@ test('auth RPC rejects mismatched state, reports exchange failure, and cancels a
     await component.call('login'); await component.call('manual', { input: 'fake-code' });
     for (let i = 0; i < 10; i++) await new Promise(resolve => setImmediate(resolve));
     status = (await component.call('status')).value.providers.codex;
-    assert.match(status.detail, /fixture exchange failure/); assert.equal(status.busy, false);
+    // The upstream body ('fixture exchange failure') is untrusted: the browser sees only the HTTP status.
+    assert.match(status.detail, /^codex login endpoint error \(HTTP 400\)/); assert.doesNotMatch(status.detail, /fixture exchange failure/); assert.equal(status.busy, false);
   } finally { component.dispose(); globalThis.fetch = saved; }
 });
 

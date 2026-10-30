@@ -9,7 +9,7 @@ import { ToolCallId } from '../compat.js';
 import { decodeJwtPayload } from '../auth/jwt.js';
 import { resolveImages } from '../translate/resolved.js';
 import { streamResponses, toResponsesInput, toResponsesTools } from '../translate/responses.js';
-import { deterministicSessionId, effortDisplayName, httpLlmError, idleWatchdog, mapFetchFailure, mergeReasoning, ModelCatalogCache, discoverAcrossAccounts, discoverOrRetryAuth, isDiscoveryAborted, isDiscoveryAuthFailure, isMissingOrInvalidCredential, oauthEndpointError, OAuthEndpointError, } from './common.js';
+import { deterministicSessionId, effortDisplayName, httpLlmError, idleWatchdog, mapFetchFailure, mergeReasoning, ModelCatalogCache, discoverAcrossAccounts, discoverOrRetryAuth, isDiscoveryAborted, isDiscoveryAuthFailure, isMissingOrInvalidCredential, oauthEndpointError, OAuthEndpointError, withAbortSignal, withTimeout, } from './common.js';
 import { DISCOVERY_TIMEOUT_MS, unionAccountCatalogs } from './accounts.js';
 import { proxiedFetch } from '../http.js';
 import { DEFAULT_RATE_LIMIT_WAIT, DEFAULT_RETRY, jsonBody, resetFromFields, subscriptionRetryPolicy, } from './rate-limit.js';
@@ -411,6 +411,8 @@ export async function fetchCodexModels(session, fetchFn = proxiedFetch, signal, 
         throw new Error('codex models endpoint returned no models array');
     const discovered = [];
     for (const entry of payload.models) {
+        if (typeof entry !== 'object' || entry === null)
+            continue;
         if (typeof entry.slug !== 'string' || entry.slug.length === 0)
             continue;
         // codex-rs ModelVisibility: only "list" is picker-visible; hide/none are
@@ -439,7 +441,7 @@ export async function fetchCodexModels(session, fetchFn = proxiedFetch, signal, 
             ...typeof entry.description === 'string' && entry.description.length > 0
                 ? { description: entry.description }
                 : {},
-            ...typeof entry.context_window === 'number' && entry.context_window > 0
+            ...Number.isSafeInteger(entry.context_window) && entry.context_window > 0
                 ? { contextWindow: entry.context_window }
                 : {},
             ...Number.isSafeInteger(entry.max_context_window) && entry.max_context_window > 0
@@ -775,64 +777,81 @@ export class CodexAdapter extends LlmAdapter {
      * CODEX_EFFORTS list) selected by the user must not vanish — and fail the
      * call — just because the TTL lapsed mid-turn.
      */
-    async discovered(model, account) {
+    async discovered(model, account, signal) {
         if (!this.options.discovery)
             return undefined;
-        const accounts = account === undefined
-            ? (await this.options.tokens.list()).map(entry => entry.key)
-            : [account];
-        return discoverAcrossAccounts(accounts, async (account) => {
-            const catalog = await this.catalogFor(account);
-            const models = await catalog.resolve(() => this.fetchCatalog(account));
-            return models?.find(entry => entry.id === model);
-        });
+        // One bounded budget for the whole lookup (account listing + every catalog read), also ended by the
+        // caller's signal: a hung in-flight catalog fetch sits out as "unknown" (static metadata) instead of
+        // hanging resolveModel/contextLimits and the RPCs built on them.
+        return withTimeout(budget => this.boundedLookup(model, account, budget), this.options.discoveryTimeoutMs ?? DISCOVERY_TIMEOUT_MS, signal);
+    }
+    async boundedLookup(model, account, budget) {
+        return withAbortSignal(async () => {
+            const accounts = account === undefined
+                ? (await this.options.tokens.list()).map(entry => entry.key)
+                : [account];
+            return discoverAcrossAccounts(accounts, async (key) => {
+                budget.throwIfAborted();
+                const catalog = await this.catalogFor(key);
+                // The fetch is shared by every caller of this cache, so it gets a private deadline rather than
+                // this caller's signal: one caller leaving must not abort the others' read.
+                const models = await catalog.resolve(() => this.fetchCatalog(key, AbortSignal.timeout(this.options.discoveryTimeoutMs ?? DISCOVERY_TIMEOUT_MS)));
+                return models?.find(entry => entry.id === model);
+            });
+        }, budget);
     }
     /** Whether the discovered catalog advertises a fast tier for this model. */
-    async supportsFastTier(model, account) {
-        return (await this.discovered(model, account))?.fastTier === true;
+    async supportsFastTier(model, account, signal) {
+        return (await this.discovered(model, account, signal))?.fastTier === true;
     }
     /** Ids of every discovered model with a fast tier (the Speed toggle's visibility list). */
-    async fastCapableModels() {
+    async fastCapableModels(signal) {
         if (!this.options.discovery)
             return [];
         // Not logged in → no fast models, so the Speed toggle hides after logout
         // (mirrors the listModels guard above). Union every account: a fast-capable
         // model only the non-default lists (e.g. gpt-5.6-sol) must still show Speed.
+        // Every account read is bounded individually: a hung account sits out without delaying the others.
         const accounts = (await this.options.tokens.list()).map(entry => entry.key);
         if (accounts.length === 0)
             return [];
-        const seen = new Set();
-        const ids = [];
-        for (const account of accounts) {
+        const lists = await Promise.all(accounts.map(async (account) => {
             try {
-                const catalog = await this.catalogFor(account);
-                const models = await catalog.resolve(() => this.fetchCatalog(account));
-                for (const model of models ?? []) {
-                    if (model.fastTier !== true || seen.has(model.id))
-                        continue;
-                    seen.add(model.id);
-                    ids.push(model.id);
-                }
+                const read = (budget) => withAbortSignal(async () => {
+                    const catalog = await this.catalogFor(account);
+                    return catalog.resolve(() => this.fetchCatalog(account, AbortSignal.timeout(this.options.discoveryTimeoutMs ?? DISCOVERY_TIMEOUT_MS)));
+                }, budget);
+                return await withTimeout(read, this.options.discoveryTimeoutMs ?? DISCOVERY_TIMEOUT_MS, signal);
             }
             catch {
-                // sit out
+                return undefined; // sit out
+            }
+        }));
+        const seen = new Set();
+        const ids = [];
+        for (const models of lists) {
+            for (const model of models ?? []) {
+                if (model.fastTier !== true || seen.has(model.id))
+                    continue;
+                seen.add(model.id);
+                ids.push(model.id);
             }
         }
         return ids;
     }
-    async resolveModel(provider, model) {
+    async resolveModel(provider, model, signal) {
         const pool = this.options.pool?.();
-        if (pool !== undefined && await pool.owns(provider, model)) {
-            return pool.resolveModel(provider, model);
+        if (pool !== undefined && await withAbortSignal(() => pool.owns(provider, model), signal)) {
+            return pool.resolveModel(provider, model, signal);
         }
-        return this.resolveOwnModel(provider, model);
+        return this.resolveOwnModel(provider, model, undefined, signal);
     }
     /** Capability resolution of the provider's own models (the pool resolves members here). */
-    async resolveOwnModel(provider, model, account) {
+    async resolveOwnModel(provider, model, account, signal) {
         // Discovered metadata (when discovery is on) wins over the static entry;
         // the static entry wins over the built-in defaults. A configured default
         // effort merges over both.
-        const discovered = await this.discovered(model, account);
+        const discovered = await this.discovered(model, account, signal);
         const configured = this.options.models.find(entry => entry.id === model);
         // `extendable` only while falling back to the built-in list: that one is
         // known to trail the backend, so a configured level it omits still has to
@@ -845,20 +864,24 @@ export class CodexAdapter extends LlmAdapter {
             name: discovered?.name ?? configured?.name ?? model,
             ...discovered?.description === undefined ? {} : { description: discovered.description },
             inputModalities: configured?.inputModalities ?? CODEX_MODALITIES,
-            context: { contextWindow: await this.contextWindowFor(model, account) },
+            context: { contextWindow: await this.contextWindowFor(model, account, signal) },
             defaultMaxTokens: configured?.maxTokens ?? CODEX_DEFAULT_MAX_TOKENS,
             ...(reasoning === undefined ? {} : { reasoning }),
         };
     }
-    /** Account-specific bounds; absent maximum conservatively keeps the advertised default. */
-    async contextLimits(model, account) {
-        const discovered = await this.discovered(model, account);
+    /**
+     * Account-specific bounds; absent maximum conservatively keeps the advertised default, and a default
+     * above the advertised maximum is clamped to it. Bounded: a hung catalog read yields the static bounds.
+     */
+    async contextLimits(model, account, signal) {
+        const discovered = await this.discovered(model, account, signal);
         const configured = this.options.models.find(entry => entry.id === model);
         const fallback = discovered?.contextWindow ?? configured?.contextWindow ?? CODEX_CONTEXT_WINDOW;
-        return { default: fallback, max: discovered?.maxContextWindow ?? fallback };
+        const max = discovered?.maxContextWindow ?? fallback;
+        return { default: Math.min(fallback, max), max };
     }
-    async contextWindowFor(model, account) {
-        const limits = await this.contextLimits(model, account);
+    async contextWindowFor(model, account, signal) {
+        const limits = await this.contextLimits(model, account, signal);
         return Math.min(this.options.contextWindowOf?.(model) ?? limits.default, limits.max);
     }
     async *stream(options) {
