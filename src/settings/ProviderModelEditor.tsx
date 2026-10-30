@@ -40,6 +40,7 @@ interface Props {
 export interface ModelDraft {
   /** Provider settings minus `accounts`; absent when the draft has no edits. */
   settings?: ProviderPreferences
+  original?: ProviderPreferences
   /** Reasoning-effort overrides that differ from the catalog; '' clears one. */
   efforts: { model: string; effort: string }[]
 }
@@ -106,7 +107,8 @@ export const ProviderModelEditor = forwardRef<ProviderModelEditorHandle, Props>(
       for (const [model, text] of Object.entries(contexts)) {
         if (!text.trim()) continue
         const value = Number(text)
-        if (!/^\d+$/.test(text.trim()) || !Number.isSafeInteger(value) || value <= 0) {
+        const limits = catalog.models.find(entry => entry.id === model)
+        if (!/^\d+$/.test(text.trim()) || !Number.isSafeInteger(value) || value <= 0 || (limits?.maxContextWindow !== undefined && value > limits.maxContextWindow)) {
           setError(t('modelsContextInvalid', { model }))
           return undefined
         }
@@ -116,6 +118,7 @@ export const ProviderModelEditor = forwardRef<ProviderModelEditorHandle, Props>(
       const { accounts: _accounts, ...settings } = { ...draft, ...(provider === 'codex' ? { contextWindows: windows } : {}) }
       return {
         settings,
+        original: catalog.settings,
         efforts: catalog.models.flatMap(model => {
           const effort = efforts[model.id] ?? ''
           return effort === (model.configured ?? '') || !model.efforts?.length ? [] : [{ model: model.id, effort }]

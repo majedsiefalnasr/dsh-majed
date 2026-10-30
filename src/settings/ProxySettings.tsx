@@ -10,26 +10,33 @@ export function ProxySettings({ rpc, t }: { rpc: any; t: (key: string, params?: 
   const [busy, setBusy] = useState('')
   const [result, setResult] = useState<any>()
   const dialog = useRef<HTMLDialogElement>(null)
+  const generation = useRef(0)
+  useEffect(() => () => { generation.current++ }, [])
+  const close = () => { generation.current++; setOpen(false); setBusy('') }
   useEffect(() => { let alive = true; callSubscriptionsAuth(rpc, 'proxyGet', {}).then(value => { if (alive) setView(value) }).catch(reason => { if (alive) setError(String(reason.message)) }); return () => { alive = false } }, [rpc])
   useEffect(() => { if (!open) return; const previous = document.activeElement; dialog.current?.showModal(); return () => { dialog.current?.close(); if (previous instanceof HTMLElement && previous.isConnected) previous.focus() } }, [open])
   const field = (key: string, value: any) => setDraft((old: any) => ({ ...old, [key]: value }))
   const run = async (test: boolean) => {
     if (busy) return
+    const request = ++generation.current
     setBusy(test ? 'test' : 'save'); setError(''); setResult(undefined)
     const password = draft.clearPassword ? { password: null } : draft.password ? { password: draft.password } : {}
     try {
-      if (test) setResult(await callSubscriptionsAuth(rpc, 'proxyTest', { proxy: { url: draft.url.trim(), ...(draft.username.trim() ? { username: draft.username.trim() } : {}), ...(draft.password ? { password: draft.password } : {}) } }))
+      if (test) {
+        const tested = await callSubscriptionsAuth(rpc, 'proxyTest', { proxy: { enabled: draft.enabled, url: draft.url.trim(), username: draft.username.trim(), ...password, bypass: draft.bypass.split(/[,\n]/).map((s: string) => s.trim()).filter(Boolean) } })
+        if (generation.current === request) setResult(tested)
+      }
       else {
         const saved = await callSubscriptionsAuth(rpc, 'proxySet', { enabled: draft.enabled, url: draft.url.trim(), username: draft.username, ...password, bypass: draft.bypass.split(/[,\n]/).map((s: string) => s.trim()).filter(Boolean) })
-        setView(saved); setOpen(false)
+        if (generation.current === request) { setView(saved); setOpen(false) }
       }
-    } catch (reason: any) { setError(reason.message) } finally { setBusy('') }
+    } catch (reason: any) { if (generation.current === request) setError(reason.message) } finally { if (generation.current === request) setBusy('') }
   }
   return <section className="majed-proxy-settings">
     <header><strong>{t('proxyTitle')}</strong> <button type="button" disabled={!view} onClick={() => { setDraft({ ...view, password: '', clearPassword: false, bypass: view.bypass.join(', ') }); setError(''); setResult(undefined); setOpen(true) }}>{t('proxyConfigure')}</button></header>
     <p role="status">{view ? view.error ? t('proxyStatusError', { message: view.error }) : view.enabled ? t('proxyStatusEnabled', { url: view.url }) : t('proxyStatusNone') : t('proxyLoading')}</p>
     {error && !open && <p role="alert">{error}</p>}
-    {open && <dialog ref={dialog} aria-labelledby="majed-proxy-title" onCancel={() => setOpen(false)} style={{ maxInlineSize: 560, inlineSize: 'calc(100% - 32px)' }}>
+    {open && <dialog ref={dialog} aria-labelledby="majed-proxy-title" onCancel={close} style={{ maxInlineSize: 560, inlineSize: 'calc(100% - 32px)' }}>
       <h3 id="majed-proxy-title">{t('proxyDialogTitle')}</h3>
       <div style={{ display: 'grid', gap: 12 }}>
         <label><input type="checkbox" checked={draft.enabled} onChange={event => field('enabled', event.target.checked)} />{t('proxyEnabled')}</label>
@@ -38,7 +45,7 @@ export function ProxySettings({ rpc, t }: { rpc: any; t: (key: string, params?: 
         <p>{t('proxyNote')}</p>
         {error && <p role="alert">{error}</p>}
         {result && <p role="status">{result.ok ? t(result.viaProxy ? 'proxyTestOk' : 'proxyTestOkDirect', { status: String(result.status), ms: String(result.latencyMs) }) : t('proxyTestFail', { message: result.error ?? '' })}</p>}
-        <footer><button type="button" disabled={!!busy} onClick={() => void run(true)}>{t(busy === 'test' ? 'proxyTesting' : 'proxyTest')}</button> <button type="button" disabled={!!busy} onClick={() => void run(false)}>{t(busy === 'save' ? 'proxySaving' : 'proxySave')}</button> <button type="button" onClick={() => setOpen(false)}>{t('proxyCancel')}</button></footer>
+        <footer><button type="button" disabled={!!busy} onClick={() => void run(true)}>{t(busy === 'test' ? 'proxyTesting' : 'proxyTest')}</button> <button type="button" disabled={!!busy} onClick={() => void run(false)}>{t(busy === 'save' ? 'proxySaving' : 'proxySave')}</button> <button type="button" onClick={close}>{t('proxyCancel')}</button></footer>
       </div>
     </dialog>}
   </section>

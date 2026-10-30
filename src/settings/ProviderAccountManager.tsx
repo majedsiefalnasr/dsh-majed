@@ -5,7 +5,7 @@ import type { AccountPreferences, PromptCacheTtlSetting, ProviderPreferences } f
 type SubscriptionProvider = 'codex'
 type SubscriptionsKey = string
 import { callSubscriptionsAuth } from './subscriptions-rpc.js'
-import { accountModelRows, accountPoolSelection, mergeAccountChanges, mergeLatestAccounts } from './account-preferences.js'
+import { accountModelRows, accountPoolSelection, mergeAccountChanges, mergeLatestAccounts, mergeIntent } from './account-preferences.js'
 import type { AccountCatalogRow } from './account-preferences.js'
 import { ProviderModelEditor } from './ProviderModelEditor.js'
 import type { ProviderModelEditorHandle } from './ProviderModelEditor.js'
@@ -103,8 +103,8 @@ export function ProviderAccountManager({ provider, name, rpc, t, onClose }: Prop
       // dialog loaded, and a stale snapshot must never be written back.
       const latest = await callSubscriptionsAuth<Catalog>(rpc, 'providerSettings', { provider })
       if (!alive.current) return
-      const base = models.settings === undefined ? latest.settings : mergeLatestAccounts(models.settings, latest.settings)
-      const { displayName: _staleName, promptCacheTtl: _staleTtl, ...rest } = mergeAccountChanges(base, changes)
+      const base = models.settings === undefined ? latest.settings : mergeLatestAccounts(models.settings, latest.settings, models.original)
+      const { displayName: _staleName, promptCacheTtl: _staleTtl, ...rest } = mergeAccountChanges(base, Object.fromEntries(Object.entries(changes).map(([key, draft]) => [key, mergeIntent(latest.settings.accounts?.[key] ?? {}, catalog?.settings.accounts?.[key] ?? {}, draft)])))
       const savedName = nameDirty ? displayName.trim() : latest.settings.displayName
       const savedTtl = cacheTtlDirty ? cacheTtl : latest.settings.promptCacheTtl
       const settings = {

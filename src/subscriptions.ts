@@ -12,17 +12,19 @@ import { startCatalogRefresh } from './providers/catalog-refresh.js';
 import { PoolAdapter } from './providers/pool.js';
 import { PoolHealthRegistry } from './providers/pool-health.js';
 import { PoolUsageTracker } from './providers/pool-usage.js';
-import { buildAccountPools } from './providers/pool-family.js';
+import { buildAccountPools, poolKey, type PoolMemberRef } from './providers/pool-family.js';
 import { ResetRedemption } from './providers/reset-redemption.js';
-import { proxiedFetch, proxyGetConfig, proxySetConfig, proxyTestConnection } from './http.js';
+import { proxiedFetch, proxyGetConfig, proxySetConfig, proxyTestConnection, safeDiagnostic, disposeProxyTransport } from './http.js';
 import type { ModelEntry } from './providers/common.js';
 import { ProviderSettingsStore, PROVIDER_TOOLS } from './provider-settings.js';
-import { defaultEffortOf, loadModelDefaults, setDefaultEffort } from './model-defaults.js';
+import { defaultEffortOf, loadModelDefaults, setDefaultEffort, modelDefaultsSnapshot } from './model-defaults.js';
 import { AccountPreferencesAdapter, accountAllowsPool, parseAccountModelId } from './providers/account-preferences.js';
 
 export const name = 'dsh-majed/subscriptions';
 export const inject = ['llm'];
-export interface Config { codexClientVersion?: string; models?: { codex?: ModelEntry[] }; }
+export interface Config { codexClientVersion?: string; models?: { codex?: ModelEntry[] };
+  pool?: { enabled?: boolean; strategy?: 'priority' | 'quota_aware'; switchMargin?: number; autoAccounts?: boolean; autoFamilies?: boolean; families?: Record<string, PoolMemberRef[]>; tiers?: Record<string, PoolMemberRef[]> };
+}
 export function apply(ctx: Context, config: Config = {}): void {
   const preferences = new ProviderSettingsStore();
   void loadModelDefaults().catch(() => ctx.logger.warn('dsh-majed: model defaults unavailable'));
@@ -77,17 +79,25 @@ export function apply(ctx: Context, config: Config = {}): void {
   });
   const presented = new AccountPreferencesAdapter({ provider: 'codex', adapter, settings: preferences,
     accounts: async () => (await tokens.list()).map(({ key, session }) => ({ key, label: session.emailAddress ?? key })), pool: () => pool });
-  pool = new PoolAdapter({ adapters: { codex: presented.poolMember() }, health, usage, strategy: 'quota_aware', switchMargin: 2,
+  pool = new PoolAdapter({ adapters: { codex: presented.poolMember() }, health, usage, strategy: config.pool?.strategy ?? 'quota_aware', switchMargin: config.pool?.switchMargin ?? 2,
     defaultAccount: () => tokens.defaultAccount(), resolveAccount: (_, account) => tokens.resolveAccount(account),
-    families: async () => buildAccountPools({ codex: { catalogs: (await Promise.all((await tokens.list()).map(async ({ key }) => {
+    families: async () => {
+      if (config.pool?.enabled === false) return new Map();
+      const families = (config.pool?.autoAccounts ?? config.pool?.autoFamilies ?? true) ? buildAccountPools({ codex: { catalogs: (await Promise.all((await tokens.list()).map(async ({ key }) => {
       const models = await adapter.listOwnModels('codex', key, AbortSignal.timeout(20_000), true);
       const policy = preferences.get('codex').accounts?.[key];
       return models ? { account: key, models: models.filter(model => accountAllowsPool(policy, model.id)) } : undefined;
-    }))).filter(entry => entry !== undefined) } }), tiers: {},
+    }))).filter(entry => entry !== undefined) } }) : new Map();
+      for (const [id, members] of Object.entries(config.pool?.families ?? {})) {
+        const owner = members[0]?.provider;
+        if (owner) families.set(poolKey(owner, id), { members: members.filter(member => member.provider === owner) });
+      }
+      return families;
+    }, tiers: config.pool?.enabled === false ? {} : config.pool?.tiers ?? {},
     onWarn: message => ctx.logger.warn(`dsh-majed: ${message}`) });
   try { handle = ctx.llm.registerAdapter(['codex'], presented); }
   catch (error) { collision = error instanceof Error ? error.message : String(error); }
-  ctx.effect(() => () => { disposed = true; auth.dispose(); }, 'dsh-majed: subscriptions auth disposal');
+  ctx.effect(() => () => { disposed = true; auth.dispose(); void disposeProxyTransport(); }, 'dsh-majed: subscriptions auth disposal');
   if (handle) ctx.effect(() => startCatalogRefresh(async signal => {
     if ((await tokens.list()).length && !signal.aborted) await adapter.listOwnModels('codex', undefined, signal);
   }, () => ctx.logger.warn('dsh-majed: Codex catalog refresh failed')), 'dsh-majed: subscriptions catalog refresh');
@@ -118,7 +128,8 @@ export function apply(ctx: Context, config: Config = {}): void {
                 // Never resolve npm client metadata for a provider with no saved login.
                 if (state.accounts.length && !collision && !config.codexClientVersion) await version.resolve();
                 value = { ok: true, component: 'subscriptions', version: '0.2.0', registrationError: collision,
-                  providers: { codex: { ...state, clientVersion: config.codexClientVersion ? { version: config.codexClientVersion, source: 'config' }
+                  providers: { codex: { ...state, displayName: preferences.get('codex').displayName,
+                    accounts: state.accounts.map(account => ({ ...account, alias: preferences.get('codex').accounts?.[account.key]?.alias })), clientVersion: config.codexClientVersion ? { version: config.codexClientVersion, source: 'config' }
                     : version.current() ?? { version: CODEX_CLIENT_VERSION, source: 'fallback' } } } };
                 break;
               }
@@ -132,6 +143,11 @@ export function apply(ctx: Context, config: Config = {}): void {
               }
               case 'proxyTest': value = await proxyTestConnection(payload.url as string | undefined, payload.proxy as Parameters<typeof proxyTestConnection>[1]); break;
               case 'setProviderSettings': {
+                const windows = (payload.settings as { contextWindows?: Record<string, number> } | undefined)?.contextWindows;
+                for (const [model, value] of Object.entries(windows ?? {})) {
+                  const limits = await adapter.contextLimits(model);
+                  if (!Number.isSafeInteger(value) || value < 1 || value > limits.max) throw new Error('Context window is outside the advertised bounds');
+                }
                 await preferences.set('codex', payload.settings); pool.invalidate(); handle?.replace(['codex']); break;
               }
               case 'providerSettings': {
@@ -153,7 +169,10 @@ export function apply(ctx: Context, config: Config = {}): void {
                 }));
                 value = { provider: 'codex', settings: preferences.get('codex'), accounts: catalogs, models: rows, tools: PROVIDER_TOOLS.codex }; break;
               }
-              case 'modelDefaults': await loadModelDefaults(); value = { codex: {} }; break;
+              case 'modelDefaults': {
+                await loadModelDefaults(); const defaults = modelDefaultsSnapshot();
+                value = defaults.codex ? { codex: defaults.codex } : {}; break;
+              }
               case 'setModelDefault': {
                 const model = string('model');
                 const effort = payload.effort === undefined ? undefined : string('effort');
@@ -175,7 +194,7 @@ export function apply(ctx: Context, config: Config = {}): void {
               case 'consumeReset': await resets.redeem(string('account'), string('ticket'), AbortSignal.any([request.signal, AbortSignal.timeout(20_000)])); break;
             }
             result = { ok: true, value };
-          } catch (error) { result = { ok: false, error: { code: 'subscriptions/error', message: error instanceof Error ? error.message : String(error), details: {} } }; }
+          } catch (error) { result = { ok: false, error: { code: 'subscriptions/error', message: safeDiagnostic(error, [payload.password, (payload.proxy as { password?: unknown } | undefined)?.password]), details: {} } }; }
           return Response.json({ type: 'server-response', rpcId: body.rpcId, result });
         },
       }), `dsh-majed: ${method} route`);

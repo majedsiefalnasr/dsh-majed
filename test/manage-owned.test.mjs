@@ -30,6 +30,10 @@ test('Manage settings round-trip through owned RPC, update picker and enforce po
     assert.equal(before.ok, true); assert.equal(before.value.accounts[0].key, 'fixture');
     assert.ok(before.value.models.some(model => model.id === 'fixture-model'));
     assert.equal((await component.call('setProviderSettings', { provider: 'codex', settings: { displayName: 'Work', accounts: { fixture: { alias: 'Primary', poolEnabled: false, independentEntry: true, poolModels: [] } } } })).ok, true);
+    assert.equal((await component.call('setModelDefault', { model: 'fixture-model', effort: 'high' })).ok, true);
+    assert.deepEqual((await component.call('modelDefaults')).value, { codex: { 'fixture-model': 'high' } });
+    assert.equal((await component.call('setModelDefault', { model: 'fixture-model' })).ok, true);
+    assert.deepEqual((await component.call('modelDefaults')).value, {});
     assert.equal(component.adapter.providerInfo('codex').name, 'Work');
     const models = await component.adapter.listModels('codex');
     assert.equal(models.length, 1); assert.match(models[0].id, /^~account:/); assert.match(models[0].name, /Primary/);

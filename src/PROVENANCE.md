@@ -48,7 +48,9 @@ The #128 descriptions above describe historical scope, not the current #129 impl
 
 ## #130 settings port (in progress)
 
-- Approved source remains v0.9.12 at the full commit above. Planned direct ports: `provider-settings.ts`, `model-defaults.ts`, `providers/account-preferences.ts`, and `http.ts`; storage paths become `plugins/majed/subscriptions`, with private parent directories. No legacy import or global dispatcher replacement is authorized.
+- Approved source remains v0.9.12 at the full commit above. Direct ports now present: `provider-settings.ts`, `model-defaults.ts`, `providers/account-preferences.ts`, and `http.ts`; storage paths are `plugins/majed/subscriptions`, with private parent directories. No legacy import or global dispatcher replacement is performed.
+- Review remediation adds bounded credential-pattern/known-password diagnostics, host-side unchanged draft-password resolution, enabled/bypass test semantics and owned transport disposal. The manager merges recursive per-field intent against its fresh read; model defaults return the stored Codex snapshot. Card headings/aliases consume status preferences. Pool composition accepts the reference enabled/strategy/switchMargin/autoAccounts/autoFamilies/families/tiers configuration.
+- This is not a complete source mapping: tool registration/history integration is absent. Reference image registration imports `@deepseek-ai/dsh-tools`, image-pool and Grok support; the public tools package is unavailable in this offline checkout/cache. Later-provider functionality must not be invented to conceal that gap.
 - Browser manager/model editor and proxy controls retain reference hierarchy and option semantics, adapted to the existing injected React factory and English/Arabic logical layout. Implementation and test dispositions will be finalized with verification; this entry does not claim completion.
 
 ## License

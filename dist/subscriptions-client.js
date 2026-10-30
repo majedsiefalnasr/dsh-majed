@@ -375,6 +375,15 @@ function ProxySettings({ rpc, t }) {
 	const [busy, setBusy] = (0, react.useState)("");
 	const [result, setResult] = (0, react.useState)();
 	const dialog = (0, react.useRef)(null);
+	const generation = (0, react.useRef)(0);
+	(0, react.useEffect)(() => () => {
+		generation.current++;
+	}, []);
+	const close = () => {
+		generation.current++;
+		setOpen(false);
+		setBusy("");
+	};
 	(0, react.useEffect)(() => {
 		let alive = true;
 		callSubscriptionsAuth(rpc, "proxyGet", {}).then((value) => {
@@ -401,30 +410,38 @@ function ProxySettings({ rpc, t }) {
 	}));
 	const run = async (test) => {
 		if (busy) return;
+		const request = ++generation.current;
 		setBusy(test ? "test" : "save");
 		setError("");
 		setResult(void 0);
 		const password = draft.clearPassword ? { password: null } : draft.password ? { password: draft.password } : {};
 		try {
-			if (test) setResult(await callSubscriptionsAuth(rpc, "proxyTest", { proxy: {
-				url: draft.url.trim(),
-				...draft.username.trim() ? { username: draft.username.trim() } : {},
-				...draft.password ? { password: draft.password } : {}
-			} }));
-			else {
-				setView(await callSubscriptionsAuth(rpc, "proxySet", {
+			if (test) {
+				const tested = await callSubscriptionsAuth(rpc, "proxyTest", { proxy: {
+					enabled: draft.enabled,
+					url: draft.url.trim(),
+					username: draft.username.trim(),
+					...password,
+					bypass: draft.bypass.split(/[,\n]/).map((s) => s.trim()).filter(Boolean)
+				} });
+				if (generation.current === request) setResult(tested);
+			} else {
+				const saved = await callSubscriptionsAuth(rpc, "proxySet", {
 					enabled: draft.enabled,
 					url: draft.url.trim(),
 					username: draft.username,
 					...password,
 					bypass: draft.bypass.split(/[,\n]/).map((s) => s.trim()).filter(Boolean)
-				}));
-				setOpen(false);
+				});
+				if (generation.current === request) {
+					setView(saved);
+					setOpen(false);
+				}
 			}
 		} catch (reason) {
-			setError(reason.message);
+			if (generation.current === request) setError(reason.message);
 		} finally {
-			setBusy("");
+			if (generation.current === request) setBusy("");
 		}
 	};
 	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("section", {
@@ -461,7 +478,7 @@ function ProxySettings({ rpc, t }) {
 			open && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("dialog", {
 				ref: dialog,
 				"aria-labelledby": "majed-proxy-title",
-				onCancel: () => setOpen(false),
+				onCancel: close,
 				style: {
 					maxInlineSize: 560,
 					inlineSize: "calc(100% - 32px)"
@@ -536,7 +553,7 @@ function ProxySettings({ rpc, t }) {
 							" ",
 							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
 								type: "button",
-								onClick: () => setOpen(false),
+								onClick: close,
 								children: t("proxyCancel")
 							})
 						] })
@@ -566,12 +583,21 @@ function accountModelRows(account, preferences) {
 	}))];
 }
 /** The model editor owns everything except the separately managed accounts. */
-function mergeLatestAccounts(draft, latest) {
-	const { accounts: _stale,...settings } = draft;
-	return {
-		...settings,
-		...latest.accounts === void 0 ? {} : { accounts: latest.accounts }
-	};
+function mergeLatestAccounts(draft, latest, original = {}) {
+	return mergeIntent(latest, original, draft);
+}
+/** Apply only fields changed by this editor, including explicit deletions. */
+function mergeIntent(latest, original, draft) {
+	const result = { ...latest };
+	const before = original, after = draft;
+	for (const key of new Set([...Object.keys(before), ...Object.keys(after)])) {
+		if (JSON.stringify(before[key]) === JSON.stringify(after[key])) continue;
+		const old = before[key], next = after[key], fresh = result[key];
+		if (next && typeof next === "object" && !Array.isArray(next)) result[key] = mergeIntent(fresh && typeof fresh === "object" ? fresh : {}, old && typeof old === "object" ? old : {}, next);
+		else if (next === void 0) delete result[key];
+		else result[key] = next;
+	}
+	return result;
 }
 /** Only touched accounts replace their latest preferences; other settings survive. */
 function mergeAccountChanges(latest, changes) {
@@ -713,7 +739,8 @@ const ProviderModelEditor = (0, react.forwardRef)(function ProviderModelEditor$1
 		for (const [model, text] of Object.entries(contexts)) {
 			if (!text.trim()) continue;
 			const value = Number(text);
-			if (!/^\d+$/.test(text.trim()) || !Number.isSafeInteger(value) || value <= 0) {
+			const limits = catalog.models.find((entry) => entry.id === model);
+			if (!/^\d+$/.test(text.trim()) || !Number.isSafeInteger(value) || value <= 0 || limits?.maxContextWindow !== void 0 && value > limits.maxContextWindow) {
 				setError(t("modelsContextInvalid", { model }));
 				return;
 			}
@@ -726,6 +753,7 @@ const ProviderModelEditor = (0, react.forwardRef)(function ProviderModelEditor$1
 		};
 		return {
 			settings,
+			original: catalog.settings,
 			efforts: catalog.models.flatMap((model) => {
 				const effort = efforts[model.id] ?? "";
 				return effort === (model.configured ?? "") || !model.efforts?.length ? [] : [{
@@ -1357,7 +1385,7 @@ function ProviderAccountManager({ provider, name, rpc, t, onClose }) {
 			}
 			const latest = await callSubscriptionsAuth(rpc, "providerSettings", { provider });
 			if (!alive.current) return;
-			const { displayName: _staleName, promptCacheTtl: _staleTtl,...rest } = mergeAccountChanges(models.settings === void 0 ? latest.settings : mergeLatestAccounts(models.settings, latest.settings), changes);
+			const { displayName: _staleName, promptCacheTtl: _staleTtl,...rest } = mergeAccountChanges(models.settings === void 0 ? latest.settings : mergeLatestAccounts(models.settings, latest.settings, models.original), Object.fromEntries(Object.entries(changes).map(([key, draft]) => [key, mergeIntent(latest.settings.accounts?.[key] ?? {}, catalog?.settings.accounts?.[key] ?? {}, draft)])));
 			const savedName = nameDirty ? displayName.trim() : latest.settings.displayName;
 			const savedTtl = cacheTtlDirty ? cacheTtl : latest.settings.promptCacheTtl;
 			const settings = {
@@ -2120,7 +2148,7 @@ function createCodexCard(React, primitives, rpc, t) {
 			t
 		}), manager ? h(ProviderAccountManager, {
 			provider: "codex",
-			name: "Codex (ChatGPT)",
+			name: status?.displayName || "Codex (ChatGPT)",
 			rpc,
 			t,
 			onClose: () => {
@@ -2133,7 +2161,7 @@ function createCodexCard(React, primitives, rpc, t) {
 				...styles.dot,
 				background: busy ? "var(--dsw-alias-state-warn-label)" : status?.accounts?.length ? "var(--dsw-alias-state-success-primary)" : "var(--dsw-alias-label-dimmed)"
 			}
-		}), h("span", { style: styles.name }, "Codex (ChatGPT)"), button(t("accountsManage"), () => setManager(true), false, { style: { marginInlineStart: "auto" } }), status?.clientVersion ? h("span", {
+		}), h("span", { style: styles.name }, status?.displayName || "Codex (ChatGPT)"), button(t("accountsManage"), () => setManager(true), false, { style: { marginInlineStart: "auto" } }), status?.clientVersion ? h("span", {
 			style: styles.clientVersion,
 			title: t("clientVersionHint")
 		}, "CLI ", h("bdi", { dir: "ltr" }, status.clientVersion.version), " · ", t(`source_${status.clientVersion.source}`)) : null), h("p", {
@@ -2164,7 +2192,7 @@ function createCodexCard(React, primitives, rpc, t) {
 			}), h("bdi", {
 				dir: "ltr",
 				style: styles.accountName
-			}, account.account ?? account.key), account.plan ? h("bdi", { style: styles.usagePlan }, account.plan) : null, account.expiresAt ? h("span", { style: styles.statusLine }, t("expires"), " ", h("bdi", null, date(account.expiresAt))) : null, button(t("logout"), () => {
+			}, account.alias || account.account || account.key), account.plan ? h("bdi", { style: styles.usagePlan }, account.plan) : null, account.expiresAt ? h("span", { style: styles.statusLine }, t("expires"), " ", h("bdi", null, date(account.expiresAt))) : null, button(t("logout"), () => {
 				setAcknowledged(false);
 				setConfirmation({
 					kind: "logout",

@@ -19,6 +19,13 @@ function load(path) {
   }, document: { activeElement: null }, HTMLElement: class {}, window: { dispatchEvent() {} }, CustomEvent: class {}, console });
   return exports;
 }
+test('concurrent editor intent preserves independently changed model and account fields', () => {
+  const { mergeIntent } = load(resolve('src/settings/account-preferences.ts'));
+  const original = { modelDisplayNames: { model: 'Original' }, tools: { image_generate: true }, accounts: { one: { alias: 'Old', poolEnabled: true } } };
+  const latest = { ...original, tools: { image_generate: false }, contextWindows: { model: 200 }, accounts: { one: { alias: 'Old', poolEnabled: false } } };
+  const draft = { ...original, modelDisplayNames: { model: 'New' }, accounts: { one: { alias: 'New alias', poolEnabled: true } } };
+  assert.equal(JSON.stringify(mergeIntent(latest, original, draft)), JSON.stringify({ ...latest, modelDisplayNames: { model: 'New' }, accounts: { one: { alias: 'New alias', poolEnabled: false } } }));
+});
 for (const locale of ['en', 'ar']) test(`actual embedded manager controls retain failed drafts in ${locale}`, async () => {
   const dictionary = JSON.parse(readFileSync(`locale/${locale}.json`)).subscriptions;
   const t = (key, params = {}) => Object.entries(params).reduce((s, [k, v]) => s.replace(`{${k}}`, v), dictionary[key] ?? key);
@@ -38,6 +45,12 @@ for (const locale of ['en', 'ar']) test(`actual embedded manager controls retain
   assert.ok(input);
   await act(async () => input.props.onChange({ target: { value: 'Draft name' } }));
   const save = root.findAllByType('button').find(node => node.children.join('') === t('modelsSave'));
+  const context = root.findAllByType('input').find(node => node.props['aria-label'] === `Model ${t('modelsContext')}`);
+  await act(async () => context.props.onChange({ target: { value: '201' } }));
+  await act(async () => save.props.onClick());
+  assert.equal(calls.some(call => call.method.endsWith('.setProviderSettings')), false);
+  assert.ok(root.findAll(node => node.props.role === 'alert').length);
+  await act(async () => context.props.onChange({ target: { value: '200' } }));
   await act(async () => save.props.onClick());
   assert.equal(input.props.value, 'Draft name');
   assert.ok(root.findAll(node => node.props.role === 'alert').length);

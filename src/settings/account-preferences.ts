@@ -22,9 +22,23 @@ export function accountModelRows(account: AccountCatalogRow, preferences: Accoun
 }
 
 /** The model editor owns everything except the separately managed accounts. */
-export function mergeLatestAccounts(draft: ProviderPreferences, latest: ProviderPreferences): ProviderPreferences {
-  const { accounts: _stale, ...settings } = draft
-  return { ...settings, ...(latest.accounts === undefined ? {} : { accounts: latest.accounts }) }
+export function mergeLatestAccounts(draft: ProviderPreferences, latest: ProviderPreferences, original: ProviderPreferences = {}): ProviderPreferences {
+  return mergeIntent(latest, original, draft)
+}
+
+/** Apply only fields changed by this editor, including explicit deletions. */
+export function mergeIntent<T extends object>(latest: T, original: T, draft: T): T {
+  const result = { ...latest } as Record<string, unknown>
+  const before = original as Record<string, unknown>, after = draft as Record<string, unknown>
+  for (const key of new Set([...Object.keys(before), ...Object.keys(after)])) {
+    if (JSON.stringify(before[key]) === JSON.stringify(after[key])) continue
+    const old = before[key], next = after[key], fresh = result[key]
+    if (next && typeof next === 'object' && !Array.isArray(next)) {
+      result[key] = mergeIntent((fresh && typeof fresh === 'object' ? fresh : {}) as object, (old && typeof old === 'object' ? old : {}) as object, next)
+    } else if (next === undefined) delete result[key]
+    else result[key] = next
+  }
+  return result as T
 }
 
 /** Only touched accounts replace their latest preferences; other settings survive. */

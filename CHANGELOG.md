@@ -4,6 +4,9 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Harden #130 proxy diagnostics against saved/draft passwords, URL userinfo and authorization values; test the current enabled/bypass draft with host-side password retention, guard stale proxy dialog completions, and close the owned dispatcher on component disposal.
+- Return persisted Codex reasoning defaults through RPC, consume saved provider/account names in the card, pass reference pool configuration, enforce context maximums, and merge editor field intent with fresh settings. Ticket #130 remains incomplete; offline public-tools dependency availability blocks the required registration port.
+
 - Fix #129 automatic login navigation on desktop: open the returned authorization URL with `noopener` only after successful login RPC while the card is still mounted, without relying on a child-window handle. Preserve manual authorization fallback, cancel, status and errors; add delayed/null-handle, failure and unmount regressions. Installed runtime acceptance remains pending.
 
 - Correct #129 Codex visual parity with the pinned reference provider header, compact account rows, usage header/windows/reset disclosure, login guidance and native reset dialog. Preserve owned security/actions and EN/AR RTL; keep the full coexistence warning only at section level. Add a deterministic real-DOM reference comparison fixture and hierarchy regressions. Installed acceptance remains pending.

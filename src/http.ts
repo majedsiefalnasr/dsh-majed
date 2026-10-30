@@ -79,9 +79,11 @@ export interface ProxyTestResult {
 
 /** A draft proxy for one test probe (never persisted). */
 export interface ProxyDraft {
+  enabled?: boolean
   url: string
   username?: string
-  password?: string
+  password?: string | null
+  bypass?: string[]
 }
 
 /** Destination the `proxyTest` endpoint probes when none is given. */
@@ -134,8 +136,19 @@ export function proxyFilePath(): string {
   return dshHomePath('plugins', 'majed', 'subscriptions', 'proxy.json')
 }
 
+export function safeDiagnostic(error: unknown, secrets: readonly unknown[] = []): string {
+  let text = error instanceof Error ? error.message : String(error)
+  for (const secret of [current.password, ...secrets]) {
+    if (typeof secret !== 'string' || !secret) continue
+    for (const value of [secret, encodeURIComponent(secret)]) text = text.split(value).join('[redacted]')
+  }
+  return text.replace(/(https?:\/\/)[^\s/@]+(?::[^\s/@]*)?@/gi, '$1[redacted]@')
+    .replace(/((?:proxy-)?authorization\s*[:=]\s*)(?:basic|bearer)\s+[^\s,;]+/gi, '$1[redacted]')
+    .replace(/((?:password|passwd|token|api[_-]?key)\s*[:=]\s*)[^\s,;]+/gi, '$1[redacted]')
+    .slice(0, 1024)
+}
 function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
+  return safeDiagnostic(error)
 }
 
 /**
@@ -146,7 +159,7 @@ function errorMessage(error: unknown): string {
  * 127.0.0.1) fails as an `AggregateError` with an empty message, so its
  * per-address `errors` entries are folded in too.
  */
-export function describeFetchError(error: unknown): string {
+export function describeFetchError(error: unknown, secrets: readonly unknown[] = []): string {
   const parts: string[] = []
   let node: unknown = error
   for (let depth = 0; depth < 4 && node !== undefined && node !== null; depth += 1) {
@@ -168,7 +181,7 @@ export function describeFetchError(error: unknown): string {
     if (next === undefined || next === null || next === node) break
     node = next
   }
-  return parts.join(' → ')
+  return safeDiagnostic(parts.join(' → '), secrets)
 }
 
 function withError(error: unknown): void {
@@ -338,6 +351,13 @@ async function persistConfig(cfg: ProxyConfig, path: string): Promise<void> {
  *  unwind the agent's keep-alive sockets before the process exits.
  * @internal Exported for tests only; not part of the plugin's public surface.
  */
+export async function disposeProxyTransport(): Promise<void> {
+  const previous = agent
+  agent = undefined
+  ready = undefined
+  if (previous !== undefined) await previous.close().catch(() => undefined)
+}
+
 export async function resetProxyForTests(): Promise<void> {
   const previous = agent
   agent = undefined
@@ -443,13 +463,14 @@ export async function proxyTestConnection(target = DEFAULT_PROXY_TEST_URL, draft
   if (draft !== undefined) {
     // Test the typed values: a throw here is a config problem, not a route one.
     try {
-      probeAgent = buildAgent(normalizeConfig({
-        enabled: true,
+      const cfg = normalizeConfig({
+        enabled: draft.enabled ?? true,
         url: draft.url,
-        ...draft.username === undefined || draft.username === '' ? {} : { username: draft.username },
-        ...draft.password === undefined || draft.password === '' ? {} : { password: draft.password },
-        bypass: [],
-      }))
+        username: draft.username,
+        password: draft.password === undefined ? current.password : draft.password,
+        bypass: draft.bypass ?? current.bypass,
+      })
+      probeAgent = matchesBypass(parsed.hostname, cfg.bypass) ? undefined : buildAgent(cfg)
       viaProxy = probeAgent !== undefined
       closeProbe = true
     } catch (error) {
@@ -471,7 +492,7 @@ export async function proxyTestConnection(target = DEFAULT_PROXY_TEST_URL, draft
     void response.arrayBuffer().catch(() => undefined)
     return { ok: true, viaProxy, status: response.status, latencyMs: Date.now() - started }
   } catch (error) {
-    return { ok: false, viaProxy, latencyMs: Date.now() - started, error: describeFetchError(error) }
+    return { ok: false, viaProxy, latencyMs: Date.now() - started, error: describeFetchError(error, [draft?.password]) }
   } finally {
     if (closeProbe && probeAgent !== undefined) {
       await probeAgent.close().catch(() => undefined)
