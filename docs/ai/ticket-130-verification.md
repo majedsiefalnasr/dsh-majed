@@ -174,5 +174,5 @@ Scope (Owner request): close real remaining boundaries, no more cosmetic redacti
 
 ### Evidence and remaining gaps
 
-- `npm test` 406/406 (389 + 6 concurrency + 11 bounded); `npm run check:build` and `git diff --check` clean (see the commit for the archive hash in current-work).
+- `npm test` 406/406 (389 + 6 concurrency + 11 bounded); `npm run check:build` and `git diff --check` clean; archive `/tmp/majed-t130/dsh-majed-0.2.0.tgz` (79 files) from clean `2c9b0df`, SHA256 `35399653430949d30f863cedc7f4927d1023c9dec7b54ae0db6d8cd7bb27226a`, candidate only, not installed.
 - Gaps (not hidden): no real installed DSH, proxy, account or provider traffic; unknown bare secrets in non-OAuth text are not detectable; same-field concurrent edits last-writer-wins; independent re-review and Owner live acceptance remain pending. Nothing here is labelled a P3 deferral.
