@@ -172,6 +172,15 @@
     "usagePlan": "Plan: {plan}",
     "usageSession": "5-hour window",
     "usageWeekly": "Weekly",
-    "usageWindow": "Window"
+    "usageWindow": "Window",
+    "claudeProviderUnavailable": "Claude unavailable: provider id already registered.",
+    "addAccountOAuth": "Browser authorization",
+    "addAccountKeychain": "Import Claude Code",
+    "claudeAddAccountHint": "Browser authorization signs in whichever account the browser currently uses. Import Claude Code copies the account Claude Code is signed in to and keeps it in sync; sign in with the claude command first.",
+    "claudePromptCacheTtl": "Prompt cache lifetime",
+    "claudePromptCacheTtlHint": "How long Anthropic keeps the conversation cache after its last use. Cache reads cost the same either way; a one-hour cache write costs 2\u00d7 base input instead of 1.25\u00d7. Applies from the next turn.",
+    "claudePromptCacheTtlDefault": "Follow config ({ttl})",
+    "claudePromptCacheTtl5m": "5 minutes",
+    "claudePromptCacheTtl1h": "1 hour"
   }
 }

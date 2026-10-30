@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 type ConnectionHandle = { rpc: any }
 import type { AccountPreferences, PromptCacheTtlSetting, ProviderPreferences } from '../provider-settings.js'
-type SubscriptionProvider = 'codex'
+type SubscriptionProvider = 'codex' | 'claude'
 type SubscriptionsKey = string
 import { callSubscriptionsAuth } from './subscriptions-rpc.js'
 import { accountModelRows, accountPoolSelection } from './account-preferences.js'
@@ -152,6 +152,15 @@ export function ProviderAccountManager({ provider, name, rpc, t, onClose }: Prop
               onClick={() => { setDisplayName(''); setNameDirty(true) }}>{t('displayNameReset')}</button>
           </div>
         </section>
+        {provider === 'claude' && <section style={{ ...stack, gap: 6, paddingBlockEnd: 8 }}>
+          <label htmlFor={cacheTtlId}><strong>{t('claudePromptCacheTtl')}</strong></label>
+          <select id={cacheTtlId} value={cacheTtl} style={{ justifySelf: 'start' }}
+            onChange={event => { setCacheTtl(event.target.value as PromptCacheTtlSetting | ''); setCacheTtlDirty(true) }}>
+            <option value="">{t('claudePromptCacheTtlDefault', { ttl: catalog.promptCacheTtlDefault ?? '5m' })}</option>
+            {PROMPT_CACHE_TTLS.map(ttl => <option key={ttl} value={ttl}>{t(`claudePromptCacheTtl${ttl}`)}</option>)}
+          </select>
+          <small className="majed-subscription-hint">{t('claudePromptCacheTtlHint')}</small>
+        </section>}
         {catalog.accounts.length === 0 && <p className="majed-subscription-hint">{t('accountsEmpty')}</p>}
         {catalog.accounts.map(account => {
           const preferences = changes[account.key] ?? catalog.settings.accounts?.[account.key] ?? {}

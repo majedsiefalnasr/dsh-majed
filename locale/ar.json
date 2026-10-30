@@ -172,6 +172,15 @@
     "usagePlan": "الخطة: {plan}",
     "usageSession": "نافذة 5 ساعات",
     "usageWeekly": "أسبوعي",
-    "usageWindow": "نافذة"
+    "usageWindow": "نافذة",
+    "claudeProviderUnavailable": "Claude غير متاح: معرّف الموفّر مسجّل بالفعل.",
+    "addAccountOAuth": "تفويض المتصفح",
+    "addAccountKeychain": "استيراد من Claude Code",
+    "claudeAddAccountHint": "يسجّل تفويض المتصفح الدخول بالحساب المستخدم حاليًا في المتصفح. ينسخ الاستيراد من Claude Code الحساب المسجَّل فيه ويبقيه متزامنًا؛ سجّل الدخول أولًا بالأمر claude.",
+    "claudePromptCacheTtl": "مدة بقاء ذاكرة المطالبات المؤقتة",
+    "claudePromptCacheTtlHint": "المدة التي تحتفظ بها Anthropic بذاكرة المحادثة المؤقتة بعد آخر استخدام. تكلفة قراءة الذاكرة واحدة في الحالتين؛ أما كتابة ذاكرة لمدة ساعة فتكلّف ضعف مدخلات الأساس بدل 1.25 ضعفًا. يسري من الدور التالي.",
+    "claudePromptCacheTtlDefault": "اتباع الإعداد ({ttl})",
+    "claudePromptCacheTtl5m": "5 دقائق",
+    "claudePromptCacheTtl1h": "ساعة واحدة"
   }
 }

@@ -1,7 +1,7 @@
 import { ProxySettings } from './settings/ProxySettings.js';
 import { ProviderAccountManager } from './settings/ProviderAccountManager.js';
 /** Scoped presentation port of V1ki v0.9.12 b802311; see PROVENANCE.md. */
-const styles: Record<string, any> = {
+export const styles: Record<string, any> = {
   section: {
     display: 'flex', flexDirection: 'column', gap: 12, maxInlineSize: 560,
     color: 'var(--dsw-alias-label-primary)',
@@ -59,7 +59,7 @@ const styles: Record<string, any> = {
   },
   modalTitle: { font: 'var(--dsw-font-s-16)', fontWeight: 500, color: 'var(--dsw-alias-label-primary)' },
 };
-const controlCss = `:is(.majed-subscriptions-settings, .majed-reset-dialog) input:not([type="checkbox"]),
+export const controlCss = `:is(.majed-subscriptions-settings, .majed-reset-dialog) input:not([type="checkbox"]),
 :is(.majed-subscriptions-settings, .majed-reset-dialog) select {
   box-sizing: border-box;
   min-width: 0;
