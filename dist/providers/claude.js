@@ -145,10 +145,11 @@ export const claudeFlow = {
         return `${CLAUDE_AUTHORIZE_URL}?${params.toString()}`;
     },
 };
-/** Best-effort account profile; login must not fail when this does. */
-async function fetchClaudeProfile(accessToken) {
+/** Best-effort account profile; login must not fail when this does (a failure or abort yields `{}`). */
+export async function fetchClaudeProfile(accessToken, signal) {
     try {
         const response = await proxiedFetch(CLAUDE_PROFILE_URL, {
+            ...signal === undefined ? {} : { signal },
             headers: { authorization: `Bearer ${accessToken}` },
         });
         if (!response.ok)

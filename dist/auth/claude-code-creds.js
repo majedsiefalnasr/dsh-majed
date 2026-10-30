@@ -168,16 +168,83 @@ export function writeBackClaudeCodeCredentials(next, expectedPriorAccessToken, i
     const updated = mergeIntoBlob(raw, next);
     return updated !== undefined && io.writeFileRaw(path, updated);
 }
+/** Upper bound of one profile lookup; a slow or hung lookup counts as "email unknown". */
+export const CLAUDE_PROFILE_LOOKUP_TIMEOUT_MS = 5_000;
+/** Same normalization as the Codex store (`trim().toLowerCase()`); undefined for a missing or blank email. */
+export function normalizeEmail(value) {
+    return typeof value === 'string' && value.trim().length > 0 ? value.trim().toLowerCase() : undefined;
+}
 /**
- * Whether Claude Code's store still holds the SAME account as the stored session, so its tokens may be adopted.
- * The only stable identity a blob carries is its email address: when both sides carry one they must match. Without
- * a comparable pair, only refresh-token continuity (the store holds the very refresh token this account already
- * owns) proves it is the same login. Anything else is a different or unknown account and is never adopted.
+ * Look an account's email up through the profile endpoint with one access token. Bounded by a timeout and by the
+ * lifecycle signal; a failure, a timeout, an abort or a profile without an email all yield undefined ("unknown").
+ * The caller re-checks the lifecycle signal, so an abort here is never mistaken for a verdict about the account.
  */
-function sameAccount(stored, source) {
-    if (stored.emailAddress !== undefined && source.emailAddress !== undefined)
-        return stored.emailAddress === source.emailAddress;
-    return stored.refreshToken === source.refreshToken;
+async function lookupEmail(accessToken, options, signal) {
+    const lookup = options.profile;
+    if (lookup === undefined || signal?.aborted === true)
+        return undefined;
+    const bounded = new AbortController();
+    const stop = () => bounded.abort();
+    signal?.addEventListener('abort', stop, { once: true });
+    const timer = setTimeout(stop, options.profileTimeoutMs ?? CLAUDE_PROFILE_LOOKUP_TIMEOUT_MS);
+    // A lookup that ignores its signal must not hold the refresh hostage either.
+    const stopped = new Promise(resolve => { bounded.signal.addEventListener('abort', () => resolve(undefined), { once: true }); });
+    try {
+        const profile = await Promise.race([(async () => lookup(accessToken, bounded.signal))().catch(() => undefined), stopped]);
+        return normalizeEmail(profile?.emailAddress) === undefined ? undefined : profile.emailAddress.trim();
+    }
+    finally {
+        clearTimeout(timer);
+        signal?.removeEventListener('abort', stop);
+    }
+}
+/**
+ * Record the account email on a session read for an explicit import. Real credential blobs normally carry no email,
+ * so when the blob has none the profile endpoint is asked with its access token (bounded, best effort); the imported
+ * session then carries the email and later comparisons need no network. When the lookup fails, times out or is
+ * aborted the session is returned unchanged, without an email (a later refresh tries again).
+ */
+export async function recordClaudeEmail(session, options = {}, signal) {
+    if (normalizeEmail(session.emailAddress) !== undefined)
+        return session;
+    const email = await lookupEmail(session.accessToken, options, signal);
+    return email === undefined ? session : { ...session, emailAddress: email };
+}
+/**
+ * Decide whether Claude Code's store holds the SAME account as the stored session, so its tokens may be adopted.
+ * The only account identity is the email. Real blobs usually carry none, and Anthropic issues a new refresh token on
+ * every refresh, so refresh-token continuity cannot identify an account that the `claude` CLI refreshed first. A
+ * missing email is therefore resolved through the profile endpoint (stored side with the stored access token, source
+ * side with the SOURCE access token; a stored token that already expired simply yields no answer). Adopt only when
+ * both emails are known and equal after trim + lower-casing (the Codex store's normalization). If a lookup fails,
+ * times out, is aborted or returns no email, the account is NOT proven and nothing is adopted; the single exception
+ * is "no email known on either side after the lookups" together with an identical refresh token (the store holds the
+ * very refresh token this account already owns).
+ */
+async function resolveIdentity(stored, source, options, signal) {
+    let storedEmail = normalizeEmail(stored.emailAddress);
+    let sourceEmail = normalizeEmail(source.emailAddress);
+    let known = stored;
+    let sourceRaw = source.emailAddress?.trim();
+    if (storedEmail === undefined || sourceEmail === undefined) {
+        const [fromStored, fromSource] = await Promise.all([
+            storedEmail === undefined ? lookupEmail(stored.accessToken, options, signal) : undefined,
+            sourceEmail === undefined ? lookupEmail(source.accessToken, options, signal) : undefined,
+        ]);
+        if (fromStored !== undefined) {
+            known = { ...stored, emailAddress: fromStored };
+            storedEmail = normalizeEmail(fromStored);
+        }
+        if (fromSource !== undefined) {
+            sourceRaw = fromSource;
+            sourceEmail = normalizeEmail(fromSource);
+        }
+    }
+    const same = storedEmail !== undefined && sourceEmail !== undefined
+        ? storedEmail === sourceEmail
+        : storedEmail === undefined && sourceEmail === undefined && stored.refreshToken === source.refreshToken;
+    const email = known.emailAddress ?? sourceRaw;
+    return { same, stored: known, ...email === undefined ? {} : { email } };
 }
 /**
  * Refresh a Claude session, first checking whether Claude Code's own store already holds a fresher token (rotated by
@@ -185,25 +252,47 @@ function sameAccount(stored, source) {
  * back to that store so every consumer of the account stays synced. Called only for `keychainBound` accounts.
  *
  * Differences from the reference, on purpose: a source session is adopted only when it is provably the same account
- * (see {@link sameAccount}), because Claude Code may have switched to another login; a different account needs an
- * explicit new import and is never persisted under this one. Every returned session keeps `keychainBound`, so the
- * binding survives the TokenManager save. The optional `signal` is the component lifecycle: once aborted, nothing
- * reads or writes Claude Code's store and nothing is returned for persisting.
+ * (see {@link resolveIdentity}: matching normalized emails, resolved through the profile endpoint when a blob has
+ * none), because Claude Code may have switched to another login; a different or unproven account needs an explicit
+ * new import, is never persisted under this one, and the store is never written for it (no write-back whenever the
+ * source was not adopted). Limits: resolving needs a network profile lookup, and it is not live-verified whether
+ * real blobs carry an email. Every returned session keeps `keychainBound`, so the binding survives the TokenManager
+ * save, and carries any email learned here. The optional `signal` is the component lifecycle: once aborted, nothing
+ * reads or writes Claude Code's store and nothing is returned for persisting (an abort is not a permanent failure).
  * @param session - the session TokenManager wants refreshed.
  * @param doRefresh - the actual OAuth refresh-token grant (network call).
  * @param io - the credential store IO (production default; tests inject fakes).
  * @param signal - aborted when the owning component is disposed.
+ * @param identity - the profile lookup seam and its timeout.
  * @returns the freshest available session, still bound.
  */
-export async function refreshClaudeSynced(session, doRefresh, io = SYSTEM_CLAUDE_CREDS_IO, signal) {
+export async function refreshClaudeSynced(session, doRefresh, io = SYSTEM_CLAUDE_CREDS_IO, signal, identity = {}) {
     signal?.throwIfAborted();
     const fromSource = readClaudeCodeCredentials(io);
-    const adopt = fromSource !== undefined && fromSource.accessToken !== session.accessToken && sameAccount(session, fromSource);
-    const base = adopt ? { ...fromSource, keychainBound: true } : session;
+    let base = session;
+    // True when the store holds a login that is not this account (or not provably so): never written back.
+    let foreign = false;
+    if (fromSource !== undefined && fromSource.accessToken !== session.accessToken) {
+        const verdict = await resolveIdentity(session, fromSource, identity, signal);
+        signal?.throwIfAborted();
+        if (verdict.same) {
+            base = {
+                ...fromSource,
+                ...verdict.email === undefined ? {} : { emailAddress: verdict.email },
+                ...fromSource.subscriptionType === undefined && session.subscriptionType !== undefined ? { subscriptionType: session.subscriptionType } : {},
+                keychainBound: true,
+            };
+        }
+        else {
+            base = verdict.stored;
+            foreign = true;
+        }
+    }
     if (base.expiresAt > Date.now() + 60_000)
         return { ...base, keychainBound: true };
     const next = { ...await doRefresh(base), keychainBound: true };
     signal?.throwIfAborted();
-    writeBackClaudeCodeCredentials(next, base.accessToken, io);
+    if (!foreign)
+        writeBackClaudeCodeCredentials(next, base.accessToken, io);
     return next;
 }

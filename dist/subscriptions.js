@@ -21,8 +21,8 @@ import { createImageGenerateTool } from './tools/image-generate.js';
 import { registerWithAlias } from './tools/registration.js';
 import { AccountPreferencesAdapter, accountAllowsPool, accountModelId, parseAccountModelId } from './providers/account-preferences.js';
 import { ClaudeAuthController } from './auth/claude-controller.js';
-import { readClaudeCodeCredentials, refreshClaudeSynced, SYSTEM_CLAUDE_CREDS_IO } from './auth/claude-code-creds.js';
-import { ClaudeAdapter, CLAUDE_PREEMPT_MS, fetchClaudeUsage, isClaudePermanentRefreshError, refreshClaude } from './providers/claude.js';
+import { readClaudeCodeCredentials, recordClaudeEmail, refreshClaudeSynced, SYSTEM_CLAUDE_CREDS_IO } from './auth/claude-code-creds.js';
+import { ClaudeAdapter, CLAUDE_PREEMPT_MS, fetchClaudeProfile, fetchClaudeUsage, isClaudePermanentRefreshError, refreshClaude } from './providers/claude.js';
 import { ClaudeCliVersionCache } from './providers/claude-cli-version.js';
 import { DEFAULT_PROMPT_CACHE_TTL } from './translate/anthropic.js';
 import { presentedVersion } from './providers/npm-cli-version.js';
@@ -145,6 +145,7 @@ function readLoginMethod(payload, provider) {
 const CLAUDE_ENDPOINTS = new Set(['status', 'login', 'manual', 'cancel', 'logout', 'setDefault', 'usage', 'providerSettings', 'setProviderSettings', 'modelDefaults', 'setModelDefault']);
 export function apply(ctx, config = {}, options = {}) {
     const claudeCredsIo = options.claudeCredsIo ?? SYSTEM_CLAUDE_CREDS_IO;
+    const claudeIdentity = { profile: options.claudeProfile ?? fetchClaudeProfile };
     const preferences = new ProviderSettingsStore();
     void loadModelDefaults().catch(() => ctx.logger.warn('dsh-majed: model defaults unavailable'));
     const flows = new OAuthFlowManager();
@@ -227,7 +228,7 @@ export function apply(ctx, config = {}, options = {}) {
                 const lifecycle = claudeLifecycle.signal;
                 lifecycle.throwIfAborted();
                 const next = session.keychainBound === true
-                    ? await refreshClaudeSynced(session, bound => refreshClaude(bound, lifecycle), claudeCredsIo, lifecycle)
+                    ? await refreshClaudeSynced(session, bound => refreshClaude(bound, lifecycle), claudeCredsIo, lifecycle, claudeIdentity)
                     : await refreshClaude(session, lifecycle);
                 lifecycle.throwIfAborted();
                 return next;
@@ -238,7 +239,7 @@ export function apply(ctx, config = {}, options = {}) {
         ? () => readUsage(account, AbortSignal.timeout(20_000))
         : provider === 'claude' ? async () => fetchClaudeUsage(await claudeTokens.session(account), proxiedFetch, AbortSignal.timeout(20_000), () => claudeVersion.resolve()) : undefined);
     const auth = new CodexAuthController(flows, changed, error => browserSafeError(error, 'codex login'));
-    const claudeAuth = new ClaudeAuthController(flows, claudeChanged, error => browserSafeError(error, 'claude login'), () => readClaudeCodeCredentials(claudeCredsIo));
+    const claudeAuth = new ClaudeAuthController(flows, claudeChanged, error => browserSafeError(error, 'claude login'), () => readClaudeCodeCredentials(claudeCredsIo), session => recordClaudeEmail(session, claudeIdentity, claudeLifecycle.signal));
     const resets = new ResetRedemption(readUsage, async (account, credit, request, signal) => consumeCodexResetCredit(await tokens.session(account), credit, request, proxiedFetch, signal), account => usage.invalidate('codex', account));
     adapter = new CodexAdapter({ tokens, models: config.models?.codex ?? [
             { id: 'gpt-5.1-codex', name: 'GPT-5.1 Codex' },
