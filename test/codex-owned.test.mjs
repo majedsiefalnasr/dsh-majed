@@ -24,7 +24,7 @@ function host({ collision = false } = {}) {
     if (collision) throw new Error('provider codex already registered');
     adapter = value; return { replace() {} };
   } }, get: () => ({ fetch: { register(route) { routes.set(route.path, route); return () => routes.delete(route.path); } } }),
-  effect(fn) { const cleanup = fn(); if (cleanup) cleanups.push(cleanup); }, inject(_, fn) { fn(ctx); } };
+  effect(fn) { const cleanup = fn(); if (cleanup) cleanups.push(cleanup); }, inject(names, fn) { if ([].concat(names).includes('connection')) fn(ctx); } };
   apply(ctx, { codexClientVersion: '1.2.3', models: { codex: [{ id: 'fixture-model', name: 'Fixture model' }] } });
   return { get adapter() { return adapter; }, async call(endpoint, payload = {}) {
     const method = `majed-subscriptions.${endpoint}`;

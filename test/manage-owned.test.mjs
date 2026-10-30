@@ -7,7 +7,7 @@ function host() {
   const routes = new Map(), cleanups = []; let adapter;
   const ctx = { logger: { warn() {} }, llm: { registerAdapter(_, value) { adapter = value; return { replace() {} }; } },
     get: () => ({ fetch: { register(route) { routes.set(route.path, route); return () => routes.delete(route.path); } } }),
-    inject(_, fn) { fn(ctx); }, effect(fn) { const off = fn(); if (off) cleanups.push(off); } };
+    inject(names, fn) { if ([].concat(names).includes('connection')) fn(ctx); }, effect(fn) { const off = fn(); if (off) cleanups.push(off); } };
   apply(ctx, { codexClientVersion: '1.2.3', models: { codex: [{ id: 'fixture-model', name: 'Fixture model' }] } });
   return { get adapter() { return adapter; }, async call(endpoint, payload = {}, owner = true) {
     if (!owner) return { status: 401 };

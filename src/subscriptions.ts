@@ -1,5 +1,9 @@
 /** Owned Codex component composition. Reference v0.9.12: see PROVENANCE.md. */
 import type { Context } from '@deepseek-ai/cordis';
+// Type-only: activates the `ctx.tools` / `ctx.web` Context merges for the optional inject blocks below.
+import type {} from '@deepseek-ai/dsh-tools';
+import type {} from '@deepseek-ai/dsh-web';
+import type { AttachmentStore } from '@deepseek-ai/dsh-attachment';
 import { OAuthFlowManager } from './auth/oauth-flow.js';
 import { CodexAuthController } from './auth/controller.js';
 import { AccountTokenManager } from './providers/accounts.js';
@@ -18,6 +22,10 @@ import { proxiedFetch, proxyGetConfig, proxySetConfig, proxyTestConnection, safe
 import type { ModelEntry } from './providers/common.js';
 import { ProviderSettingsStore, PROVIDER_TOOLS } from './provider-settings.js';
 import { defaultEffortOf, loadModelDefaults, setDefaultEffort, modelDefaultsSnapshot } from './model-defaults.js';
+import { ImageAccountPool } from './providers/image-pool.js';
+import { CodexWebSearchProvider } from './providers/codex-search.js';
+import { createImageGenerateTool } from './tools/image-generate.js';
+import { registerWithAlias } from './tools/registration.js';
 import { AccountPreferencesAdapter, accountAllowsPool, parseAccountModelId } from './providers/account-preferences.js';
 
 export const name = 'dsh-majed/subscriptions';
@@ -31,6 +39,8 @@ export function apply(ctx: Context, config: Config = {}): void {
   const flows = new OAuthFlowManager();
   const version = new CodexClientVersionCache();
   const health = new PoolHealthRegistry();
+  const imagePool = new ImageAccountPool({ enabled: config.pool?.enabled !== false && (config.pool?.autoAccounts ?? config.pool?.autoFamilies ?? true),
+    onWarn: message => ctx.logger.warn(`dsh-majed: ${message}`) });
   let handle: ReturnType<Context['llm']['registerAdapter']> | undefined;
   let collision: string | undefined;
   let disposed = false;
@@ -38,7 +48,7 @@ export function apply(ctx: Context, config: Config = {}): void {
   let adapter: CodexAdapter;
   const changed = (account?: string) => {
     if (disposed) return;
-    adapter?.clearAccountCatalog(account); health.clear('codex', account); usage.invalidate('codex', account);
+    adapter?.clearAccountCatalog(account); health.clear('codex', account); imagePool.clear('codex', account); usage.invalidate('codex', account);
     pool?.invalidate(); handle?.replace(['codex']);
   };
   const tokens = new AccountTokenManager<CodexSession>({ provider: 'codex', displayName: 'ChatGPT (Codex)',
@@ -101,6 +111,33 @@ export function apply(ctx: Context, config: Config = {}): void {
   if (handle) ctx.effect(() => startCatalogRefresh(async signal => {
     if ((await tokens.list()).length && !signal.aborted) await adapter.listOwnModels('codex', undefined, signal);
   }, () => ctx.logger.warn('dsh-majed: Codex catalog refresh failed')), 'dsh-majed: subscriptions catalog refresh');
+
+  // `web` is optional on headless/minimal compositions. The Codex switch gates this provider's
+  // `available()` rather than the host's web_search tool, so other providers keep working.
+  ctx.inject(['web'], webCtx => {
+    webCtx.web.registerSearchProvider(new CodexWebSearchProvider({ tokens,
+      enabled: () => preferences.toolEnabled('codex', 'web_search'), fetchFn: proxiedFetch }));
+  });
+
+  // `tools` is optional too. Definitions stay registered globally so already-open sessions keep their
+  // schema and execution path; each new agent is restricted from the switches in force at its creation.
+  ctx.inject(['tools'], toolsCtx => {
+    const registeredNames = new Map<string, string>();
+    const result = registerWithAlias(toolsCtx.tools, createImageGenerateTool({ imagePool, codexTokens: tokens,
+      resolveAttachments: () => ctx.get('attachments') as AttachmentStore | undefined,
+      resolveLlm: () => ctx.get('llm'),
+      providerEnabled: (provider, createdAt) => preferences.toolEnabled(provider, 'image_generate', createdAt) }),
+      message => ctx.logger.warn(message));
+    if (result !== undefined) registeredNames.set('image_generate', result.name);
+    toolsCtx.on('agent/created', ({ agent }) => {
+      const at = agent.session.header.createdAt;
+      const deny: string[] = [];
+      const registered = registeredNames.get('image_generate');
+      if (registered !== undefined && !preferences.toolEnabled('codex', 'image_generate', at)) deny.push(registered);
+      if (deny.length) agent.ctx.tools.restrict({ deny });
+      return undefined;
+    });
+  });
 
   ctx.inject(['connection'], ctx => {
     const connection = ctx.get('connection') as unknown as { fetch: { register(route: object): () => unknown } };

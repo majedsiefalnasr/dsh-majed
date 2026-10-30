@@ -13,6 +13,10 @@ import { ResetRedemption } from './providers/reset-redemption.js';
 import { proxiedFetch, proxyGetConfig, proxySetConfig, proxyTestConnection, safeDiagnostic, disposeProxyTransport } from './http.js';
 import { ProviderSettingsStore, PROVIDER_TOOLS } from './provider-settings.js';
 import { defaultEffortOf, loadModelDefaults, setDefaultEffort, modelDefaultsSnapshot } from './model-defaults.js';
+import { ImageAccountPool } from './providers/image-pool.js';
+import { CodexWebSearchProvider } from './providers/codex-search.js';
+import { createImageGenerateTool } from './tools/image-generate.js';
+import { registerWithAlias } from './tools/registration.js';
 import { AccountPreferencesAdapter, accountAllowsPool, parseAccountModelId } from './providers/account-preferences.js';
 export const name = 'dsh-majed/subscriptions';
 export const inject = ['llm'];
@@ -22,6 +26,8 @@ export function apply(ctx, config = {}) {
     const flows = new OAuthFlowManager();
     const version = new CodexClientVersionCache();
     const health = new PoolHealthRegistry();
+    const imagePool = new ImageAccountPool({ enabled: config.pool?.enabled !== false && (config.pool?.autoAccounts ?? config.pool?.autoFamilies ?? true),
+        onWarn: message => ctx.logger.warn(`dsh-majed: ${message}`) });
     let handle;
     let collision;
     let disposed = false;
@@ -32,6 +38,7 @@ export function apply(ctx, config = {}) {
             return;
         adapter?.clearAccountCatalog(account);
         health.clear('codex', account);
+        imagePool.clear('codex', account);
         usage.invalidate('codex', account);
         pool?.invalidate();
         handle?.replace(['codex']);
@@ -108,6 +115,33 @@ export function apply(ctx, config = {}) {
             if ((await tokens.list()).length && !signal.aborted)
                 await adapter.listOwnModels('codex', undefined, signal);
         }, () => ctx.logger.warn('dsh-majed: Codex catalog refresh failed')), 'dsh-majed: subscriptions catalog refresh');
+    // `web` is optional on headless/minimal compositions. The Codex switch gates this provider's
+    // `available()` rather than the host's web_search tool, so other providers keep working.
+    ctx.inject(['web'], webCtx => {
+        webCtx.web.registerSearchProvider(new CodexWebSearchProvider({ tokens,
+            enabled: () => preferences.toolEnabled('codex', 'web_search'), fetchFn: proxiedFetch }));
+    });
+    // `tools` is optional too. Definitions stay registered globally so already-open sessions keep their
+    // schema and execution path; each new agent is restricted from the switches in force at its creation.
+    ctx.inject(['tools'], toolsCtx => {
+        const registeredNames = new Map();
+        const result = registerWithAlias(toolsCtx.tools, createImageGenerateTool({ imagePool, codexTokens: tokens,
+            resolveAttachments: () => ctx.get('attachments'),
+            resolveLlm: () => ctx.get('llm'),
+            providerEnabled: (provider, createdAt) => preferences.toolEnabled(provider, 'image_generate', createdAt) }), message => ctx.logger.warn(message));
+        if (result !== undefined)
+            registeredNames.set('image_generate', result.name);
+        toolsCtx.on('agent/created', ({ agent }) => {
+            const at = agent.session.header.createdAt;
+            const deny = [];
+            const registered = registeredNames.get('image_generate');
+            if (registered !== undefined && !preferences.toolEnabled('codex', 'image_generate', at))
+                deny.push(registered);
+            if (deny.length)
+                agent.ctx.tools.restrict({ deny });
+            return undefined;
+        });
+    });
     ctx.inject(['connection'], ctx => {
         const connection = ctx.get('connection');
         const endpoints = ['status', 'login', 'manual', 'cancel', 'logout', 'setDefault', 'usage', 'prepareReset', 'consumeReset', 'providerSettings', 'setProviderSettings', 'modelDefaults', 'setModelDefault', 'proxyGet', 'proxySet', 'proxyTest'];
