@@ -89,6 +89,8 @@ The independent review passed the 370 tests and build-match but found the items 
 
 Red evidence: against the pre-fix `src` (13e8db7) 8 of the 10 new tests fail (hung account, proxyTest matrix, force matrix, catalog shape, quoted-JSON redaction, serialized unknown-JSON secret, dispose, Config schema). Two pass before the fix: the inherited-key account lookup and the early draft-failure password path (the latter was already handled by the earlier uncommitted work in this pass, not by 13e8db7 behaviour proof); they remain as guards, not as red proofs. The Config test is red there only because the export does not exist.
 
+Archive `/tmp/majed-t130/dsh-majed-0.2.0.tgz` (77 files, ~1.3 MB) packed from the clean worktree at `da83289`; SHA256 `aab101f17d09387a9f17136751a2c075b60101f221d286b587b613931949832a` (supersedes `a54f9f4c...`). Only `src/PROVENANCE.md` of the docs is packed, so this record commit does not change the archive. Candidate only; not installed.
+
 Counts: `npm test` 380/380 (classifier suite included; 370 prior + 10 new; zero fail/cancel/skip), `npm run check:build` "Committed output matches a fresh build.", `git diff --check` clean.
 
 ### The "13 initial findings"
