@@ -2,6 +2,10 @@
 
 Updated 2026-10-30 (Africa/Cairo).
 
+## #132 Subscriptions: Claude (2026-10-30)
+
+**Candidate ready for independent review on `impl/132-claude`; Owner live acceptance pending.** Not merged, not pushed. Ported the Claude provider, Anthropic translation, CLI version detection and Claude Code credential import/sync, plus the Claude card and the Manage prompt cache lifetime option (English and Arabic), into our component with `majed`-prefixed ids. `npm test` classifier 166/166, Node 556/556; `npm run check:build` passes. The earlier uncommitted draft was reviewed and corrected. Details, deviations, limits and Owner live steps: [ticket-132 verification](ticket-132-verification.md). Host change needs a full DSH restart; browser half needs a reload.
+
 ## #131 composer usage badge, Speed control and `/fast` (2026-10-30)
 
 **Candidate ready for independent review on `impl/131-badge-speed`; Owner live acceptance pending.** Not merged, not pushed. Ported the reference composer usage badge (with display setting), Speed control and `/fast` into our component with `majed`-prefixed ids, plus host `speed`/`setSpeed`. `npm test` classifier 166/166, Node 450/450; `npm run check:build` passes. Details, deviations, limits and Owner live steps: [ticket-131 verification](ticket-131-verification.md). Host change needs a full DSH restart; browser half needs a reload.

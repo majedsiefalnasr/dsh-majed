@@ -78,6 +78,22 @@ Source: V1ki/dsh-plugin-subscriptions v0.9.12 (`b8023110864494acefc6f5963c2a197d
 | `src/client/index.ts` slot and `/fast` registration | `src/browser.ts` | Registered only while the component answers and the reference is not serving; withdrawn otherwise; each registration isolated. |
 | tests `client-speed`, `client-command`, `usage-badge-preferences`, `usage-window-filter`, `subscription-usage-badge` | `test/reference/*.spec.ts` | Ported; the media tool-view test belongs to #133 and the Antigravity copy test to #135. |
 
+## #132 Claude subscription
+
+Source: V1ki/dsh-plugin-subscriptions v0.9.12 (`b8023110864494acefc6f5963c2a197d85dda20c`, MIT), read-only. The provider id `claude` stays shared (ADR-0002); every id we own is `majed`-prefixed (RPC `majed-subscriptions.*`, storage `plugins/majed/subscriptions`, locale namespace, `data-majed-claude-*`). The provider code is a verbatim port apart from the changes listed.
+
+| Reference | Owned | Disposition |
+| --- | --- | --- |
+| `src/providers/claude.ts` | `src/providers/claude.ts` | Verbatim port; only the debug log prefix is `dsh-majed:`. |
+| `src/providers/claude-cli-version.ts` | `src/providers/claude-cli-version.ts` | Verbatim port. |
+| `src/translate/anthropic.ts` | `src/translate/anthropic.ts` | Verbatim port. |
+| `src/auth/claude-code-creds.ts` | `src/auth/claude-code-creds.ts` | Same sources, same merge rules and same write-back condition. Every OS touch point (macOS Keychain via `/usr/bin/security`, `$CLAUDE_CONFIG_DIR` or `~/.claude/.credentials.json`) sits behind an injectable `ClaudeCredsIo` so tests use fakes; the default is the real store and is reached only from an explicit import and from the refresh of an imported (`keychainBound`) account. |
+| Claude branch of `src/auth/controller.ts` / `rpc.ts` / `index.ts` (login `method`, claim counter) | `src/auth/claude-controller.ts`, `src/subscriptions.ts` | Sibling of `CodexAuthController` so Codex is untouched; `method` validated by `readLoginMethod` before any side effect, for both providers. |
+| `presentedVersion` (`src/index.ts`) | `src/providers/npm-cli-version.ts` | Ported; the Claude CLI version lookup runs only while a Claude account exists. |
+| Claude registration, token manager, catalog, usage, pool/health branches, background sync timer, prompt cache lifetime (`src/index.ts`, `provider-settings.ts`) | `src/subscriptions.ts` | Ported; the timer is `unref()`ed, skips when registration collided and is cleared on dispose; `ApplyOptions.claudeCredsIo` is a host-only test seam (the host never passes it). |
+| Claude part of `SubscriptionsSection.tsx`, `ProviderAccountManager.tsx`, `locales.ts` | `src/claude-card.ts`, `src/settings/ProviderAccountManager.tsx`, `locale/{en,ar}.json` | Presentation port on our `codex-card` styles; owned RPC and attributes; Arabic written here. |
+| tests `claude-cache-ttl`, `claude-cli-version`, `claude-models`, `claude-rate-limit`, `claude-usage`, `anthropic-translation`, `detect-cli`, `image-request-limit` | `test/reference/*.spec.ts` | Ported and passing in our suite. |
+
 ## License
 
 MIT License
