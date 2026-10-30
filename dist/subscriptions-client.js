@@ -3486,6 +3486,26 @@ const styles = {
 };
 
 //#endregion
+//#region src/usage-badge/error-boundary.ts
+function guarded(React, Component, label, report = (message, error) => console.error(message, error)) {
+	class Boundary extends React.Component {
+		state = { failed: false };
+		static getDerivedStateFromError() {
+			return { failed: true };
+		}
+		componentDidCatch(error) {
+			report(`dsh-majed: ${label} failed to render`, error);
+		}
+		render() {
+			return this.state.failed ? null : React.createElement(Component, this.props);
+		}
+	}
+	const wrapped = (props) => React.createElement(Boundary, props);
+	Object.defineProperty(wrapped, "name", { value: `Guarded${label.replace(/\W+/g, "")}` });
+	return wrapped;
+}
+
+//#endregion
 //#region src/browser.ts
 function applySubscriptions(root) {
 	const report = (error) => console.error("dsh-majed: Subscriptions setup failed", error);
@@ -3515,6 +3535,9 @@ function applySubscriptions(root) {
 		})), "dsh-majed: subscriptions dictionaries"));
 		const t = ctx.locale.bind(NS);
 		const CodexCard = createCodexCard(React, primitives$1, connection.rpc, t);
+		const GuardedSetting = guarded(React, UsageBadgeDisplaySetting, "usage display setting");
+		const GuardedSpeed = guarded(React, SpeedSelect, "Speed control");
+		const GuardedBadge = guarded(React, SubscriptionUsageBadge, "usage badge");
 		let present = false;
 		let failing = false;
 		let referenceEnabled = false;
@@ -3540,7 +3563,7 @@ function applySubscriptions(root) {
 			}, h("h3", { style: { font: "var(--dsw-font-s-strong-14)" } }, h(IconSettingsOutlineMedium, { "aria-hidden": true }), t(part)), part === "accounts" ? h("div", null, h("p", { style: {
 				marginBlock: "0 var(--dsw-spacing-3)",
 				color: "var(--dsw-alias-label-tertiary)"
-			} }, t("intro")), h(UsageBadgeDisplaySetting, { t }), h(CodexCard)) : h("p", { style: { color: "var(--dsw-alias-label-tertiary)" } }, t(`${part}Empty`)))));
+			} }, t("intro")), h(GuardedSetting, { t }), h(CodexCard)) : h("p", { style: { color: "var(--dsw-alias-label-tertiary)" } }, t(`${part}Empty`)))));
 		}
 		const models = () => ctx.get("modelDirectories");
 		const surfaceWanted = () => !disposed && present && !referenceEnabled;
@@ -3562,7 +3585,7 @@ function applySubscriptions(root) {
 						loadSpeed: createSpeedLoader(connection, models, sessionId),
 						setSpeed: createSpeedSetter(connection, sessionId)
 					})
-				}, SpeedSelect)));
+				}, GuardedSpeed)));
 				add(() => ctx.slots.inject("conversation.composer.dock", () => ctx.slots.register({
 					name: "conversation.composer.dock",
 					id: "majed-subscription-usage",
@@ -3572,7 +3595,7 @@ function applySubscriptions(root) {
 						rpc: connection.rpc,
 						currentModel: createCurrentModelReader(models, sessionId)
 					})
-				}, SubscriptionUsageBadge)));
+				}, GuardedBadge)));
 			} else if (!surfaceWanted() && surfacesActive) {
 				surfacesActive = false;
 				for (const off of surfaces.splice(0)) isolate(off);
