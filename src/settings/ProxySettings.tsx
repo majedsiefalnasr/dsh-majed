@@ -23,7 +23,7 @@ export function ProxySettings({ rpc, t }: { rpc: any; t: (key: string, params?: 
     const password = draft.clearPassword ? { password: null } : draft.password ? { password: draft.password } : {}
     try {
       if (test) {
-        const tested = await callSubscriptionsAuth(rpc, 'proxyTest', { proxy: { enabled: draft.enabled, url: draft.url.trim(), username: draft.username.trim(), ...password, bypass: draft.bypass.split(/[,\n]/).map((s: string) => s.trim()).filter(Boolean) } })
+        const tested = await callSubscriptionsAuth(rpc, 'proxyTest', { proxy: { enabled: draft.enabled, url: draft.url.trim(), ...draft.username.trim() !== '' ? { username: draft.username.trim() } : {}, ...password, bypass: draft.bypass.split(/[,\n]/).map((s: string) => s.trim()).filter(Boolean) } })
         if (generation.current === request) setResult(tested)
       }
       else {
@@ -33,7 +33,7 @@ export function ProxySettings({ rpc, t }: { rpc: any; t: (key: string, params?: 
     } catch (reason: any) { if (generation.current === request) setError(reason.message) } finally { if (generation.current === request) setBusy('') }
   }
   return <section className="majed-proxy-settings">
-    <header><strong>{t('proxyTitle')}</strong> <button type="button" disabled={!view} onClick={() => { setDraft({ ...view, password: '', clearPassword: false, bypass: view.bypass.join(', ') }); setError(''); setResult(undefined); setOpen(true) }}>{t('proxyConfigure')}</button></header>
+    <header><strong>{t('proxyTitle')}</strong> <button type="button" disabled={!view} onClick={() => { setDraft({ ...view, username: view.username ?? '', password: '', clearPassword: false, bypass: view.bypass.join(', ') }); setError(''); setResult(undefined); setOpen(true) }}>{t('proxyConfigure')}</button></header>
     <p role="status">{view ? view.error ? t('proxyStatusError', { message: view.error }) : view.enabled ? t('proxyStatusEnabled', { url: view.url }) : t('proxyStatusNone') : t('proxyLoading')}</p>
     {error && !open && <p role="alert">{error}</p>}
     {open && <dialog ref={dialog} aria-labelledby="majed-proxy-title" onCancel={close} style={{ maxInlineSize: 560, inlineSize: 'calc(100% - 32px)' }}>

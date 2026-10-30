@@ -444,7 +444,7 @@ function ProxySettings({ rpc, t }) {
 				const tested = await callSubscriptionsAuth(rpc, "proxyTest", { proxy: {
 					enabled: draft.enabled,
 					url: draft.url.trim(),
-					username: draft.username.trim(),
+					...draft.username.trim() !== "" ? { username: draft.username.trim() } : {},
 					...password,
 					bypass: draft.bypass.split(/[,\n]/).map((s) => s.trim()).filter(Boolean)
 				} });
@@ -480,6 +480,7 @@ function ProxySettings({ rpc, t }) {
 					onClick: () => {
 						setDraft({
 							...view,
+							username: view.username ?? "",
 							password: "",
 							clearPassword: false,
 							bypass: view.bypass.join(", ")
