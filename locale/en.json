@@ -144,12 +144,15 @@
     "proxyTest": "Test",
     "proxyUsernameHint": "Username is optional",
     "proxyPasswordHint": "Leave blank to keep the saved password",
-    "modelsWebSearch": "modelsWebSearch",
-    "modelDefaultsLoadFailed": "modelDefaultsLoadFailed",
-    "modelDefaultsRefresh": "modelDefaultsRefresh",
-    "modelDefaultsNoModels": "modelDefaultsNoModels",
-    "modelDefaultsNoAccount": "modelDefaultsNoAccount",
-    "modelDefaultsDiscoveryFailed": "modelDefaultsDiscoveryFailed",
+    "modelsWebSearch": "Web search",
+    "modelsImage": "Image generation",
+    "modelsVideo": "Video generation",
+    "modelsSearch": "X search",
+    "modelDefaultsLoadFailed": "Failed to load models: {message}",
+    "modelDefaultsRefresh": "Refresh model lists",
+    "modelDefaultsNoModels": "This provider reports no models.",
+    "modelDefaultsNoAccount": "No connected accounts. Connect one on the provider card first.",
+    "modelDefaultsDiscoveryFailed": "Model discovery failed or timed out. Use Refresh to try again.",
     "modelDefaultsSaveFailedNamed": "Save failed for {model}: {message}"
   }
 }
