@@ -16,14 +16,28 @@ Owner-confirmed policy, 2026-10-26; phase precedence clarified 2026-10-27; model
 - Pass provider/model explicitly when supported. Verify route identifiers against the actual available catalog; display names are not guaranteed API identifiers. Record selection and fallback honestly; infer neither price nor quality from a name.
 - On an explicit provider rate/quota limit, continue via a suitable authorized model on a different provider, without asking again or increasing concurrency. A shared free-tier limit excludes that provider's other free models for this run; switch providers rather than rotating within the same quota. Preserve the failure reason even when supplied by the Owner because the workflow wrapper exposed only `null`. Model fallback does not authorize direct-subagent substitution, configuration changes or investigation beyond its budget. Report a blocker if no suitable authorized route works; do not treat provider limits as product acceptance failures.
 
+- **Announce before every `workflow` run** (the only way to set a subagent's provider/model): tell the Owner, in the conversation language and in one or two plain sentences, which provider/model will run and why (task difficulty/risk versus cost). Do this before launching, every time, including fallback switches (state which model stopped and which replaces it).
+- **Free first for simple work:** for simple, bounded, low-risk tasks (lookup, extraction, summaries, mechanical edits, first-pass reviews) prefer an available free model over a paid one to avoid needless cost. Escalate to paid only when the task needs it or evidence shows the free model is insufficient.
+- **Sensitive work uses the strongest paid route** even if a free model might be acceptable: security, authentication/credentials, permissions, data-loss risk, final independent review and acceptance gates.
+- **Fallback order is efficiency per cost, never list order.** When a model/provider stops (free quota exhausted, 5-hour or weekly limit, outage), move to the next best route by efficiency-per-cost for that task, then the next, and so on. Free-tier limits are per provider: do not rotate to another model of the same exhausted provider quota.
+
 ### Owner-listed model candidates
 
-Availability and pricing must be checked at execution time. This list is not a cost ranking.
+Owner list updated 2026-10-30. Display names are not API identifiers: resolve exact provider/model ids from the live catalog before every use, and check availability and limits at execution time. This list is **not** a cost or quality ranking; rank by efficiency per cost at selection time, based on evidence from the catalog and prior results, not on names.
 
-- ChatGPT (Codex): GPT-6.1-Sol, GPT-6-Astra, GPT-6-Luna, GPT-5.6-Terra.
-- Claude (Subscription): Claude Haiku 5.5, Claude Opus 5.5, Claude Sonnet 5.5.
-- opencode2dsh: beam-free, big-pickle, deepseek-v4.1-flash-free, flint-40b-free, glm-5.3-flash-free, mimo-v2.6-flash-free, nemotron-3.5-lightning-free, nemotron-3.5-super-vl-free.
-- OpenRouter: NVIDIA: Nemotron 3 Super (free); NVIDIA: Nemotron 3 Ultra (free). The Owner corrected the former `tree` transcription to `free`; resolve exact provider/model identifiers from the live catalog before use.
+Free:
+
+- Google: Gemini 3.5 Flash, 3.6 Flash, 3.7 Flash, 3.8 Flash.
+- NVIDIA: DeepSeek V4.1 Flash, Muse Glimmer 30B, Kimi K3, Llama 3.1 Nemotron 70B Instruct, Llama 3.1 Nemotron Ultra 253B, Nemotron 3 Super, Nemotron 3 Ultra 550B A55B, Nemotron 3.5 Lightning 30B A3B, GLM-5.3, GLM-5.3-Flash.
+- OpenRouter: Poolside: Laguna S 2.1 (free); NVIDIA: Nemotron 3 Super (free), Nemotron 3 Ultra (free), Nemotron 3.5 Lightning (free).
+- Google Antigravity: gemini-3-flash, gemini-3.1-flash-lite, gemini-3.1-flash-image (image model), claude-sonnet-4-6, gemini-2.5-flash-thinking, gemini-2.5-pro, gemini-2.5-flash-lite, gemini-2.5-flash, gemini-3.5-flash-lite, gpt-oss-120b-medium, claude-opus-4-6-thinking. Internal-looking ids (`chat_20706`, `tab_flash_lite_preview`, `tab_jump_flash_lite_preview`, `gemini-3.8-flash-tiered`) are not selected unless the live catalog shows them as chat-capable.
+
+Paid:
+
+- ChatGPT (Codex): GPT-6.1-Sol, GPT-6-Astra, GPT-6.1 Terra, GPT-6-Luna.
+- Claude (Subscription): Claude Haiku 5.5, Claude Sonnet 5.5, Claude Opus 5.5.
+
+The earlier opencode2dsh candidates are no longer listed by the Owner; use them only if the live catalog still offers them and the Owner has not removed them.
 
 ## Safety and acceptance
 
