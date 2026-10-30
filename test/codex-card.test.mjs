@@ -5,7 +5,7 @@ import vm from 'node:vm';
 import { readFile } from 'node:fs/promises';
 const source = await readFile(new URL('../src/codex-card.ts', import.meta.url), 'utf8');
 const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
-function fixture(locale, status, respond) {
+function fixture(locale, status, respond, open = () => ({ location: {}, close() {} })) {
   const dictionary = JSON.parse(requireText(locale)).subscriptions;
   let cursor = 0, effects = [], view;
   const slots = [], calls = [], cleanups = [];
@@ -16,7 +16,7 @@ function fixture(locale, status, respond) {
     useEffect(fn, deps) { const index = cursor++; if (!slots[index] || deps.some((value, i) => value !== slots[index][i])) { slots[index] = deps; effects.push(fn); } },
   };
   const exports = {};
-  vm.runInNewContext(compiled, { exports, window: { open: () => ({ location: {}, close() {} }) }, setInterval: () => 1, clearInterval() {}, Date, Error });
+  vm.runInNewContext(compiled, { exports, window: { open }, setInterval: () => 1, clearInterval() {}, Date, Error });
   const rpc = { async call(_, method, payload) {
     calls.push({ method, payload });
     const endpoint = method.split('.').pop();
@@ -127,6 +127,67 @@ test('usage loads once per appearance, failures do not auto-retry, removed accou
   status.accounts = [{ key: 'a' }];
   page.click('login'); await page.settle(); await page.settle();
   assert.equal(page.calls.filter(c => c.method.endsWith('.usage')).length, 2);
+});
+
+test('login dispatches the returned HTTPS URL after RPC even when desktop returns no window handle', async () => {
+  let release;
+  const pending = new Promise(resolve => { release = resolve; });
+  const status = { busy: false, accounts: [] };
+  const opened = [];
+  const authorizeUrl = 'https://authorization.example.test/returned-login?state=fake';
+  const page = fixture('en', status, endpoint => {
+    if (endpoint === 'login') return pending;
+    if (endpoint === 'cancel') status.busy = false;
+  }, (...args) => { opened.push(args); return null; });
+  try {
+    page.render(); await page.settle(); page.click('login'); await page.settle();
+    assert.deepEqual(opened, [], 'no about:blank preallocation or early external dispatch');
+    status.busy = true;
+    release({ ok: true, value: { authorizeUrl } });
+    await page.settle();
+    assert.deepEqual(opened, [[authorizeUrl, '_blank', 'noopener']]);
+    const link = page.nodes().find(n => n.tag === 'a');
+    assert.equal(link.props.href, authorizeUrl);
+    assert.equal(link.props.target, '_blank');
+    assert.equal(link.props.rel, 'noopener noreferrer');
+    assert.ok(page.text().includes(page.dictionary.loginProgress));
+    page.click('cancelLogin'); await page.settle();
+    assert.equal(page.calls.filter(c => c.method.endsWith('.cancel')).length, 1);
+    assert.ok(page.text().includes(page.dictionary.notLoggedIn));
+    assert.equal(page.nodes().some(n => n.tag === 'a'), false);
+    assert.equal(opened.length, 1, 'cancel/status refresh must not reopen authorization');
+  } finally { release({ ok: false, error: { message: 'fixture cleanup' } }); page.unmount(); }
+});
+
+test('failed login shows its error without opening any page', async () => {
+  const opened = [];
+  const page = fixture('en', { busy: false, accounts: [] }, endpoint => endpoint === 'login'
+    ? { ok: false, error: { message: 'fixture login rejected' } } : undefined,
+  (...args) => { opened.push(args); return null; });
+  try {
+    page.render(); await page.settle(); page.click('login'); await page.settle();
+    assert.deepEqual(opened, []);
+    assert.equal(page.nodes().find(n => n.props.role === 'alert').children[0], 'fixture login rejected');
+    assert.equal(page.nodes().some(n => n.tag === 'a'), false);
+    page.click('login'); await page.settle();
+    assert.deepEqual(opened, [], 'failure restores the login control without navigation');
+  } finally { page.unmount(); }
+});
+
+test('unmount before login response prevents external navigation and status refresh', async () => {
+  let release;
+  const pending = new Promise(resolve => { release = resolve; });
+  const opened = [];
+  const page = fixture('en', { busy: false, accounts: [] }, endpoint => endpoint === 'login' ? pending : undefined,
+    (...args) => { opened.push(args); return null; });
+  page.render(); await page.settle(); page.click('login'); await page.settle();
+  const statusCalls = page.calls.filter(c => c.method.endsWith('.status')).length;
+  page.unmount();
+  release({ ok: true, value: { authorizeUrl: 'https://authorization.example.test/unmounted' } });
+  // Flush the delayed handler without rendering the unmounted card again.
+  for (let i = 0; i < 20; i++) await Promise.resolve();
+  assert.deepEqual(opened, []);
+  assert.equal(page.calls.filter(c => c.method.endsWith('.status')).length, statusCalls);
 });
 
 test('remounted busy card recovers host authorization metadata and supports paste and cancel', async () => {

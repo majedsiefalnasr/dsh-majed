@@ -1,5 +1,26 @@
 # Ticket #129 verification
 
+## Login-navigation correction (2026-10-30)
+
+Baseline `eeb7657689ff31451affaf0ef7c3d58a32a4d085`, branch `impl/129-codex`. Direct Owner request is the bounded specification: fix only automatic login navigation, not OAuth/backend behavior or later tickets. The Owner reports successful real login with failed automatic page opening; that observation is supplied evidence, not a live test performed here.
+
+Mechanism supplied by the preceding investigation: desktop `createWindow` forwards only HTTP/HTTPS to `shell.openExternal`, then denies child creation. `about:blank` preallocation is denied and yields no usable handle; therefore assigning `tab.location.href` cannot dispatch the eventual authorization URL. Source plus isolated fake null-handle differential establishes the mechanism, **not the Owner's exact installed runtime**. This pass did not read or change the installed application. No additional desktop-dispatch fixture was added: the optional fixture would duplicate the supplied source contract without fresh permitted desktop source; the portable null-handle rendered-card regression directly exercises the responsible owned layer and has no absolute app-source dependency.
+
+Reference read-only: `/tmp/upstream-0.9.12/src/client/SubscriptionsSection.tsx:649-678`, pinned v0.9.12 `b8023110864494acefc6f5963c2a197d85dda20c`, MIT. Line 676 opens the actual URL after successful RPC using `_blank`, `noopener`, preceded by its mounted guard at line 665. Owned `src/codex-card.ts` now follows that pattern with `alive.current` before opening, setting login state and refreshing status. The surrounding action error/pending handling and fallback/paste/cancel controls are unchanged.
+
+### Red / green and final gates
+
+- First added the injected open boundary and delayed login regression to the existing actual-card rendered-control fixture (`test/codex-card.test.mjs`; React-compatible hooks/elements, **not a real browser DOM**). Null-returning open is independent of fake RPC and records literal arguments. Red: `node --test --test-name-pattern='login dispatches the returned HTTPS' test/codex-card.test.mjs`, exit 1, **0/1 pass**, assertion `no about:blank preallocation or early external dispatch`: actual `[['about:blank', '_blank']]`, expected `[]`. Log `/tmp/majed-t129-login/red.log`.
+- Minimal production change removed preallocation/handle assignment/child-close logic, awaits login, returns if not alive, then opens the actual returned fake HTTPS URL with exactly `_blank`, `noopener`. Same focused command green: **1/1**, exit 0 (`green.log`). Success test additionally proves fallback href/target/rel, login-progress status, cancel RPC, return to logged-out status and no repeat opening.
+- Added failed-login error/no-open/retry and unmount-before-response/no-open/no-status-refresh tests. Full card suite **17/17**, exit 0 (`card-green.log`); existing remount/paste/cancel and EN/AR controls retained.
+- `npm_config_cache=/tmp/npm-cache-majed npm run build`: exit 0; only the two affected browser distributions changed (`build.log`).
+- `npm_config_cache=/tmp/npm-cache-majed TMPDIR=/tmp/majed-t129-login npm test`: exit 0; classifier **166/166**, Node **238/238**, no failures/cancellations/skips/todos (`test-final.log`). Previous **235** Node tests retained, **3** login regressions added.
+- `npm_config_cache=/tmp/npm-cache-majed npm run check:build`: exit 0, `Committed output matches a fresh build.` (`build-match.log`). `git diff --check`: clean.
+- `npm_config_cache=/tmp/npm-cache-majed npm pack --json --pack-destination /tmp/majed-t129-login`: exit 0; **70 files**, version **0.2.0**; `/tmp/majed-t129-login/dsh-majed-0.2.0.tgz`. SHA-256 `50e7c3dd5ec9cf8662c87977112e6ed820f02466c9a655d586f41b60326e863d` (`pack.json`). Documentation records added after packing are excluded from the published file list; packed source provenance and dist are final.
+- Direct Standards review against AGENTS, scope policy, ADR-0003/0004: no findings; minimal client-only change, owned identifiers and MIT provenance preserved, no host/security scope expansion. Direct Spec review against the Owner request: no findings; exact delayed URL dispatch, null handle, failure/unmount guards, fallback/cancel/status/errors covered. Independent two-agent code-review is unavailable/prohibited at this delegation depth; Lead review remains a separate gate, not claimed complete.
+
+No auth server or real provider was contacted. Existing full-suite OAuth/controller fixtures use fake HTTP, temporary fake credentials and loopback-only listeners; no installed state/profile/secrets/real accounts were accessed. Scope is the worktree, `/tmp/majed-t129-login` evidence, existing test fixture temp roots and `/tmp/npm-cache-majed`. One broad temporary path-discovery attempt hit an unrelated permission-denied socket; not retried and no access widened. No implementation blocker or repeated diagnostic retries. No push/merge/install/restart. Browser-popup policy, OS external dispatch, exact Owner runtime and live fallback remain **unverified**; #129 is still open for Lead/Owner acceptance.
+
 ## Candidate and boundaries
 
 Worktree: `dsh-majed-t129`; branch: `impl/129-codex`; baseline: `e796366b16f989130ee0a3be3745898896c81d20`.

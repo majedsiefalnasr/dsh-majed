@@ -41,6 +41,11 @@ The #128 descriptions above describe historical scope, not the current #129 impl
 - Deliberately excluded Manage/provider settings/model selection, proxy, badge display, composer Speed, media and all non-Codex provider surfaces; these belong to later tickets. Exact source map, differences and controlled-render limitations are in `docs/ai/ticket-129-ui-parity.md`.
 - `scripts/codex-visual-fixture.mjs` reads the pinned reference without modifying it, removes later-ticket surfaces only, and renders its real component beside the owned card with fake RPC. The temporary fixture dependencies are not shipped or added to package dependencies. Arabic comparison supplies our translation to the reference (it has English/Chinese only).
 
+## #129 login-navigation correction
+
+- Restored the pinned reference `src/client/SubscriptionsSection.tsx:649-678` post-RPC dispatch pattern (`window.open(response.authorizeUrl, '_blank', 'noopener')` at line 676). Local Codex card uses its existing `alive.current` guard before dispatch, login state and status refresh. Removed non-reference `about:blank` preallocation, returned-handle navigation and child cleanup; desktop denies child creation even when external dispatch succeeds, so a handle is not a success signal.
+- Preserved owned action error/pending handling, authorization fallback link, paste, cancel and status behavior. Added regressions at the existing rendered-card boundary with fake delayed RPC and null-returning open, never a real auth endpoint. This is a minimal adaptation of the same MIT source, not a new runtime dependency or a DSH host patch.
+
 ## License
 
 MIT License

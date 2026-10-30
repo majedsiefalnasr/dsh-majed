@@ -248,14 +248,11 @@ export function createCodexCard(React: any, primitives: any, rpc: any, t: (key: 
     const date = (time: number) => new Date(time).toLocaleString();
     const part = (name: string, style: any, ...children: any[]) => h('div', { style, 'data-majed-codex-part': name }, ...children);
     const startLogin = () => {
-      const tab = window.open('about:blank', '_blank');
-      if (tab) tab.opener = null;
       void action(async () => {
-        try {
-          const result = await call('login');
-          if (tab) tab.location.href = result.authorizeUrl;
-          if (alive.current) { setLogin(result); await refreshStatus(); }
-        } catch (error) { tab?.close(); throw error; }
+        const result = await call('login');
+        if (!alive.current) return;
+        window.open(result.authorizeUrl, '_blank', 'noopener');
+        setLogin(result); await refreshStatus();
       });
     };
     const busy = status?.busy;

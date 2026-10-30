@@ -522,20 +522,12 @@ function createCodexCard(React, primitives, rpc, t) {
 			"data-majed-codex-part": name
 		}, ...children);
 		const startLogin = () => {
-			const tab = window.open("about:blank", "_blank");
-			if (tab) tab.opener = null;
 			action(async () => {
-				try {
-					const result = await call("login");
-					if (tab) tab.location.href = result.authorizeUrl;
-					if (alive.current) {
-						setLogin(result);
-						await refreshStatus();
-					}
-				} catch (error$1) {
-					tab?.close();
-					throw error$1;
-				}
+				const result = await call("login");
+				if (!alive.current) return;
+				window.open(result.authorizeUrl, "_blank", "noopener");
+				setLogin(result);
+				await refreshStatus();
 			});
 		};
 		const busy = status?.busy;
