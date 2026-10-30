@@ -4,8 +4,11 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Complete the #130 Manage settings candidate: register the Codex `image_generate` tool (alias `dsh_majed_image_generate` on collision) and Codex web search through the public tools and web services, with per-tool switches applying to sessions created after saving and web search following the live switch; add the reference image account pool cleared on account change.
 - Harden #130 proxy diagnostics against saved/draft passwords, URL userinfo and authorization values; test the current enabled/bypass draft with host-side password retention, guard stale proxy dialog completions, and close the owned dispatcher on component disposal.
-- Return persisted Codex reasoning defaults through RPC, consume saved provider/account names in the card, pass reference pool configuration, enforce context maximums, and merge editor field intent with fresh settings. Ticket #130 remains incomplete; offline public-tools dependency availability blocks the required registration port.
+- Return persisted Codex reasoning defaults through RPC, consume saved provider/account names in the card, pass the reference pool configuration, enforce context maximums, and merge editor field intent with fresh settings.
+- Fix the proxy dialog throwing when the saved proxy has no username, show real English text for the tool and model-list notices (they previously displayed their key names) and add the missing tool labels in English and Arabic, and stop offering reasoning and speed controls on configured pool tier rows.
+- Add real-host-gate negative authentication, envelope and proxy-secret tests, effective-settings tests, rendered EN/AR Manage and Proxy matrices and disposal tests. Independent review and installed acceptance of #130 remain pending.
 
 - Fix #129 automatic login navigation on desktop: open the returned authorization URL with `noopener` only after successful login RPC while the card is still mounted, without relying on a child-window handle. Preserve manual authorization fallback, cancel, status and errors; add delayed/null-handle, failure and unmount regressions. Installed runtime acceptance remains pending.
 

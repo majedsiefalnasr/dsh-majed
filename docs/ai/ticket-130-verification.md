@@ -19,15 +19,51 @@
 - Additional changes: generation guards on proxy test/save/cancel/unmount, owned transport close hook; recursive model/account field-intent merge, maximum context validation, status display names/aliases, reference pool configuration forwarding. Added EN/AR rendered maximum-bound and concurrent-intent assertions. These changes do not have exhaustive requested acceptance coverage and must not be reported as all findings closed.
 - Full `npm test`: classifier 166/166; Node 278/278, zero fail/cancel/skip on final rerun. First final run cancelled one existing discovery timeout case (`Promise resolution is still pending but the event loop has already resolved`); immediate permitted rerun passed. `npm run check:build`: `Committed output matches a fresh build.` `git diff --check` passed.
 - Archive `/tmp/majed-t130/dsh-majed-0.2.0.tgz`, SHA256 `95077774ce4c7aeb4a0f495da0af1391df619e4a0280750ec73dc70b62fad9ed`; partial candidate only, not installation-ready acceptance.
-- Concrete offline blocker: reference tools registration imports public `@deepseek-ai/dsh-tools`, absent from this worktree (`ERR_MODULE_NOT_FOUND: Cannot find package '@deepseek-ai/dsh-tools'`) and `npm cache ls '@deepseek-ai/dsh-tools'` returned no cached package. No network installation or installed-host package access is authorized. Two bounded availability checks consumed; no dependency download attempted. Completing a source-faithful public registration needs an approved offline dependency artifact or permission to fetch that package. No invented tool schemas/providers or fake no-op registrations added.
+- (Resolved later in this pass via authorized public npm; see Current state.) Former offline blocker: reference tools registration imports public `@deepseek-ai/dsh-tools`, absent from this worktree (`ERR_MODULE_NOT_FOUND: Cannot find package '@deepseek-ai/dsh-tools'`) and `npm cache ls '@deepseek-ai/dsh-tools'` returned no cached package. No network installation or installed-host package access is authorized. Two bounded availability checks consumed; no dependency download attempted. Completing a source-faithful public registration needs an approved offline dependency artifact or permission to fetch that package. No invented tool schemas/providers or fake no-op registrations added.
 - Still open: actual tool/session registration/history and web-provider registration; exhaustive rendered proxy stale-operation tests, host fake-agent disposal, stored/replacement secret RPC matrices, public negative host authentication, model-default remount/failure, partial reasoning-prefix retry, assembled speed and pool-config acceptance, complete reference RPC/view adaptations, remaining token/provenance audit. Independent review and installed/live acceptance remain separate gates. Ticket remains incomplete.
 
-## Current state
+## Current state (local candidate)
 
-Partial candidate, not ticket-complete or accepted. Direct ports of provider preferences, model defaults, account routing policy and proxy transport; embedded manager/model editor plus proxy form are wired into the existing Codex card. English/Arabic dictionaries and logical styles are present.
+Local committed candidate on `impl/130-manage` after the commits below. Not independently reviewed and not live-accepted.
 
-Verified: `npm test` passes (including prior #129 fixtures), `npm run build` passes, and `git diff --check` passes. Added reference provider-settings/model-defaults/account-preferences/proxy-host tests, registered adapter/RPC settings fixture, actual React EN/AR manager draft-failure fixture, and proxy password omission/private-storage fixture. Fixture React renderer warns about deprecation; no real browser or account acceptance claimed. `npm ci` reported three pre-existing/high dependency advisories; no forced dependency migration performed.
+| Commit | Content |
+| --- | --- |
+| `8e1c9e9` | Public `image_generate` tool (Codex only, alias `dsh_majed_image_generate` on name collision), `CodexWebSearchProvider` registration, `ImageAccountPool`, `agent/created` creation-time restriction; dev dependencies `@deepseek-ai/dsh-tools|dsh-web|dsh-agent@0.2.1-rc.2`. |
+| `22952bc` | Real `HostConnectionService`/`createSharedFetchHandler` gate: all 16 routes 403 for non-owner, envelope errors, proxy-secret absence from every serialized response. |
+| `86a6df1` | Effective settings (context bounds, reasoning default, subagent speed, pool forwarding) and rendered Manage/Proxy matrices in EN and AR; fixed proxy dialog throwing when the saved config has no username. |
+| `8b78f2e` | Adapted `provider-settings-rpc` proof on a real cordis `Context` and `LlmRuntime`. |
+| `8371dab` | Account helper spec, owned-agent disposal on the real `ToolRuntime`/`WebRuntime`, status degradation. |
+| `6f415e8` | Fixed English locale values equal to their key names and missing `modelsImage|modelsVideo|modelsSearch`; locale completeness test; model-filter spec. |
+| `7550c82` | Tier rows carry no effort/fast controls; adapted `model-defaults-rpc` spec. |
 
-Remaining required before #130 completion: provider-tools creation-time policy must be integrated with actual public tool/session registration (settings currently persist policy only); full rendered option interaction coverage, proxy rendered failure/test coverage, partial reasoning retry coverage, assembled authenticated negative security coverage, and independent Standards/Spec review. Subagent speed is wired through public agent origin metadata but needs assembled request proof. Display-name event consumer/headings and proxy visual parity still need review. No #131+ behavior added. No installed GUI refreshed.
+### Completeness matrix
 
-Reference tests ported: provider-settings, model-defaults, account-preferences and proxy-host. Reference provider-settings-rpc/model-defaults-rpc/view suites require adaptation to this smaller owned component; not claimed ported. Current custom RPC test verifies the exact mounted route and registered adapter but its missing-auth simulation is not independent host authentication proof. The candidate must not be called end-to-end complete.
+| Requirement | Evidence | Status |
+| --- | --- | --- |
+| Tools/session-creation policy runtime | `test/tools-owned.test.mjs`, `test/provider-settings-rpc.test.mjs`, `test/reference/{tool-registration,image-tools}.spec.ts` | Done (Codex scope) |
+| Web provider public registration | `test/tools-owned.test.mjs`, `test/lifecycle-owned.test.mjs`, `test/reference/codex-search.spec.ts` | Done |
+| New vs existing session switches | `test/tools-owned.test.mjs` (deny list only for sessions created after the switch; web search follows the live switch) | Done |
+| Negative auth, serialized RPC | `test/security-owned.test.mjs` on the real host gate (owner 200, non-owner 403, untrusted host/origin, no store writes) | Done at gate level |
+| Proxy-secret serialized/rendered matrices | `test/security-owned.test.mjs` (raw/URL-encoded/base64/Bearer), `test/manage-ui-matrix.test.mjs` | Done |
+| Model/context/speed/pool effective settings | `test/effective-settings.test.mjs`, `test/model-defaults-rpc.test.mjs` | Done |
+| Partial save, per-field and concurrent retries | `test/manage-ui-matrix.test.mjs`, `test/reference/account-manager-ui.spec.ts` | Done |
+| Proxy reuse/replace/clear/disabled/bypass, stale save/test | `test/proxy-owned.test.mjs`, `test/manage-ui-matrix.test.mjs` | Done |
+| Owned-agent disposal | `test/lifecycle-owned.test.mjs` (routes, tool, web provider, adapter, pending login, remount) | Done |
+| Source RPC/view coverage | provider-settings-rpc, model-defaults-rpc, account-manager-ui, model-filter adapted; model-defaults-view not applicable (below) | Done with dispositions |
+| ded9f33 remediations rechecked | display names/aliases: provider-settings-rpc + manage-owned; snapshot: model-defaults-rpc; pool config: effective-settings; context bounds: effective-settings + manage-ui-matrix; field-intent merge: account-manager-ui + manage-ui-matrix; safe diagnostics: security-owned + proxy-owned | Verified |
+
+### Defects found and fixed during this pass
+
+1. `ProxySettings` threw when opened with a saved config lacking `username`.
+2. English locale had eight values equal to their key names and three missing tool-label keys (EN and AR).
+3. Configured pool tier rows were offered effort and fast-tier controls that the pool never consults.
+
+### Dispositions and gaps (stated, not hidden)
+
+- Excluded by scope: Grok, `x_search`, `video_generate`, Claude/Antigravity and non-Codex providers (#131/#133); reference `rpc.spec.ts` image/video/speed endpoints likewise.
+- `modelDefaults` returns the stored Codex snapshot `{codex:{model:effort}}`; per-model `configured` is on `providerSettings` rows. Provider validation message is `Only Codex is available`; unadvertised effort message is `Model does not advertise that reasoning effort`.
+- `force:'yes'` is accepted as not-forced (the reference rejects it).
+- Reference `model-defaults-view` helpers are referenced only by their own tests in the pin, so there is no rendered counterpart to port. The reference Playwright/rolldown browser fixture is optional standalone tooling and was not ported; rendered behaviour is covered by `test/manage-ui-matrix.test.mjs` (fixture React renderer, EN and AR).
+- Negative auth is proven against the real shared fetch handler with the real `Peer` principal, not an installed host. `providerSettings` fails (rather than degrading) when the credentials store is structurally invalid JSON; `status` degrades per entry.
+- Subagent speed uses public agent origin metadata; proof is fixture HTTP only.
+- Pending: independent Standards/Spec review, Owner installed/live acceptance, final cosmetic polish.

@@ -2,11 +2,11 @@
 
 Updated 2026-10-30 (Africa/Cairo).
 
-## #130 review remediation checkpoint
+## #130 local candidate checkpoint
 
-On `impl/130-manage` from `ad0fd64`, local remediation now covers bounded proxy diagnostic sanitization, current-draft enabled/bypass/password semantics, stale proxy completion guards, owned dispatcher cleanup, actual model-default snapshot RPC, status-backed headings/aliases, reference pool config forwarding, maximum context checks and recursive editor field-intent merge. Final controlled suite: classifier166/166 + Node278/278; fresh-build match and whitespace clean. One prior run cancelled an existing discovery-timeout test; rerun passed. Exact red/green and package hash: [ticket-130 verification](ticket-130-verification.md).
+On `impl/130-manage` (baseline `741967e`), the remaining review items are implemented and proven at fixture level: public tool and Codex web-search registration with creation-time policy, negative host-auth and secret matrices on the real `HostConnectionService` gate, effective model/context/speed/pool settings, partial-save and concurrent-intent retries, proxy saved-password and stale-operation matrices, owned-agent disposal on the real `ToolRuntime`/`WebRuntime`, and adapted reference RPC/UI suites. The earlier offline-dependency blocker is resolved: `@deepseek-ai/dsh-tools`, `dsh-web` and `dsh-agent` `0.2.1-rc.2` were installed from the public npm registry (authorized), matching the reference pins.
 
-**Still incomplete / concrete blocker:** source-faithful tools registration requires public `@deepseek-ai/dsh-tools`, not installed in this worktree and not in the authorized npm cache (two bounded availability checks). Network and installed-host access remain prohibited. Need an approved offline package artifact or explicit dependency-fetch approval; no invented providers/tools were added. Remaining review coverage and findings are listed in verification; do not claim #130 complete or accepted. No installed/profile/account/provider changes, restart, push or merge. Next allowed action is resolve the offline dependency boundary, then continue all listed findings at the approved seams; independent review and Owner live acceptance remain mandatory.
+Exact commands, red/green evidence, dispositions and the completeness matrix are in [ticket-130 verification](ticket-130-verification.md). **Still not accepted:** independent Standards/Spec review and Owner installed/live acceptance are separate mandatory gates; fixture proof is not live proof. Grok, `x_search` and `video_generate` belong to #131/#133 and were not added. No installed/profile/account/provider changes, restart, push or merge.
 
 ## Authoritative current state
 
