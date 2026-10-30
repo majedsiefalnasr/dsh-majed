@@ -2,6 +2,10 @@
 
 Updated 2026-10-30 (Africa/Cairo).
 
+## Latest authoritative #130 gate
+
+**Reviewed candidate integrated locally at 3c2e988; #130 remains OPEN pending Owner installation/live acceptance.** Final independent gate workflow-168f4164e0874fa8 PASS noP1/P2; source169bb93/code2c9b0df. Reviewer and Lead separately passed Node406/406 and buildmatch; Lead integrated locked npm ci, fulltests/buildmatch/whitespace successfully. Classifier166/166 retained. Archive `/tmp/majed-t130/dsh-majed-0.2.0.tgz` SHA256 `35399653430949d30f863cedc7f4927d1023c9dec7b54ae0db6d8cd7bb27226a`,79entries, reviewer extracted/compared dist. Remaining limits documented: fixture not installed proof; legacy fullreplaceAPI if original omitted (browser always original+draftpatch), samefield lastwriterwins/singlehost serialization, unknowable bare secrets in arbitrary nonOAutherrors. No missing ticketfunction classified as cosmetics. Owner-approved Codeximage/webtools pulledforward133 recorded; other131+ not started. All jobs collected. No installed/profile/accounts/realtraffic/restart/push performed. Next explicit Owner approval for reversible install, fullrestart and real Manage rename/alias/pool/model/proxy safe acceptance. Older checkpoints below historical.
+
 ## #130 local candidate checkpoint
 
 On `impl/130-manage` (baseline `741967e`), the remaining review items are implemented and proven at fixture level: public tool and Codex web-search registration with creation-time policy, negative host-auth and secret matrices on the real `HostConnectionService` gate, effective model/context/speed/pool settings, partial-save and concurrent-intent retries, proxy saved-password and stale-operation matrices, owned-agent disposal on the real `ToolRuntime`/`WebRuntime`, and adapted reference RPC/UI suites. The earlier offline-dependency blocker is resolved: `@deepseek-ai/dsh-tools`, `dsh-web` and `dsh-agent` `0.2.1-rc.2` were installed from the public npm registry (authorized), matching the reference pins.
