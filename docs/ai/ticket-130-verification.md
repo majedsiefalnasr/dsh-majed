@@ -67,9 +67,38 @@ Local committed candidate on `impl/130-manage` after the commits below. Not inde
 ### Dispositions and gaps (stated, not hidden)
 
 - Excluded by scope: Grok, `x_search`, `video_generate`, Claude/Antigravity and non-Codex providers (#131/#133); reference `rpc.spec.ts` image/video/speed endpoints likewise.
-- `modelDefaults` returns the stored Codex snapshot `{codex:{model:effort}}`; per-model `configured` is on `providerSettings` rows. Provider validation message is `Only Codex is available`; unadvertised effort message is `Model does not advertise that reasoning effort`.
-- `force:'yes'` is accepted as not-forced (the reference rejects it).
+- (Superseded by the final-review section below.) Earlier dispositions that `modelDefaults` returned a stored snapshot, that the effort message was generic and that `force:'yes'` was accepted are no longer true; all three now match the reference. Provider validation message remains `Only Codex is available`.
 - Reference `model-defaults-view` helpers are referenced only by their own tests in the pin, so there is no rendered counterpart to port. The reference Playwright/rolldown browser fixture is optional standalone tooling and was not ported; rendered behaviour is covered by `test/manage-ui-matrix.test.mjs` (fixture React renderer, EN and AR).
 - Negative auth is proven against the real shared fetch handler with the real `Peer` principal, not an installed host. `providerSettings` fails (rather than degrading) when the credentials store is structurally invalid JSON; `status` degrades per entry.
 - Subagent speed uses public agent origin metadata; proof is fixture HTTP only.
 - Pending: independent Standards/Spec review, Owner installed/live acceptance, final cosmetic polish.
+
+## Final review remediation (independent review of 13e8db7)
+
+The independent review passed the 370 tests and build-match but found the items below. Each was fixed test-first; regressions live in `test/final-130.test.mjs` (10 tests) and the adapted `test/model-defaults-rpc.test.mjs`, `test/manage-owned.test.mjs`, `test/provider-settings-rpc.test.mjs`.
+
+| Sev | Defect | Fix | Regression |
+| --- | --- | --- | --- |
+| P2 | Pool `families` used one `Promise.all` over every account with a 20 s abort; one hung or failing account failed assembly, so a healthy account was never tried | Reference port: per-account `withTimeout(…, POOL_USAGE_TIMEOUT_MS)` with per-account catch, outer catch, `Object.hasOwn` policy and alias lookup | healthy `a` + hung `b` serves from `a` in bounded time (timeout shortened by patching `AbortSignal.timeout`, so the test runs in ~0.1 s); account named `constructor` is not mistaken for an inherited policy |
+| P2 | `proxyTest` validated nothing (`url: 5` hit an internal `TypeError`) | `readProxyTestPayload`: outer `url`, `proxy` object, `proxy.url`, `username`, `password` (string or null), `enabled` boolean, `bypass` string[]; no network on invalid input | 12-case matrix with exact messages, no `TypeError`/`trim` leakage, fetch count unchanged; valid shapes still run |
+| P2 | `force:'yes'` accepted; `modelDefaults` returned an owned snapshot | `readForce` rejects non-boolean on `providerSettings`, `modelDefaults`, `usage`; `modelDefaults` returns reference `ModelDefaultsCatalog[]` and `force` invalidates version, account catalogs and pool | rejection matrix (`'yes'`, 1, null, `'true'`, `{}`) x 3 endpoints; catalog shape, tier rows omitted, `configured` only when stored, cached vs forced catalog fetch counts; reference effort message |
+| P3 | `safeDiagnostic('bad {"password":"hunter2x"}')` unchanged | Quoted-key/quoted-value pattern for compound keys (`password`, `passwd`, `token`, `secret`, `api_key`), single quotes, escapes, nesting | 8 samples plus a non-secret JSON control; serialized RPC with saved and draft secrets in an unknown JSON error; early draft-validation path |
+| P3 | `disposeProxyTransport` left `current` (resident password), `configError` and in-flight probes | Dispose bumps an epoch, aborts probes (`AbortController` set plus optional caller `AbortSignal`), clears agent, ready, config and error | probe aborts in well under the 15 s deadline; password and config error released |
+| P3 | Pool config was an interface only | Exported schemastery `Config` (strategy union, `switchMargin` >= 1, defaults, member shape) | defaults, accepted and 7 rejected shapes, model entry shape, plugin `name`/`inject` |
+| P3 | Unused `dsh-agent` devDependency; undocumented React 19 / undici divergence | Removed (still resolved as `dsh-tools` peer; `npm ls`, `tsc`, tests unchanged); `schemastery` declared; React 19 / undici ^7.30.1 divergence recorded as fact (introduced in `ad0fd64`, original rationale not recorded, not re-verified on React 18 / undici 7.0) and the #133 pulled-forward source map in `src/PROVENANCE.md` | `npm test`, `npm ls` |
+
+Red evidence: against the pre-fix `src` (13e8db7) 8 of the 10 new tests fail (hung account, proxyTest matrix, force matrix, catalog shape, quoted-JSON redaction, serialized unknown-JSON secret, dispose, Config schema). Two pass before the fix because that behaviour already held: the inherited-key account lookup (aliases/policy already used own-keys in practice) and the early draft-failure password path; they remain as guards, not as red proofs.
+
+Counts: `npm test` 380/380 (classifier suite included; 370 prior + 10 new; zero fail/cancel/skip), `npm run check:build` "Committed output matches a fresh build.", `git diff --check` clean.
+
+### The "13 initial findings"
+
+The original thirteen-item finding list is not enumerated in any repository document; only the ded9f33 section above records remediations, and it explicitly says coverage was partial. This pass cannot honestly mark all thirteen cleared. What is established: each remediation named in ded9f33 and each defect in this section has a named regression; the list itself must come from the Lead's review record to be reconciled item by item, and that reconciliation is still open.
+
+### Source-fixture vs installed limits
+
+All proof is fixture-level: fake `fetch`, intercepted HTTP, fake cordis context or the real `LlmRuntime`/`ToolRuntime`/`WebRuntime`/`HostConnectionService` classes from the pinned `0.2.1-rc.2` packages, and a fixture React 19 renderer. Nothing ran in an installed DSH, with a real account, provider endpoint or proxy. The abort/timeout behaviours were proven with shortened timers, not the real 10 s bound. Independent re-review and Owner installed acceptance remain open.
+
+### Pulled forward from #133 (Owner decision)
+
+Codex `image_generate`, Codex web search and the image account pool were introduced here instead of #133. #133 acceptance must audit and reuse them (source map in `src/PROVENANCE.md`). Grok, video, `x_search`, the `image`/`video` RPC endpoints and tool views stay #133; `speed`/`setSpeed` stay #131.

@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Fix the final #130 review findings: a hung account no longer fails pool assembly (per-account bounded reads, healthy accounts still serve), `proxyTest` validates its payload and draft before any network use, `force` must be a boolean on `providerSettings`, `modelDefaults` and `usage`, `modelDefaults` returns the reference per-provider model catalog (with `force` refresh), quoted and nested JSON secrets are redacted from diagnostics, disposing the component aborts in-flight proxy tests and releases the resident password, and pool settings are validated by a schema (`strategy`, `switchMargin` >= 1, defaults). Drop the unused `dsh-agent` dev dependency. The Codex image tool, Codex web search and image pool are recorded as pulled forward from #133.
+
 - Complete the #130 Manage settings candidate: register the Codex `image_generate` tool (alias `dsh_majed_image_generate` on collision) and Codex web search through the public tools and web services, with per-tool switches applying to sessions created after saving and web search following the live switch; add the reference image account pool cleared on account change.
 - Harden #130 proxy diagnostics against saved/draft passwords, URL userinfo and authorization values; test the current enabled/bypass draft with host-side password retention, guard stale proxy dialog completions, and close the owned dispatcher on component disposal.
 - Return persisted Codex reasoning defaults through RPC, consume saved provider/account names in the card, pass the reference pool configuration, enforce context maximums, and merge editor field intent with fresh settings.
