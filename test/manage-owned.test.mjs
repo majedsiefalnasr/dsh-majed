@@ -5,7 +5,8 @@ import { apply } from '../dist/subscriptions.js';
 
 function host() {
   const routes = new Map(), cleanups = []; let adapter;
-  const ctx = { logger: { warn() {} }, llm: { registerAdapter(_, value) { adapter = value; return { replace() {} }; } },
+  const ctx = { logger: { warn() {} }, llm: { registerAdapter(_, value) { adapter = value; return { replace() {} }; },
+      listProviders: () => [{ id: 'codex', name: 'Codex' }], listModels: provider => adapter.listModels(provider), resolveModelInfo: (provider, model) => adapter.resolveModel(provider, model) },
     get: () => ({ fetch: { register(route) { routes.set(route.path, route); return () => routes.delete(route.path); } } }),
     inject(names, fn) { if ([].concat(names).includes('connection')) fn(ctx); }, effect(fn) { const off = fn(); if (off) cleanups.push(off); } };
   apply(ctx, { codexClientVersion: '1.2.3', models: { codex: [{ id: 'fixture-model', name: 'Fixture model' }] } });
@@ -29,11 +30,11 @@ test('Manage settings round-trip through owned RPC, update picker and enforce po
     const before = await component.call('providerSettings', { provider: 'codex' });
     assert.equal(before.ok, true); assert.equal(before.value.accounts[0].key, 'fixture');
     assert.ok(before.value.models.some(model => model.id === 'fixture-model'));
-    assert.equal((await component.call('setProviderSettings', { provider: 'codex', settings: { displayName: 'Work', accounts: { fixture: { alias: 'Primary', poolEnabled: false, independentEntry: true, poolModels: [] } } } })).ok, true);
     assert.equal((await component.call('setModelDefault', { model: 'fixture-model', effort: 'high' })).ok, true);
-    assert.deepEqual((await component.call('modelDefaults')).value, { codex: { 'fixture-model': 'high' } });
+    assert.equal((await component.call('modelDefaults')).value[0].models.find(model => model.id === 'fixture-model').configured, 'high');
     assert.equal((await component.call('setModelDefault', { model: 'fixture-model' })).ok, true);
-    assert.deepEqual((await component.call('modelDefaults')).value, {});
+    assert.equal('configured' in (await component.call('modelDefaults')).value[0].models.find(model => model.id === 'fixture-model'), false);
+    assert.equal((await component.call('setProviderSettings', { provider: 'codex', settings: { displayName: 'Work', accounts: { fixture: { alias: 'Primary', poolEnabled: false, independentEntry: true, poolModels: [] } } } })).ok, true);
     assert.equal(component.adapter.providerInfo('codex').name, 'Work');
     const models = await component.adapter.listModels('codex');
     assert.equal(models.length, 1); assert.match(models[0].id, /^~account:/); assert.match(models[0].name, /Primary/);

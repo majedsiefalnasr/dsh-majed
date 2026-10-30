@@ -1,3 +1,4 @@
+import z from '@deepseek-ai/schemastery';
 import { OAuthFlowManager } from './auth/oauth-flow.js';
 import { CodexAuthController } from './auth/controller.js';
 import { AccountTokenManager } from './providers/accounts.js';
@@ -11,8 +12,9 @@ import { PoolUsageTracker } from './providers/pool-usage.js';
 import { buildAccountPools, poolKey } from './providers/pool-family.js';
 import { ResetRedemption } from './providers/reset-redemption.js';
 import { proxiedFetch, proxyGetConfig, proxySetConfig, proxyTestConnection, safeDiagnostic, disposeProxyTransport } from './http.js';
+import { DISCOVERY_TIMEOUT_MS, withTimeout } from './providers/common.js';
 import { ProviderSettingsStore, PROVIDER_TOOLS } from './provider-settings.js';
-import { defaultEffortOf, loadModelDefaults, setDefaultEffort, modelDefaultsSnapshot } from './model-defaults.js';
+import { defaultEffortOf, loadModelDefaults, setDefaultEffort } from './model-defaults.js';
 import { ImageAccountPool } from './providers/image-pool.js';
 import { CodexWebSearchProvider } from './providers/codex-search.js';
 import { createImageGenerateTool } from './tools/image-generate.js';
@@ -20,6 +22,74 @@ import { registerWithAlias } from './tools/registration.js';
 import { AccountPreferencesAdapter, accountAllowsPool, parseAccountModelId } from './providers/account-preferences.js';
 export const name = 'dsh-majed/subscriptions';
 export const inject = ['llm'];
+/** Bound on one account's catalog read while assembling pools: a hung account sits out instead of failing the pool. */
+export const POOL_USAGE_TIMEOUT_MS = DISCOVERY_TIMEOUT_MS;
+// Same-named schemastery schema, as in the reference (index.ts `Config`). Only the Codex slice is owned here;
+// `@deepseek-ai/schemastery` is the host's public schema package (peer in the reference), no host patch involved.
+const modelEntrySchema = z.object({
+    id: z.string().required(),
+    name: z.string(),
+    contextWindow: z.number().step(1).min(1),
+    maxTokens: z.number().step(1).min(1),
+    inputModalities: z.array(z.union(['text', 'image'])),
+    wire: z.union(['chat-completions', 'responses']),
+});
+const poolMemberSchema = z.object({
+    provider: z.union(['codex', 'claude', 'grok', 'copilot', 'antigravity']).required(),
+    account: z.string(),
+    model: z.string().required(),
+});
+export const Config = z.object({
+    codexClientVersion: z.string(),
+    models: z.object({ codex: z.array(modelEntrySchema) }),
+    pool: z.object({
+        enabled: z.boolean().default(true),
+        strategy: z.union(['priority', 'quota_aware']).default('quota_aware'),
+        switchMargin: z.number().min(1).default(2),
+        autoAccounts: z.boolean().default(true),
+        autoFamilies: z.boolean(),
+        families: z.dict(z.array(poolMemberSchema)),
+        tiers: z.dict(z.array(poolMemberSchema)),
+    }),
+});
+/** Reference `readForce`: the optional `force` flag must be a boolean when present. */
+function readForce(payload) {
+    const force = payload.force;
+    if (force === undefined)
+        return false;
+    if (typeof force !== 'boolean')
+        throw new Error('payload.force must be a boolean when present');
+    return force;
+}
+/** Reference `readProxyTestPayload`, plus the draft fields the owned dialog sends (`enabled`, `bypass`, `password: null`). */
+function readProxyTestPayload(payload) {
+    const { url, proxy } = payload;
+    if (url === undefined && proxy === undefined)
+        return {};
+    if (url !== undefined && (typeof url !== 'string' || url.length === 0))
+        throw new Error('payload.url must be a non-empty string when present');
+    let draft;
+    if (proxy !== undefined) {
+        if (typeof proxy !== 'object' || proxy === null || Array.isArray(proxy))
+            throw new Error('payload.proxy must be an object when present');
+        const record = proxy;
+        if (typeof record.url !== 'string' || record.url.length === 0)
+            throw new Error('payload.proxy.url must be a non-empty string');
+        if (record.username !== undefined && typeof record.username !== 'string')
+            throw new Error('payload.proxy.username must be a string when present');
+        if (record.password !== undefined && record.password !== null && typeof record.password !== 'string')
+            throw new Error('payload.proxy.password must be a string or null when present');
+        if (record.enabled !== undefined && typeof record.enabled !== 'boolean')
+            throw new Error('payload.proxy.enabled must be a boolean when present');
+        if (record.bypass !== undefined && (!Array.isArray(record.bypass) || record.bypass.some(item => typeof item !== 'string')))
+            throw new Error('payload.proxy.bypass must be an array of strings when present');
+        draft = { url: record.url, ...record.username === undefined ? {} : { username: record.username },
+            ...record.password === undefined ? {} : { password: record.password },
+            ...record.enabled === undefined ? {} : { enabled: record.enabled },
+            ...record.bypass === undefined ? {} : { bypass: record.bypass } };
+    }
+    return { ...url === undefined ? {} : { url: url }, ...draft === undefined ? {} : { proxy: draft } };
+}
 export function apply(ctx, config = {}) {
     const preferences = new ProviderSettingsStore();
     void loadModelDefaults().catch(() => ctx.logger.warn('dsh-majed: model defaults unavailable'));
@@ -31,6 +101,7 @@ export function apply(ctx, config = {}) {
     let handle;
     let collision;
     let disposed = false;
+    const ownAlias = (key) => { const settings = preferences.get('codex').accounts; return settings && Object.hasOwn(settings, key) ? settings[key]?.alias : undefined; };
     let pool;
     let adapter;
     const changed = (account) => {
@@ -90,11 +161,25 @@ export function apply(ctx, config = {}) {
         families: async () => {
             if (config.pool?.enabled === false)
                 return new Map();
-            const families = (config.pool?.autoAccounts ?? config.pool?.autoFamilies ?? true) ? buildAccountPools({ codex: { catalogs: (await Promise.all((await tokens.list()).map(async ({ key }) => {
-                        const models = await adapter.listOwnModels('codex', key, AbortSignal.timeout(20_000), true);
-                        const policy = preferences.get('codex').accounts?.[key];
-                        return models ? { account: key, models: models.filter(model => accountAllowsPool(policy, model.id)) } : undefined;
-                    }))).filter(entry => entry !== undefined) } }) : new Map();
+            const families = new Map();
+            if (config.pool?.autoAccounts ?? config.pool?.autoFamilies ?? true) {
+                // Discover each account separately and bound each read: a hang or failure sits that account out
+                // instead of failing the whole assembly (reference index.ts `families`).
+                try {
+                    const accounts = (await tokens.list()).map(entry => entry.key);
+                    const catalogs = (await Promise.all(accounts.map(async (account) => {
+                        const models = await withTimeout(signal => adapter.listOwnModels('codex', account, signal, true), POOL_USAGE_TIMEOUT_MS)
+                            .catch(() => undefined);
+                        const settings = preferences.get('codex').accounts;
+                        const policy = settings && Object.hasOwn(settings, account) ? settings[account] : undefined;
+                        return models === undefined ? undefined : { account, models: models.filter(model => accountAllowsPool(policy, model.id)) };
+                    }))).filter(entry => entry !== undefined);
+                    if (catalogs.length > 0)
+                        for (const [key, definition] of buildAccountPools({ codex: { catalogs } }))
+                            families.set(key, definition);
+                }
+                catch { /* Discovery failures are already reported by the owning adapter. */ }
+            }
             for (const [id, members] of Object.entries(config.pool?.families ?? {})) {
                 const owner = members[0]?.provider;
                 if (owner)
@@ -179,7 +264,7 @@ export function apply(ctx, config = {}) {
                                     await version.resolve();
                                 value = { ok: true, component: 'subscriptions', version: '0.2.0', registrationError: collision,
                                     providers: { codex: { ...state, displayName: preferences.get('codex').displayName,
-                                            accounts: state.accounts.map(account => ({ ...account, alias: preferences.get('codex').accounts?.[account.key]?.alias })), clientVersion: config.codexClientVersion ? { version: config.codexClientVersion, source: 'config' }
+                                            accounts: state.accounts.map(account => ({ ...account, alias: ownAlias(account.key) })), clientVersion: config.codexClientVersion ? { version: config.codexClientVersion, source: 'config' }
                                                 : version.current() ?? { version: CODEX_CLIENT_VERSION, source: 'fallback' } } } };
                                 break;
                             }
@@ -198,9 +283,11 @@ export function apply(ctx, config = {}) {
                                 value = await proxySetConfig(payload);
                                 break;
                             }
-                            case 'proxyTest':
-                                value = await proxyTestConnection(payload.url, payload.proxy);
+                            case 'proxyTest': {
+                                const input = readProxyTestPayload(payload);
+                                value = await proxyTestConnection(input.url, input.proxy, request.signal);
                                 break;
+                            }
                             case 'setProviderSettings': {
                                 const windows = payload.settings?.contextWindows;
                                 for (const [model, value] of Object.entries(windows ?? {})) {
@@ -214,15 +301,16 @@ export function apply(ctx, config = {}) {
                                 break;
                             }
                             case 'providerSettings': {
+                                const force = readForce(payload);
                                 await loadModelDefaults();
-                                if (payload.force === true) {
+                                if (force) {
                                     adapter.clearAccountCatalog();
                                     pool.invalidate();
                                     handle?.replace(['codex']);
                                 }
                                 const accounts = await tokens.list();
                                 const catalogs = await Promise.all(accounts.map(async ({ key, session }) => {
-                                    const models = await adapter.listOwnModels('codex', key, AbortSignal.timeout(20_000), payload.force !== true).catch(() => undefined);
+                                    const models = await adapter.listOwnModels('codex', key, AbortSignal.timeout(20_000), !force).catch(() => undefined);
                                     return { key, label: session.emailAddress ?? key, models: models ?? [], ...(models === undefined ? { unavailable: true } : {}) };
                                 }));
                                 const models = await adapter.listModels('codex');
@@ -241,9 +329,42 @@ export function apply(ctx, config = {}) {
                                 break;
                             }
                             case 'modelDefaults': {
+                                // Reference `modelDefaults.catalog`: re-read from the live model info (the picker's own source), so the
+                                // offered efforts match the picker exactly and the configured default merges in through the adapter.
+                                if (readForce(payload)) {
+                                    version.invalidate();
+                                    adapter.clearAccountCatalog();
+                                    pool.invalidate();
+                                    handle?.replace(['codex']);
+                                }
                                 await loadModelDefaults();
-                                const defaults = modelDefaultsSnapshot();
-                                value = defaults.codex ? { codex: defaults.codex } : {};
+                                const catalog = [];
+                                if ((await ctx.llm.listProviders()).some(entry => entry.id === 'codex')) {
+                                    let listed;
+                                    try {
+                                        listed = await ctx.llm.listModels('codex');
+                                    }
+                                    catch {
+                                        listed = undefined;
+                                    }
+                                    if (listed !== undefined) {
+                                        // Configured tier rows resolve through the pool and never consult the per-model default: leave them out.
+                                        const tierIds = new Set((await pool.modelsForProvider('codex').catch(() => [])).map(tier => tier.id));
+                                        const models = [];
+                                        for (const model of listed) {
+                                            if (tierIds.has(model.id) || parseAccountModelId(model.id))
+                                                continue;
+                                            const info = await ctx.llm.resolveModelInfo('codex', model.id).catch(() => undefined);
+                                            if (info === undefined)
+                                                continue;
+                                            const override = defaultEffortOf('codex', model.id);
+                                            models.push({ id: model.id, name: model.name, efforts: info.reasoning?.efforts.map(effort => ({ id: effort.id, name: effort.name })) ?? [],
+                                                ...override === undefined ? {} : { configured: override } });
+                                        }
+                                        catalog.push({ provider: 'codex', models });
+                                    }
+                                }
+                                value = catalog;
                                 break;
                             }
                             case 'setModelDefault': {
@@ -251,7 +372,7 @@ export function apply(ctx, config = {}) {
                                 const effort = payload.effort === undefined ? undefined : string('effort');
                                 const info = await adapter.resolveModel('codex', model).catch(() => undefined);
                                 if (effort && info?.reasoning?.efforts.length && !info.reasoning.efforts.some(entry => entry.id === effort))
-                                    throw new Error('Model does not advertise that reasoning effort');
+                                    throw new Error(`model ${model} does not advertise a "${effort}" reasoning effort`);
                                 await setDefaultEffort('codex', model, effort);
                                 handle?.replace(['codex']);
                                 break;
@@ -277,9 +398,10 @@ export function apply(ctx, config = {}) {
                                 if (collision)
                                     throw new Error('Codex registration is unavailable');
                                 const account = string('account');
-                                if (payload.force === true)
+                                const force = readForce(payload);
+                                if (force)
                                     health.clear('codex', account);
-                                value = await usage.snapshotFor('codex', account, payload.force === true);
+                                value = await usage.snapshotFor('codex', account, force);
                                 break;
                             }
                             case 'prepareReset':

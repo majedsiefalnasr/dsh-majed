@@ -65,10 +65,27 @@ let agent;
 let configError;
 /** One lazy load of the on-disk config (module-import cheap; file read once). */
 let ready;
+/** Bumped by every disposal so a load that was in flight cannot repopulate released state. */
+let epoch = 0;
+/** In-flight `proxyTestConnection` probes, aborted on disposal. */
+const probes = new Set();
 /** Absolute path of the proxy config file. */
 export function proxyFilePath() {
     return dshHomePath('plugins', 'majed', 'subscriptions', 'proxy.json');
 }
+/**
+ * Secret-bearing key names: the plain words plus any compound key ending in them
+ * (`access_token`, `clientSecret`, `apiKey`), bare or wrapped in single or double quotes.
+ */
+const SECRET_KEY = String.raw `["']?[\w.-]*?(?:password|passwd|token|secret|api[_-]?key)["']?`;
+/** A secret value: a quoted string (escapes honoured, any nesting depth) or a bare run up to a separator. */
+const SECRET_VALUE = String.raw `"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|[^\s,;}\]]+`;
+const SECRET_PAIR = new RegExp(`(${SECRET_KEY}\\s*[:=]\\s*)(?:${SECRET_VALUE})`, 'gi');
+/**
+ * Render a failure for the client or a log without credentials: known secrets (the stored proxy
+ * password and the caller's `secrets`, raw and URL-encoded), URL userinfo, auth headers, and any
+ * `password`/`token`/`secret`/`api key` pair, including quoted JSON members at any depth.
+ */
 export function safeDiagnostic(error, secrets = []) {
     let text = error instanceof Error ? error.message : String(error);
     for (const secret of [current.password, ...secrets]) {
@@ -79,7 +96,7 @@ export function safeDiagnostic(error, secrets = []) {
     }
     return text.replace(/(https?:\/\/)[^\s/@]+(?::[^\s/@]*)?@/gi, '$1[redacted]@')
         .replace(/((?:proxy-)?authorization\s*[:=]\s*)(?:basic|bearer)\s+[^\s,;]+/gi, '$1[redacted]')
-        .replace(/((?:password|passwd|token|api[_-]?key)\s*[:=]\s*)[^\s,;]+/gi, '$1[redacted]')
+        .replace(SECRET_PAIR, '$1[redacted]')
         .slice(0, 1024);
 }
 function errorMessage(error) {
@@ -269,10 +286,15 @@ async function loadConfigFile(path) {
 }
 /** Resolve the module state once from disk; failures disable the proxy. */
 async function ensureReady() {
+    const mine = epoch;
     ready ??= loadConfigFile(proxyFilePath()).then(async (cfg) => {
+        if (mine !== epoch)
+            return { ...DISABLED, bypass: [] };
         await applyConfig(cfg);
         return current;
     }, async (error) => {
+        if (mine !== epoch)
+            return { ...DISABLED, bypass: [] };
         withError(error);
         await applyConfig(undefined);
         return current;
@@ -294,18 +316,29 @@ async function persistConfig(cfg, path) {
     }
 }
 /**
- * Close the live agent and drop the cached config. Test-only: lets a suite
- *  unwind the agent's keep-alive sockets before the process exits.
- * @internal Exported for tests only; not part of the plugin's public surface.
+ * Release everything this module owns: abort in-flight probes, close the live agent and drop the
+ * cached config, including the resident password and the last load error. The next call re-reads
+ * the file. Called when the component is disposed so nothing secret outlives it.
  */
 export async function disposeProxyTransport() {
+    epoch += 1;
+    for (const probe of probes)
+        probe.abort(new Error('proxy transport disposed'));
+    probes.clear();
     const previous = agent;
     agent = undefined;
     ready = undefined;
+    current = { ...DISABLED, bypass: [] };
+    configError = undefined;
     if (previous !== undefined)
         await previous.close().catch(() => undefined);
 }
+/**
+ * Test-only reset between suites.
+ * @internal Exported for tests only; not part of the plugin's public surface.
+ */
 export async function resetProxyForTests() {
+    await disposeProxyTransport();
     const previous = agent;
     agent = undefined;
     current = { ...DISABLED, bypass: [] };
@@ -390,10 +423,12 @@ export async function proxiedFetch(input, init = {}) {
  * current inputs, without saving) and the stored config otherwise.
  * @param target - `http(s)` URL to fetch; defaults to {@link DEFAULT_PROXY_TEST_URL}.
  * @param draft - unsaved proxy inputs to test; absent means the stored config.
+ * @param signal - optional caller cancellation (e.g. the RPC request); also fired by {@link disposeProxyTransport}.
  * @returns the result; any HTTP status counts as a successful connection,
  *   only a transport failure is an error.
  */
-export async function proxyTestConnection(target = DEFAULT_PROXY_TEST_URL, draft) {
+export async function proxyTestConnection(target = DEFAULT_PROXY_TEST_URL, draft, signal) {
+    const secrets = [draft?.password];
     let parsed;
     try {
         parsed = new URL(target);
@@ -402,7 +437,7 @@ export async function proxyTestConnection(target = DEFAULT_PROXY_TEST_URL, draft
         }
     }
     catch (error) {
-        return { ok: false, viaProxy: false, error: errorMessage(error) };
+        return { ok: false, viaProxy: false, error: safeDiagnostic(error, secrets) };
     }
     await ensureReady();
     let probeAgent;
@@ -423,7 +458,7 @@ export async function proxyTestConnection(target = DEFAULT_PROXY_TEST_URL, draft
             closeProbe = true;
         }
         catch (error) {
-            return { ok: false, viaProxy: false, error: errorMessage(error) };
+            return { ok: false, viaProxy: false, error: safeDiagnostic(error, secrets) };
         }
     }
     else {
@@ -431,10 +466,13 @@ export async function proxyTestConnection(target = DEFAULT_PROXY_TEST_URL, draft
         probeAgent = viaProxy ? agent : undefined;
     }
     const started = Date.now();
+    const controller = new AbortController();
+    probes.add(controller);
+    const probeSignal = AbortSignal.any([AbortSignal.timeout(DEFAULT_PROXY_TEST_TIMEOUT_MS), controller.signal, ...signal === undefined ? [] : [signal]]);
     try {
         const init = probeAgent !== undefined
-            ? { method: 'GET', dispatcher: probeAgent, signal: AbortSignal.timeout(DEFAULT_PROXY_TEST_TIMEOUT_MS) }
-            : { method: 'GET', signal: AbortSignal.timeout(DEFAULT_PROXY_TEST_TIMEOUT_MS) };
+            ? { method: 'GET', dispatcher: probeAgent, signal: probeSignal }
+            : { method: 'GET', signal: probeSignal };
         const response = probeAgent !== undefined
             ? await dispatchFetch(parsed.toString(), init)
             : await fetch(parsed.toString(), init);
@@ -443,9 +481,10 @@ export async function proxyTestConnection(target = DEFAULT_PROXY_TEST_URL, draft
         return { ok: true, viaProxy, status: response.status, latencyMs: Date.now() - started };
     }
     catch (error) {
-        return { ok: false, viaProxy, latencyMs: Date.now() - started, error: describeFetchError(error, [draft?.password]) };
+        return { ok: false, viaProxy, latencyMs: Date.now() - started, error: describeFetchError(error, secrets) };
     }
     finally {
+        probes.delete(controller);
         if (closeProbe && probeAgent !== undefined) {
             await probeAgent.close().catch(() => undefined);
         }

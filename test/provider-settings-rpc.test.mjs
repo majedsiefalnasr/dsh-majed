@@ -49,7 +49,9 @@ test('provider settings RPC edits picker visibility, names and tool policy witho
     assert.deepEqual(catalog.value.models[1].efforts, [], 'a model whose capabilities cannot be resolved offers no efforts');
     assert.equal((await call('setModelDefault', { provider: 'codex', model: 'm1', effort: 'high' })).ok, true);
     assert.equal((await call('providerSettings', { provider: 'codex' })).value.models[0].configured, 'high');
-    assert.equal((await call('providerSettings', { provider: 'codex', force: 'yes' })).ok, true, 'non-true force values are treated as not forced (documented difference: reference rejects them)');
+    const badForce = await call('providerSettings', { provider: 'codex', force: 'yes' });
+    assert.equal(badForce.ok, false, 'a non-boolean force is rejected, as in the reference');
+    assert.match(badForce.error.message, /payload\.force must be a boolean when present/);
     assert.equal((await call('setProviderSettings', { provider: 'codex', settings: { contextWindows: { m1: 0 } } })).ok, false);
     assert.equal((await call('setProviderSettings', { provider: 'claude', settings: {} })).ok, false);
 

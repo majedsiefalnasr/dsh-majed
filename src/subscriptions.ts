@@ -1,5 +1,6 @@
 /** Owned Codex component composition. Reference v0.9.12: see PROVENANCE.md. */
 import type { Context } from '@deepseek-ai/cordis';
+import z from '@deepseek-ai/schemastery';
 // Type-only: activates the `ctx.tools` / `ctx.web` Context merges for the optional inject blocks below.
 import type {} from '@deepseek-ai/dsh-tools';
 import type {} from '@deepseek-ai/dsh-web';
@@ -16,12 +17,12 @@ import { startCatalogRefresh } from './providers/catalog-refresh.js';
 import { PoolAdapter } from './providers/pool.js';
 import { PoolHealthRegistry } from './providers/pool-health.js';
 import { PoolUsageTracker } from './providers/pool-usage.js';
-import { buildAccountPools, poolKey, type PoolMemberRef } from './providers/pool-family.js';
+import { buildAccountPools, poolKey, type PoolDefinition, type PoolMemberRef } from './providers/pool-family.js';
 import { ResetRedemption } from './providers/reset-redemption.js';
-import { proxiedFetch, proxyGetConfig, proxySetConfig, proxyTestConnection, safeDiagnostic, disposeProxyTransport } from './http.js';
-import type { ModelEntry } from './providers/common.js';
+import { proxiedFetch, proxyGetConfig, proxySetConfig, proxyTestConnection, safeDiagnostic, disposeProxyTransport, type ProxyDraft } from './http.js';
+import { DISCOVERY_TIMEOUT_MS, withTimeout, type ModelEntry } from './providers/common.js';
 import { ProviderSettingsStore, PROVIDER_TOOLS } from './provider-settings.js';
-import { defaultEffortOf, loadModelDefaults, setDefaultEffort, modelDefaultsSnapshot } from './model-defaults.js';
+import { defaultEffortOf, loadModelDefaults, setDefaultEffort } from './model-defaults.js';
 import { ImageAccountPool } from './providers/image-pool.js';
 import { CodexWebSearchProvider } from './providers/codex-search.js';
 import { createImageGenerateTool } from './tools/image-generate.js';
@@ -30,8 +31,68 @@ import { AccountPreferencesAdapter, accountAllowsPool, parseAccountModelId } fro
 
 export const name = 'dsh-majed/subscriptions';
 export const inject = ['llm'];
+/** Bound on one account's catalog read while assembling pools: a hung account sits out instead of failing the pool. */
+export const POOL_USAGE_TIMEOUT_MS = DISCOVERY_TIMEOUT_MS;
 export interface Config { codexClientVersion?: string; models?: { codex?: ModelEntry[] };
   pool?: { enabled?: boolean; strategy?: 'priority' | 'quota_aware'; switchMargin?: number; autoAccounts?: boolean; autoFamilies?: boolean; families?: Record<string, PoolMemberRef[]>; tiers?: Record<string, PoolMemberRef[]> };
+}
+// Same-named schemastery schema, as in the reference (index.ts `Config`). Only the Codex slice is owned here;
+// `@deepseek-ai/schemastery` is the host's public schema package (peer in the reference), no host patch involved.
+const modelEntrySchema: z<ModelEntry> = z.object({
+  id: z.string().required(),
+  name: z.string(),
+  contextWindow: z.number().step(1).min(1),
+  maxTokens: z.number().step(1).min(1),
+  inputModalities: z.array(z.union(['text', 'image'])),
+  wire: z.union(['chat-completions', 'responses']),
+});
+const poolMemberSchema: z<PoolMemberRef> = z.object({
+  provider: z.union(['codex', 'claude', 'grok', 'copilot', 'antigravity']).required(),
+  account: z.string(),
+  model: z.string().required(),
+});
+export const Config: z<Config> = z.object({
+  codexClientVersion: z.string(),
+  models: z.object({ codex: z.array(modelEntrySchema) }),
+  pool: z.object({
+    enabled: z.boolean().default(true),
+    strategy: z.union(['priority', 'quota_aware']).default('quota_aware'),
+    switchMargin: z.number().min(1).default(2),
+    autoAccounts: z.boolean().default(true),
+    autoFamilies: z.boolean(),
+    families: z.dict(z.array(poolMemberSchema)),
+    tiers: z.dict(z.array(poolMemberSchema)),
+  }),
+});
+
+/** Reference `readForce`: the optional `force` flag must be a boolean when present. */
+function readForce(payload: Record<string, unknown>): boolean {
+  const force = payload.force;
+  if (force === undefined) return false;
+  if (typeof force !== 'boolean') throw new Error('payload.force must be a boolean when present');
+  return force;
+}
+
+/** Reference `readProxyTestPayload`, plus the draft fields the owned dialog sends (`enabled`, `bypass`, `password: null`). */
+function readProxyTestPayload(payload: Record<string, unknown>): { url?: string; proxy?: ProxyDraft } {
+  const { url, proxy } = payload;
+  if (url === undefined && proxy === undefined) return {};
+  if (url !== undefined && (typeof url !== 'string' || url.length === 0)) throw new Error('payload.url must be a non-empty string when present');
+  let draft: ProxyDraft | undefined;
+  if (proxy !== undefined) {
+    if (typeof proxy !== 'object' || proxy === null || Array.isArray(proxy)) throw new Error('payload.proxy must be an object when present');
+    const record = proxy as Record<string, unknown>;
+    if (typeof record.url !== 'string' || record.url.length === 0) throw new Error('payload.proxy.url must be a non-empty string');
+    if (record.username !== undefined && typeof record.username !== 'string') throw new Error('payload.proxy.username must be a string when present');
+    if (record.password !== undefined && record.password !== null && typeof record.password !== 'string') throw new Error('payload.proxy.password must be a string or null when present');
+    if (record.enabled !== undefined && typeof record.enabled !== 'boolean') throw new Error('payload.proxy.enabled must be a boolean when present');
+    if (record.bypass !== undefined && (!Array.isArray(record.bypass) || record.bypass.some(item => typeof item !== 'string'))) throw new Error('payload.proxy.bypass must be an array of strings when present');
+    draft = { url: record.url, ...record.username === undefined ? {} : { username: record.username as string },
+      ...record.password === undefined ? {} : { password: record.password as string | null },
+      ...record.enabled === undefined ? {} : { enabled: record.enabled as boolean },
+      ...record.bypass === undefined ? {} : { bypass: record.bypass as string[] } };
+  }
+  return { ...url === undefined ? {} : { url: url as string }, ...draft === undefined ? {} : { proxy: draft } };
 }
 export function apply(ctx: Context, config: Config = {}): void {
   const preferences = new ProviderSettingsStore();
@@ -44,6 +105,7 @@ export function apply(ctx: Context, config: Config = {}): void {
   let handle: ReturnType<Context['llm']['registerAdapter']> | undefined;
   let collision: string | undefined;
   let disposed = false;
+  const ownAlias = (key: string) => { const settings = preferences.get('codex').accounts; return settings && Object.hasOwn(settings, key) ? settings[key]?.alias : undefined; };
   let pool: PoolAdapter;
   let adapter: CodexAdapter;
   const changed = (account?: string) => {
@@ -93,11 +155,22 @@ export function apply(ctx: Context, config: Config = {}): void {
     defaultAccount: () => tokens.defaultAccount(), resolveAccount: (_, account) => tokens.resolveAccount(account),
     families: async () => {
       if (config.pool?.enabled === false) return new Map();
-      const families = (config.pool?.autoAccounts ?? config.pool?.autoFamilies ?? true) ? buildAccountPools({ codex: { catalogs: (await Promise.all((await tokens.list()).map(async ({ key }) => {
-      const models = await adapter.listOwnModels('codex', key, AbortSignal.timeout(20_000), true);
-      const policy = preferences.get('codex').accounts?.[key];
-      return models ? { account: key, models: models.filter(model => accountAllowsPool(policy, model.id)) } : undefined;
-    }))).filter(entry => entry !== undefined) } }) : new Map();
+      const families = new Map<string, PoolDefinition>();
+      if (config.pool?.autoAccounts ?? config.pool?.autoFamilies ?? true) {
+        // Discover each account separately and bound each read: a hang or failure sits that account out
+        // instead of failing the whole assembly (reference index.ts `families`).
+        try {
+          const accounts = (await tokens.list()).map(entry => entry.key);
+          const catalogs = (await Promise.all(accounts.map(async account => {
+            const models = await withTimeout(signal => adapter.listOwnModels('codex', account, signal, true), POOL_USAGE_TIMEOUT_MS)
+              .catch(() => undefined);
+            const settings = preferences.get('codex').accounts;
+            const policy = settings && Object.hasOwn(settings, account) ? settings[account] : undefined;
+            return models === undefined ? undefined : { account, models: models.filter(model => accountAllowsPool(policy, model.id)) };
+          }))).filter(entry => entry !== undefined);
+          if (catalogs.length > 0) for (const [key, definition] of buildAccountPools({ codex: { catalogs } })) families.set(key, definition);
+        } catch { /* Discovery failures are already reported by the owning adapter. */ }
+      }
       for (const [id, members] of Object.entries(config.pool?.families ?? {})) {
         const owner = members[0]?.provider;
         if (owner) families.set(poolKey(owner, id), { members: members.filter(member => member.provider === owner) });
@@ -166,7 +239,7 @@ export function apply(ctx: Context, config: Config = {}): void {
                 if (state.accounts.length && !collision && !config.codexClientVersion) await version.resolve();
                 value = { ok: true, component: 'subscriptions', version: '0.2.0', registrationError: collision,
                   providers: { codex: { ...state, displayName: preferences.get('codex').displayName,
-                    accounts: state.accounts.map(account => ({ ...account, alias: preferences.get('codex').accounts?.[account.key]?.alias })), clientVersion: config.codexClientVersion ? { version: config.codexClientVersion, source: 'config' }
+                    accounts: state.accounts.map(account => ({ ...account, alias: ownAlias(account.key) })), clientVersion: config.codexClientVersion ? { version: config.codexClientVersion, source: 'config' }
                     : version.current() ?? { version: CODEX_CLIENT_VERSION, source: 'fallback' } } } };
                 break;
               }
@@ -178,7 +251,7 @@ export function apply(ctx: Context, config: Config = {}): void {
                 if (payload.bypass !== undefined && (!Array.isArray(payload.bypass) || payload.bypass.some(item => typeof item !== 'string'))) throw new Error('Invalid bypass list');
                 value = await proxySetConfig(payload as unknown as Parameters<typeof proxySetConfig>[0]); break;
               }
-              case 'proxyTest': value = await proxyTestConnection(payload.url as string | undefined, payload.proxy as Parameters<typeof proxyTestConnection>[1]); break;
+              case 'proxyTest': { const input = readProxyTestPayload(payload); value = await proxyTestConnection(input.url, input.proxy, request.signal); break; }
               case 'setProviderSettings': {
                 const windows = (payload.settings as { contextWindows?: Record<string, number> } | undefined)?.contextWindows;
                 for (const [model, value] of Object.entries(windows ?? {})) {
@@ -188,11 +261,12 @@ export function apply(ctx: Context, config: Config = {}): void {
                 await preferences.set('codex', payload.settings); pool.invalidate(); handle?.replace(['codex']); break;
               }
               case 'providerSettings': {
+                const force = readForce(payload);
                 await loadModelDefaults();
-                if (payload.force === true) { adapter.clearAccountCatalog(); pool.invalidate(); handle?.replace(['codex']); }
+                if (force) { adapter.clearAccountCatalog(); pool.invalidate(); handle?.replace(['codex']); }
                 const accounts = await tokens.list();
                 const catalogs = await Promise.all(accounts.map(async ({ key, session }) => {
-                  const models = await adapter.listOwnModels('codex', key, AbortSignal.timeout(20_000), payload.force !== true).catch(() => undefined);
+                  const models = await adapter.listOwnModels('codex', key, AbortSignal.timeout(20_000), !force).catch(() => undefined);
                   return { key, label: session.emailAddress ?? key, models: models ?? [], ...(models === undefined ? { unavailable: true } : {}) };
                 }));
                 const models = await adapter.listModels('codex');
@@ -210,14 +284,36 @@ export function apply(ctx: Context, config: Config = {}): void {
                 value = { provider: 'codex', settings: preferences.get('codex'), accounts: catalogs, models: rows, tools: PROVIDER_TOOLS.codex }; break;
               }
               case 'modelDefaults': {
-                await loadModelDefaults(); const defaults = modelDefaultsSnapshot();
-                value = defaults.codex ? { codex: defaults.codex } : {}; break;
+                // Reference `modelDefaults.catalog`: re-read from the live model info (the picker's own source), so the
+                // offered efforts match the picker exactly and the configured default merges in through the adapter.
+                if (readForce(payload)) { version.invalidate(); adapter.clearAccountCatalog(); pool.invalidate(); handle?.replace(['codex']); }
+                await loadModelDefaults();
+                const catalog: { provider: string; models: { id: string; name: string; efforts: { id: string; name: string }[]; configured?: string }[] }[] = [];
+                if ((await ctx.llm.listProviders()).some(entry => entry.id === 'codex')) {
+                  let listed: readonly { id: string; name: string }[] | undefined;
+                  try { listed = await ctx.llm.listModels('codex'); } catch { listed = undefined; }
+                  if (listed !== undefined) {
+                    // Configured tier rows resolve through the pool and never consult the per-model default: leave them out.
+                    const tierIds = new Set((await pool.modelsForProvider('codex').catch(() => [])).map(tier => tier.id));
+                    const models = [];
+                    for (const model of listed) {
+                      if (tierIds.has(model.id) || parseAccountModelId(model.id)) continue;
+                      const info = await ctx.llm.resolveModelInfo('codex', model.id).catch(() => undefined);
+                      if (info === undefined) continue;
+                      const override = defaultEffortOf('codex', model.id);
+                      models.push({ id: model.id, name: model.name, efforts: info.reasoning?.efforts.map(effort => ({ id: effort.id, name: effort.name })) ?? [],
+                        ...override === undefined ? {} : { configured: override } });
+                    }
+                    catalog.push({ provider: 'codex', models });
+                  }
+                }
+                value = catalog; break;
               }
               case 'setModelDefault': {
                 const model = string('model');
                 const effort = payload.effort === undefined ? undefined : string('effort');
                 const info = await adapter.resolveModel('codex', model).catch(() => undefined);
-                if (effort && info?.reasoning?.efforts.length && !info.reasoning.efforts.some(entry => entry.id === effort)) throw new Error('Model does not advertise that reasoning effort');
+                if (effort && info?.reasoning?.efforts.length && !info.reasoning.efforts.some(entry => entry.id === effort)) throw new Error(`model ${model} does not advertise a "${effort}" reasoning effort`);
                 await setDefaultEffort('codex', model, effort); handle?.replace(['codex']); break;
               }
               case 'login': if (collision) throw new Error('Codex is already registered. Disable the reference component first.'); value = await auth.login(); break;
@@ -227,8 +323,8 @@ export function apply(ctx: Context, config: Config = {}): void {
               case 'setDefault': await auth.setDefault(string('account')); break;
               case 'usage': {
                 if (collision) throw new Error('Codex registration is unavailable');
-                const account = string('account'); if (payload.force === true) health.clear('codex', account);
-                value = await usage.snapshotFor('codex', account, payload.force === true); break;
+                const account = string('account'); const force = readForce(payload); if (force) health.clear('codex', account);
+                value = await usage.snapshotFor('codex', account, force); break;
               }
               case 'prepareReset': value = await resets.prepare(string('account'), AbortSignal.any([request.signal, AbortSignal.timeout(20_000)])); break;
               case 'consumeReset': await resets.redeem(string('account'), string('ticket'), AbortSignal.any([request.signal, AbortSignal.timeout(20_000)])); break;
