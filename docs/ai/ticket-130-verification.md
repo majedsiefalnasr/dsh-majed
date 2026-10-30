@@ -104,3 +104,41 @@ All proof is fixture-level: fake `fetch`, intercepted HTTP, fake cordis context 
 ### Pulled forward from #133 (Owner decision)
 
 Codex `image_generate`, Codex web search and the image account pool were introduced here instead of #133. #133 acceptance must audit and reuse them (source map in `src/PROVENANCE.md`). Grok, video, `x_search`, the `image`/`video` RPC endpoints and tool views stay #133; `speed`/`setSpeed` stay #131.
+
+## Diagnostic sanitizer re-fix (independent review of d6d849a)
+
+The independent review of `d6d849a` (380 tests, build-match) found `safeDiagnostic` still leaked unknown secrets and was quadratic. Fixed test-first in commit `0e631a7`; sanitizer `src/diagnostic.ts` (independently designed, see `src/PROVENANCE.md`), wired through `src/http.ts` `safeDiagnostic`/`describeFetchError` and the RPC catch in `src/subscriptions.ts`. Regressions: `test/diagnostic-130.test.mjs` (9 tests).
+
+### Exact algorithm (`sanitizeDiagnostic`)
+
+1. **Bound first.** The thrown value is rendered with a guarded `toString`/`message` read (a hostile getter yields `''`), cut to 16,384 chars; `describeFetchError` also caps `errors` to 8 entries and the joined text to the same bound. Nothing else runs on unbounded input.
+2. **Known secrets.** Stored proxy password and username plus the caller's draft password/username produce every spelling: raw, `encodeURIComponent` (upper and lower hex), `+` form encoding, `encodeURI`, JSON-escaped (plain and `\uXXXX`), base64, unpadded base64, base64url, base64 of `:password`, and, when the username is known, `user:password`, its URI form and the base64/base64url of `user:password` (the Basic credential). Each is removed by exact substring replacement, longest first.
+3. **Structural JSON.** A bounded recursive-descent parser (depth 32; budget 131,072 characters examined per call) tries every `{`/`[` start. For each parsable object it replaces the entire value of any member whose decoded key ends in password/passwd/passphrase/pwd/token(s)/secret(s)/`*key`/credential(s)/cookie(s)/authorization/auth with `"[redacted]"` (strings, numbers, arrays and objects alike, `\u`-escaped key names included), and recursively sanitizes string values, which covers JSON embedded in JSON strings. Exceeding the budget returns the generic message `diagnostic withheld: ...` instead of any text.
+4. **Linear scanners** on what remains: URL userinfo of any scheme (`scheme://` or bare `//` up to `@`, at most 512 chars); `key[:=]value` for the same sensitive words, with bare, single/double-quoted, backslash-escaped-quoted, bracketed (string-aware balanced), truncated-unterminated and newline-separated values, `Authorization`/`Proxy-Authorization` values with any scheme including Digest to end of line, and cookie/Set-Cookie to end of line; bare `Bearer|Basic|Negotiate|NTLM <credential>` outside any key (heuristic: capitalised scheme with a 6+ char token, or an 8+ char token containing digits/symbols/mixed case, skipping words such as `authentication`).
+5. **Tail.** If the input was cut by the bound, the last `longest-known-form - 1` characters are dropped before `…[truncated]` so a half-cut secret cannot remain; output is capped at 1,024 chars.
+
+Every pass is a single left-to-right scan or a bounded parse; the former lazy `[\w.-]*?` key pattern (cost ~250 ms on 16 KB and ~16 s on 128 KB of repeated `password`, ~50 s for the guard test on the old code) is gone. Only rendered diagnostic text changes; stored credentials, the dispatcher and requests are untouched (asserted: the proxy file, `passwordSet` and probe URLs are identical afterwards).
+
+### Evidence
+
+- Red: with the `d6d849a` `dist` and the new test file, 6 of 9 fail immediately (unknown-secret matrix, structured JSON, known-secret forms, non-error throwables, serialized RPC and rendered error); the huge-input test did not finish in 40 s and the repeated-key guard took 49.9 s then failed. Two pass at HEAD as guards (safe messages unchanged; the input-bound-cut case).
+- Green: 9/9. The matrix covers `ftp://`/`socks5://`/`socks5h://`/`redis+tls://`/bare-`//` userinfo, quoted/unquoted Authorization and Proxy-Authorization with Bearer/Basic/Token/Digest/Negotiate, bare Bearer/Basic, Cookie/Set-Cookie (arrays too), `pwd`/`passphrase`, secret arrays/objects/numbers under sensitive keys with the tail kept readable, `\u`-escaped key names, JSON embedded in a JSON string and in escaped text, unterminated JSON; known stored and draft secrets in the forms above plus combined username; complete serialized `proxyTest` RPC responses (stored, draft with password, draft without password reusing the stored one) and the rendered `ProxySettings` tree.
+- Timing guards are loose (per-input 1.5 s, whole adversarial set 8 s, ratio guard `max(20x, 1 s)`), against measured ~25 ms and ~1 ms.
+- Additional unrecorded check: a 20,000-case deterministic fuzz of key/quote/bracket fragments; worst call 0.3 ms; one fuzz sample (a sensitive key separated by garbage and a `ftp://` fragment) left a value unredacted that the fuzz oracle expected removed, which is the kind of non-recognisable shape the honest limit below covers.
+- `npm test` 389/389, three consecutive runs, zero fail/cancel/skip; `npm run check:build` matches; `git diff --check` clean.
+- Unrelated flake fixed on the way: `test/reference/account-preferences.spec.ts` "a timed-out discovery falls back..." was cancelled ("event loop has already resolved") in full runs at `d6d849a` too (HEAD ran 380 with 1 cancelled; the earlier "380/380" claim above did not reproduce in my runs), because `AbortSignal.timeout` timers are unref'd. It now holds a ref'd interval like the pool test; no production change.
+- Archive `/tmp/majed-t130/dsh-majed-0.2.0.tgz` (78 files) from clean `0e631a7`, SHA256 `dad41795a8dd08886ae582935c7a22b29b3992f80c14a9654fd468873b006465`. This supersedes `aab101f1...`. Candidate only; not installed.
+
+### Limits (stated, not hidden)
+
+- Unknown secrets in free text cannot be guaranteed removed. A bare secret with no key, scheme, userinfo or known form around it (for example `failed for sk-live-abc123`) is not detectable and is echoed; the only defence is not rendering untrusted text, and the sanitizer is a best-effort filter. Generic bounded text replaces the message only when the work budget is exceeded, not for every unrecognised shape, to keep useful errors such as `connect ECONNREFUSED`.
+- Bare `Bearer`/`Basic` detection is heuristic; short lowercase tokens after lowercase prose (`basic token`) are left alone.
+- The `ProxyTestResult` and RPC error paths are sanitized. Two other raw `error.message` uses remain in `src/subscriptions.ts` (`resetCreditsError` in usage and the registration `collision` string); they carry upstream HTTP/reference text and are not routed through the sanitizer. Not changed in this tiny fix.
+- Fixture-level proof only; no installed DSH, real proxy or account.
+
+### Remaining P3 (documented, not fixed here)
+
+- Read-modify-write races on endpoint state (for example `proxySet` reading `current.password` then persisting, and `setProviderSettings` merges) are not serialized; concurrent calls can lose an update.
+- Some RPC operations lack a request-context-bound timeout (the pool and probe paths have bounds; others rely on the host or provider).
+- The two unsanitized `error.message` surfaces above.
+- Not claimed: that all review findings are clean. The "13 initial findings" reconciliation above is still open; independent re-review and Owner installed/live acceptance remain pending.
