@@ -46,6 +46,11 @@ The #128 descriptions above describe historical scope, not the current #129 impl
 - Restored the pinned reference `src/client/SubscriptionsSection.tsx:649-678` post-RPC dispatch pattern (`window.open(response.authorizeUrl, '_blank', 'noopener')` at line 676). Local Codex card uses its existing `alive.current` guard before dispatch, login state and status refresh. Removed non-reference `about:blank` preallocation, returned-handle navigation and child cleanup; desktop denies child creation even when external dispatch succeeds, so a handle is not a success signal.
 - Preserved owned action error/pending handling, authorization fallback link, paste, cancel and status behavior. Added regressions at the existing rendered-card boundary with fake delayed RPC and null-returning open, never a real auth endpoint. This is a minimal adaptation of the same MIT source, not a new runtime dependency or a DSH host patch.
 
+## #130 settings port (in progress)
+
+- Approved source remains v0.9.12 at the full commit above. Planned direct ports: `provider-settings.ts`, `model-defaults.ts`, `providers/account-preferences.ts`, and `http.ts`; storage paths become `plugins/majed/subscriptions`, with private parent directories. No legacy import or global dispatcher replacement is authorized.
+- Browser manager/model editor and proxy controls retain reference hierarchy and option semantics, adapted to the existing injected React factory and English/Arabic logical layout. Implementation and test dispositions will be finalized with verification; this entry does not claim completion.
+
 ## License
 
 MIT License

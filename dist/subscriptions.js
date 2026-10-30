@@ -10,10 +10,15 @@ import { PoolHealthRegistry } from './providers/pool-health.js';
 import { PoolUsageTracker } from './providers/pool-usage.js';
 import { buildAccountPools } from './providers/pool-family.js';
 import { ResetRedemption } from './providers/reset-redemption.js';
-import { proxiedFetch } from './http.js';
+import { proxiedFetch, proxyGetConfig, proxySetConfig, proxyTestConnection } from './http.js';
+import { ProviderSettingsStore, PROVIDER_TOOLS } from './provider-settings.js';
+import { defaultEffortOf, loadModelDefaults, setDefaultEffort } from './model-defaults.js';
+import { AccountPreferencesAdapter, accountAllowsPool, parseAccountModelId } from './providers/account-preferences.js';
 export const name = 'dsh-majed/subscriptions';
 export const inject = ['llm'];
 export function apply(ctx, config = {}) {
+    const preferences = new ProviderSettingsStore();
+    void loadModelDefaults().catch(() => ctx.logger.warn('dsh-majed: model defaults unavailable'));
     const flows = new OAuthFlowManager();
     const version = new CodexClientVersionCache();
     const health = new PoolHealthRegistry();
@@ -54,6 +59,13 @@ export function apply(ctx, config = {}) {
             { id: 'gpt-5.1', name: 'GPT-5.1' },
         ], streamIdleTimeoutMs: 300_000,
         discovery: !config.models?.codex?.length,
+        defaultEffortOf: model => defaultEffortOf('codex', model),
+        contextWindowOf: model => preferences.contextWindow(model),
+        speedFor: async (sessionId, model) => {
+            const registry = ctx.get('agents');
+            return sessionId !== undefined && registry?.get(sessionId)?.session.header.origin === 'subagent'
+                && preferences.subagentSpeed(parseAccountModelId(model)?.model ?? model) === 'fast' && await adapter.supportsFastTier(model);
+        },
         clientVersion: config.codexClientVersion,
         resolveClientVersion: () => version.resolve(),
         catalogStore: catalogStore('codex'), accountCatalogStore: account => accountCatalogStore('codex', account),
@@ -64,15 +76,18 @@ export function apply(ctx, config = {}) {
         resolveAttachments: () => ctx.get('attachments'),
         pool: () => pool,
         onWarn: message => ctx.logger.warn(`dsh-majed: ${message}`), });
-    pool = new PoolAdapter({ adapters: { codex: adapter }, health, usage, strategy: 'quota_aware', switchMargin: 2,
+    const presented = new AccountPreferencesAdapter({ provider: 'codex', adapter, settings: preferences,
+        accounts: async () => (await tokens.list()).map(({ key, session }) => ({ key, label: session.emailAddress ?? key })), pool: () => pool });
+    pool = new PoolAdapter({ adapters: { codex: presented.poolMember() }, health, usage, strategy: 'quota_aware', switchMargin: 2,
         defaultAccount: () => tokens.defaultAccount(), resolveAccount: (_, account) => tokens.resolveAccount(account),
         families: async () => buildAccountPools({ codex: { catalogs: (await Promise.all((await tokens.list()).map(async ({ key }) => {
                     const models = await adapter.listOwnModels('codex', key, AbortSignal.timeout(20_000), true);
-                    return models ? { account: key, models } : undefined;
+                    const policy = preferences.get('codex').accounts?.[key];
+                    return models ? { account: key, models: models.filter(model => accountAllowsPool(policy, model.id)) } : undefined;
                 }))).filter(entry => entry !== undefined) } }), tiers: {},
         onWarn: message => ctx.logger.warn(`dsh-majed: ${message}`) });
     try {
-        handle = ctx.llm.registerAdapter(['codex'], adapter);
+        handle = ctx.llm.registerAdapter(['codex'], presented);
     }
     catch (error) {
         collision = error instanceof Error ? error.message : String(error);
@@ -85,7 +100,7 @@ export function apply(ctx, config = {}) {
         }, () => ctx.logger.warn('dsh-majed: Codex catalog refresh failed')), 'dsh-majed: subscriptions catalog refresh');
     ctx.inject(['connection'], ctx => {
         const connection = ctx.get('connection');
-        const endpoints = ['status', 'login', 'manual', 'cancel', 'logout', 'setDefault', 'usage', 'prepareReset', 'consumeReset'];
+        const endpoints = ['status', 'login', 'manual', 'cancel', 'logout', 'setDefault', 'usage', 'prepareReset', 'consumeReset', 'providerSettings', 'setProviderSettings', 'modelDefaults', 'setModelDefault', 'proxyGet', 'proxySet', 'proxyTest'];
         for (const endpoint of endpoints) {
             const NS = 'majed-subscriptions.';
             const method = `${NS}${endpoint}`;
@@ -121,6 +136,68 @@ export function apply(ctx, config = {}) {
                                 value = { ok: true, component: 'subscriptions', version: '0.2.0', registrationError: collision,
                                     providers: { codex: { ...state, clientVersion: config.codexClientVersion ? { version: config.codexClientVersion, source: 'config' }
                                                 : version.current() ?? { version: CODEX_CLIENT_VERSION, source: 'fallback' } } } };
+                                break;
+                            }
+                            case 'proxyGet':
+                                value = await proxyGetConfig();
+                                break;
+                            case 'proxySet': {
+                                if (typeof payload.enabled !== 'boolean' || typeof payload.url !== 'string')
+                                    throw new Error('Invalid proxy settings');
+                                if (payload.username !== undefined && typeof payload.username !== 'string')
+                                    throw new Error('Invalid proxy username');
+                                if (payload.password !== undefined && payload.password !== null && typeof payload.password !== 'string')
+                                    throw new Error('Invalid proxy password');
+                                if (payload.bypass !== undefined && (!Array.isArray(payload.bypass) || payload.bypass.some(item => typeof item !== 'string')))
+                                    throw new Error('Invalid bypass list');
+                                value = await proxySetConfig(payload);
+                                break;
+                            }
+                            case 'proxyTest':
+                                value = await proxyTestConnection(payload.url, payload.proxy);
+                                break;
+                            case 'setProviderSettings': {
+                                await preferences.set('codex', payload.settings);
+                                pool.invalidate();
+                                handle?.replace(['codex']);
+                                break;
+                            }
+                            case 'providerSettings': {
+                                await loadModelDefaults();
+                                if (payload.force === true) {
+                                    adapter.clearAccountCatalog();
+                                    pool.invalidate();
+                                    handle?.replace(['codex']);
+                                }
+                                const accounts = await tokens.list();
+                                const catalogs = await Promise.all(accounts.map(async ({ key, session }) => {
+                                    const models = await adapter.listOwnModels('codex', key, AbortSignal.timeout(20_000), payload.force !== true).catch(() => undefined);
+                                    return { key, label: session.emailAddress ?? key, models: models ?? [], ...(models === undefined ? { unavailable: true } : {}) };
+                                }));
+                                const models = await adapter.listModels('codex');
+                                const fast = new Set(await adapter.fastCapableModels());
+                                const rows = await Promise.all(models.map(async (model) => {
+                                    const info = await adapter.resolveModel('codex', model.id).catch(() => undefined);
+                                    const limits = (await Promise.all(catalogs.filter(account => account.models.some(entry => entry.id === model.id))
+                                        .map(account => adapter.contextLimits(model.id, account.key).catch(() => undefined)))).filter(entry => entry !== undefined);
+                                    return { ...model, efforts: info?.reasoning?.efforts ?? [], configured: defaultEffortOf('codex', model.id), fastTier: fast.has(model.id),
+                                        ...(limits.length ? { defaultContextWindow: Math.min(...limits.map(entry => entry.default)), maxContextWindow: Math.min(...limits.map(entry => entry.max)) } : {}) };
+                                }));
+                                value = { provider: 'codex', settings: preferences.get('codex'), accounts: catalogs, models: rows, tools: PROVIDER_TOOLS.codex };
+                                break;
+                            }
+                            case 'modelDefaults':
+                                await loadModelDefaults();
+                                value = { codex: {} };
+                                break;
+                            case 'setModelDefault': {
+                                const model = string('model');
+                                const effort = payload.effort === undefined ? undefined : string('effort');
+                                const info = await adapter.resolveModel('codex', model).catch(() => undefined);
+                                if (effort && info?.reasoning?.efforts.length && !info.reasoning.efforts.some(entry => entry.id === effort))
+                                    throw new Error('Model does not advertise that reasoning effort');
+                                await setDefaultEffort('codex', model, effort);
+                                handle?.replace(['codex']);
                                 break;
                             }
                             case 'login':

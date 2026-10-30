@@ -1,3 +1,5 @@
+import { ProxySettings } from './settings/ProxySettings.js';
+import { ProviderAccountManager } from './settings/ProviderAccountManager.js';
 /** Scoped presentation port of V1ki v0.9.12 b802311; see PROVENANCE.md. */
 const styles: Record<string, any> = {
   section: {
@@ -187,6 +189,7 @@ export function createCodexCard(React: any, primitives: any, rpc: any, t: (key: 
   const Button = primitives.Button ?? 'button';
   const Input = primitives.Input ?? 'input';
   return function CodexCard() {
+    const [manager, setManager] = React.useState(false);
     const [status, setStatus] = React.useState(null);
     const [error, setError] = React.useState('');
     const [pending, setPending] = React.useState(false);
@@ -258,10 +261,13 @@ export function createCodexCard(React: any, primitives: any, rpc: any, t: (key: 
     const busy = status?.busy;
     return h('div', { style: { ...styles.section, textAlign: 'start' }, className: 'majed-subscriptions-settings', 'data-majed-codex-card': true },
       h('style', null, controlCss),
+      h(ProxySettings, { rpc, t }),
+      manager ? h(ProviderAccountManager, { provider: 'codex', name: 'Codex (ChatGPT)', rpc, t, onClose: () => { setManager(false); void refreshStatus(); } }) : null,
       part('card', styles.card,
         part('header', styles.cardHeader,
           h('span', { 'aria-hidden': true, style: { ...styles.dot, background: busy ? 'var(--dsw-alias-state-warn-label)' : status?.accounts?.length ? 'var(--dsw-alias-state-success-primary)' : 'var(--dsw-alias-label-dimmed)' } }),
           h('span', { style: styles.name }, 'Codex (ChatGPT)'),
+          button(t('accountsManage'), () => setManager(true), false, { style: { marginInlineStart: 'auto' } }),
           status?.clientVersion ? h('span', { style: styles.clientVersion, title: t('clientVersionHint') }, 'CLI ', h('bdi', { dir: 'ltr' }, status.clientVersion.version), ' · ', t(`source_${status.clientVersion.source}`)) : null),
         h('p', { style: styles.statusLine, role: 'status' }, status?.registrationError ? t('providerUnavailable') : busy ? t('loginProgress') : status?.accounts?.length ? `${status.accounts.length} ${t('connected')}` : status ? t('notLoggedIn') : t('checking')),
         status?.detail ? h('p', { style: styles.statusLine }, status.detail) : null,

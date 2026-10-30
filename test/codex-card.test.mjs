@@ -16,7 +16,7 @@ function fixture(locale, status, respond, open = () => ({ location: {}, close() 
     useEffect(fn, deps) { const index = cursor++; if (!slots[index] || deps.some((value, i) => value !== slots[index][i])) { slots[index] = deps; effects.push(fn); } },
   };
   const exports = {};
-  vm.runInNewContext(compiled, { exports, window: { open }, setInterval: () => 1, clearInterval() {}, Date, Error });
+  vm.runInNewContext(compiled, { exports, require: () => ({ ProviderAccountManager: 'ManageFixture', ProxySettings: 'ProxyFixture' }), window: { open }, setInterval: () => 1, clearInterval() {}, Date, Error });
   const rpc = { async call(_, method, payload) {
     calls.push({ method, payload });
     const endpoint = method.split('.').pop();
@@ -263,7 +263,10 @@ test('start, unmount, remount on the same auth controller, paste then cancel fre
       if (action === 'submitCallback') {
         next.nodes().find(n => n.tag === 'input').props.onChange({ target: { value: 'fake-code' } }); next.render();
       }
-      next.click(action); await new Promise(resolve => setImmediate(resolve)); await next.settle(); next.unmount();
+      next.click(action);
+      // Proxy settings load lazily from the owner store before the intercepted exchange.
+      for (let turn = 0; turn < 100 && (await controller.status()).busy; turn++) await new Promise(resolve => setImmediate(resolve));
+      await next.settle(); next.unmount();
       assert.equal((await controller.status()).busy, false);
     }
   } finally { controller.dispose(); globalThis.fetch = saved; }
