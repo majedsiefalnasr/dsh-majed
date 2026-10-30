@@ -6,6 +6,7 @@ import { SpeedSelect, createSpeedLoader, createSpeedSetter } from './speed/Speed
 import { fastCommandDescription } from './speed/fast-command.js';
 import { SubscriptionUsageBadge, createCurrentModelReader } from './usage-badge/SubscriptionUsageBadge.js';
 import { UsageBadgeDisplaySetting } from './usage-badge/UsageBadgeDisplaySetting.js';
+import { guarded } from './usage-badge/error-boundary.js';
 import type { ModelDirectoriesLike } from './usage-badge/usage-types.js';
 
 type Dispose = () => void;
@@ -32,6 +33,9 @@ export function applySubscriptions(root: Context): void {
     isolate(() => ctx.effect(() => isolate(() => ctx.locale.register(NS, { en: en.subscriptions, ar: ar.subscriptions })), 'dsh-majed: subscriptions dictionaries'));
     const t = ctx.locale.bind(NS);
     const CodexCard = createCodexCard(React, primitives, connection.rpc, t);
+    const GuardedSetting = guarded(React, UsageBadgeDisplaySetting as any, 'usage display setting');
+    const GuardedSpeed = guarded(React, SpeedSelect as any, 'Speed control');
+    const GuardedBadge = guarded(React, SubscriptionUsageBadge as any, 'usage badge');
     let present = false;
     let failing = false;
     let referenceEnabled = false;
@@ -46,7 +50,7 @@ export function applySubscriptions(root: Context): void {
         failing ? h('p', { role: 'alert' }, t('unreachable')) : null,
         ...['accounts', 'providers'].map((part) => h('section', { key: part, style: { paddingBlock: 'var(--dsw-spacing-4)', borderBlockEnd: '1px solid var(--dsw-alias-border-l2)' } },
           h('h3', { style: { font: 'var(--dsw-font-s-strong-14)' } }, h(IconSettingsOutlineMedium, { 'aria-hidden': true }), t(part)),
-          part === 'accounts' ? h('div', null, h('p', { style: { marginBlock: '0 var(--dsw-spacing-3)', color: 'var(--dsw-alias-label-tertiary)' } }, t('intro')), h(UsageBadgeDisplaySetting, { t }), h(CodexCard)) : h('p', { style: { color: 'var(--dsw-alias-label-tertiary)' } }, t(`${part}Empty`)))));
+          part === 'accounts' ? h('div', null, h('p', { style: { marginBlock: '0 var(--dsw-spacing-3)', color: 'var(--dsw-alias-label-tertiary)' } }, t('intro')), h(GuardedSetting, { t }), h(CodexCard)) : h('p', { style: { color: 'var(--dsw-alias-label-tertiary)' } }, t(`${part}Empty`)))));
     }
     // Composer surfaces (ticket #131): the usage badge, the Speed control and /fast exist only while the component
     // answers and the reference plugin is not serving the same provider ids. Each registration is isolated so a
@@ -65,11 +69,11 @@ export function applySubscriptions(root: Context): void {
         add(() => ctx.slots.inject('conversation.input.right', () => ctx.slots.register({
           name: 'conversation.input.right', id: 'majed-subscription-speed', order: 0, locale: NS,
           inject: (sessionId: string) => ({ loadSpeed: createSpeedLoader(connection, models, sessionId), setSpeed: createSpeedSetter(connection, sessionId) }),
-        }, SpeedSelect)));
+        }, GuardedSpeed)));
         add(() => ctx.slots.inject('conversation.composer.dock', () => ctx.slots.register({
           name: 'conversation.composer.dock', id: 'majed-subscription-usage', order: 10, locale: NS,
           inject: (sessionId: string) => ({ rpc: connection.rpc, currentModel: createCurrentModelReader(models, sessionId) }),
-        }, SubscriptionUsageBadge)));
+        }, GuardedBadge)));
       } else if (!surfaceWanted() && surfacesActive) {
         surfacesActive = false;
         for (const off of surfaces.splice(0)) isolate(off);
