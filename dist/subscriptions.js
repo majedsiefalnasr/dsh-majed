@@ -19,7 +19,7 @@ import { ImageAccountPool } from './providers/image-pool.js';
 import { CodexWebSearchProvider } from './providers/codex-search.js';
 import { createImageGenerateTool } from './tools/image-generate.js';
 import { registerWithAlias } from './tools/registration.js';
-import { AccountPreferencesAdapter, accountAllowsPool, parseAccountModelId } from './providers/account-preferences.js';
+import { AccountPreferencesAdapter, accountAllowsPool, accountModelId, parseAccountModelId } from './providers/account-preferences.js';
 export const name = 'dsh-majed/subscriptions';
 export const inject = ['llm'];
 /** Bound on one account's catalog read while assembling pools: a hung account sits out instead of failing the pool. */
@@ -52,6 +52,12 @@ export const Config = z.object({
         tiers: z.dict(z.array(poolMemberSchema)),
     }),
 });
+/** Reference `readSpeedTier`. */
+function readSpeedTier(payload) {
+    if (payload.tier !== 'standard' && payload.tier !== 'fast')
+        throw new Error('payload.tier must be "standard" or "fast"');
+    return payload.tier;
+}
 /** Reference `readForce`: the optional `force` flag must be a boolean when present. */
 function readForce(payload) {
     const force = payload.force;
@@ -118,6 +124,19 @@ export function apply(ctx, config = {}) {
     let collisionError;
     let disposed = false;
     const ownAlias = (key) => { const settings = preferences.get('codex').accounts; return settings && Object.hasOwn(settings, key) ? settings[key]?.alias : undefined; };
+    // Composer Speed (ticket #131; reference src/index.ts speedBySession/selectedSpeed). Explicit choices are
+    // per session and reset on restart. A subagent without an explicit choice uses its saved model default, and
+    // every request still gates Fast on the model's discovered capability.
+    const speedBySession = new Map();
+    const selectedSpeed = (sessionId, model) => {
+        const explicit = speedBySession.get(sessionId);
+        if (explicit !== undefined)
+            return explicit;
+        const registry = ctx.get('agents');
+        if (model !== undefined && registry?.get(sessionId)?.session.header.origin === 'subagent')
+            return preferences.subagentSpeed(parseAccountModelId(model)?.model ?? model);
+        return 'standard';
+    };
     const collisionText = async () => {
         await proxyGetConfig().catch(() => undefined); // loads the stored proxy credential so it can be redacted
         return browserSafeError(collisionError, 'codex registration');
@@ -159,11 +178,7 @@ export function apply(ctx, config = {}) {
         discovery: !config.models?.codex?.length,
         defaultEffortOf: model => defaultEffortOf('codex', model),
         contextWindowOf: model => preferences.contextWindow(model),
-        speedFor: async (sessionId, model) => {
-            const registry = ctx.get('agents');
-            return sessionId !== undefined && registry?.get(sessionId)?.session.header.origin === 'subagent'
-                && preferences.subagentSpeed(parseAccountModelId(model)?.model ?? model) === 'fast' && await adapter.supportsFastTier(model);
-        },
+        speedFor: async (sessionId, model) => sessionId !== undefined && selectedSpeed(sessionId, model) === 'fast' && await adapter.supportsFastTier(model),
         clientVersion: config.codexClientVersion,
         resolveClientVersion: () => version.resolve(),
         catalogStore: catalogStore('codex'), accountCatalogStore: account => accountCatalogStore('codex', account),
@@ -274,7 +289,7 @@ export function apply(ctx, config = {}) {
     };
     ctx.inject(['connection'], ctx => {
         const connection = ctx.get('connection');
-        const endpoints = ['status', 'login', 'manual', 'cancel', 'logout', 'setDefault', 'usage', 'prepareReset', 'consumeReset', 'providerSettings', 'setProviderSettings', 'modelDefaults', 'setModelDefault', 'proxyGet', 'proxySet', 'proxyTest'];
+        const endpoints = ['status', 'login', 'manual', 'cancel', 'logout', 'setDefault', 'usage', 'prepareReset', 'consumeReset', 'providerSettings', 'setProviderSettings', 'modelDefaults', 'setModelDefault', 'proxyGet', 'proxySet', 'proxyTest', 'speed', 'setSpeed'];
         for (const endpoint of endpoints) {
             const NS = 'majed-subscriptions.';
             const method = `${NS}${endpoint}`;
@@ -462,6 +477,29 @@ export function apply(ctx, config = {}) {
                                 if (force)
                                     health.clear('codex', account);
                                 value = await usage.snapshotFor('codex', account, force);
+                                break;
+                            }
+                            case 'speed': {
+                                const sessionId = string('sessionId');
+                                const model = payload.model === undefined ? undefined : string('model');
+                                const fastModels = await adapter.fastCapableModels(request.signal);
+                                const accountPreferences = preferences.get('codex').accounts;
+                                for (const { key } of await tokens.list()) {
+                                    if (!accountPreferences || !Object.hasOwn(accountPreferences, key) || accountPreferences[key]?.independentEntry !== true)
+                                        continue;
+                                    for (const candidate of [...fastModels]) {
+                                        if (parseAccountModelId(candidate))
+                                            continue;
+                                        if (await adapter.supportsFastTier(candidate, key, request.signal))
+                                            fastModels.push(accountModelId(key, candidate));
+                                    }
+                                }
+                                value = { tier: selectedSpeed(sessionId, model), fastModels };
+                                break;
+                            }
+                            case 'setSpeed': {
+                                // An explicit Standard is kept as well, so a child can override a saved Fast default.
+                                speedBySession.set(string('sessionId'), readSpeedTier(payload));
                                 break;
                             }
                             case 'prepareReset':

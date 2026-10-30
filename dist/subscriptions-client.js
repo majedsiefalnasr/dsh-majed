@@ -179,7 +179,26 @@ var subscriptions$1 = {
 	"modelDefaultsNoModels": "This provider reports no models.",
 	"modelDefaultsNoAccount": "No connected accounts. Connect one on the provider card first.",
 	"modelDefaultsDiscoveryFailed": "Model discovery failed or timed out. Use Refresh to try again.",
-	"modelDefaultsSaveFailedNamed": "Save failed for {model}: {message}"
+	"modelDefaultsSaveFailedNamed": "Save failed for {model}: {message}",
+	"speed": "Speed",
+	"speedStandardDescription": "Default speed",
+	"speedFastDescription": "1.5x speed, more usage",
+	"commandFast": "Switch the Codex speed tier (Standard/Fast)",
+	"commandFastUnavailable": "The current model has no fast tier; /fast only works on Codex models whose catalog advertises one",
+	"usageBadgeTitle": "Subscription usage",
+	"usageBadgeCurrent": "current",
+	"usageBadgeMoreWindows": "More quota windows ({count})",
+	"usageBadgeModelCount": "{count} model quotas",
+	"usageBadgeModelUnavailable": "Current model quota unavailable",
+	"usageBadgeDisplay": "Status-bar quota display",
+	"usageBadgeDisplayRecent": "Current / most recent subscription only",
+	"usageBadgeDisplayHidden": "Hidden",
+	"usageBadgeDisplayHint": "Saved automatically in this browser. At most one subscription is shown; non-subscription models keep the most recent subscription selected in this view, or show nothing. Hiding does not affect usage details here.",
+	"usageBadgeDisplaySaveFailed": "Could not save the display preference. Check browser storage permissions.",
+	"usagePlan": "Plan: {plan}",
+	"usageSession": "5-hour window",
+	"usageWeekly": "Weekly",
+	"usageWindow": "Window"
 };
 
 //#endregion
@@ -334,7 +353,26 @@ var subscriptions = {
 	"modelDefaultsNoModels": "لم يُبلّغ المزوّد عن نماذج.",
 	"modelDefaultsNoAccount": "لا حسابات متصلة. أضف حساباً أولاً.",
 	"modelDefaultsDiscoveryFailed": "تعذر اكتشاف النماذج أو انتهت المهلة. حدّث لإعادة المحاولة.",
-	"modelDefaultsSaveFailedNamed": "تعذر حفظ {model}: {message}"
+	"modelDefaultsSaveFailedNamed": "تعذر حفظ {model}: {message}",
+	"speed": "السرعة",
+	"speedStandardDescription": "السرعة الافتراضية",
+	"speedFastDescription": "سرعة 1.5 ضعف، واستهلاك أكبر",
+	"commandFast": "تبديل مستوى سرعة Codex (عادية/سريعة)",
+	"commandFastUnavailable": "لا يدعم النموذج الحالي المستوى السريع؛ يعمل الأمر /fast فقط مع نماذج Codex التي يعلن كتالوجها عن مستوى سريع",
+	"usageBadgeTitle": "استهلاك الاشتراك",
+	"usageBadgeCurrent": "الحالي",
+	"usageBadgeMoreWindows": "المزيد من نوافذ الحصة ({count})",
+	"usageBadgeModelCount": "حصص {count} من النماذج",
+	"usageBadgeModelUnavailable": "حصة النموذج الحالي غير متاحة",
+	"usageBadgeDisplay": "عرض الحصة في شريط الحالة",
+	"usageBadgeDisplayRecent": "الاشتراك الحالي / الأحدث فقط",
+	"usageBadgeDisplayHidden": "مخفي",
+	"usageBadgeDisplayHint": "يُحفظ تلقائيًا في هذا المتصفح. يُعرض اشتراك واحد على الأكثر؛ وتحتفظ النماذج غير المرتبطة باشتراك بآخر اشتراك تم اختياره في هذا العرض، أو لا تعرض شيئًا. لا يؤثر الإخفاء على تفاصيل الاستهلاك هنا.",
+	"usageBadgeDisplaySaveFailed": "تعذر حفظ تفضيل العرض. تحقق من أذونات تخزين المتصفح.",
+	"usagePlan": "الخطة: {plan}",
+	"usageSession": "نافذة 5 ساعات",
+	"usageWeekly": "أسبوعي",
+	"usageWindow": "نافذة"
 };
 
 //#endregion
@@ -1263,6 +1301,26 @@ ${formScope} summary:hover {
   color: var(--dsw-alias-label-secondary, var(--dsw-alias-label-primary));
 }
 `;
+/** Composer controls retain their own geometry, separate from settings forms. */
+const subscriptionChromeCss = `
+.majed-subscription-usage-pill { corner-shape: round; }
+.majed-subscription-usage-panel {
+  --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
+  backdrop-filter: var(--dsw-menu-backdrop-filter, none);
+}
+.majed-subscription-speed button:hover:not(:disabled) {
+  --majed-subscription-speed-hover: var(--dsw-alias-interactive-bg-hover);
+}
+.majed-subscription-speed button:active:not(:disabled) {
+  --majed-subscription-speed-hover: var(--dsw-alias-interactive-bg-active);
+}
+.majed-subscription-speed button:disabled { opacity: 0.4; cursor: default; }
+.majed-subscription-speed button:focus-visible,
+.majed-subscription-usage-pill:focus-visible {
+  outline: var(--dsw-focus-ring-width, 2px) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
+  outline-offset: 2px;
+}
+`;
 
 //#endregion
 //#region src/settings/ProviderAccountManager.tsx
@@ -1716,7 +1774,7 @@ function ProviderAccountManager({ provider, name, rpc, t, onClose }) {
 //#endregion
 //#region src/codex-card.ts
 /** Scoped presentation port of V1ki v0.9.12 b802311; see PROVENANCE.md. */
-const styles = {
+const styles$3 = {
 	section: {
 		display: "flex",
 		flexDirection: "column",
@@ -2006,10 +2064,10 @@ const controlCss = `:is(.majed-subscriptions-settings, .majed-reset-dialog) inpu
 .majed-subscriptions-settings { font:var(--dsw-font-s-13); }
 .majed-subscriptions-settings a { color:var(--dsw-alias-state-business-primary); text-underline-offset: .15em; }
 `;
-function createCodexCard(React, primitives, rpc, t) {
+function createCodexCard(React, primitives$1, rpc, t) {
 	const h = React.createElement;
-	const Button = primitives.Button ?? "button";
-	const Input = primitives.Input ?? "input";
+	const Button = primitives$1.Button ?? "button";
+	const Input = primitives$1.Input ?? "input";
 	return function CodexCard() {
 		const [manager, setManager] = React.useState(false);
 		const [status, setStatus] = React.useState(null);
@@ -2123,7 +2181,7 @@ function createCodexCard(React, primitives, rpc, t) {
 		const busy = status?.busy;
 		return h("div", {
 			style: {
-				...styles.section,
+				...styles$3.section,
 				textAlign: "start"
 			},
 			className: "majed-subscriptions-settings",
@@ -2140,20 +2198,20 @@ function createCodexCard(React, primitives, rpc, t) {
 				setManager(false);
 				refreshStatus();
 			}
-		}) : null, part("card", styles.card, part("header", styles.cardHeader, h("span", {
+		}) : null, part("card", styles$3.card, part("header", styles$3.cardHeader, h("span", {
 			"aria-hidden": true,
 			style: {
-				...styles.dot,
+				...styles$3.dot,
 				background: busy ? "var(--dsw-alias-state-warn-label)" : status?.accounts?.length ? "var(--dsw-alias-state-success-primary)" : "var(--dsw-alias-label-dimmed)"
 			}
-		}), h("span", { style: styles.name }, status?.displayName || "Codex (ChatGPT)"), button(t("accountsManage"), () => setManager(true), false, { style: { marginInlineStart: "auto" } }), status?.clientVersion ? h("span", {
-			style: styles.clientVersion,
+		}), h("span", { style: styles$3.name }, status?.displayName || "Codex (ChatGPT)"), button(t("accountsManage"), () => setManager(true), false, { style: { marginInlineStart: "auto" } }), status?.clientVersion ? h("span", {
+			style: styles$3.clientVersion,
 			title: t("clientVersionHint")
 		}, "CLI ", h("bdi", { dir: "ltr" }, status.clientVersion.version), " · ", t(`source_${status.clientVersion.source}`)) : null), h("p", {
-			style: styles.statusLine,
+			style: styles$3.statusLine,
 			role: "status"
-		}, status?.registrationError ? t("providerUnavailable") : busy ? t("loginProgress") : status?.accounts?.length ? `${status.accounts.length} ${t("connected")}` : status ? t("notLoggedIn") : t("checking")), status?.detail ? h("p", { style: styles.statusLine }, status.detail) : null, error ? h("p", {
-			style: styles.errorLine,
+		}, status?.registrationError ? t("providerUnavailable") : busy ? t("loginProgress") : status?.accounts?.length ? `${status.accounts.length} ${t("connected")}` : status ? t("notLoggedIn") : t("checking")), status?.detail ? h("p", { style: styles$3.statusLine }, status.detail) : null, error ? h("p", {
+			style: styles$3.errorLine,
 			role: "alert"
 		}, error) : null, ...(status?.accounts ?? []).map((account) => {
 			const snapshot = usage[account.key];
@@ -2163,58 +2221,58 @@ function createCodexCard(React, primitives, rpc, t) {
 			const resetBlocked = !weekly || !Number.isFinite(weekly.usedPercent) || !weekly.resetsAt || weekly.resetsAt <= Date.now() || snapshot?.resetCreditsError ? "resetRefresh" : weekly.usedPercent < 80 ? "resetGuard" : !next ? "resetRefresh" : null;
 			return h("div", {
 				key: account.key,
-				style: styles.accountRow,
+				style: styles$3.accountRow,
 				"data-majed-codex-part": "account"
-			}, part("account-header", styles.accountHeader, button(account.isDefault ? "★" : "☆", () => {
+			}, part("account-header", styles$3.accountHeader, button(account.isDefault ? "★" : "☆", () => {
 				if (!account.isDefault) action(async () => {
 					await call("setDefault", { account: account.key });
 					await refreshStatus();
 				});
 			}, false, {
-				style: styles.starButton,
+				style: styles$3.starButton,
 				title: t(account.isDefault ? "defaultAccount" : "makeDefault"),
 				"aria-label": t(account.isDefault ? "defaultAccount" : "makeDefault")
 			}), h("bdi", {
 				dir: "ltr",
-				style: styles.accountName
-			}, account.alias || account.account || account.key), account.plan ? h("bdi", { style: styles.usagePlan }, account.plan) : null, account.expiresAt ? h("span", { style: styles.statusLine }, t("expires"), " ", h("bdi", null, date(account.expiresAt))) : null, button(t("logout"), () => {
+				style: styles$3.accountName
+			}, account.alias || account.account || account.key), account.plan ? h("bdi", { style: styles$3.usagePlan }, account.plan) : null, account.expiresAt ? h("span", { style: styles$3.statusLine }, t("expires"), " ", h("bdi", null, date(account.expiresAt))) : null, button(t("logout"), () => {
 				setAcknowledged(false);
 				setConfirmation({
 					kind: "logout",
 					account: account.key,
 					label: account.account
 				});
-			}, false, { style: { marginInlineStart: "auto" } })), snapshot?.supported === false ? h("p", { style: styles.statusLine }, t("usageUnavailable")) : part("usage", styles.usage, part("usage-header", styles.usageHeader, h("span", { style: styles.usageTitle }, t("usageTitle")), snapshot?.plan ? h("span", { style: styles.usagePlan }, t("plan"), ": ", h("bdi", null, snapshot.plan)) : null, button(t("refreshUsage"), () => {
+			}, false, { style: { marginInlineStart: "auto" } })), snapshot?.supported === false ? h("p", { style: styles$3.statusLine }, t("usageUnavailable")) : part("usage", styles$3.usage, part("usage-header", styles$3.usageHeader, h("span", { style: styles$3.usageTitle }, t("usageTitle")), snapshot?.plan ? h("span", { style: styles$3.usagePlan }, t("plan"), ": ", h("bdi", null, snapshot.plan)) : null, button(t("refreshUsage"), () => {
 				action(() => refreshUsage(account.key, true));
-			}, false, { style: styles.usageRefresh })), !snapshot ? h("p", { style: styles.statusLine }, t("usageNotLoaded")) : snapshot.error ? h("p", {
-				style: styles.errorLine,
+			}, false, { style: styles$3.usageRefresh })), !snapshot ? h("p", { style: styles$3.statusLine }, t("usageNotLoaded")) : snapshot.error ? h("p", {
+				style: styles$3.errorLine,
 				role: "alert"
-			}, snapshot.error) : !snapshot.windows?.length ? h("p", { style: styles.statusLine }, t("usageUnavailable")) : null, ...(snapshot?.windows ?? []).map((window$1, index) => {
+			}, snapshot.error) : !snapshot.windows?.length ? h("p", { style: styles$3.statusLine }, t("usageUnavailable")) : null, ...(snapshot?.windows ?? []).map((window$1, index) => {
 				const percent = Math.max(0, Math.min(100, window$1.usedPercent));
 				const color = percent >= 95 ? "var(--dsw-alias-state-error-primary)" : percent >= 80 ? "var(--dsw-alias-state-warn-label)" : "var(--dsw-alias-state-success-primary)";
 				return h("div", {
 					key: index,
-					style: styles.usageRow
-				}, part("usage-meta", styles.usageMeta, h("span", null, t(`window_${window$1.kind}`), window$1.scope ? ` · ${window$1.scope}` : ""), h("span", null, h("bdi", null, `${Math.round(percent)}%`), window$1.resetsAt ? h("span", null, " · ", t("resets"), " ", h("bdi", null, date(window$1.resetsAt))) : null)), h("div", {
+					style: styles$3.usageRow
+				}, part("usage-meta", styles$3.usageMeta, h("span", null, t(`window_${window$1.kind}`), window$1.scope ? ` · ${window$1.scope}` : ""), h("span", null, h("bdi", null, `${Math.round(percent)}%`), window$1.resetsAt ? h("span", null, " · ", t("resets"), " ", h("bdi", null, date(window$1.resetsAt))) : null)), h("div", {
 					role: "progressbar",
 					"aria-label": t(`window_${window$1.kind}`),
 					"aria-valuenow": percent,
 					"aria-valuemin": 0,
 					"aria-valuemax": 100,
-					style: styles.usageTrack
+					style: styles$3.usageTrack
 				}, h("div", { style: {
-					...styles.usageFill,
+					...styles$3.usageFill,
 					background: color,
 					inlineSize: `${percent}%`
 				} })));
 			}), snapshot?.resetCreditsError ? h("p", {
-				style: styles.errorLine,
+				style: styles$3.errorLine,
 				role: "alert"
 			}, t("creditsUnavailable"), " ", snapshot.resetCreditsError) : null, snapshot?.resetCredits ? h("details", {
 				className: "majed-reset-credits",
-				style: styles.usageRow
+				style: styles$3.usageRow
 			}, h("summary", { style: {
-				...styles.usageMeta,
+				...styles$3.usageMeta,
 				cursor: "pointer",
 				listStyle: "none",
 				justifyContent: "flex-start",
@@ -2237,7 +2295,7 @@ function createCodexCard(React, primitives, rpc, t) {
 			} }, ...credits.map((credit, index) => h("div", {
 				key: credit.id ?? index,
 				style: {
-					...styles.usageMeta,
+					...styles$3.usageMeta,
 					minBlockSize: 28,
 					gap: 12
 				}
@@ -2268,19 +2326,19 @@ function createCodexCard(React, primitives, rpc, t) {
 					cursor: resetBlocked ? "not-allowed" : "pointer"
 				}
 			}) : null), h("span", { style: { textAlign: "end" } }, credit.expiresAt === void 0 ? t("creditExpiryUnknown") : h("span", null, t("expires"), " ", h("bdi", null, date(credit.expiresAt)), credit.expiresAt <= Date.now() ? ` · ${t("creditExpired")}` : null)))))) : null));
-		}), part("actions", styles.actions, busy ? button(t("cancelLogin"), () => {
+		}), part("actions", styles$3.actions, busy ? button(t("cancelLogin"), () => {
 			action(async () => {
 				await call("cancel");
 				setLogin(null);
 				await refreshStatus();
 			});
-		}) : button(t(status?.accounts?.length ? "addAccount" : "login"), startLogin, !!status?.registrationError)), !busy && status?.accounts?.length ? h("p", { style: styles.statusLine }, t("addAccountHint")) : null, busy ? h("div", null, (status.pendingAuth ?? login)?.authorizeUrl ? h("a", {
+		}) : button(t(status?.accounts?.length ? "addAccount" : "login"), startLogin, !!status?.registrationError)), !busy && status?.accounts?.length ? h("p", { style: styles$3.statusLine }, t("addAccountHint")) : null, busy ? h("div", null, (status.pendingAuth ?? login)?.authorizeUrl ? h("a", {
 			href: (status.pendingAuth ?? login).authorizeUrl,
 			target: "_blank",
 			rel: "noopener noreferrer",
-			style: styles.manual
-		}, t("openAuthorization")) : null, h("details", { style: styles.manual }, h("summary", null, t("manualSummary")), part("manual-row", styles.manualRow, h(Input, {
-			style: styles.manualInput,
+			style: styles$3.manual
+		}, t("openAuthorization")) : null, h("details", { style: styles$3.manual }, h("summary", null, t("manualSummary")), part("manual-row", styles$3.manualRow, h(Input, {
+			style: styles$3.manualInput,
 			value: input,
 			placeholder: t("pasteCallback"),
 			"aria-label": t("pasteCallback"),
@@ -2303,17 +2361,17 @@ function createCodexCard(React, primitives, rpc, t) {
 			onCancel: () => setConfirmation(null),
 			onClose: () => setConfirmation(null),
 			style: {
-				...styles.modal,
+				...styles$3.modal,
 				margin: "auto",
 				color: "var(--dsw-alias-label-primary)"
 			}
 		}, h("h3", { style: {
-			...styles.modalTitle,
+			...styles$3.modalTitle,
 			margin: 0
 		} }, t(confirmation.kind === "logout" ? "confirmLogout" : "confirmReset")), h("p", { style: {
-			...styles.statusLine,
+			...styles$3.statusLine,
 			overflowWrap: "anywhere"
-		} }, h("bdi", { dir: "ltr" }, confirmation.label ?? confirmation.account)), confirmation.kind === "reset" ? part("reset-context", styles.usageMeta, h("span", null, t("window_weekly")), h("strong", null, `${Math.round(confirmation.weeklyUsedPercent)}%`)) : null, confirmation.kind === "reset" ? h("p", { style: styles.statusLine }, confirmation.creditExpiresAt === void 0 ? t("creditExpiryUnknown") : h("span", null, t("expires"), " ", h("bdi", null, date(confirmation.creditExpiresAt)))) : null, confirmation.kind === "reset" ? h("p", { style: styles.statusLine }, t("resetWarning")) : null, confirmation.kind === "reset" ? h("label", { style: {
+		} }, h("bdi", { dir: "ltr" }, confirmation.label ?? confirmation.account)), confirmation.kind === "reset" ? part("reset-context", styles$3.usageMeta, h("span", null, t("window_weekly")), h("strong", null, `${Math.round(confirmation.weeklyUsedPercent)}%`)) : null, confirmation.kind === "reset" ? h("p", { style: styles$3.statusLine }, confirmation.creditExpiresAt === void 0 ? t("creditExpiryUnknown") : h("span", null, t("expires"), " ", h("bdi", null, date(confirmation.creditExpiresAt)))) : null, confirmation.kind === "reset" ? h("p", { style: styles$3.statusLine }, t("resetWarning")) : null, confirmation.kind === "reset" ? h("label", { style: {
 			display: "flex",
 			gap: 8,
 			alignItems: "flex-start",
@@ -2325,7 +2383,7 @@ function createCodexCard(React, primitives, rpc, t) {
 		}), t("resetAcknowledge")) : null, h("div", {
 			className: "majed-subscription-dialog-actions",
 			style: {
-				...styles.actions,
+				...styles$3.actions,
 				justifyContent: "flex-end",
 				marginBlockStart: 8
 			}
@@ -2343,6 +2401,1089 @@ function createCodexCard(React, primitives, rpc, t) {
 		}, confirmation.kind === "reset" && (!acknowledged || Date.now() >= confirmation.expiresAt), { className: confirmation.kind === "reset" ? "majed-subscription-primary" : void 0 }))) : null);
 	};
 }
+
+//#endregion
+//#region src/speed/SpeedSelect.tsx
+/**
+* The `loadSpeed` half of the inject face: the plugin's own speed state plus
+* the host's current model selection (the visibility gate). A model-RPC
+* failure throws rather than answering "hidden" — the caller keeps its last
+* known state, so a transient failure never locks the toggle away.
+*
+* `sessionId` is a plain string: slot and command contexts brand it through
+* different dsh-session copies, and only the service boundary needs one.
+*
+* `models` resolves lazily per call: the ui-model-selection service may
+* register after this plugin applies, and a shell without it (no model seat
+* at all) simply keeps the toggle hidden.
+*/
+function createSpeedLoader(connection, models, sessionId) {
+	return async () => {
+		const directories = models();
+		const current = directories === void 0 ? null : (await directories.directoryFor(sessionId).load()).current;
+		const state = await callSubscriptionsAuth(connection.rpc, "speed", {
+			sessionId,
+			...current?.provider === "codex" ? { model: current.model } : {}
+		});
+		return {
+			visible: current !== null && current.provider === "codex" && state.fastModels.includes(current.model),
+			tier: state.tier
+		};
+	};
+}
+/** The `setSpeed` half of the inject face: boolean outcome for the component's busy state. */
+function createSpeedSetter(connection, sessionId) {
+	return (tier) => callSubscriptionsAuth(connection.rpc, "setSpeed", {
+		sessionId,
+		tier
+	}).then(() => true, () => false);
+}
+/** English-dictionary fallback for a missing inject `t` (standalone renders). */
+function fallbackTranslate$1(key) {
+	return subscriptions$1[key] ?? key;
+}
+const TIERS = ["standard", "fast"];
+/**
+* The composer Speed control: a trigger reading `Speed · Fast`/`Speed · Standard`
+* that opens a two-row menu (standard/fast with descriptions, check mark on
+* the current tier). Mount and every open reload the host state so a model
+* switch made since the last open self-corrects.
+*/
+/** How often the control re-reads the host state (model switches arrive only by asking). */
+const POLL_INTERVAL_MS = 3e3;
+/**
+* The composer Speed control: a trigger reading `Speed · Fast`/`Speed · Standard`
+* that opens a two-row menu (standard/fast with descriptions, check mark on
+* the current tier). The host pushes nothing on a model switch, so the
+* control re-reads on a slow poll with a single-flight guard; a failed read
+* keeps the last known state, so a transient RPC failure can never lock the
+* toggle away (the earlier mount-only load had no recovery path).
+*/
+function SpeedSelect({ loadSpeed, setSpeed, t }) {
+	const translate = t ?? fallbackTranslate$1;
+	const [state, setState] = (0, react.useState)(null);
+	const [open, setOpen] = (0, react.useState)(false);
+	const [busy, setBusy] = (0, react.useState)(false);
+	const rootRef = (0, react.useRef)(null);
+	const loadRef = (0, react.useRef)(loadSpeed);
+	loadRef.current = loadSpeed;
+	(0, react.useEffect)(() => {
+		if (loadRef.current === void 0) return;
+		let cancelled = false;
+		let inflight = false;
+		const reload = () => {
+			const load = loadRef.current;
+			if (load === void 0 || inflight) return;
+			inflight = true;
+			load().then((loaded) => {
+				if (!cancelled) setState(loaded);
+			}, () => {}).finally(() => {
+				inflight = false;
+			});
+		};
+		reload();
+		const timer = setInterval(reload, POLL_INTERVAL_MS);
+		return () => {
+			cancelled = true;
+			clearInterval(timer);
+		};
+	}, []);
+	(0, react.useEffect)(() => {
+		if (!open) return;
+		const closeOutside = (event) => {
+			if (!rootRef.current?.contains(event.target)) setOpen(false);
+		};
+		document.addEventListener("mousedown", closeOutside);
+		return () => {
+			document.removeEventListener("mousedown", closeOutside);
+		};
+	}, [open]);
+	if (loadSpeed === void 0 || setSpeed === void 0 || state === null || !state.visible) return null;
+	const choose = (tier) => {
+		if (busy) return;
+		if (tier === state.tier) {
+			setOpen(false);
+			return;
+		}
+		setBusy(true);
+		setSpeed(tier).then((ok) => {
+			setBusy(false);
+			if (ok) {
+				setState({
+					visible: true,
+					tier
+				});
+				setOpen(false);
+			}
+		});
+	};
+	const show = () => {
+		setOpen(true);
+		const load = loadRef.current;
+		if (load === void 0) return;
+		load().then(setState, () => {});
+	};
+	const tierName = (tier) => translate(tier === "fast" ? "speedFast" : "speedStandard");
+	const tierDescription = (tier) => translate(tier === "fast" ? "speedFastDescription" : "speedStandardDescription");
+	const triggerLabel = `${translate("speed")} · ${tierName(state.tier)}`;
+	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+		ref: rootRef,
+		className: "majed-subscription-speed",
+		style: styles$2.root,
+		onKeyDown: (event) => {
+			if (event.key === "Escape" && open) {
+				event.preventDefault();
+				setOpen(false);
+			}
+		},
+		children: [
+			/* @__PURE__ */ (0, react_jsx_runtime.jsx)("style", { children: subscriptionChromeCss }),
+			open && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+				style: styles$2.menu,
+				role: "menu",
+				"aria-label": translate("speed"),
+				children: TIERS.map((tier) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("button", {
+					type: "button",
+					role: "menuitemradio",
+					"aria-checked": tier === state.tier,
+					style: styles$2.item,
+					disabled: busy,
+					onClick: () => {
+						choose(tier);
+					},
+					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+						style: styles$2.itemCheck,
+						children: tier === state.tier ? "✓" : ""
+					}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+						style: styles$2.itemText,
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+							style: styles$2.itemName,
+							children: tierName(tier)
+						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+							style: styles$2.itemDescription,
+							children: tierDescription(tier)
+						})]
+					})]
+				}, tier))
+			}),
+			/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+				type: "button",
+				style: styles$2.trigger,
+				"aria-haspopup": "menu",
+				"aria-expanded": open,
+				title: triggerLabel,
+				disabled: busy,
+				onClick: () => {
+					if (open) setOpen(false);
+					else show();
+				},
+				children: triggerLabel
+			})
+		]
+	});
+}
+const styles$2 = {
+	root: {
+		position: "relative",
+		display: "inline-flex"
+	},
+	trigger: {
+		border: "0.5px solid var(--dsw-alias-border-l3)",
+		borderRadius: "var(--dsw-radius-sm, 8px)",
+		background: "var(--majed-subscription-speed-hover, transparent)",
+		color: "var(--dsw-alias-label-secondary)",
+		font: "inherit",
+		fontSize: 12,
+		lineHeight: "18px",
+		padding: "2px 8px",
+		cursor: "pointer",
+		whiteSpace: "nowrap"
+	},
+	menu: {
+		position: "absolute",
+		bottom: "100%",
+		insetInlineEnd: 0,
+		marginBottom: 4,
+		minWidth: 180,
+		padding: 4,
+		zIndex: 20,
+		background: "var(--dsw-specific-menu, var(--dsw-alias-bg-layer-2))",
+		border: 0,
+		boxShadow: "var(--dsw-elevation-prominent)",
+		borderRadius: "var(--dsw-radius-lg, 16px)",
+		display: "flex",
+		flexDirection: "column",
+		gap: 2
+	},
+	item: {
+		display: "flex",
+		alignItems: "flex-start",
+		gap: 6,
+		width: "100%",
+		border: "none",
+		borderRadius: "var(--dsw-radius-sm, 8px)",
+		background: "var(--majed-subscription-speed-hover, transparent)",
+		padding: "6px 8px",
+		cursor: "pointer",
+		font: "inherit",
+		textAlign: "start"
+	},
+	itemCheck: {
+		width: 14,
+		flexShrink: 0,
+		fontSize: 12,
+		lineHeight: "18px",
+		color: "var(--dsw-alias-label-primary)"
+	},
+	itemText: {
+		display: "flex",
+		flexDirection: "column"
+	},
+	itemName: {
+		fontSize: 12,
+		lineHeight: "18px",
+		color: "var(--dsw-alias-label-primary)"
+	},
+	itemDescription: {
+		fontSize: 11,
+		lineHeight: "16px",
+		color: "var(--dsw-alias-label-tertiary)"
+	}
+};
+
+//#endregion
+//#region src/speed/fast-command.ts
+/** Build the locale resolver used by the /fast command contribution. */
+function fastCommandDescription(t) {
+	return () => t();
+}
+
+//#endregion
+//#region src/usage-badge/usage-types.ts
+/** Bar fill color: success normally, warn from 80%, error from 95%. */
+function usageBarColor(usedPercent$1) {
+	if (usedPercent$1 >= 95) return "var(--dsw-alias-state-error-primary)";
+	if (usedPercent$1 >= 80) return "var(--dsw-alias-state-warn-label)";
+	return "var(--dsw-alias-state-success-primary)";
+}
+
+//#endregion
+//#region src/usage-badge/host-icons.ts
+/** A decorative glyph the host lacks renders nothing rather than crashing. */
+const NoIcon = () => null;
+/**
+* Resolve one 16px glyph under either host naming.
+* @param icons - the host primitives module (`import * as`), read by name.
+* @param name - the glyph name without prefix or size, e.g. `Sparkle`.
+* @returns the host's component, or one rendering nothing.
+*/
+function hostIcon(icons, name) {
+	const exports$1 = icons;
+	return exports$1[`Icon${name}Regular`] ?? exports$1[`Icon${name}16`] ?? NoIcon;
+}
+
+//#endregion
+//#region src/usage-badge/host-modules.ts
+let primitives;
+let reactDom;
+/** `@deepseek-ai/dsh-client-ui-primitives`, resolved on first use. */
+function hostPrimitives() {
+	return primitives ??= require("@deepseek-ai/dsh-client-ui-primitives");
+}
+/** `react-dom` (portals), resolved on first use. */
+function hostReactDom() {
+	return reactDom ??= require("react-dom");
+}
+
+//#endregion
+//#region src/usage-badge/usage-badge-preferences.ts
+const MODE_KEY = "majed.subscriptions.usageBadgeMode";
+const MODE_EVENT = "majed:subscriptions:usage-badge-mode";
+/** Read the browser preference; blocked storage retains the default display. */
+function readUsageBadgeMode() {
+	if (typeof window === "undefined") return "recent";
+	try {
+		return window.localStorage.getItem(MODE_KEY) === "hidden" ? "hidden" : "recent";
+	} catch (error) {
+		if (!(error instanceof DOMException) || error.name !== "SecurityError") throw error;
+		return "recent";
+	}
+}
+/** Save first, then notify; the settings control reports a rejected write. */
+function setUsageBadgeMode(mode) {
+	if (mode !== "recent" && mode !== "hidden") throw new TypeError("Invalid subscription usage display mode");
+	window.localStorage.setItem(MODE_KEY, mode);
+	window.dispatchEvent(new Event(MODE_EVENT));
+}
+/** Same-tab writes need a custom event; other tabs use the storage event. */
+function subscribeUsageBadgeMode(notify) {
+	const onStorage = (event) => {
+		if (event.key === MODE_KEY || event.key === null) notify();
+	};
+	window.addEventListener(MODE_EVENT, notify);
+	window.addEventListener("storage", onStorage);
+	return () => {
+		window.removeEventListener(MODE_EVENT, notify);
+		window.removeEventListener("storage", onStorage);
+	};
+}
+/** Shared React snapshot used by the settings control and every mounted badge. */
+function useUsageBadgeMode() {
+	return (0, react.useSyncExternalStore)(subscribeUsageBadgeMode, readUsageBadgeMode, () => "recent");
+}
+
+//#endregion
+//#region src/usage-badge/SubscriptionUsageBadge.tsx
+/** DSH renamed the data icon in 0.1.7; retain older supported hosts too. */
+function usageBadgeIcon(icons) {
+	return hostIcon(icons, "DataOutline");
+}
+let resolvedIcon;
+/** The data glyph resolved from the host on first render (never at bundle load). */
+function UsageBadgeIcon() {
+	resolvedIcon ??= usageBadgeIcon(hostPrimitives());
+	return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(resolvedIcon, {});
+}
+/** How often the badge re-reads usage; the server also shares its own cache/negative-cache across UI surfaces. */
+const USAGE_POLL_INTERVAL_MS = 15 * 6e4;
+/** How often the badge re-reads the session's current model (model switches arrive only by asking). */
+const MODEL_POLL_INTERVAL_MS = 3e3;
+/** Distance between the trigger's top edge and the dialog's bottom (host stat dialogs use the same). */
+const PANEL_GAP = 8;
+/** Distance kept between the dialog and each viewport edge. */
+const PANEL_MARGIN = 12;
+/** The account the collapsed pill reads: the default one, else the first listed. */
+function pillAccountOf(d) {
+	return d.accounts.find((a) => a.isDefault) ?? d.accounts[0];
+}
+/** Brand display names (short form for the compact badge). */
+const PROVIDER_NAMES = {
+	codex: "Codex",
+	claude: "Claude",
+	grok: "Grok",
+	copilot: "Copilot",
+	antigravity: "Antigravity"
+};
+/**
+* The `currentModel` half of the inject face: the session's effective
+* model selection through ui-model-selection's `modelDirectories` service,
+* resolved lazily per call (the service may register after this plugin, and
+* a shell without it reports "unknown"; the badge keeps the most recent
+* subscription selected in this view, or stays hidden).
+*/
+function createCurrentModelReader(models, sessionId) {
+	return async () => {
+		const directories = models();
+		if (directories === void 0) return void 0;
+		const { current } = await directories.directoryFor(sessionId).load();
+		return current ?? void 0;
+	};
+}
+/**
+* Compact time-remaining label derived from the window's `resetsAt` timestamp:
+* "6d 18h" (days+hours), "1h 58m" (hours+minutes), or "42m" (minutes only).
+* Falls back to the scope/kind abbreviation when no reset time is known.
+*/
+function windowLabel(w) {
+	if (w.resetsAt === void 0) {
+		if (w.scope !== void 0 && w.scope !== "") return w.scope;
+		switch (w.kind) {
+			case "session": return "5h";
+			case "weekly": return "Wk";
+			default: return "W";
+		}
+	}
+	const ms = Math.max(0, w.resetsAt - Date.now());
+	const minutes = Math.floor(ms / 6e4);
+	const hours = Math.floor(minutes / 60);
+	const days = Math.floor(hours / 24);
+	if (days > 0) return `${days}d ${hours % 24}h`;
+	if (hours > 0) return `${hours}h ${minutes % 60}m`;
+	return `${Math.max(1, minutes)}m`;
+}
+/** Clamp and round a window's used share for display. */
+function usedPercent(w) {
+	return Math.round(Math.min(100, Math.max(0, w.usedPercent)));
+}
+/** Keep model quotas separate: matching percentages do not imply a shared pool. */
+function prioritizeWindows(windows, model) {
+	return model === void 0 ? [...windows] : [...windows.filter((w) => w.scope === model), ...windows.filter((w) => w.scope !== model)];
+}
+/** Small previews keep a live model catalog from taking over the dialog. */
+const WINDOW_PREVIEW_LIMIT = 4;
+function previewWindows(windows, model, provider) {
+	const ordered = prioritizeWindows(windows, model);
+	const limit = provider === "antigravity" ? Math.min(2, model === void 0 ? 0 : windows.filter((w) => w.scope === model).length) : WINDOW_PREVIEW_LIMIT;
+	return {
+		shown: ordered.slice(0, limit),
+		hidden: ordered.slice(limit)
+	};
+}
+/** Bounded readout; Antigravity quotas belong to individual models, not the account. */
+function compactSegment(d, model, t = fallbackTranslate) {
+	const windows = pillAccountOf(d).windows;
+	if (d.provider === "antigravity") {
+		const matching = model === void 0 ? [] : windows.filter((w) => w.scope === model);
+		if (matching.length === 0) return `${d.name} ${t(model === void 0 ? "usageBadgeModelCount" : "usageBadgeModelUnavailable", { count: new Set(windows.map((w) => w.scope).filter(Boolean)).size })}`;
+		const parts$1 = matching.slice(0, 2).map((w) => `${w.kind === "weekly" ? t("usageWeekly") : t("usageWindow")} ${usedPercent(w)}%`);
+		return `${d.name} ${parts$1.join(" · ")}`;
+	}
+	const parts = windows.slice(0, 2).map((w) => `${windowLabel(w)} ${usedPercent(w)}%`);
+	if (windows.length > 2) parts.push(`+${windows.length - 2}`);
+	return `${d.name} ${parts.join(" · ")}`;
+}
+/** Remember only the most recent subscription in this view, including its model scope. */
+function retainSubscriptionSelection(previous, current) {
+	return current !== void 0 && Object.hasOwn(PROVIDER_NAMES, current.provider) ? current : previous;
+}
+/** At most one provider; no known selection or no usage means no badge. */
+function collapsedDisplays(displays, current) {
+	const match = displays.find((d) => d.provider === current);
+	return match === void 0 ? [] : [match];
+}
+/** Order for the expanded dialog: the current provider first, the rest in poll order. */
+function expandedDisplays(displays, current) {
+	const match = displays.find((d) => d.provider === current);
+	return match === void 0 ? displays : [match, ...displays.filter((d) => d !== match)];
+}
+/**
+* A provider's logged-in accounts, the effective default first. When no
+* account is flagged default the first listed stands in, matching what
+* direct routes fall back to.
+*/
+function accountsOf(status) {
+	if (status === void 0 || status.accounts.length === 0) return [];
+	const fallback = status.accounts.find((a) => a.isDefault) ?? status.accounts[0];
+	return status.accounts.map((a) => a === fallback ? {
+		...a,
+		isDefault: true
+	} : a).sort((a, b) => Number(b.isDefault) - Number(a.isDefault));
+}
+/** English-dictionary fallback for a missing inject `t` (standalone renders). */
+function fallbackTranslate(key, params) {
+	return (subscriptions$1[key] ?? key).replace(/\{(\w+)\}/g, (_, name) => String(params?.[name] ?? ""));
+}
+/** Localized label of one usage window (kind, plus the model scope when named). */
+function usageWindowLabel(t, window$1) {
+	const base = window$1.kind === "session" ? t("usageSession") : window$1.kind === "weekly" ? t("usageWeekly") : t("usageWindow");
+	return window$1.scope !== void 0 && window$1.scope !== "" ? `${base} · ${window$1.scope}` : base;
+}
+/**
+* The composer subscription-usage badge: a pill reading e.g.
+* `Codex 6d 1h 25%` for the current model's provider, opening a dialog with
+* every provider's accounts and their windows. Returns null when no data is
+* available.
+*/
+function SubscriptionUsageBadge({ rpc, currentModel, t }) {
+	const translate = t ?? fallbackTranslate;
+	const [displays, setDisplays] = (0, react.useState)([]);
+	const [selection, setSelection] = (0, react.useState)(void 0);
+	const [lastSubscription, setLastSubscription] = (0, react.useState)(void 0);
+	const displayMode = useUsageBadgeMode();
+	const current = selection?.provider;
+	const badgeSelection = retainSubscriptionSelection(lastSubscription, selection);
+	const [open, setOpen] = (0, react.useState)(false);
+	const [hover, setHover] = (0, react.useState)(false);
+	const inflightRef = (0, react.useRef)(false);
+	const mountedRef = (0, react.useRef)(true);
+	const rootRef = (0, react.useRef)(null);
+	const panelRef = (0, react.useRef)(null);
+	const seatRef = (0, react.useRef)(null);
+	const currentRef = (0, react.useRef)(currentModel);
+	currentRef.current = currentModel;
+	const lastKnownRef = (0, react.useRef)(/* @__PURE__ */ new Map());
+	const namesRevision = (0, react.useRef)(0);
+	const recentNames = (0, react.useRef)(/* @__PURE__ */ new Map());
+	const refresh = (0, react.useCallback)(async () => {
+		if (rpc === void 0 || inflightRef.current) return;
+		inflightRef.current = true;
+		const revision = namesRevision.current;
+		try {
+			const statusResp = await callSubscriptionsAuth(rpc, "status", {});
+			if (!mountedRef.current) return;
+			const roster = [];
+			for (const provider of Object.keys(statusResp.providers)) for (const account of accountsOf(statusResp.providers[provider])) roster.push({
+				provider,
+				account
+			});
+			const keyOf = (provider, account) => `${provider}:${account.key}`;
+			const lastKnown = lastKnownRef.current;
+			const live = new Set(roster.map(({ provider, account }) => keyOf(provider, account)));
+			for (const key of lastKnown.keys()) if (!live.has(key)) lastKnown.delete(key);
+			if (roster.length === 0) {
+				setDisplays([]);
+				return;
+			}
+			const results = await Promise.allSettled(roster.map(async ({ provider, account }) => {
+				return {
+					provider,
+					account,
+					usage: await callSubscriptionsAuth(rpc, "usage", {
+						provider,
+						account: account.key,
+						force: false
+					})
+				};
+			}));
+			if (!mountedRef.current) return;
+			const plans = /* @__PURE__ */ new Map();
+			for (const r of results) {
+				if (r.status !== "fulfilled") continue;
+				const { provider, account, usage } = r.value;
+				const key = keyOf(provider, account);
+				if (usage.plan !== void 0) plans.set(key, usage.plan);
+				if (!usage.supported || !usage.windows || usage.windows.length === 0) {
+					lastKnown.delete(key);
+					continue;
+				}
+				lastKnown.set(key, usage.windows);
+			}
+			const byProvider = /* @__PURE__ */ new Map();
+			for (const { provider, account } of roster) {
+				const key = keyOf(provider, account);
+				const windows = lastKnown.get(key);
+				if (windows === void 0) continue;
+				const plan = plans.get(key) ?? account.plan;
+				const row = {
+					key: account.key,
+					isDefault: account.isDefault,
+					...account.account === void 0 ? {} : { account: account.account },
+					...plan === void 0 ? {} : { plan },
+					windows
+				};
+				const display = byProvider.get(provider);
+				if (display === void 0) byProvider.set(provider, {
+					provider,
+					name: statusResp.providers[provider]?.displayName || PROVIDER_NAMES[provider],
+					accounts: [row]
+				});
+				else display.accounts.push(row);
+			}
+			setDisplays([...byProvider.values()].map((row) => {
+				const saved = recentNames.current.get(row.provider);
+				return saved && saved.revision > revision ? {
+					...row,
+					name: saved.name
+				} : row;
+			}));
+		} catch {} finally {
+			inflightRef.current = false;
+		}
+	}, [rpc]);
+	(0, react.useEffect)(() => {
+		const update = (event) => {
+			const { provider, displayName } = event.detail;
+			recentNames.current.set(provider, {
+				revision: ++namesRevision.current,
+				name: displayName || PROVIDER_NAMES[provider]
+			});
+			setDisplays((current$1) => current$1.map((row) => row.provider === provider ? {
+				...row,
+				name: displayName || PROVIDER_NAMES[provider]
+			} : row));
+		};
+		window.addEventListener(DISPLAY_NAME_CHANGED, update);
+		return () => {
+			window.removeEventListener(DISPLAY_NAME_CHANGED, update);
+		};
+	}, []);
+	(0, react.useEffect)(() => {
+		mountedRef.current = true;
+		return () => {
+			mountedRef.current = false;
+		};
+	}, []);
+	(0, react.useEffect)(() => {
+		if (displayMode === "hidden") return;
+		refresh();
+		const timer = setInterval(() => {
+			refresh();
+		}, USAGE_POLL_INTERVAL_MS);
+		return () => {
+			clearInterval(timer);
+		};
+	}, [refresh, displayMode]);
+	(0, react.useEffect)(() => {
+		if (currentRef.current === void 0) return;
+		let cancelled = false;
+		let inflight = false;
+		const reload = () => {
+			const read = currentRef.current;
+			if (read === void 0 || inflight) return;
+			inflight = true;
+			read().then((model) => {
+				if (cancelled) return;
+				setLastSubscription((previous) => retainSubscriptionSelection(previous, model));
+				setSelection(model);
+			}, () => {}).finally(() => {
+				inflight = false;
+			});
+		};
+		reload();
+		const timer = setInterval(reload, MODEL_POLL_INTERVAL_MS);
+		return () => {
+			cancelled = true;
+			clearInterval(timer);
+		};
+	}, []);
+	const { useAnchoredPosition, useDismissOnOutsidePointer } = hostPrimitives();
+	const pos = useAnchoredPosition({
+		open,
+		anchorRef: rootRef,
+		panelRef,
+		side: "top",
+		gap: PANEL_GAP,
+		margin: PANEL_MARGIN
+	});
+	useDismissOnOutsidePointer(rootRef, open, setOpen, panelRef);
+	(0, react.useEffect)(() => {
+		if (!open) return;
+		const onKeyDown = (event) => {
+			if (event.key === "Escape") setOpen(false);
+		};
+		document.addEventListener("keydown", onKeyDown);
+		return () => {
+			document.removeEventListener("keydown", onKeyDown);
+		};
+	}, [open]);
+	const [statsRow, setStatsRow] = (0, react.useState)(null);
+	(0, react.useEffect)(() => {
+		const seat$1 = seatRef.current;
+		if (seat$1 === null) return;
+		const scope = statsScopeOf(seat$1);
+		if (scope === null) return;
+		const find = () => scope.querySelector("[data-composer-stats]");
+		setStatsRow(find());
+		const observer = new MutationObserver(() => {
+			setStatsRow(find());
+		});
+		observer.observe(scope, {
+			childList: true,
+			subtree: true
+		});
+		return () => {
+			observer.disconnect();
+		};
+	}, []);
+	(0, react.useEffect)(() => {
+		if (displayMode === "hidden") setOpen(false);
+	}, [displayMode]);
+	const seat = /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+		ref: seatRef,
+		style: styles$1.seat,
+		"aria-hidden": true
+	});
+	const collapsed = collapsedDisplays(displays, badgeSelection?.provider);
+	if (displayMode === "hidden" || collapsed.length === 0) return seat;
+	const label = compactSegment(collapsed[0], badgeSelection?.model, translate);
+	const expanded = expandedDisplays(displays, badgeSelection?.provider);
+	const title = translate("usageBadgeTitle");
+	const toggle = () => {
+		const next = !open;
+		setOpen(next);
+		if (next) refresh();
+	};
+	const pill = /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+		ref: rootRef,
+		style: styles$1.anchor,
+		children: [
+			/* @__PURE__ */ (0, react_jsx_runtime.jsx)("style", { children: subscriptionChromeCss }),
+			/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("button", {
+				type: "button",
+				className: "majed-subscription-usage-pill",
+				style: {
+					...styles$1.pill,
+					...hover || open ? styles$1.pillActive : {}
+				},
+				"aria-haspopup": "dialog",
+				"aria-expanded": open,
+				"aria-label": `${title} · ${label}`,
+				title,
+				onMouseEnter: () => {
+					setHover(true);
+				},
+				onMouseLeave: () => {
+					setHover(false);
+				},
+				onClick: toggle,
+				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(UsageBadgeIcon, {}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+					style: styles$1.label,
+					children: label
+				})]
+			}),
+			open && hostReactDom().createPortal(/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+				ref: panelRef,
+				role: "dialog",
+				"aria-label": title,
+				className: "majed-subscription-usage-panel",
+				style: {
+					...styles$1.panel,
+					...pos ?? MEASURE_STYLE
+				},
+				children: [
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+						style: styles$1.title,
+						children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+							style: styles$1.titleLabel,
+							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(UsageBadgeIcon, {}), title]
+						})
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+						style: styles$1.titleRule,
+						"aria-hidden": true
+					}),
+					expanded.map((d, index) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("section", {
+						style: index === 0 ? void 0 : styles$1.section,
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+							style: styles$1.providerRow,
+							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+								style: styles$1.providerName,
+								children: [d.name, d.provider === current && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+									style: styles$1.currentTag,
+									children: translate("usageBadgeCurrent")
+								})]
+							}), d.accounts.length === 1 && /* @__PURE__ */ (0, react_jsx_runtime.jsx)(AccountMeta, {
+								account: d.accounts[0],
+								translate
+							})]
+						}), d.accounts.map((account, accountIndex) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+							style: accountIndex === 0 ? void 0 : styles$1.accountBlock,
+							children: [d.accounts.length > 1 && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+								style: styles$1.accountRow,
+								children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(AccountMeta, {
+									account,
+									translate
+								})
+							}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(AccountWindows, {
+								windows: account.windows,
+								model: d.provider === badgeSelection?.provider ? badgeSelection.model : void 0,
+								provider: d.provider,
+								translate
+							}, `${d.provider}:${badgeSelection?.model ?? ""}`)]
+						}, account.key))]
+					}, d.provider))
+				]
+			}), document.body)
+		]
+	});
+	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [seat, statsRow !== null && statsRow.isConnected ? hostReactDom().createPortal(pill, statsRow) : pill] });
+}
+/**
+* Nearest ancestor of the dock seat that can contain the host's stats row:
+* the composer bar. Bounded so a badge in an unfamiliar layout never adopts
+* some other composer's pills.
+*/
+function statsScopeOf(seat) {
+	let node = seat.parentElement;
+	for (let depth = 0; node !== null && depth < 4; depth++) {
+		if (node.querySelector("[data-composer-stats]") !== null) return node;
+		node = node.parentElement;
+	}
+	return seat.parentElement;
+}
+/**
+* One account's handle and plan: `★ user@example.com · Plan: pro`. The star
+* marks the default account (the one direct routes serve and the collapsed
+* pill reads), the same glyph Settings → Subscriptions uses.
+*/
+function AccountMeta({ account, translate }) {
+	const parts = [account.account, account.plan === void 0 ? void 0 : translate("usagePlan", { plan: account.plan })].filter((part) => part !== void 0 && part !== "");
+	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+		style: styles$1.providerMeta,
+		title: account.account,
+		children: [account.isDefault && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+			style: styles$1.defaultStar,
+			"aria-label": translate("defaultAccount"),
+			children: "★ "
+		}), parts.join(" · ")]
+	});
+}
+/** Preview each account independently; all remaining quotas stay accessible. */
+function AccountWindows({ windows, model, provider, translate }) {
+	const { shown, hidden } = previewWindows(windows, model, provider);
+	const rows = (items) => /* @__PURE__ */ (0, react_jsx_runtime.jsx)("dl", {
+		style: styles$1.details,
+		children: items.map((w, i) => /* @__PURE__ */ (0, react_jsx_runtime.jsx)(WindowRow, {
+			label: `${usageWindowLabel(translate, w)}${model !== void 0 && w.scope === model ? ` · ${translate("usageBadgeCurrent")}` : ""}`,
+			window: w
+		}, i))
+	});
+	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [rows(shown), hidden.length > 0 && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("details", {
+		style: styles$1.moreWindows,
+		children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("summary", {
+			style: styles$1.moreSummary,
+			children: translate("usageBadgeMoreWindows", { count: hidden.length })
+		}), rows(hidden)]
+	})] });
+}
+/** One `dt`/`dd` pair: window name → `25% · 6d 1h`, with the bar underneath. */
+function WindowRow({ label, window: w }) {
+	const percent = usedPercent(w);
+	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [
+		/* @__PURE__ */ (0, react_jsx_runtime.jsx)("dt", {
+			style: styles$1.dt,
+			children: label
+		}),
+		/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("dd", {
+			style: styles$1.dd,
+			children: [
+				percent,
+				"%",
+				w.resetsAt !== void 0 && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+					style: styles$1.reset,
+					children: [" · ", windowLabel(w)]
+				})
+			]
+		}),
+		/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+			style: styles$1.bar,
+			"aria-hidden": true,
+			children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", { style: {
+				...styles$1.barFill,
+				width: `${percent}%`,
+				background: usageBarColor(percent)
+			} })
+		})
+	] });
+}
+/**
+* Unplaced portal panel: hidden but laid out so the clamp measures real
+* dimensions (the `useAnchoredPosition` measure pass).
+*/
+const MEASURE_STYLE = {
+	visibility: "hidden",
+	left: 0,
+	top: 0
+};
+const styles$1 = {
+	seat: { display: "none" },
+	anchor: {
+		minWidth: 0,
+		maxWidth: "100%",
+		display: "inline-flex"
+	},
+	pill: {
+		boxSizing: "border-box",
+		maxWidth: "100%",
+		color: "var(--dsw-alias-label-tertiary)",
+		font: "inherit",
+		fontSize: "calc(var(--dsh-content-font-size-secondary, 13px) - 1px)",
+		fontVariantNumeric: "tabular-nums",
+		lineHeight: "calc(20px + var(--dsh-content-font-delta-secondary, 0px))",
+		whiteSpace: "nowrap",
+		background: "transparent",
+		border: "none",
+		borderRadius: 999,
+		alignItems: "center",
+		gap: 6,
+		padding: "1px 8px",
+		display: "inline-flex",
+		cursor: "pointer"
+	},
+	pillActive: {
+		background: "var(--dsw-alias-interactive-bg-hover)",
+		color: "var(--dsw-alias-label-secondary)"
+	},
+	label: {
+		textOverflow: "ellipsis",
+		minWidth: 0,
+		overflow: "hidden"
+	},
+	panel: {
+		position: "fixed",
+		zIndex: 1100,
+		boxSizing: "border-box",
+		background: "var(--dsw-specific-menu)",
+		width: "max-content",
+		minWidth: "min(300px, 100vw - 24px)",
+		maxWidth: "min(440px, 100vw - 24px)",
+		maxHeight: "min(560px, 100dvh - 24px)",
+		overflowY: "auto",
+		overscrollBehavior: "contain",
+		boxShadow: "var(--dsw-elevation-prominent)",
+		color: "var(--dsw-alias-label-secondary)",
+		cursor: "default",
+		border: 0,
+		borderRadius: "var(--dsw-radius-lg, 16px)",
+		padding: 16,
+		fontSize: 12,
+		lineHeight: "18px"
+	},
+	title: {
+		color: "var(--dsw-alias-label-primary)",
+		display: "flex",
+		justifyContent: "space-between",
+		gap: 16,
+		marginBottom: 8,
+		fontWeight: 500
+	},
+	titleLabel: {
+		alignItems: "center",
+		gap: 6,
+		minWidth: 0,
+		display: "inline-flex"
+	},
+	titleRule: {
+		borderTop: "0.5px solid var(--dsw-alias-border-l2)",
+		marginBottom: 10
+	},
+	section: {
+		marginTop: 12,
+		paddingTop: 10,
+		borderTop: "0.5px solid var(--dsw-alias-border-l2)"
+	},
+	providerRow: {
+		display: "flex",
+		justifyContent: "space-between",
+		alignItems: "baseline",
+		gap: 16,
+		marginBottom: 6
+	},
+	providerName: {
+		color: "var(--dsw-alias-label-primary)",
+		fontWeight: 500,
+		display: "inline-flex",
+		alignItems: "center",
+		gap: 6
+	},
+	currentTag: {
+		fontSize: 10,
+		lineHeight: "14px",
+		fontWeight: 400,
+		padding: "0 5px",
+		borderRadius: 7,
+		color: "var(--dsw-alias-label-secondary)",
+		background: "var(--dsw-alias-interactive-bg-hover)"
+	},
+	providerMeta: {
+		color: "var(--dsw-alias-label-tertiary)",
+		minWidth: 0,
+		overflow: "hidden",
+		textOverflow: "ellipsis",
+		whiteSpace: "nowrap"
+	},
+	defaultStar: { color: "var(--dsw-alias-state-warn-label)" },
+	accountBlock: { marginTop: 8 },
+	accountRow: {
+		display: "flex",
+		marginBottom: 4
+	},
+	details: {
+		color: "var(--dsw-alias-label-tertiary)",
+		display: "grid",
+		gridTemplateColumns: "minmax(0, 1fr) max-content",
+		gap: "4px 16px",
+		margin: 0
+	},
+	moreWindows: { marginTop: 8 },
+	moreSummary: {
+		cursor: "pointer",
+		color: "var(--dsw-alias-label-secondary)",
+		marginBottom: 8
+	},
+	dt: {
+		minWidth: 0,
+		margin: 0,
+		overflowWrap: "anywhere"
+	},
+	dd: {
+		minWidth: 0,
+		margin: 0,
+		color: "var(--dsw-alias-label-secondary)",
+		fontVariantNumeric: "tabular-nums",
+		textAlign: "end"
+	},
+	reset: { color: "var(--dsw-alias-label-tertiary)" },
+	bar: {
+		gridColumn: "1 / -1",
+		height: 4,
+		borderRadius: 2,
+		overflow: "hidden",
+		background: "var(--dsw-alias-border-l2)",
+		marginBottom: 2
+	},
+	barFill: {
+		height: "100%",
+		borderRadius: 2
+	}
+};
+
+//#endregion
+//#region src/usage-badge/UsageBadgeDisplaySetting.tsx
+/** Browser-local display preference; never changes provider or account settings. */
+function UsageBadgeDisplaySetting({ t }) {
+	const mode = useUsageBadgeMode();
+	const [failed, setFailed] = (0, react.useState)(false);
+	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+		style: styles.card,
+		children: [
+			/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+				style: styles.field,
+				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: t("usageBadgeDisplay") }), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("select", {
+					style: styles.select,
+					"aria-label": t("usageBadgeDisplay"),
+					value: mode,
+					onChange: (event) => {
+						const value = event.currentTarget.value;
+						if (value !== "recent" && value !== "hidden") return;
+						try {
+							setUsageBadgeMode(value);
+							setFailed(false);
+						} catch (error) {
+							if (!(error instanceof DOMException) || !["SecurityError", "QuotaExceededError"].includes(error.name)) throw error;
+							setFailed(true);
+						}
+					},
+					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("option", {
+						value: "recent",
+						children: t("usageBadgeDisplayRecent")
+					}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("option", {
+						value: "hidden",
+						children: t("usageBadgeDisplayHidden")
+					})]
+				})]
+			}),
+			/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+				style: styles.hint,
+				children: t("usageBadgeDisplayHint")
+			}),
+			failed && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+				role: "alert",
+				style: {
+					...styles.hint,
+					color: "var(--dsw-alias-state-error-primary)"
+				},
+				children: t("usageBadgeDisplaySaveFailed")
+			})
+		]
+	});
+}
+const styles = {
+	card: {
+		border: "0.5px solid var(--dsw-alias-settings-card-stroke, var(--dsw-alias-border-l4))",
+		borderRadius: "var(--dsw-radius-xl, 20px)",
+		background: "var(--dsw-alias-settings-card-fill, var(--dsw-alias-bg-layer-2))",
+		padding: "12px 14px",
+		display: "flex",
+		flexDirection: "column",
+		gap: 6
+	},
+	field: {
+		display: "flex",
+		flexDirection: "column",
+		gap: 6,
+		fontSize: 13,
+		fontWeight: 500,
+		lineHeight: "20px"
+	},
+	select: { width: "100%" },
+	hint: {
+		margin: 0,
+		fontSize: 12,
+		lineHeight: "18px",
+		color: "var(--dsw-alias-label-tertiary)"
+	}
+};
 
 //#endregion
 //#region src/browser.ts
@@ -2365,15 +3506,15 @@ function applySubscriptions(root) {
 		const connection = ctx.get("connection");
 		const React = require("react");
 		const h = React.createElement;
-		const primitives = require("@deepseek-ai/dsh-client-ui-primitives");
-		const { IconSettingsOutlineMedium } = primitives;
+		const primitives$1 = require("@deepseek-ai/dsh-client-ui-primitives");
+		const { IconSettingsOutlineMedium } = primitives$1;
 		const NS = "majed.subscriptions";
 		isolate(() => ctx.effect(() => isolate(() => ctx.locale.register(NS, {
 			en: subscriptions$1,
 			ar: subscriptions
 		})), "dsh-majed: subscriptions dictionaries"));
 		const t = ctx.locale.bind(NS);
-		const CodexCard = createCodexCard(React, primitives, connection.rpc, t);
+		const CodexCard = createCodexCard(React, primitives$1, connection.rpc, t);
 		let present = false;
 		let failing = false;
 		let referenceEnabled = false;
@@ -2399,9 +3540,78 @@ function applySubscriptions(root) {
 			}, h("h3", { style: { font: "var(--dsw-font-s-strong-14)" } }, h(IconSettingsOutlineMedium, { "aria-hidden": true }), t(part)), part === "accounts" ? h("div", null, h("p", { style: {
 				marginBlock: "0 var(--dsw-spacing-3)",
 				color: "var(--dsw-alias-label-tertiary)"
-			} }, t("intro")), h(CodexCard)) : h("p", { style: { color: "var(--dsw-alias-label-tertiary)" } }, t(`${part}Empty`)))));
+			} }, t("intro")), h(UsageBadgeDisplaySetting, { t }), h(CodexCard)) : h("p", { style: { color: "var(--dsw-alias-label-tertiary)" } }, t(`${part}Empty`)))));
 		}
+		const models = () => ctx.get("modelDirectories");
+		const surfaceWanted = () => !disposed && present && !referenceEnabled;
+		const surfaces = [];
+		let surfacesActive = false;
+		function syncSurfaces() {
+			if (surfaceWanted() && !surfacesActive) {
+				surfacesActive = true;
+				const add = (register) => isolate(() => {
+					const off = register();
+					if (typeof off === "function") surfaces.push(off);
+				});
+				add(() => ctx.slots.inject("conversation.input.right", () => ctx.slots.register({
+					name: "conversation.input.right",
+					id: "majed-subscription-speed",
+					order: 0,
+					locale: NS,
+					inject: (sessionId) => ({
+						loadSpeed: createSpeedLoader(connection, models, sessionId),
+						setSpeed: createSpeedSetter(connection, sessionId)
+					})
+				}, SpeedSelect)));
+				add(() => ctx.slots.inject("conversation.composer.dock", () => ctx.slots.register({
+					name: "conversation.composer.dock",
+					id: "majed-subscription-usage",
+					order: 10,
+					locale: NS,
+					inject: (sessionId) => ({
+						rpc: connection.rpc,
+						currentModel: createCurrentModelReader(models, sessionId)
+					})
+				}, SubscriptionUsageBadge)));
+			} else if (!surfaceWanted() && surfacesActive) {
+				surfacesActive = false;
+				for (const off of surfaces.splice(0)) isolate(off);
+			}
+		}
+		isolate(() => ctx.inject(["commandUi"], (scope) => isolate(() => {
+			const command = scope.get("commandUi");
+			scope.effect(() => command.register({
+				name: "fast",
+				description: fastCommandDescription(() => t("commandFast")),
+				available: () => surfaceWanted(),
+				ui: {
+					kind: "popupSelect",
+					options: async (session) => {
+						if (!surfaceWanted()) throw new Error(t("commandFastUnavailable"));
+						const state = await createSpeedLoader(connection, models, session.sessionId)();
+						if (!state.visible) throw new Error(t("commandFastUnavailable"));
+						return [{
+							id: "standard",
+							label: t("speedStandard"),
+							detail: t("speedStandardDescription")
+						}, {
+							id: "fast",
+							label: t("speedFast"),
+							detail: t("speedFastDescription")
+						}].map((option) => ({
+							...option,
+							active: option.id === state.tier
+						}));
+					},
+					onSelect: async (option, session) => {
+						if (!surfaceWanted()) return;
+						await createSpeedSetter(connection, session.sessionId)(option.id);
+					}
+				}
+			}), "dsh-majed: /fast contribution");
+		})));
 		function update() {
+			isolate(syncSurfaces);
 			if (present && !withdraw) withdraw = ctx.slots.inject("settings.section", () => ctx.slots.register({
 				name: "settings.section",
 				id: "majed-subscriptions",
@@ -2456,6 +3666,7 @@ function applySubscriptions(root) {
 				sequence++;
 				clearInterval(timer);
 				unsubscribe();
+				isolate(syncSurfaces);
 				withdraw?.();
 				listeners.clear();
 			};
