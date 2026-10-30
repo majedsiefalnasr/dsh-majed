@@ -1,6 +1,7 @@
 // Ticket #131: render the owned Speed control, usage badge and display setting with the real components
 // (react-test-renderer) in English and Arabic. Host modules (primitives, react-dom) are provided as doubles through
-// the same lazy `require` the bundle uses, so isolation of a missing host module is exercised too.
+// the same lazy `require` the bundle uses. A missing host module is NOT covered as an isolation guarantee: it makes
+// the component's render throw, and containing that depends on the host slot boundary, which is only verifiable live.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import ts from 'typescript';
@@ -197,7 +198,7 @@ test('usage badge hidden mode renders only the invisible seat and polls nothing;
   assert.equal(page.root.findAllByProps({ className: 'majed-subscription-usage-pill' }).length, 1);
   await act(async () => page.unmount());
 }));
-test('usage badge shows nothing when status or usage fails, keeps last known windows, and tolerates a missing host module', () => withWindow(async () => {
+test('usage badge shows nothing when status or usage fails, keeps last known windows', () => withWindow(async () => {
   installHost();
   const failing = rpcDouble({ status: { ok: false, error: { message: 'down' } } });
   const page = await mount(React.createElement(SubscriptionUsageBadge, { rpc: failing, t: translator('en'), currentModel: async () => undefined }));

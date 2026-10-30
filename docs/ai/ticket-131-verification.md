@@ -27,7 +27,7 @@
 - Surfaces (Speed slot `conversation.input.right` id `majed-subscription-speed`, badge slot `conversation.composer.dock` id `majed-subscription-usage`, `/fast`) are registered only while `present && !referenceEnabled && !disposed` and are withdrawn otherwise (component off or absent, reference serving, dispose). Each registration is isolated: a failing slot does not affect the Settings section, the other surface or core dsh-majed.
 - Speed is visible only for provider `codex` and a model in the catalog's fast list; `/fast` refuses with `commandFastUnavailable` otherwise. The explicit choice is per session and resets on restart (reference behavior); a subagent without an explicit choice uses its saved model default; every request still re-checks catalog support.
 - Automatic usage reads send `{provider, account, force: false}`; opening the panel does not force either (tested).
-- Deviations: (1) browser access to `@deepseek-ai/dsh-client-ui-primitives` and `react-dom` is lazy (a missing module breaks only the render, never registration); (2) storage key/event, slot ids, CSS classes carry the `majed` prefix; (3) RTL via logical CSS properties; (4) the multi-provider pure helpers (Antigravity branches) are kept so reference tests stay faithful; (5) the media tool-view reference test (#133) and Antigravity copy test (#135) are not ported.
+- Deviations: (1) browser access to `@deepseek-ai/dsh-client-ui-primitives` and `react-dom` is lazy (a missing module makes only that component's render throw and never blocks registration; containing that render error relies on the host slot error boundary, which is NOT verified outside a live DSH, and no automated test covers it); (2) storage key/event, slot ids, CSS classes carry the `majed` prefix; (3) RTL via logical CSS properties; (4) the multi-provider pure helpers (Antigravity branches) are kept so reference tests stay faithful; (5) the media tool-view reference test (#133) and Antigravity copy test (#135) are not ported.
 
 ## Tests (all run in this worktree)
 
@@ -47,10 +47,10 @@
 
 ## Owner live test steps
 
-1. Install the packed candidate, restart DSH fully, enable our component (reference off).
-2. Open a Codex chat: the composer shows `Codex …%` badge; click it: every account and window appear; close with Escape/outside click.
+1. Install the candidate (the Lead prepares it with an exact archive name and SHA-256, backs up the installed package first, and rolls back by restoring that backup). Restart DSH fully, enable our component (reference off).
+2. Open a Codex chat: the composer shows a `Codex …%` badge; click it: every account and window appear; close with Escape/outside click.
 3. Settings ▸ Subscriptions ▸ "Status-bar quota display": choose Hidden — badge disappears; Recent — returns.
-4. With a fast-capable Codex model: Speed control shows "Speed · Standard"; switch to Fast and send a message; run `/fast` and confirm the same choice (active marker).
+4. With a fast-capable Codex model: Speed control shows "Speed · Standard". Switch to Fast, then run `/fast` and confirm the same choice shows the active marker. OPTIONAL and only with the Owner's approval: send ONE short message while on Fast; Fast is the priority tier and consumes more quota than Standard. Switch back to Standard afterwards.
 5. Switch to a model without a fast tier: Speed control disappears and `/fast` reports it is unavailable.
 6. Switch language to Arabic: all of the above are translated and mirrored.
-7. Turn the component off (or enable the reference): badge, Speed and `/fast` disappear; core dsh-majed keeps working.
+7. With the reference enabled instead of ours, type `/fast` and confirm exactly one working entry (no duplicate/broken command; this settles the `commandUi` same-name behavior). Then turn the component off (or enable the reference): badge, Speed and `/fast` disappear; core dsh-majed keeps working.
