@@ -217,11 +217,13 @@ export async function exchangeClaudeCode(code, verifier, redirectUri, state) {
 /**
  * Refresh a claude session (JSON grant echoing the issued scope).
  * @param session - the stored session.
+ * @param signal - optional cancellation (the component lifecycle) for the token request.
  * @returns the fresh session to store.
  */
-export async function refreshClaude(session) {
+export async function refreshClaude(session, signal) {
     const response = await proxiedFetch(CLAUDE_TOKEN_URL, {
         method: 'POST',
+        ...signal === undefined ? {} : { signal },
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
             grant_type: 'refresh_token',
@@ -237,6 +239,7 @@ export async function refreshClaude(session) {
         ...next,
         ...session.emailAddress === undefined ? {} : { emailAddress: session.emailAddress },
         ...session.subscriptionType === undefined ? {} : { subscriptionType: session.subscriptionType },
+        ...session.keychainBound === true ? { keychainBound: true } : {},
     };
 }
 /**
