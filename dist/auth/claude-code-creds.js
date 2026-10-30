@@ -1,0 +1,184 @@
+/**
+ * Claude Code's own login, read (and, for imported accounts only, written back on refresh) from the same store the
+ * `claude` CLI uses. Ported from reference v0.9.12 src/auth/claude-code-creds.ts; see PROVENANCE.md (#132).
+ *
+ * Every OS call goes through a {@link ClaudeCredsIo} so tests inject fakes. The production defaults touch the real
+ * macOS Keychain and `~/.claude/.credentials.json`; they run only from an explicit user import and from the refresh
+ * of an account imported that way (its `keychainBound` flag).
+ */
+import { execFileSync } from 'node:child_process';
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { dirname, join } from 'node:path';
+const PRIMARY_SERVICE = 'Claude Code-credentials';
+const DEFAULT_SCOPES = 'user:profile user:inference user:sessions:claude_code user:mcp_servers';
+function toSession(data) {
+    // Empty-string tokens (seen from a corrupted Keychain item left by a Claude Code logout) pass the typeof gate
+    // but are useless and would poison the auth store, so they are rejected here.
+    if (typeof data.accessToken !== 'string' || data.accessToken.length === 0
+        || typeof data.refreshToken !== 'string' || data.refreshToken.length === 0
+        || typeof data.expiresAt !== 'number' || !Number.isFinite(data.expiresAt)) {
+        return undefined;
+    }
+    const scopes = Array.isArray(data.scopes) ? data.scopes.join(' ') : typeof data.scopes === 'string' ? data.scopes : DEFAULT_SCOPES;
+    return {
+        accessToken: data.accessToken,
+        refreshToken: data.refreshToken,
+        expiresAt: Math.trunc(data.expiresAt),
+        scopes,
+        ...typeof data.emailAddress === 'string' ? { emailAddress: data.emailAddress } : {},
+        ...typeof data.subscriptionType === 'string' ? { subscriptionType: data.subscriptionType } : {},
+    };
+}
+function parseBlob(raw) {
+    let parsed;
+    try {
+        parsed = JSON.parse(raw);
+    }
+    catch {
+        return undefined;
+    }
+    return toSession(parsed.claudeAiOauth ?? parsed);
+}
+/** The production IO: `/usr/bin/security` for the Keychain, `$CLAUDE_CONFIG_DIR` (or `~/.claude`) for the file. */
+export const SYSTEM_CLAUDE_CREDS_IO = {
+    platform: process.platform,
+    readKeychainRaw() {
+        try {
+            return execFileSync('/usr/bin/security', ['find-generic-password', '-s', PRIMARY_SERVICE, '-w'], {
+                timeout: 3000,
+                encoding: 'utf8',
+                stdio: ['pipe', 'pipe', 'pipe'],
+            }).trim();
+        }
+        catch {
+            return undefined;
+        }
+    },
+    getKeychainAccountName() {
+        try {
+            const output = execFileSync('/usr/bin/security', ['find-generic-password', '-s', PRIMARY_SERVICE], {
+                timeout: 2000,
+                encoding: 'utf8',
+                stdio: ['pipe', 'pipe', 'pipe'],
+            });
+            return /"acct"<blob>="([^"]*)"/.exec(output)?.[1];
+        }
+        catch {
+            return undefined;
+        }
+    },
+    writeKeychainRaw(account, raw) {
+        try {
+            execFileSync('/usr/bin/security', ['add-generic-password', '-s', PRIMARY_SERVICE, '-a', account, '-w', raw, '-U'], {
+                timeout: 2000,
+                stdio: 'ignore',
+            });
+            return true;
+        }
+        catch {
+            return false;
+        }
+    },
+    credentialsFilePath() {
+        return join(process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude'), '.credentials.json');
+    },
+    readFileRaw(path) {
+        try {
+            return readFileSync(path, 'utf8');
+        }
+        catch {
+            return undefined;
+        }
+    },
+    writeFileRaw(path, raw) {
+        try {
+            const dir = dirname(path);
+            if (!existsSync(dir))
+                mkdirSync(dir, { recursive: true, mode: 0o700 });
+            writeFileSync(path, raw, { encoding: 'utf8', mode: 0o600 });
+            chmodSync(path, 0o600);
+            return true;
+        }
+        catch {
+            return false;
+        }
+    },
+};
+/**
+ * Read the current Claude Code session from its source of truth: the macOS Keychain first, then the credentials
+ * file. Returns undefined when neither holds a complete login.
+ */
+export function readClaudeCodeCredentials(io = SYSTEM_CLAUDE_CREDS_IO) {
+    if (io.platform === 'darwin') {
+        const raw = io.readKeychainRaw();
+        const session = raw !== undefined ? parseBlob(raw) : undefined;
+        if (session)
+            return session;
+    }
+    const raw = io.readFileRaw(io.credentialsFilePath());
+    return raw !== undefined ? parseBlob(raw) : undefined;
+}
+function blobMatches(raw, expectedAccessToken) {
+    return parseBlob(raw)?.accessToken === expectedAccessToken;
+}
+/** Merge fresh tokens into an existing raw blob, preserving unrelated fields. */
+function mergeIntoBlob(existingRaw, next) {
+    let parsed;
+    try {
+        parsed = JSON.parse(existingRaw);
+    }
+    catch {
+        return undefined;
+    }
+    const target = (parsed.claudeAiOauth ?? parsed);
+    target.accessToken = next.accessToken;
+    target.refreshToken = next.refreshToken;
+    target.expiresAt = next.expiresAt;
+    return JSON.stringify(parsed);
+}
+/**
+ * Write a refreshed session back to Claude Code's own credential store, so the `claude` CLI and any other consumer
+ * of the same account see the token just rotated. A stale-blob mismatch (something else rotated it first) is a
+ * no-op: the caller already has that other rotation via {@link readClaudeCodeCredentials}. Only the three token
+ * fields change; every other field of the blob is preserved.
+ * @param next - the freshly refreshed session to persist.
+ * @param expectedPriorAccessToken - the access token this refresh started from.
+ * @param io - the credential store IO (production default; tests inject fakes).
+ * @returns whether the write-back succeeded.
+ */
+export function writeBackClaudeCodeCredentials(next, expectedPriorAccessToken, io = SYSTEM_CLAUDE_CREDS_IO) {
+    if (io.platform === 'darwin') {
+        const raw = io.readKeychainRaw();
+        if (raw === undefined || !blobMatches(raw, expectedPriorAccessToken))
+            return false;
+        const updated = mergeIntoBlob(raw, next);
+        if (updated === undefined)
+            return false;
+        return io.writeKeychainRaw(io.getKeychainAccountName() ?? PRIMARY_SERVICE, updated);
+    }
+    const path = io.credentialsFilePath();
+    const raw = io.readFileRaw(path);
+    if (raw === undefined || !blobMatches(raw, expectedPriorAccessToken))
+        return false;
+    const updated = mergeIntoBlob(raw, next);
+    return updated !== undefined && io.writeFileRaw(path, updated);
+}
+/**
+ * Refresh a Claude session, first checking whether Claude Code's own store already holds a fresher token (rotated by
+ * the `claude` CLI or another consumer) before hitting the OAuth endpoint ourselves, and writing our own refresh
+ * back to that store so every consumer of the account stays synced. Called only for `keychainBound` accounts.
+ * @param session - the session TokenManager wants refreshed.
+ * @param doRefresh - the actual OAuth refresh-token grant (network call).
+ * @param io - the credential store IO (production default; tests inject fakes).
+ * @returns the freshest available session.
+ */
+export async function refreshClaudeSynced(session, doRefresh, io = SYSTEM_CLAUDE_CREDS_IO) {
+    const fromSource = readClaudeCodeCredentials(io);
+    const base = fromSource !== undefined && fromSource.accessToken !== session.accessToken ? fromSource : session;
+    if (base.expiresAt > Date.now() + 60_000)
+        return base;
+    const next = await doRefresh(base);
+    writeBackClaudeCodeCredentials(next, base.accessToken, io);
+    return next;
+}
