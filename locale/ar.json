@@ -153,6 +153,25 @@
     "modelDefaultsNoModels": "لم يُبلّغ المزوّد عن نماذج.",
     "modelDefaultsNoAccount": "لا حسابات متصلة. أضف حساباً أولاً.",
     "modelDefaultsDiscoveryFailed": "تعذر اكتشاف النماذج أو انتهت المهلة. حدّث لإعادة المحاولة.",
-    "modelDefaultsSaveFailedNamed": "تعذر حفظ {model}: {message}"
+    "modelDefaultsSaveFailedNamed": "تعذر حفظ {model}: {message}",
+    "speed": "السرعة",
+    "speedStandardDescription": "السرعة الافتراضية",
+    "speedFastDescription": "سرعة 1.5 ضعف، واستهلاك أكبر",
+    "commandFast": "تبديل مستوى سرعة Codex (عادية/سريعة)",
+    "commandFastUnavailable": "لا يدعم النموذج الحالي المستوى السريع؛ يعمل الأمر /fast فقط مع نماذج Codex التي يعلن كتالوجها عن مستوى سريع",
+    "usageBadgeTitle": "استهلاك الاشتراك",
+    "usageBadgeCurrent": "الحالي",
+    "usageBadgeMoreWindows": "المزيد من نوافذ الحصة ({count})",
+    "usageBadgeModelCount": "حصص {count} من النماذج",
+    "usageBadgeModelUnavailable": "حصة النموذج الحالي غير متاحة",
+    "usageBadgeDisplay": "عرض الحصة في شريط الحالة",
+    "usageBadgeDisplayRecent": "الاشتراك الحالي / الأحدث فقط",
+    "usageBadgeDisplayHidden": "مخفي",
+    "usageBadgeDisplayHint": "يُحفظ تلقائيًا في هذا المتصفح. يُعرض اشتراك واحد على الأكثر؛ وتحتفظ النماذج غير المرتبطة باشتراك بآخر اشتراك تم اختياره في هذا العرض، أو لا تعرض شيئًا. لا يؤثر الإخفاء على تفاصيل الاستهلاك هنا.",
+    "usageBadgeDisplaySaveFailed": "تعذر حفظ تفضيل العرض. تحقق من أذونات تخزين المتصفح.",
+    "usagePlan": "الخطة: {plan}",
+    "usageSession": "نافذة 5 ساعات",
+    "usageWeekly": "أسبوعي",
+    "usageWindow": "نافذة"
   }
 }
