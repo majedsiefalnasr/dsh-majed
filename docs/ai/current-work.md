@@ -2,6 +2,10 @@
 
 Updated 2026-10-30 (Africa/Cairo).
 
+## #131 composer usage badge, Speed control and `/fast` (2026-10-30)
+
+**Candidate ready for independent review on `impl/131-badge-speed`; Owner live acceptance pending.** Not merged, not pushed. Ported the reference composer usage badge (with display setting), Speed control and `/fast` into our component with `majed`-prefixed ids, plus host `speed`/`setSpeed`. `npm test` classifier 166/166, Node 450/450; `npm run check:build` passes. Details, deviations, limits and Owner live steps: [ticket-131 verification](ticket-131-verification.md). Host change needs a full DSH restart; browser half needs a reload.
+
 ## Latest authoritative #130 gate
 
 Owner explicitly requested installation. Candidate hash verified, previous package backed up at `/var/folders/vt/w58l5fv17nz9s5ybrbgpkgh80000gn/T/majed-130-install-8779o3xa/previous`, archive copied with elevated approval and all archived files byte-verified. Account storage/profile/cookies unchanged; no restart or live tool/provider/proxy call performed. Next: Owner full restart and acceptance per `docs/ai/ticket-130-owner-test.md`. #130 remains OPEN, no later ticket started.

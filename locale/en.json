@@ -153,6 +153,25 @@
     "modelDefaultsNoModels": "This provider reports no models.",
     "modelDefaultsNoAccount": "No connected accounts. Connect one on the provider card first.",
     "modelDefaultsDiscoveryFailed": "Model discovery failed or timed out. Use Refresh to try again.",
-    "modelDefaultsSaveFailedNamed": "Save failed for {model}: {message}"
+    "modelDefaultsSaveFailedNamed": "Save failed for {model}: {message}",
+    "speed": "Speed",
+    "speedStandardDescription": "Default speed",
+    "speedFastDescription": "1.5x speed, more usage",
+    "commandFast": "Switch the Codex speed tier (Standard/Fast)",
+    "commandFastUnavailable": "The current model has no fast tier; /fast only works on Codex models whose catalog advertises one",
+    "usageBadgeTitle": "Subscription usage",
+    "usageBadgeCurrent": "current",
+    "usageBadgeMoreWindows": "More quota windows ({count})",
+    "usageBadgeModelCount": "{count} model quotas",
+    "usageBadgeModelUnavailable": "Current model quota unavailable",
+    "usageBadgeDisplay": "Status-bar quota display",
+    "usageBadgeDisplayRecent": "Current / most recent subscription only",
+    "usageBadgeDisplayHidden": "Hidden",
+    "usageBadgeDisplayHint": "Saved automatically in this browser. At most one subscription is shown; non-subscription models keep the most recent subscription selected in this view, or show nothing. Hiding does not affect usage details here.",
+    "usageBadgeDisplaySaveFailed": "Could not save the display preference. Check browser storage permissions.",
+    "usagePlan": "Plan: {plan}",
+    "usageSession": "5-hour window",
+    "usageWeekly": "Weekly",
+    "usageWindow": "Window"
   }
 }

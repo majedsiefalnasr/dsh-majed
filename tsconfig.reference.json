@@ -1,5 +1,5 @@
 {
   "extends": "./tsconfig.json",
-  "compilerOptions": { "rootDir": ".", "outDir": "lib-test" },
+  "compilerOptions": { "rootDir": ".", "outDir": "lib-test", "jsx": "react-jsx", "resolveJsonModule": true },
   "include": ["test/reference/**/*.ts"]
 }

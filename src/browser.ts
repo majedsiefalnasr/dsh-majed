@@ -2,6 +2,11 @@
 import en from '../locale/en.json';
 import ar from '../locale/ar.json';
 import { createCodexCard } from './codex-card.js';
+import { SpeedSelect, createSpeedLoader, createSpeedSetter } from './speed/SpeedSelect.js';
+import { fastCommandDescription } from './speed/fast-command.js';
+import { SubscriptionUsageBadge, createCurrentModelReader } from './usage-badge/SubscriptionUsageBadge.js';
+import { UsageBadgeDisplaySetting } from './usage-badge/UsageBadgeDisplaySetting.js';
+import type { ModelDirectoriesLike } from './usage-badge/usage-types.js';
 
 type Dispose = () => void;
 interface Context {
@@ -41,9 +46,63 @@ export function applySubscriptions(root: Context): void {
         failing ? h('p', { role: 'alert' }, t('unreachable')) : null,
         ...['accounts', 'providers'].map((part) => h('section', { key: part, style: { paddingBlock: 'var(--dsw-spacing-4)', borderBlockEnd: '1px solid var(--dsw-alias-border-l2)' } },
           h('h3', { style: { font: 'var(--dsw-font-s-strong-14)' } }, h(IconSettingsOutlineMedium, { 'aria-hidden': true }), t(part)),
-          part === 'accounts' ? h('div', null, h('p', { style: { marginBlock: '0 var(--dsw-spacing-3)', color: 'var(--dsw-alias-label-tertiary)' } }, t('intro')), h(CodexCard)) : h('p', { style: { color: 'var(--dsw-alias-label-tertiary)' } }, t(`${part}Empty`)))));
+          part === 'accounts' ? h('div', null, h('p', { style: { marginBlock: '0 var(--dsw-spacing-3)', color: 'var(--dsw-alias-label-tertiary)' } }, t('intro')), h(UsageBadgeDisplaySetting, { t }), h(CodexCard)) : h('p', { style: { color: 'var(--dsw-alias-label-tertiary)' } }, t(`${part}Empty`)))));
     }
+    // Composer surfaces (ticket #131): the usage badge, the Speed control and /fast exist only while the component
+    // answers and the reference plugin is not serving the same provider ids. Each registration is isolated so a
+    // failure in one surface cannot affect core dsh-majed, the Settings section or the other surfaces.
+    const models = (): ModelDirectoriesLike | undefined => ctx.get('modelDirectories') as ModelDirectoriesLike | undefined;
+    const surfaceWanted = () => !disposed && present && !referenceEnabled;
+    const surfaces: Dispose[] = [];
+    let surfacesActive = false;
+    function syncSurfaces() {
+      if (surfaceWanted() && !surfacesActive) {
+        surfacesActive = true;
+        const add = (register: () => unknown) => isolate(() => {
+          const off = register();
+          if (typeof off === 'function') surfaces.push(off as Dispose);
+        });
+        add(() => ctx.slots.inject('conversation.input.right', () => ctx.slots.register({
+          name: 'conversation.input.right', id: 'majed-subscription-speed', order: 0, locale: NS,
+          inject: (sessionId: string) => ({ loadSpeed: createSpeedLoader(connection, models, sessionId), setSpeed: createSpeedSetter(connection, sessionId) }),
+        }, SpeedSelect)));
+        add(() => ctx.slots.inject('conversation.composer.dock', () => ctx.slots.register({
+          name: 'conversation.composer.dock', id: 'majed-subscription-usage', order: 10, locale: NS,
+          inject: (sessionId: string) => ({ rpc: connection.rpc, currentModel: createCurrentModelReader(models, sessionId) }),
+        }, SubscriptionUsageBadge)));
+      } else if (!surfaceWanted() && surfacesActive) {
+        surfacesActive = false;
+        for (const off of surfaces.splice(0)) isolate(off);
+      }
+    }
+    // /fast: registered once per command service. `available` and `options` re-check presence on every use, so
+    // the command disappears from the list and cannot act while the component is off or the reference serves.
+    isolate(() => ctx.inject(['commandUi'], (scope: any) => isolate(() => {
+      const command = scope.get('commandUi');
+      scope.effect(() => command.register({
+        name: 'fast',
+        description: fastCommandDescription(() => t('commandFast')),
+        available: () => surfaceWanted(),
+        ui: {
+          kind: 'popupSelect',
+          options: async (session: { sessionId: string }) => {
+            if (!surfaceWanted()) throw new Error(t('commandFastUnavailable'));
+            const state = await createSpeedLoader(connection, models, session.sessionId)();
+            if (!state.visible) throw new Error(t('commandFastUnavailable'));
+            return ([
+              { id: 'standard', label: t('speedStandard'), detail: t('speedStandardDescription') },
+              { id: 'fast', label: t('speedFast'), detail: t('speedFastDescription') },
+            ] as const).map(option => ({ ...option, active: option.id === state.tier }));
+          },
+          onSelect: async (option: { id: string }, session: { sessionId: string }) => {
+            if (!surfaceWanted()) return;
+            await createSpeedSetter(connection, session.sessionId)(option.id as 'standard' | 'fast');
+          },
+        },
+      }), 'dsh-majed: /fast contribution');
+    })));
     function update() {
+      isolate(syncSurfaces);
       if (present && !withdraw) {
         withdraw = ctx.slots.inject('settings.section', () => ctx.slots.register({
           name: 'settings.section', id: 'majed-subscriptions', order: 90, label: () => t('title'),
@@ -88,7 +147,7 @@ export function applySubscriptions(root: Context): void {
       });
       // Row switches do not reconnect the shared connection; periodically reconcile presence.
       const timer = setInterval(() => { void probe(); }, 3000);
-      return () => { disposed = true; sequence++; clearInterval(timer); unsubscribe(); withdraw?.(); listeners.clear(); };
+      return () => { disposed = true; sequence++; clearInterval(timer); unsubscribe(); isolate(syncSurfaces); withdraw?.(); listeners.clear(); };
     }), 'dsh-majed: subscriptions presence'));
   })));
 }
