@@ -52,6 +52,12 @@ Local committed candidate on `impl/130-manage` after the commits below. Not inde
 | Source RPC/view coverage | provider-settings-rpc, model-defaults-rpc, account-manager-ui, model-filter adapted; model-defaults-view not applicable (below) | Done with dispositions |
 | ded9f33 remediations rechecked | display names/aliases: provider-settings-rpc + manage-owned; snapshot: model-defaults-rpc; pool config: effective-settings; context bounds: effective-settings + manage-ui-matrix; field-intent merge: account-manager-ui + manage-ui-matrix; safe diagnostics: security-owned + proxy-owned | Verified |
 
+### Verification evidence
+
+- Final run at `9db4259`: `npm test` 370/370 (zero fail/cancel/skip; includes the classifier suite), `npm run check:build` "Committed output matches a fresh build.", `git diff --check` clean.
+- Archive `/tmp/majed-t130/dsh-majed-0.2.0.tgz` (77 files, 1,248,591 bytes) built from the clean worktree at `9db4259`; SHA256 `a54f9f4c8b6e5138f080d73f21cb5d96ca9e0085f96dd2eb7badf595ca4e71a8`. This supersedes the earlier `95077774...` archive. Candidate only; not installed.
+- Deliberate red phases: `tools-owned` (tool not registered, no deny list), `locale-completeness` (missing/placeholder copy), `model-defaults-rpc` tier row (controls on tier). Tests for gate, envelope, secret, effective-settings and UI matrices passed on first run because the behaviour already existed; they add coverage, and the ProxySettings username defect surfaced from the UI matrix.
+
 ### Defects found and fixed during this pass
 
 1. `ProxySettings` threw when opened with a saved config lacking `username`.
