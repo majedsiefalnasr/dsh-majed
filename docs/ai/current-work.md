@@ -2,7 +2,11 @@
 
 Updated 2026-10-31 (Africa/Cairo).
 
-## Authoritative checkpoint — #132 installed for Owner acceptance
+## Authoritative checkpoint — #132 Owner accepted; closure authorized
+
+Owner reported the consolidated live test successful and explicitly instructed closing #132. Screenshot confirmed connected Claude account and usage display; do not retain account identity. Weekly quota was exhausted, so a real chat reply and natural CLI refresh/sync are NOT independently proven and are not claimed tested. Owner accepts closure with those evidence limits. The missing generic “Add account” label is classified by the Owner as deferred UX polish, not missing functionality: existing Browser authorization / Import Claude Code actions remain. After all current Subscriptions tickets finish, propose a final UI/UX improvement ticket; do not create it or start it now. Next: close #132, push `feat/subscriptions` with explicit refspec and verify remote/main; #133 waits for Owner request. Claude agent model prohibition remains active.
+
+## Historical installed acceptance checkpoint
 
 Owner confirmed the Claude card is visible after installation (2026-10-31); authentication, cache settings, chat and sync are not yet accepted. Owner requested one consolidated live-acceptance session at the end of each ticket; recorded in `docs/ai/rules/execution-policy.md`. Prepare the remaining #132 acceptance checklist together instead of further piecemeal trials. Visibility confirmation does not close #132.
 
