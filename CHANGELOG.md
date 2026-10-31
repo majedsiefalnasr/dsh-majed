@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Complete #134 controlled regression evidence for actual two-account Manage in English/Arabic, account-specific incompatible catalog/streaming protocols and abort, and device-login deadlines, lifecycle, late-completion suppression and error secrecy. This completion pass changes no runtime behavior; independent review and installed/live acceptance remain separate gates.
+
 - Correct #134 Copilot Manage routing and forced catalog invalidation; pin capability/protocol lookup to the selected account and propagate cancellation. Reserve device-login ownership before acquisition, bound acquisition and polling bodies, and reject tokens arriving after expiry. These are owned safety deviations from the pinned reference, not upstream-exempt behavior. Candidate only; independent review and installed/live acceptance remain required.
 
 - Add GitHub Copilot (#134): device-code authorization with copy and verification link in English and Arabic, streaming Chat Completions/Responses models, private owned accounts, shared Manage/model defaults and account pooling. Reference fallback catalog and protocol/reasoning replay behavior retained. Candidate only; real login/chat and installed UI are not tested. Host changes require a full restart after separately approved installation.
