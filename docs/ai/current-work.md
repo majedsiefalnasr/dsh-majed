@@ -1,6 +1,24 @@
 # Current work
 
-Updated 2026-10-30 (Africa/Cairo).
+Updated 2026-10-31 (Africa/Cairo).
+
+## Authoritative checkpoint — #132 documentation remediation
+
+Owner session evidence confirms **#128–#131 CLOSED and Owner accepted**; older pending/open statements below are historical, not current gates. #132 remains unmerged and unpushed on `impl/132-claude`, worktree `dsh-majed-t132`, code baseline `f9168c5`. Final independent code review of `df571d3..f9168c5` passed code soundness and reported classifier 166/166, Node 575/575 and build match. Its required documentation corrections are now made; awaiting Lead focused documentation review, then separate Owner installation and live acceptance. No claim of live Claude verification.
+
+**Owner override (2026-10-31): all Claude agent models are prohibited until the Owner lifts the quota prohibition, including alternative providers carrying Claude.** This is a current-state override, not a change to the general execution policy. Work directly without nested delegation.
+
+Work contract: finish approved #132 through bounded docs-only remediation of verification, provenance, changelog and this state record. Preserve runtime and generated artifacts; no feature or behavior changes. Acceptance: all supplied P1/P2 documentation findings corrected and P3 residual findings accurately recorded, docs-only diff proof, `git diff --check`, `npm test` and `npm run check:build` if sandbox permits, exact exits recorded, scoped English conventional docs commit. Investigation cap: two failed diagnostics or 20 minutes per blocker; sandbox denial is not retried or bypassed. No installed state, credentials, Keychain, real network/auth/inference, packaging, installation, merge or push. Stop at the committed local candidate. Next allowed action: Lead focused review; only separately approved Owner actions may install, switch reference/component state or run live acceptance. Residual findings are pending live acceptance, not Owner-accepted risks. Details: [ticket-132 verification](ticket-132-verification.md).
+
+Local remediation verification observed 2026-10-31: `npm test` exit 0 (classifier 166/166; Node 575/575, no failures/cancellations/skips); `npm run check:build` exit 0 (`Committed output matches a fresh build.`); `git diff --check` exit 0; runtime/generated-artifact exclusion diff exit 0. Only the four contracted Markdown files changed. Tests emitted existing React warnings and a handled `spawnSync claude ENOENT` version-detection fallback; no live acceptance claim follows. The suite's package fixture ran as part of tests; no release archive was prepared or installed. This scoped docs commit completes worker remediation, not Lead review or ticket acceptance.
+
+## Historical checkpoints (superseded by the authoritative checkpoint above)
+
+Everything below retains earlier session evidence and decisions; dated “latest”, “authoritative”, “active”, “open” and “next” statements describe that earlier checkpoint only.
+
+## #132 Subscriptions: Claude (2026-10-30)
+
+**Second remediation (email-less sync identity via profile lookup, P3 docs) done on `impl/132-claude`; awaiting final focused review, then Owner live acceptance.** Not merged, not pushed. Ported the Claude provider, Anthropic translation, CLI version detection and Claude Code credential import/sync, plus the Claude card and the Manage prompt cache lifetime option (English and Arabic), into our component with `majed`-prefixed ids. Remediation (registered adapter and Claude pool, binding preserved, account-identity check before adopting Claude Code credentials (second remediation: normalized email resolved through the profile lookup, since real blobs carry no email and the refresh token rotates), disposal guard, symlink refusal, Owner steps) is described in [ticket-132 verification](ticket-132-verification.md). `npm test` classifier 166/166, Node 575/575; `npm run check:build` passes. The earlier uncommitted draft was reviewed and corrected. Details, deviations, limits and Owner live steps: [ticket-132 verification](ticket-132-verification.md). Host change needs a full DSH restart; browser half needs a reload.
 
 ## #131 composer usage badge, Speed control and `/fast` (2026-10-30)
 

@@ -6,7 +6,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 
 const read = name => JSON.parse(readFileSync(new URL(`../locale/${name}.json`, import.meta.url), 'utf8')).subscriptions;
 // Ticket #131 adds the composer usage badge (`translate(...)`) and Speed control (`t(...)`) sources.
-const sources = [...['settings', 'usage-badge', 'speed'].flatMap(dir => readdirSync(new URL(`../src/${dir}/`, import.meta.url)).map(file => `src/${dir}/${file}`)), 'src/browser.ts', 'src/codex-card.ts']
+const sources = [...['settings', 'usage-badge', 'speed'].flatMap(dir => readdirSync(new URL(`../src/${dir}/`, import.meta.url)).map(file => `src/${dir}/${file}`)), 'src/browser.ts', 'src/codex-card.ts', 'src/claude-card.ts']
   .filter(file => /\.tsx?$/.test(file));
 const used = new Map();
 for (const file of sources) {
@@ -26,6 +26,8 @@ test('the scan finds the keys the UI requests', () => {
   for (const key of ['modelsImage', 'modelsWebSearch', 'modelDefaultsNoAccount', 'resets']) assert.ok(used.has(key), key);
   // #131 surfaces: badge panel, display setting, Speed menu and /fast copy must be scanned too.
   for (const key of ['usageBadgeTitle', 'usageBadgeDisplay', 'speed', 'speedFast', 'commandFast', 'commandFastUnavailable', 'usageBadgeMoreWindows']) assert.ok(used.has(key), key);
+  // #132 Claude card and cache lifetime copy.
+  for (const key of ['claudeProviderUnavailable', 'addAccountOAuth', 'addAccountKeychain', 'claudeAddAccountHint']) assert.ok(used.has(key), key);
 });
 
 test('every requested key has copy in both locales and no value is a bare key name', () => {

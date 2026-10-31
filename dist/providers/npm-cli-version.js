@@ -96,3 +96,24 @@ export class NpmCliVersionCache {
         return this.presented.version;
     }
 }
+/** How long a status poll waits on a refresh already in flight before showing the last result (reference index.ts). */
+export const STATUS_VERSION_WAIT_MS = 1000;
+/**
+ * The CLI version a route presents for the Settings page. The first lookup is awaited, so a slow registry is not
+ * misreported as a fallback; a later refresh is waited on only briefly, because the whole page waits on `status`,
+ * and the last result shows. Ported from reference v0.9.12 src/index.ts `presentedVersion`.
+ */
+export function presentedVersion(cache, waitMs = STATUS_VERSION_WAIT_MS) {
+    return async () => {
+        if (cache.current() === undefined) {
+            await cache.resolve();
+            return cache.current();
+        }
+        let timer;
+        await Promise.race([
+            cache.resolve(),
+            new Promise(resolve => { timer = setTimeout(resolve, waitMs); }),
+        ]).finally(() => { clearTimeout(timer); });
+        return cache.current();
+    };
+}

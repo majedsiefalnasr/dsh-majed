@@ -15,4 +15,6 @@ The #129 visual correction additionally adapts the Codex presentation and helper
 
 #131 additionally ports the composer usage badge, its display setting and preference store, the usage-window filter, the Speed control and the `/fast` command description from `src/client/` at that same pin, the `speed`/`setSpeed` host behavior from `src/auth/rpc.ts` and `src/index.ts`, and the matching tests; the file-level map is in `src/PROVENANCE.md` and the copyright/licence text above applies unchanged.
 
+#132 additionally ports the pinned Claude provider, Anthropic translation, Claude CLI version detection and Claude Code credential reader from `src/providers/`, `src/translate/` and `src/auth/` at that same pin, adapts the Claude card, cache-lifetime Manage option and locale strings from `src/client/`, and ports the matching reference tests; the file-level map is in `src/PROVENANCE.md` and the copyright and MIT license above apply unchanged.
+
 Ported source added by later components is listed here with its version, commit and the location of its provenance record. No provider account, trademark or service authorization follows from a code license.

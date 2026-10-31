@@ -20,7 +20,8 @@ function host({ collision = false } = {}) {
   const routes = new Map(), cleanups = [];
   let adapter;
   const ctx = { logger: { warn() {} }, llm: { registerAdapter(ids, value) {
-    assert.deepEqual(ids, ['codex']);
+    assert.ok(ids[0] === 'codex' || ids[0] === 'claude', `unexpected provider ${ids}`);
+    if (ids[0] === 'claude') return { replace() {} };
     if (collision) throw new Error('provider codex already registered');
     adapter = value; return { replace() {} };
   } }, get: () => ({ fetch: { register(route) { routes.set(route.path, route); return () => routes.delete(route.path); } } }),

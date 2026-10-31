@@ -27,7 +27,7 @@ async function mount(sessions = {}, accounts = ['a']) {
     throw new Error(`Unexpected outbound request: ${url}`);
   };
   const routes = new Map(), cleanups = []; let adapter;
-  const ctx = { logger: { warn() {} }, llm: { registerAdapter(_, value) { adapter = value; return { replace() {} }; } },
+  const ctx = { logger: { warn() {} }, llm: { registerAdapter(ids, value) { if (ids[0] === 'codex') adapter = value; return { replace() {} }; } },
     get: name => name === 'agents' ? { get: id => sessions[id] === undefined ? undefined : { session: { header: sessions[id] } } }
       : name === 'connection' ? { fetch: { register(route) { routes.set(route.path, route); return () => routes.delete(route.path); } } } : undefined,
     inject(names, fn) { if ([].concat(names).includes('connection')) fn(ctx); }, effect(fn) { const off = fn(); if (off) cleanups.push(off); } };

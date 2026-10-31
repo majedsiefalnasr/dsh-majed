@@ -231,3 +231,19 @@ test('usage badge ignores model reads that fail and unmount stops all polling', 
   assert.ok(rpc.calls.some(c => c.method.endsWith('.usage')));
   await act(async () => page.unmount());
 }));
+
+// Ticket #132: the badge is provider-generic, so a Claude account joins it as soon as `status` lists one.
+test('usage badge shows the current Claude model and lists Claude accounts next to Codex', () => withWindow(async () => {
+  installHost();
+  const both = { ok: true, value: { providers: { ...status.value.providers, claude: { displayName: 'Claude (Subscription)', busy: false, accounts: [{ key: 'c', account: 'claude@example.test', isDefault: true, plan: 'max' }] } } } };
+  const rpc = rpcDouble({ status: both, usage: payload => payload.provider === 'claude' ? { ok: true, value: { supported: true, windows: [{ kind: 'session', usedPercent: 61 }, { kind: 'weekly', usedPercent: 12 }] } } : usage[payload.account] });
+  const page = await mount(React.createElement(SubscriptionUsageBadge, { rpc, t: translator('en'), currentModel: async () => ({ provider: 'claude', model: 'claude-sonnet-5' }) }));
+  await tick(); await tick();
+  assert.ok(rpc.calls.some(c => c.method.endsWith('.usage') && c.payload.provider === 'claude' && c.payload.account === 'c' && c.payload.force === false));
+  const pill = page.root.findByProps({ className: 'majed-subscription-usage-pill' });
+  assert.match(textOf(pill), /Claude/); assert.match(textOf(pill), /61%/);
+  await act(async () => pill.props.onClick()); await tick();
+  const panel = textOf(page.root.findByProps({ role: 'dialog' }));
+  assert.ok(panel.includes('claude@example.test') && panel.includes('one@example.test'), 'Claude and Codex accounts both listed');
+  await act(async () => page.unmount());
+}));

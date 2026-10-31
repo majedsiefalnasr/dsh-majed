@@ -1,7 +1,7 @@
 // Adapted from V1ki/dsh-plugin-subscriptions v0.9.12 (b802311) test/model-defaults-rpc.spec.ts, MIT; see src/PROVENANCE.md.
 // Dispositions (owned endpoints differ from the reference by design):
-//  - `provider` is optional and only `codex` is accepted, with the owned message "Only Codex is available"
-//    (the reference listed every provider: "payload.provider must be one of").
+//  - `provider` is optional (default `codex`); `codex` and `claude` are accepted (#132) and anything else fails with
+//    "payload.provider must be one of codex, claude" (the reference listed every provider).
 //  - `modelDefaults` returns the reference `ModelDefaultsCatalog[]` (`[{ provider, models: [{ id, name, efforts, configured? }] }]`)
 //    and honours a boolean `force` (final #130 review, test/final-130.test.mjs); the old stored-snapshot shape is gone.
 //  - The unadvertised-effort message names the model and effort, as the reference does (final #130 review).
@@ -23,7 +23,7 @@ async function mount(config = {}) {
     throw new Error(`Unexpected outbound request: ${String(input)}`);
   };
   const routes = new Map(), cleanups = []; const replaced = []; let adapter;
-  const ctx = { logger: { warn() {} }, llm: { registerAdapter(_, value) { adapter = value; return { replace(ids) { replaced.push(...ids); } }; },
+  const ctx = { logger: { warn() {} }, llm: { registerAdapter(ids, value) { if (ids[0] === 'codex') adapter = value; return { replace(ids) { replaced.push(...ids); } }; },
       listProviders: () => [{ id: 'codex', name: 'Codex' }], listModels: provider => adapter.listModels(provider), resolveModelInfo: (provider, model) => adapter.resolveModel(provider, model) },
     get: name => name === 'connection' ? { fetch: { register(route) { routes.set(route.path, route); return () => routes.delete(route.path); } } } : undefined,
     inject(names, fn) { if ([].concat(names).includes('connection')) fn(ctx); }, effect(fn) { const off = fn(); if (off) cleanups.push(off); } };
@@ -78,7 +78,7 @@ test('setModelDefault rejects unknown providers, empty efforts and a missing mod
     await host.call('providerSettings', { provider: 'codex' }); // settle discovery announcements first
     const before = host.replaced.length;
     const badProvider = await host.call('setModelDefault', { provider: 'nope', model: 'gpt-5.6-sol', effort: 'high' });
-    assert.equal(badProvider.ok, false); assert.match(badProvider.error.message, /Only Codex is available/);
+    assert.equal(badProvider.ok, false); assert.match(badProvider.error.message, /payload\.provider must be one of codex, claude/);
     const badEffort = await host.call('setModelDefault', { provider: 'codex', model: 'gpt-5.6-sol', effort: '' });
     assert.equal(badEffort.ok, false); assert.match(badEffort.error.message, /payload\.effort must be a non-empty string/);
     const noModel = await host.call('setModelDefault', { provider: 'codex', effort: 'high' });

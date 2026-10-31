@@ -34,7 +34,7 @@ async function mount({ accounts = ['a', 'b'], hang = [], config = {} } = {}) {
   };
   const routes = new Map(), cleanups = []; let adapter;
   const ctx = { logger: { warn() {} },
-    llm: { registerAdapter(_, value) { adapter = value; return { replace() {} }; },
+    llm: { registerAdapter(ids, value) { if (ids[0] === 'codex') adapter = value; return { replace() {} }; },
       listProviders: () => adapter ? [{ id: 'codex', name: 'Codex' }] : [],
       listModels: provider => adapter.listModels(provider), resolveModelInfo: (provider, model) => adapter.resolveModel(provider, model) },
     get: name => name === 'connection' ? { fetch: { register(route) { routes.set(route.path, route); return () => routes.delete(route.path); } } } : undefined,
