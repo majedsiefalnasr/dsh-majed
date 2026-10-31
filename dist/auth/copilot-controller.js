@@ -7,6 +7,7 @@ export class CopilotAuthController {
     claim = 0;
     busy = false;
     disposed = false;
+    completion;
     detail;
     constructor(flows, changed, describe) {
         this.flows = flows;
@@ -26,6 +27,8 @@ export class CopilotAuthController {
         if (this.busy)
             throw new Error('a copilot login attempt is already in progress');
         const claim = ++this.claim;
+        const completion = new AbortController();
+        this.completion = completion;
         this.busy = true;
         this.detail = undefined;
         try {
@@ -39,7 +42,7 @@ export class CopilotAuthController {
                     const token = await attempt.waitToken();
                     if (this.claim !== claim)
                         return;
-                    const session = await completeCopilotLogin(token);
+                    const session = await completeCopilotLogin(token, undefined, completion.signal);
                     if (this.claim !== claim)
                         return;
                     const account = accountKeyOf('copilot', session);
@@ -63,7 +66,7 @@ export class CopilotAuthController {
             throw error;
         }
     }
-    cancel() { this.claim++; this.busy = false; this.flows.pending('copilot')?.cancel(); }
+    cancel() { this.claim++; this.completion?.abort(new Error('login cancelled')); this.completion = undefined; this.busy = false; this.flows.pending('copilot')?.cancel(); }
     async logout(account) { this.cancel(); await deleteAccountSession('copilot', account); this.changed(account); }
     async setDefault(account) { await setDefaultAccount('copilot', account); this.changed(); }
     dispose() { this.disposed = true; this.cancel(); }

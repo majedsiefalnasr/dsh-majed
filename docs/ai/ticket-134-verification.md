@@ -1,5 +1,15 @@
 # Ticket #134 verification — GitHub Copilot
 
+## Final P2 lifecycle remediation from 33f6b78
+
+Contract: directly approved bounded surgical-patch/TDD at existing provider/controller seams. Exact checkout `/Users/majedsiefalnasr/Documents/Work/DeepSeek Harness/dsh-majed-t134`, clean `33f6b78` verified. Direct execution, no nested agents, installed state, secrets, Keychain, real provider calls, sibling writes, merge or push. Stop at local candidate; independent Lead review remains required.
+
+Version-feed regression initially failed 0/1 (`feed fetch AND body must settle at deadline`). Added a ten-second deadline around fetch AND JSON, fallback and inflight release; successful retry recovers. First green attempt exposed a fixture race: racing an already-resolved marker against `Promise.all` always chose the marker; replaced with observed settlement after microtask flushing, then green. No environment failure or bypass. Shared waiter cancellation preserves the healthy consumer. Discovery-off streaming regression covers caller abort and 20 ms idle deadline without inference. Exchange/login fixtures cover hung exchange/profile fetch and body at deadline or cancellation; existing controller fixtures retain cancel/dispose late-save proof. Exchange/profile additions were verified after implementation, not claimed as separate red-before-green cycles.
+
+P3 whitespace: moved the source replay comment so TypeScript no longer emits trailing whitespace in the generated provider; rebuilt, no manual bundle edit. Earlier full-range check correctly failed at generated line 916 before this source correction. Interim full gates passed classifier166/166 + Node672/672, build/fresh-build comparison and full-range whitespace. Final rerun passed classifier166/166 + Node674/674 with no failures/cancellations/skips; build, fresh-build comparison and full-range whitespace all exit 0. Commit identifiers are recorded in the handoff. Existing React warnings and handled missing-Claude-CLI fallback remain unrelated; no Claude agent was used.
+
+Residual limits: fixture-only; no transactional rollback of a filesystem save already begun. Independent Standards/Spec review, serial integration/package validation and separately approved installed/live acceptance remain Lead/Owner gates. No ticket closure or acceptance claim.
+
 ## Contract and state
 
 Local candidate on `impl/134-copilot`, isolated `dsh-majed-t134`, baseline `d56439e`. Only #134 is implemented. Direct Owner authorization overrides historical one-at-a-time policy for parallel #133/#134 worktrees, not serial review/merge/install. No nested delegation or Claude agent model used. Independent review and Owner acceptance remain OPEN.

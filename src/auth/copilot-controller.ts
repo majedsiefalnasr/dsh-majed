@@ -7,6 +7,7 @@ export class CopilotAuthController {
   private claim = 0;
   private busy = false;
   private disposed = false;
+  private completion?: AbortController;
   private detail?: string;
   constructor(private flows: DeviceFlowManager, private changed: (account?: string) => void,
     private describe: (error: unknown) => string) {}
@@ -21,6 +22,8 @@ export class CopilotAuthController {
     if (this.disposed) throw new Error('Subscriptions component is disabled');
     if (this.busy) throw new Error('a copilot login attempt is already in progress');
     const claim = ++this.claim;
+    const completion = new AbortController();
+    this.completion = completion;
     this.busy = true; this.detail = undefined;
     try {
       const attempt = await this.flows.start('copilot', copilotDeviceFlow());
@@ -29,7 +32,7 @@ export class CopilotAuthController {
         try {
           const token = await attempt.waitToken();
           if (this.claim !== claim) return;
-          const session = await completeCopilotLogin(token);
+          const session = await completeCopilotLogin(token, undefined, completion.signal);
           if (this.claim !== claim) return;
           const account = accountKeyOf('copilot', session);
           await saveAccountSession('copilot', account, session);
@@ -40,7 +43,7 @@ export class CopilotAuthController {
       return { authorizeUrl: attempt.verificationUrl, userCode: attempt.userCode };
     } catch (error) { if (this.claim === claim) this.busy = false; throw error; }
   }
-  cancel() { this.claim++; this.busy = false; this.flows.pending('copilot')?.cancel(); }
+  cancel() { this.claim++; this.completion?.abort(new Error('login cancelled')); this.completion = undefined; this.busy = false; this.flows.pending('copilot')?.cancel(); }
   async logout(account: string) { this.cancel(); await deleteAccountSession('copilot', account); this.changed(account); }
   async setDefault(account: string) { await setDefaultAccount('copilot', account); this.changed(); }
   dispose() { this.disposed = true; this.cancel(); }

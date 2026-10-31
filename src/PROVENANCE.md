@@ -6,6 +6,10 @@
 - License: MIT (copyright notice retained below).
 - Scope carried over in #128: host exact Fetch RPC envelope/registration convention from src/auth/rpc.ts and browser closure-factory build recipe from tsdown.config.ts; no provider implementation.
 
+## #134 final lifecycle remediation
+
+Independently authored owned safety changes from `33f6b78`: ten-second editor-feed fetch/body deadline with fallback and shared-inflight release; stream callers race their own watchdog without aborting shared feed consumers. Token exchange and login/profile bodies share bounded lifecycle signals; controller cancel/dispose abort completion and retain claim checks before persistence. Moved the replay comment in source to prevent TypeScript emitting trailing whitespace; generated output is rebuilt, never hand-edited. New synthetic lifecycle fixtures are owned, not copied reference proof.
+
 ## #134 review-remediation deviations
 
 Owned changes beyond v0.9.12: explicit Copilot Manage routing and force invalidation, selected-account capability/protocol lookup with caller cancellation, and early device-flow ownership reservation with a 30-second acquisition budget and expiry-bounded polling/body reads. Error descriptions from token responses are not echoed. These fixes intentionally diverge from reference defects; source equality is not a safety exemption. Dedicated `test/reference/chat-completions.spec.ts` ports the entire 17-case pinned translator suite with import-path adaptation only. Additional owned device and account fixtures exercise stale acquisition, cancellation, late token bodies and incompatible account metadata. Completion from `1d0af7d` adds independently authored owned regression fixtures only: actual React Manage composed with host RPC in EN/AR, incompatible per-account catalog/HTTP streaming differential and cancellation, plus device/controller lifecycle, deadlines, stale completions and error secrecy. No additional reference code or runtime behavior was changed. Controlled evidence and residual installed/live limits are recorded in ticket verification.

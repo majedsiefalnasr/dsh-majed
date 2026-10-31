@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Bound #134 Copilot editor-version fetch and body with a ten-second shared deadline and fallback/retry recovery; caller cancellation and stream-idle deadlines stop waiting without cancelling other consumers. Bound token exchange and complete login (including profile bodies), and abort completion on cancel/dispose before persistence. Regenerate the whitespace correction from source. Controlled candidate only; no installed/live acceptance claim.
+
 - Complete #134 controlled regression evidence for actual two-account Manage in English/Arabic, account-specific incompatible catalog/streaming protocols and abort, and device-login deadlines, lifecycle, late-completion suppression and error secrecy. This completion pass changes no runtime behavior; independent review and installed/live acceptance remain separate gates.
 
 - Correct #134 Copilot Manage routing and forced catalog invalidation; pin capability/protocol lookup to the selected account and propagate cancellation. Reserve device-login ownership before acquisition, bound acquisition and polling bodies, and reject tokens arriving after expiry. These are owned safety deviations from the pinned reference, not upstream-exempt behavior. Candidate only; independent review and installed/live acceptance remain required.

@@ -17,7 +17,7 @@ import { EMPTY_RESPONSE_CODE, errorChain, LlmAdapter, LlmError, ReasoningEffortI
 import { resolveImages } from '../translate/resolved.js';
 import { streamChatCompletions, toChatMessages, toChatTools, } from '../translate/chat-completions.js';
 import { streamResponses, toResponsesInput, toResponsesTools } from '../translate/responses.js';
-import { httpLlmError, withAbortSignal, idleWatchdog, mapFetchFailure, mergeReasoning, ModelCatalogCache, discoverAcrossAccounts, discoverOrRetryAuth, isDiscoveryAborted, isMissingOrInvalidCredential, oauthEndpointError, OAuthEndpointError, } from './common.js';
+import { httpLlmError, withAbortSignal, deadlineSignal, idleWatchdog, mapFetchFailure, mergeReasoning, ModelCatalogCache, discoverAcrossAccounts, discoverOrRetryAuth, isDiscoveryAborted, isMissingOrInvalidCredential, oauthEndpointError, OAuthEndpointError, } from './common.js';
 import { DISCOVERY_TIMEOUT_MS, unionAccountCatalogs } from './accounts.js';
 import { proxiedFetch } from '../http.js';
 import { DEFAULT_RATE_LIMIT_WAIT, DEFAULT_RETRY, subscriptionRetryPolicy, } from './rate-limit.js';
@@ -66,11 +66,14 @@ export async function latestVsCodeVersion(fetchFn = proxiedFetch, forceRefresh =
         return vscodeVersionCache.version;
     }
     vscodeVersionInflight ??= (async () => {
+        const deadline = deadlineSignal(DISCOVERY_TIMEOUT_MS);
         try {
-            const response = await fetchFn(VSCODE_RELEASES_URL, { headers: { accept: 'application/json' } });
-            if (!response.ok)
-                throw new Error(`HTTP ${String(response.status)}`);
-            const releases = await response.json();
+            const releases = await withAbortSignal(async () => {
+                const response = await fetchFn(VSCODE_RELEASES_URL, { headers: { accept: 'application/json' }, signal: deadline.signal });
+                if (!response.ok)
+                    throw new Error(`HTTP ${String(response.status)}`);
+                return response.json();
+            }, deadline.signal);
             const version = Array.isArray(releases)
                 ? releases.find(entry => typeof entry === 'string' && /^\d+\.\d+\.\d+$/.test(entry))
                 : undefined;
@@ -83,6 +86,9 @@ export async function latestVsCodeVersion(fetchFn = proxiedFetch, forceRefresh =
             // A feed failure must never break provider traffic: serve the stale
             // cache, else the pinned fallback.
             return vscodeVersionCache?.version ?? FALLBACK_VSCODE_VERSION;
+        }
+        finally {
+            deadline.release();
         }
     })().finally(() => { vscodeVersionInflight = undefined; });
     return vscodeVersionInflight;
@@ -125,13 +131,23 @@ export function copilotHeaders(hasVision = false, vscodeVersion = FALLBACK_VSCOD
  * @param fetchFn - fetch implementation (injectable for tests).
  * @returns the Copilot API token and its expiry.
  */
-export async function exchangeCopilotToken(githubToken, fetchFn = proxiedFetch) {
+export async function exchangeCopilotToken(githubToken, fetchFn = proxiedFetch, signal) {
+    const deadline = deadlineSignal(DISCOVERY_TIMEOUT_MS, signal);
+    try {
+        return await withAbortSignal(() => exchangeCopilotTokenWithinDeadline(githubToken, fetchFn, deadline.signal), deadline.signal);
+    }
+    finally {
+        deadline.release();
+    }
+}
+async function exchangeCopilotTokenWithinDeadline(githubToken, fetchFn, signal) {
     const response = await fetchFn(COPILOT_TOKEN_URL, {
         headers: {
             'authorization': `Bearer ${githubToken}`,
             'accept': 'application/json',
-            ...copilotHeaders(false, await latestVsCodeVersion(fetchFn)),
+            ...copilotHeaders(false, await withAbortSignal(() => latestVsCodeVersion(fetchFn), signal)),
         },
+        signal,
     });
     if (!response.ok)
         throw await oauthEndpointError(response, 'copilot');
@@ -155,8 +171,17 @@ export async function exchangeCopilotToken(githubToken, fetchFn = proxiedFetch) 
  * @param fetchFn - fetch implementation (injectable for tests).
  * @returns the session to store.
  */
-export async function completeCopilotLogin(githubToken, fetchFn = proxiedFetch) {
-    const pair = await exchangeCopilotToken(githubToken, fetchFn);
+export async function completeCopilotLogin(githubToken, fetchFn = proxiedFetch, signal) {
+    const deadline = deadlineSignal(DISCOVERY_TIMEOUT_MS, signal);
+    try {
+        return await withAbortSignal(() => completeCopilotLoginWithinDeadline(githubToken, fetchFn, deadline.signal), deadline.signal);
+    }
+    finally {
+        deadline.release();
+    }
+}
+async function completeCopilotLoginWithinDeadline(githubToken, fetchFn, signal) {
+    const pair = await exchangeCopilotToken(githubToken, fetchFn, signal);
     let account;
     try {
         const response = await fetchFn(GITHUB_USER_URL, {
@@ -166,6 +191,7 @@ export async function completeCopilotLogin(githubToken, fetchFn = proxiedFetch) 
                 // api.github.com only demands a user agent; no editor disguise needed.
                 'user-agent': 'GitHubCopilotChat/0.35.0',
             },
+            signal,
         });
         if (response.ok) {
             const profile = await response.json();
@@ -849,7 +875,7 @@ export class CopilotAdapter extends LlmAdapter {
                 // editor version is force-refreshed too: a 401 `IDE token expired`
                 // means GitHub raised its minimum VS Code version, and only a fresh
                 // Editor-Version header fixes that (a new token does not).
-                await latestVsCodeVersion(this.options.fetchFn ?? proxiedFetch, true);
+                await withAbortSignal(() => latestVsCodeVersion(this.options.fetchFn ?? proxiedFetch, true), watchdog.signal);
                 session = await this.options.tokens.session(account, true);
                 response = await this.request(options, session, watchdog.signal, wire, scope);
             }
@@ -886,10 +912,9 @@ export class CopilotAdapter extends LlmAdapter {
     async request(options, session, signal, wire, replayScopeKey) {
         const messages = await resolveImages(options.messages, this.options.resolveAttachments?.(), signal);
         const hasVision = messages.some(message => message.content.some(block => block.type === 'image'));
+        // Captured completed reasoning replays ahead of its tool call.
         const body = wire === 'responses'
-            ? copilotResponsesRequestBody(options, toResponsesInput(messages, options.system, 
-            // Captured completed reasoning replays ahead of its tool call.
-            callId => this.replayFor(replayScopeKey, callId)))
+            ? copilotResponsesRequestBody(options, toResponsesInput(messages, options.system, callId => this.replayFor(replayScopeKey, callId)))
             : copilotChatRequestBody(options, toChatMessages(messages, options.system));
         return proxiedFetch(wire === 'responses' ? COPILOT_RESPONSES_URL : COPILOT_API_URL, {
             method: 'POST',
@@ -897,7 +922,7 @@ export class CopilotAdapter extends LlmAdapter {
                 'authorization': `Bearer ${session.accessToken}`,
                 'accept': 'text/event-stream',
                 'content-type': 'application/json',
-                ...copilotHeaders(hasVision, await latestVsCodeVersion(this.options.fetchFn ?? proxiedFetch)),
+                ...copilotHeaders(hasVision, await withAbortSignal(() => latestVsCodeVersion(this.options.fetchFn ?? proxiedFetch), signal)),
             },
             body: JSON.stringify(body),
             signal,
