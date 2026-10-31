@@ -42,7 +42,7 @@ test('disposing the component removes every owned registration and stops owned w
   try {
     await settle();
     assert.equal(first.routes.size, 18, 'eighteen owner routes (sixteen plus speed and setSpeed)');
-    assert.deepEqual(first.llm.listProviders().map(provider => provider.id), ['codex', 'claude']);
+    assert.deepEqual(first.llm.listProviders().map(provider => provider.id), ['codex', 'claude', 'copilot']);
     assert.equal(first.tools.has('image_generate'), true, 'image_generate registered on the real tool runtime');
     await assert.rejects(first.search('q'), error => error.code === 'CODEX_AUTH_REQUIRED', 'the mounted Codex provider owns web search (no login → its own auth error)');
     assert.equal((await first.call('login', { provider: 'codex' })).ok, true, 'a pending authorization exists');

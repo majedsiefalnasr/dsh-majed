@@ -18,3 +18,5 @@ The #129 visual correction additionally adapts the Codex presentation and helper
 #132 additionally ports the pinned Claude provider, Anthropic translation, Claude CLI version detection and Claude Code credential reader from `src/providers/`, `src/translate/` and `src/auth/` at that same pin, adapts the Claude card, cache-lifetime Manage option and locale strings from `src/client/`, and ports the matching reference tests; the file-level map is in `src/PROVENANCE.md` and the copyright and MIT license above apply unchanged.
 
 Ported source added by later components is listed here with its version, commit and the location of its provenance record. No provider account, trademark or service authorization follows from a code license.
+
+#134 additionally ports GitHub Copilot, the device-flow engine, Chat Completions translation and their reference tests from the same v0.9.12 / b802311 MIT pin, with owned composition and EN/AR device-code card adaptations. See `src/PROVENANCE.md` for the inventory and local changes; the retained V1ki copyright and MIT notice apply.
