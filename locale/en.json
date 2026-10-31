@@ -192,6 +192,7 @@
     "generating": "Generating image…",
     "generatingVideo": "Generating video…",
     "videoLoading": "Loading video…",
-    "videoLoadFailed": "Could not load video: {message}"
+    "videoLoadFailed": "Could not load video: {message}",
+    "videoPlaybackFailed": "The browser could not play this video."
   }
 }

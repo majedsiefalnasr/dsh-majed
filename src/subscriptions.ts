@@ -1,5 +1,5 @@
 /** Owned Codex component composition. Reference v0.9.12: see PROVENANCE.md. */
-import { open } from 'node:fs/promises';
+import { lstat, open } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { join } from 'node:path';
 import type { Context } from '@deepseek-ai/cordis';
@@ -460,11 +460,24 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
               case 'video': {
                 const file = string('name');
                 if (!/^video-[a-zA-Z0-9_-]+\.mp4$/.test(file)) throw new Error('Invalid video name');
-                const handle = await open(join(videosDirectory(), file), constants.O_RDONLY | constants.O_NOFOLLOW);
+                const directory = videosDirectory();
+                const directoryStat = await lstat(directory);
+                if (!directoryStat.isDirectory() || (process.getuid && directoryStat.uid !== process.getuid())) throw new Error('Invalid video directory');
+                const handle = await open(join(directory, file), constants.O_RDONLY | constants.O_NOFOLLOW);
                 try {
                   const stat = await handle.stat();
                   if (!stat.isFile() || (process.getuid && stat.uid !== process.getuid()) || stat.size > 100 * 1024 * 1024) throw new Error('Invalid video file');
-                  const data = await handle.readFile({ signal: request.signal });
+                  // Read only the admitted size: a concurrently growing file cannot cause an unbounded allocation.
+                  const data = Buffer.alloc(stat.size);
+                  let offset = 0;
+                  while (offset < data.length) {
+                    request.signal.throwIfAborted();
+                    const { bytesRead } = await handle.read(data, offset, data.length - offset, offset);
+                    if (!bytesRead) throw new Error('Video file changed during read');
+                    offset += bytesRead;
+                  }
+                  request.signal.throwIfAborted();
+                  if ((await handle.stat()).size !== stat.size) throw new Error('Video file changed during read');
                   if (data.length < 8 || data.toString('ascii', 4, 8) !== 'ftyp') throw new Error('Invalid MP4 file');
                   value = { mediaType: 'video/mp4', dataBase64: data.toString('base64') };
                 } finally { await handle.close(); }

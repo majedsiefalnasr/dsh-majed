@@ -1,5 +1,9 @@
 # Subscriptions provenance
 
+## #133 continued acceptance corrections
+
+Independently implemented localized native-player error handling, owned video-directory lstat admission and size-bounded positional reads with post-read growth rejection. New controlled tests exercise registered Grok preferences and revocation, nested video text recovery, playback failure and object-URL replacement/unmount lifecycle. These changes are local, not copied upstream. Directory admission assumes the DSH home and its ancestor directories remain under the same trusted OS user; it is not a cross-user filesystem sandbox or an atomic defense against a malicious same-user process replacing ancestors.
+
 ## #133 review remediation
 
 Owned corrections after the pinned port: per-attempt cancellation/deadline wrappers around discovery and full token-body exchange; saved Grok aliases in composed status; existing DSH media token/logical-position seams, parameter-free localized retry, focus restoration and decoded-thumbnail retry; no-follow leaf video reads with regular-file/current-uid/size/MP4 checks and bounded streamed provider downloads. These are local safety/integration adaptations, not claims that upstream supplied the fixes. Fixture coverage and remaining mandatory proof are recorded in `docs/ai/ticket-133-verification.md`; no provider or restart acceptance is implied.

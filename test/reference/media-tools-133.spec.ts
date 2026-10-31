@@ -36,6 +36,31 @@ import {
   parseVideoStatusResponse,
 } from '../../src/tools/video-generate.js'
 
+test('video streamed download without length stops above limit and cancels stalled reads', async () => {
+  for (const mode of ['oversize', 'cancel'] as const) {
+    const dir = mkdtempSync(join(tmpdir(), 'majed-t133-stream-'))
+    const controller = new AbortController()
+    let cancelled = false, sent = false
+    const fetchFn: FetchFn = async url => {
+      if (String(url).endsWith('/generations')) return Response.json({ request_id: 'stream-fixture' })
+      if (String(url).includes('/videos/stream-fixture')) return Response.json({ status: 'done', video: { url: 'https://fixture.test/video.mp4' } })
+      return new Response(new ReadableStream<Uint8Array>({
+        pull(stream) {
+          if (mode === 'oversize' && !sent) { sent = true; stream.enqueue(new Uint8Array(100 * 1024 * 1024 + 1)); return }
+          if (mode === 'cancel') queueMicrotask(() => controller.abort(new Error('fixture cancellation')))
+        },
+        cancel() { cancelled = true },
+      }), { headers: { 'content-type': 'video/mp4' } })
+    }
+    try {
+      const tool = createVideoGenerateTool({ tokens: memoryTokens(grokSession), videosDir: dir, pollIntervalMs: 0, fetchFn })
+      await assert.rejects(tool.execute({ prompt: 'fixture' }, { signal: controller.signal } as unknown as ToolRunContext), mode === 'oversize' ? /exceeds size/ : /fixture cancellation/)
+      assert.equal(cancelled, true)
+      assert.deepEqual(readdirSync(dir), [])
+    } finally { rmSync(dir, { recursive: true, force: true }) }
+  }
+})
+
 /** Mint an unsigned JWT carrying the given payload. */
 function unsignedJwt(payload: Record<string, unknown>): string {
   return `h.${Buffer.from(JSON.stringify(payload)).toString('base64url')}.s`

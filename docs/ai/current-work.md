@@ -2,6 +2,10 @@
 
 Updated 2026-10-31 (Africa/Cairo).
 
+## #133 continuation checkpoint — mandatory work remains
+
+Continued from `9aa967b` on `impl/133-grok-media`, only this worktree. Added actual registered Grok preferences/independent binding/revocation and rate-limit failover/disabled-member proof. Two demonstrated defects fixed red/green: absent native video error UI and symlinked video storage-directory admission. Video reads now allocate only admitted bounded size and reject observed size changes. Nested video text recovery/objectURL replacement/stale-unmount controlled tests pass. Build, final full tests (classifier166/166, Node629/629), temp-cache build comparison and diffcheck exit0. Streamed absent-length oversize and stalled-read cancellation cancel readers and leave no saved file. Actual DOM fixture bundled, but browser rejected file navigation (`Access to "file:" protocol is blocked.`); no alternate transport attempted. Local checkpoint commit follows; mandatory proof is not complete. Remaining mandatory matrices and actual DOM theme proof are unfinished, not blocked or accepted; see ticket verification. No live/installed/secrets/sibling/merge/push actions. Next allowed action: finish those matrices directly, rerun all gates and commit candidate; Lead independent review stays separate.
+
 ## #133 remediation checkpoint — incomplete acceptance
 
 Remediation from `c72673b` fixes cancellable/bounded Grok discovery and exchange finalization, Grok saved aliases in status, DSH media tokens/logical positioning/localized retry copy, lightbox focus and decoded-thumbnail retry, and video leaf-symlink/MIME/size handling. Full latest fixture gate passes classifier 166/166 and Node 623/623; build, temporary-cache check:build and diffcheck exit 0. Mandatory Grok registered-adapter/session-toggle and broader media/theme/lifecycle proof remains incomplete, detailed in `docs/ai/ticket-133-verification.md`; no acceptance or live proof is claimed. No installed state, secrets/Keychain, provider calls, sibling edits, merge or push. Lead must finish outstanding proof before serial review/integration and the separately approved consolidated Owner test.

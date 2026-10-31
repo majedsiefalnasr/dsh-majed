@@ -223,7 +223,8 @@ export function VideoGenerateToolview(props: VideoGenerateToolviewProps) {
       )}
       {settled && !isError && fileName !== undefined && load.phase === 'ready' && (
         // eslint-disable-next-line jsx-a11y/media-has-caption -- generated clip; no caption track exists.
-        <video style={styles.video} src={load.url} controls preload="metadata" />
+        <video style={styles.video} src={load.url} controls preload="metadata"
+          onError={() => setLoad({ phase: 'failed', message: t('videoPlaybackFailed') })} />
       )}
       {settled && !isError && fileName === undefined && text !== '' && (
         <p style={styles.output}>{text}</p>

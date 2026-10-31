@@ -192,6 +192,7 @@
     "generating": "جارٍ إنشاء الصورة…",
     "generatingVideo": "جارٍ إنشاء الفيديو…",
     "videoLoading": "جارٍ تحميل الفيديو…",
-    "videoLoadFailed": "تعذر تحميل الفيديو: {message}"
+    "videoLoadFailed": "تعذر تحميل الفيديو: {message}",
+    "videoPlaybackFailed": "تعذر على المتصفح تشغيل هذا الفيديو."
   }
 }

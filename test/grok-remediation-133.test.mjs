@@ -61,6 +61,18 @@ test('video RPC validates names, missing files, regular files and MP4 bytes whil
   } finally { component.dispose(); }
 });
 
+test('video RPC refuses a symlinked owned videos directory', async () => {
+  const home = process.env.DSH_HOME = await mkdtemp('/tmp/majed-t133-parent-link-');
+  const directory = join(home, 'plugins/majed/subscriptions');
+  const foreign = join(home, 'foreign-videos');
+  await mkdir(directory, { recursive: true }); await mkdir(foreign);
+  await writeFile(join(foreign, 'video-foreign.mp4'), Buffer.from([0, 0, 0, 8, 102, 116, 121, 112]));
+  await symlink(foreign, join(directory, 'videos'));
+  const component = host();
+  try { assert.equal((await component.call('video', { name: 'video-foreign.mp4' })).ok, false); }
+  finally { component.dispose(); }
+});
+
 test('Grok saved alias reaches the rendered card through assembled status RPC', async () => {
   process.env.DSH_HOME = await mkdtemp('/tmp/majed-t133-alias-');
   const store = await import('../dist/auth/store.js');

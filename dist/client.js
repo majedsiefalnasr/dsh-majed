@@ -486,7 +486,8 @@ var subscriptions$1 = {
 	"generating": "Generating image…",
 	"generatingVideo": "Generating video…",
 	"videoLoading": "Loading video…",
-	"videoLoadFailed": "Could not load video: {message}"
+	"videoLoadFailed": "Could not load video: {message}",
+	"videoPlaybackFailed": "The browser could not play this video."
 };
 
 //#endregion
@@ -858,7 +859,11 @@ function VideoGenerateToolview(props) {
 				style: styles$4.video,
 				src: load.url,
 				controls: true,
-				preload: "metadata"
+				preload: "metadata",
+				onError: () => setLoad({
+					phase: "failed",
+					message: t("videoPlaybackFailed")
+				})
 			}),
 			settled && !isError && fileName === void 0 && text !== "" && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
 				style: styles$4.output,
@@ -1059,7 +1064,8 @@ var subscriptions = {
 	"generating": "جارٍ إنشاء الصورة…",
 	"generatingVideo": "جارٍ إنشاء الفيديو…",
 	"videoLoading": "جارٍ تحميل الفيديو…",
-	"videoLoadFailed": "تعذر تحميل الفيديو: {message}"
+	"videoLoadFailed": "تعذر تحميل الفيديو: {message}",
+	"videoPlaybackFailed": "تعذر على المتصفح تشغيل هذا الفيديو."
 };
 
 //#endregion
