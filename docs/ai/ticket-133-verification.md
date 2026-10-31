@@ -1,5 +1,15 @@
 # Ticket #133 verification — isolated candidate
 
+## Latest correction and reconciled evidence (2026-10-31)
+
+Work contract: approved minimal #133 overall video budget fix from `34d44f7` on `impl/133-grok-media`, direct surgical-patch/TDD at the existing tool execute/injected-fetch seam. Writes limited to this worktree source, tests, generated output and evidence. No nested agents, Claude, secrets, installed changes, real providers, sibling writes, merge or push. Investigation cap: two failed diagnostics or 20 minutes per environment blocker; intentional regression reds are planned proof.
+
+Red: a 5 ms budget with stalled submission headers remained `pending` at 40 ms; focused command exited 1 (0/1). Green: reuse the existing aborting deadline and abort-race helpers before submission, propagate the composed signal through headers/body/poll/sleep/download, release in finally, and cancel late/unconsumed responses. Initial focused regression runs exposed response-arrival/cancellation races; these were fixed rather than weakening existing reader-cancellation assertions. Final focused media suite passes 48/48 (included in full suite). Final command `npm run build && npm test && npm_config_cache=/tmp/npm-cache-majed-t133 npm run check:build && git diff --check` exits 0: classifier 166/166, Node 654/654, zero failures/cancellations/skips; fresh build matches. Log `/tmp/majed-t133-budget-final.log`. Existing handled CLI-version fallback and React warnings persist. Direct Standards/Spec inspection confirms scoped change, unchanged 100 MiB/MIME/MP4 checks and no auth header on signed download. Independent review remains a Lead gate.
+
+Lead-supplied actual BrowserSkill synthetic evidence supersedes the historical browser blocker and stale incomplete-matrix claims below: English/Arabic × light/dark rendered; image dialog open/Escape demonstrated in English/light and Arabic/dark; invalid-video localized errors in all four variants; locally ffmpeg-generated one-second teal H.264 video decoded with native scrubber advancing 0 → 1 in all four variants. No additional browser blocker remains. This worker did not rerun browser proof or inspect installed state. Prior auth/alias/quota/preferences/security matrices were cleared by Lead final review; historical coverage-gap statements below are not current findings. Real providers, installed use, host restart and all-focus behavior are NOT proven. Independent Lead review and consolidated Owner acceptance remain separate.
+
+Temporary untracked `scripts/.media-dom-133-valid.tsx` and `.media-dom-133/fixture.js` are preserved and excluded from the commit.
+
 ## Scope and source
 
 Branch `impl/133-grok-media`, baseline `d56439ee5a895b8410efbacbd795a54e07a002d7`. Owned port from read-only `/tmp/upstream-0.9.12`, pinned `b8023110864494acefc6f5963c2a197d85dda20c`, MIT. No Copilot implementation. Existing #130 Codex image pool, image tool, alias helper and Codex web-search provider were reused, not duplicated.

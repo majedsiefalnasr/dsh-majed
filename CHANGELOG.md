@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Bound the whole Grok video submission, response parsing, polling, sleeps and download with one aborting deadline composed with caller cancellation; release the timer/listener after completion and settle stalled injected transports. Existing download limits and MP4 validation remain in force. Controlled offline regression proof only; installed/provider acceptance remains separate.
+
 - Show localized inline failure when native video playback fails; verify nested video loading, URL revocation and stale-unmount suppression. Refuse a symlinked video storage directory and bound local reads to the admitted file size, rejecting observed size changes. Added registered Grok preference/independent-entry/revocation coverage; remaining #133 acceptance gaps stay explicitly open.
 
 - Remediate #133 auth cancellation across discovery and token-body parsing, expose saved Grok account aliases, use DSH media typography/color tokens and logical close positioning, restore lightbox focus, and make decoded-image failures retryable with parameter-free localized copy. Reject video symlinks/non-regular or foreign-owned files and non-MP4 content; bound streamed provider video downloads to 100 MiB. Added fixture regressions; mandatory integration and rendered-theme proof is still incomplete, so this is not acceptance.

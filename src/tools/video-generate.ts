@@ -15,7 +15,7 @@ import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { ToolDefinition } from '@deepseek-ai/dsh-tools'
 import type { GrokSession } from '../auth/store.js'
-import { httpLlmError } from '../providers/common.js'
+import { deadlineSignal, withAbortSignal, httpLlmError } from '../providers/common.js'
 import { AccountTokenManager } from '../providers/accounts.js'
 import type { FetchFn } from '../providers/common.js'
 import { proxiedFetch } from '../http.js'
@@ -257,82 +257,102 @@ export function createVideoGenerateTool(options: VideoGenerateToolOptions): Tool
         'authorization': `Bearer ${session.accessToken}`,
         'accept': 'application/json',
       }
-      const submit = await fetchFn(VIDEO_GENERATE_URL, {
-        method: 'POST',
-        headers: { ...headers, 'content-type': 'application/json' },
-        body: JSON.stringify(body),
-        signal: exec.signal,
-      })
-      if (!submit.ok) throw await httpLlmError(submit, 'video_generate')
-      const requestId = parseVideoStartResponse(await submit.json())
-
+      const budget = deadlineSignal(maxWaitMs, exec.signal)
+      const { signal } = budget
       const deadline = Date.now() + maxWaitMs
-      let done: { url: string; duration?: number }
-      for (;;) {
-        await sleep(pollIntervalMs, exec.signal)
-        const poll = await fetchFn(videoStatusUrl(requestId), {
-          method: 'GET',
-          headers,
-          signal: exec.signal,
-        })
-        if (!poll.ok) throw await httpLlmError(poll, 'video_generate')
-        const status = parseVideoStatusResponse(await poll.json())
-        if (status.status === 'done') {
-          done = status
-          break
+      let latestResponse: Response | undefined
+      const request = (url: string, init: RequestInit) => withAbortSignal(async () => {
+        const response = await fetchFn(url, { ...init, signal })
+        latestResponse = response
+        if (signal.aborted) {
+          void response.body?.cancel().catch(() => {})
+          signal.throwIfAborted()
         }
-        if (status.status === 'failed' || status.status === 'expired') {
-          throw new Error(`video_generate: generation ${status.status} (request ${requestId})`
-            + (status.detail === undefined ? '' : `: ${status.detail}`))
-        }
-        if (Date.now() >= deadline) {
-          throw new Error(`video_generate: timed out after ${String(maxWaitMs)}ms waiting for request ${requestId}`)
-        }
-      }
-
-      // The MP4 lives on a separate signed host: no auth header on purpose.
-      const download = await fetchFn(done.url, { method: 'GET', signal: exec.signal })
-      if (!download.ok) throw await httpLlmError(download, 'video_generate download')
-      const limit = 100 * 1024 * 1024
-      const mime = download.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase()
-      if ((mime && mime !== 'video/mp4' && mime !== 'application/octet-stream') || Number(download.headers.get('content-length')) > limit) {
-        await download.body?.cancel()
-        throw new Error('video_generate: invalid video download type or size')
-      }
-      if (!download.body) throw new Error('video_generate: empty video download')
-      const reader = download.body.getReader()
-      const chunks: Uint8Array[] = []
-      let bytes = 0
-      const abort = () => { void reader.cancel(exec.signal.reason).catch(() => {}) }
-      exec.signal.addEventListener('abort', abort, { once: true })
+        return response
+      }, signal)
       try {
-        for (;;) {
-          exec.signal.throwIfAborted()
-          const part = await reader.read()
-          exec.signal.throwIfAborted()
-          if (part.done) break
-          bytes += part.value.byteLength
-          if (bytes > limit) throw new Error('video_generate: video download exceeds size limit')
-          chunks.push(part.value)
-        }
-      } finally {
-        exec.signal.removeEventListener('abort', abort)
-        await reader.cancel().catch(() => {})
-        reader.releaseLock()
-      }
-      const data = Buffer.concat(chunks)
-      if (data.length < 8 || data.toString('ascii', 4, 8) !== 'ftyp') throw new Error('video_generate: invalid MP4 download')
-      const directory = options.videosDir ?? videosDirectory()
-      await mkdir(directory, { recursive: true })
-      const path = join(directory, videoFileName())
-      await writeFile(path, data)
+        const submit = await request(VIDEO_GENERATE_URL, {
+          method: 'POST',
+          headers: { ...headers, 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+          signal,
+        })
+        if (!submit.ok) throw await withAbortSignal(() => httpLlmError(submit, 'video_generate'), signal)
+        const requestId = parseVideoStartResponse(await withAbortSignal(() => submit.json(), signal))
 
-      const value: VideoGenerateValue = {
-        path,
-        url: done.url,
-        ...done.duration === undefined ? {} : { duration: done.duration },
+        let done: { url: string; duration?: number }
+        for (;;) {
+          if (Date.now() >= deadline) throw new Error(`video_generate: timed out after ${String(maxWaitMs)}ms`)
+          await sleep(pollIntervalMs, signal)
+          const poll = await request(videoStatusUrl(requestId), {
+            method: 'GET',
+            headers,
+            signal,
+          })
+          if (!poll.ok) throw await withAbortSignal(() => httpLlmError(poll, 'video_generate'), signal)
+          const status = parseVideoStatusResponse(await withAbortSignal(() => poll.json(), signal))
+          if (status.status === 'done') {
+            done = status
+            break
+          }
+          if (status.status === 'failed' || status.status === 'expired') {
+            throw new Error(`video_generate: generation ${status.status} (request ${requestId})`
+              + (status.detail === undefined ? '' : `: ${status.detail}`))
+          }
+          if (Date.now() >= deadline) {
+            throw new Error(`video_generate: timed out after ${String(maxWaitMs)}ms waiting for request ${requestId}`)
+          }
+        }
+
+        // The MP4 lives on a separate signed host: no auth header on purpose.
+        const download = await request(done.url, { method: 'GET' })
+        if (!download.ok) throw await withAbortSignal(() => httpLlmError(download, 'video_generate download'), signal)
+        const limit = 100 * 1024 * 1024
+        const mime = download.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase()
+        if ((mime && mime !== 'video/mp4' && mime !== 'application/octet-stream') || Number(download.headers.get('content-length')) > limit) {
+          void download.body?.cancel().catch(() => {})
+          throw new Error('video_generate: invalid video download type or size')
+        }
+        if (!download.body) throw new Error('video_generate: empty video download')
+        const reader = download.body.getReader()
+        const chunks: Uint8Array[] = []
+        let bytes = 0
+        const abort = () => { void reader.cancel(signal.reason).catch(() => {}) }
+        signal.addEventListener('abort', abort, { once: true })
+        try {
+          for (;;) {
+            signal.throwIfAborted()
+            const part = await withAbortSignal(() => reader.read(), signal)
+            signal.throwIfAborted()
+            if (part.done) break
+            bytes += part.value.byteLength
+            if (bytes > limit) throw new Error('video_generate: video download exceeds size limit')
+            chunks.push(part.value)
+          }
+        } finally {
+          signal.removeEventListener('abort', abort)
+          void reader.cancel().catch(() => {})
+          reader.releaseLock()
+        }
+        const data = Buffer.concat(chunks)
+        if (data.length < 8 || data.toString('ascii', 4, 8) !== 'ftyp') throw new Error('video_generate: invalid MP4 download')
+        signal.throwIfAborted()
+        const directory = options.videosDir ?? videosDirectory()
+        await mkdir(directory, { recursive: true })
+        signal.throwIfAborted()
+        const path = join(directory, videoFileName())
+        await writeFile(path, data)
+
+        const value: VideoGenerateValue = {
+          path,
+          url: done.url,
+          ...done.duration === undefined ? {} : { duration: done.duration },
+        }
+        return value
+      } finally {
+        if (!latestResponse?.body?.locked) void latestResponse?.body?.cancel().catch(() => {})
+        budget.release()
       }
-      return value
     },
   })
 }

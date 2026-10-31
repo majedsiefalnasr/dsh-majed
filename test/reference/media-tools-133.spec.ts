@@ -5,6 +5,7 @@
  */
 
 import { test } from 'node:test'
+import { getEventListeners } from 'node:events'
 import assert from 'node:assert/strict'
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -588,6 +589,84 @@ test('parseVideoStartResponse / parseVideoStatusResponse', () => {
   )
   assert.deepEqual(parseVideoStatusResponse({ status: 'expired' }), { status: 'expired' })
   assert.throws(() => parseVideoStatusResponse({ status: 'weird' }), /unexpected status/)
+})
+
+test('video overall deadline aborts stalled submit headers', async () => {
+  let signal: AbortSignal | null | undefined
+  const tool = createVideoGenerateTool({ tokens: memoryTokens(grokSession), maxWaitMs: 5,
+    fetchFn: async (_url, init) => { signal = init?.signal; return new Promise<Response>(() => {}) } })
+  const outcome = await Promise.race([
+    tool.execute({ prompt: 'fixture' }, fakeExec()).then(() => 'resolved', () => 'rejected'),
+    new Promise<string>(resolve => setTimeout(() => resolve('pending'), 40)),
+  ])
+  assert.equal(outcome, 'rejected')
+  assert.equal(signal?.aborted, true)
+})
+
+for (const stage of ['submit headers', 'submit body', 'poll headers', 'poll body', 'download headers', 'download body', 'sleep'] as const) {
+  for (const cause of ['deadline', 'caller'] as const) {
+    test(`video overall budget settles stalled ${stage} on ${cause}`, async () => {
+      const dir = mkdtempSync(join(tmpdir(), 'majed-t133-deadline-'))
+      const caller = new AbortController()
+      let observed: AbortSignal | null | undefined
+      let cancelled = false
+      let reached!: () => void
+      const entered = new Promise<void>(resolve => { reached = resolve })
+      const stalled = () => { reached(); return new Promise<Response>(() => {}) }
+      const stalledBody = () => new Response(new ReadableStream<Uint8Array>({
+        start() { reached() }, cancel() { cancelled = true },
+      }), { headers: { 'content-type': 'video/mp4' } })
+      const fetchFn: FetchFn = async (url, init) => {
+        observed = init?.signal
+        if (String(url).endsWith('/generations')) {
+          if (stage === 'submit headers') return stalled()
+          if (stage === 'submit body') return stalledBody()
+          if (stage === 'sleep') reached()
+          return Response.json({ request_id: 'budget' })
+        }
+        if (String(url).includes('/videos/budget')) {
+          if (stage === 'poll headers') return stalled()
+          if (stage === 'poll body') return stalledBody()
+          return Response.json({ status: 'done', video: { url: 'https://fixture.test/video.mp4' } })
+        }
+        return stage === 'download headers' ? stalled() : stalledBody()
+      }
+      try {
+        const tool = createVideoGenerateTool({ tokens: memoryTokens(grokSession), fetchFn, videosDir: dir,
+          pollIntervalMs: stage === 'sleep' ? 1000 : 0, maxWaitMs: cause === 'deadline' ? 20 : 1000 })
+        const work = tool.execute({ prompt: 'fixture' }, { signal: caller.signal } as unknown as ToolRunContext)
+        const rejection = assert.rejects(work, cause === 'deadline' ? /timed out/ : /caller stop/)
+        await entered
+        if (cause === 'caller') caller.abort(new Error('caller stop'))
+        await rejection
+        assert.equal(observed?.aborted, true)
+        assert.equal(getEventListeners(caller.signal, 'abort').length, 0)
+        if (stage === 'download body') assert.equal(cancelled, true)
+        assert.deepEqual(readdirSync(dir), [])
+      } finally { rmSync(dir, { recursive: true, force: true }) }
+    })
+  }
+}
+
+test('video successful completion releases deadline timer and caller listener', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'majed-t133-release-'))
+  const caller = new AbortController()
+  let observed: AbortSignal | null | undefined
+  const fetchFn: FetchFn = async (url, init) => {
+    observed = init?.signal
+    if (String(url).endsWith('/generations')) return Response.json({ request_id: 'release' })
+    if (String(url).includes('/videos/release')) return Response.json({ status: 'done', video: { url: 'https://fixture.test/video.mp4' } })
+    return new Response(Buffer.from([0, 0, 0, 24, 0x66, 0x74, 0x79, 0x70]))
+  }
+  try {
+    const tool = createVideoGenerateTool({ tokens: memoryTokens(grokSession), fetchFn, videosDir: dir, pollIntervalMs: 0, maxWaitMs: 30 })
+    await tool.execute({ prompt: 'fixture' }, { signal: caller.signal } as unknown as ToolRunContext)
+    assert.equal(getEventListeners(caller.signal, 'abort').length, 0)
+    await new Promise(resolve => setTimeout(resolve, 50))
+    assert.equal(observed?.aborted, false, 'released deadline must not fire after success')
+    caller.abort()
+    assert.equal(observed?.aborted, false, 'released caller listener must not fire after success')
+  } finally { rmSync(dir, { recursive: true, force: true }) }
 })
 
 test('video_generate execute: submit, poll to done, download and save', async () => {

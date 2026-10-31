@@ -1,5 +1,9 @@
 # Subscriptions provenance
 
+## #133 overall video deadline correction
+
+Locally reuse the owned `deadlineSignal` and `withAbortSignal` helpers before video submission, composing caller cancellation across submission headers/body, poll headers/body, polling sleep and download headers/reader. Always release the budget; cancel late/unconsumed response bodies without awaiting a potentially stalled cancellation. Offline injected-transport tests reproduce the original unbounded submission and verify bounded settlement and cleanup. No upstream behavior or live-provider proof is claimed.
+
 ## #133 continued acceptance corrections
 
 Independently implemented localized native-player error handling, owned video-directory lstat admission and size-bounded positional reads with post-read growth rejection. New controlled tests exercise registered Grok preferences and revocation, nested video text recovery, playback failure and object-URL replacement/unmount lifecycle. These changes are local, not copied upstream. Directory admission assumes the DSH home and its ancestor directories remain under the same trusted OS user; it is not a cross-user filesystem sandbox or an atomic defense against a malicious same-user process replacing ancestors.

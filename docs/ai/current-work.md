@@ -2,7 +2,13 @@
 
 Updated 2026-10-31 (Africa/Cairo).
 
-## #133 proof continuation from 7ba57c5 — browser environment blocker
+## #133 overall video deadline correction — local candidate
+
+Direct approved contract from `34d44f7`, branch `impl/133-grok-media`: minimal aborting overall budget before submission, composed caller cancellation through submit/body/poll/sleep/download and finally cleanup. Existing tool execute/injected offline-fetch seam is approved; surgical-patch/TDD direct fallback, no nested agents. Red proved 5 ms stalled submit still pending at 40 ms (exit 1); green media 48/48, final build/full tests/temp-cache check:build/diffcheck exit 0, classifier166/166 and Node654/654, log `/tmp/majed-t133-budget-final.log`. Source and regenerated host output changed; direct Standards/Spec inspection found no additional issue. Detailed evidence recorded in ticket verification. Only this worktree source/tests/generated/evidence may change. No Claude, installed state, secrets, real providers, sibling writes, merge or push. Investigation cap: two failed diagnostics or 20 minutes per environment blocker; no environment failures encountered in this continuation.
+
+Lead-supplied BrowserSkill proof supersedes the historical browser blocker below: synthetic EN/AR light/dark, image dialog open/Escape EN-light/AR-dark, invalid-video localized errors and valid local one-second teal H.264 native scrubber 0 → 1 in all four variants. Prior auth/alias/quota/preferences/security matrices cleared by Lead final review. No additional browser blocker; real providers/installed use/host restart/all-focus remain unproven. Temporary untracked fixture files preserved and excluded. Next allowed action after local gates/commit: Lead focused review, then separately authorized integration/installation/consolidated Owner acceptance; no acceptance or closure claimed here.
+
+## Historical #133 proof continuation from 7ba57c5 — superseded browser environment blocker
 
 Direct Owner authorization continued #133 while Lead diagnoses #134; only this worktree changed. Added registered quota matrix, deterministic concurrent-growth rejection, image admission/abort and video pre-abort storage proof, and actual public/Majed image/video outlet execution plus shared reference-off/component-remount recovery. Focused 11/11 and outlet 1/1 pass. Full build/test/temp-cache reproducibility/diffcheck exit 0: classifier166/166, Node633/633. Subsequent image-outlet addition focused pass; final full suite and temporary-cache build comparison reran exit 0 (633/633, log `/tmp/majed-t133-proof-final.log`). No production/generated output changed. Pinned upstream Grok test inventory/exclusions recorded in ticket verification.
 
