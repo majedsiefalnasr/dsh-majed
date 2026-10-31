@@ -185,6 +185,18 @@
     "claudePromptCacheTtlHint": "المدة التي تحتفظ بها Anthropic بذاكرة المحادثة المؤقتة بعد آخر استخدام. تكلفة قراءة الذاكرة واحدة في الحالتين؛ أما كتابة ذاكرة لمدة ساعة فتكلّف ضعف مدخلات الأساس بدل 1.25 ضعفًا. يسري من الدور التالي.",
     "claudePromptCacheTtlDefault": "اتباع الإعداد ({ttl})",
     "claudePromptCacheTtl5m": "5 دقائق",
-    "claudePromptCacheTtl1h": "ساعة واحدة"
+    "claudePromptCacheTtl1h": "ساعة واحدة",
+    "grokProviderUnavailable": "تسجيل Grok غير متاح.",
+    "image": "صورة",
+    "viewImage": "عرض الصورة",
+    "viewImageNamed": "عرض {name}",
+    "imageLoading": "جارٍ تحميل الصورة…",
+    "imageLoadFailed": "تعذر تحميل الصورة. أعد المحاولة",
+    "imagePreview": "معاينة الصورة",
+    "generating": "جارٍ إنشاء الصورة…",
+    "generatingVideo": "جارٍ إنشاء الفيديو…",
+    "videoLoading": "جارٍ تحميل الفيديو…",
+    "videoLoadFailed": "تعذر تحميل الفيديو: {message}",
+    "videoPlaybackFailed": "تعذر على المتصفح تشغيل هذا الفيديو."
   }
 }

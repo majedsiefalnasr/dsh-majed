@@ -3,6 +3,9 @@ import { CopilotAuthController } from './auth/copilot-controller.js';
 import { CopilotAdapter, COPILOT_PREEMPT_MS, refreshCopilot, isCopilotPermanentRefreshError } from './providers/copilot.js';
 import type { CopilotSession } from './auth/store.js';
 /** Owned Codex component composition. Reference v0.9.12: see PROVENANCE.md. */
+import { lstat, open } from 'node:fs/promises';
+import { constants } from 'node:fs';
+import { join } from 'node:path';
 import type { Context } from '@deepseek-ai/cordis';
 import z from '@deepseek-ai/schemastery';
 // Type-only: activates the `ctx.tools` / `ctx.web` Context merges for the optional inject blocks below.
@@ -38,6 +41,11 @@ import { readClaudeCodeCredentials, recordClaudeEmail, refreshClaudeSynced, SYST
 import { ClaudeAdapter, CLAUDE_CLI_FALLBACK_VERSION, CLAUDE_PREEMPT_MS, fetchClaudeProfile, fetchClaudeUsage, isClaudePermanentRefreshError, refreshClaude } from './providers/claude.js';
 import { ClaudeCliVersionCache } from './providers/claude-cli-version.js';
 import { DEFAULT_PROMPT_CACHE_TTL, type PromptCacheTtl } from './translate/anthropic.js';
+import { GrokAuthController } from './auth/grok-controller.js';
+import { GrokAdapter, GROK_PREEMPT_MS, refreshGrok, isGrokPermanentRefreshError, fetchGrokUsage } from './providers/grok.js';
+import type { GrokSession } from './auth/store.js';
+import { createVideoGenerateTool, videosDirectory } from './tools/video-generate.js';
+import { createXSearchTool } from './tools/x-search.js';
 import { presentedVersion } from './providers/npm-cli-version.js';
 
 export const name = 'dsh-majed/subscriptions';
@@ -49,7 +57,7 @@ export const POOL_USAGE_TIMEOUT_MS = DISCOVERY_TIMEOUT_MS;
  * every five minutes, so a token rotated by the `claude` CLI is picked up before the next turn needs it.
  */
 export const CLAUDE_KEYCHAIN_SYNC_MS = 5 * 60_000;
-export interface Config { codexClientVersion?: string; claudePromptCacheTtl?: PromptCacheTtl; models?: { codex?: ModelEntry[]; claude?: ModelEntry[]; copilot?: ModelEntry[] };
+export interface Config { codexClientVersion?: string; claudePromptCacheTtl?: PromptCacheTtl; models?: { codex?: ModelEntry[]; claude?: ModelEntry[]; grok?: ModelEntry[]; copilot?: ModelEntry[] };
   pool?: { enabled?: boolean; strategy?: 'priority' | 'quota_aware'; switchMargin?: number; autoAccounts?: boolean; autoFamilies?: boolean; families?: Record<string, PoolMemberRef[]>; tiers?: Record<string, PoolMemberRef[]> };
 }
 // Same-named schemastery schema, as in the reference (index.ts `Config`). Only the Codex slice is owned here;
@@ -71,7 +79,7 @@ export const Config: z<Config> = z.object({
   codexClientVersion: z.string(),
   // Reference `claudePromptCacheTtl`: the plugin-wide default cache lifetime; the Settings choice overrides it per save.
   claudePromptCacheTtl: z.union(['5m', '1h']).default(DEFAULT_PROMPT_CACHE_TTL),
-  models: z.object({ codex: z.array(modelEntrySchema), claude: z.array(modelEntrySchema), copilot: z.array(modelEntrySchema) }),
+  models: z.object({ codex: z.array(modelEntrySchema), claude: z.array(modelEntrySchema), grok: z.array(modelEntrySchema), copilot: z.array(modelEntrySchema) }),
   pool: z.object({
     enabled: z.boolean().default(true),
     strategy: z.union(['priority', 'quota_aware']).default('quota_aware'),
@@ -134,15 +142,14 @@ function browserSafeError(error: unknown, label: string): string {
   return safeDiagnostic(error);
 }
 /** The provider a route serves: Codex unless the payload names Claude. Any other value is rejected. */
-function readRouteProvider(value: unknown): 'codex' | 'claude' | 'copilot' {
+function readRouteProvider(value: unknown): 'codex' | 'claude' | 'grok' | 'copilot' {
   if (value === undefined || value === 'codex') return 'codex';
-  if (value === 'claude') return 'claude';
-  if (value === 'copilot') return 'copilot';
-  throw new Error('payload.provider must be one of codex, claude, copilot');
+  if (value === 'claude' || value === 'grok' || value === 'copilot') return value;
+  throw new Error('payload.provider must be one of codex, claude, grok, copilot');
 }
 
 /** Reference `readLoginMethod`: `method` selects the Claude login route and is valid for Claude only. */
-function readLoginMethod(payload: Record<string, unknown>, provider: 'codex' | 'claude' | 'copilot'): ClaudeLoginMethod | undefined {
+function readLoginMethod(payload: Record<string, unknown>, provider: 'codex' | 'claude' | 'grok' | 'copilot'): ClaudeLoginMethod | undefined {
   const method = payload.method;
   if (method === undefined) return undefined;
   if (provider !== 'claude') throw new Error('payload.method is only valid for claude');
@@ -180,7 +187,7 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
   let disposed = false;
   const ownAlias = (provider: ProviderId, key: string) => { const settings = preferences.get(provider).accounts; return settings && Object.hasOwn(settings, key) ? settings[key]?.alias : undefined; };
   /** The registration handle serving one provider; Codex and Claude register separately (ADR-0002). */
-  const handleFor = (provider: ProviderId) => provider === 'copilot' ? copilotHandle : provider === 'claude' ? claudeHandle : handle;
+  const handleFor = (provider: ProviderId) => provider === 'grok' ? grokHandle : provider === 'copilot' ? copilotHandle : provider === 'claude' ? claudeHandle : handle;
   // Composer Speed (ticket #131; reference src/index.ts speedBySession/selectedSpeed). Explicit choices are
   // per session and reset on restart. A subagent without an explicit choice uses its saved model default, and
   // every request still gates Fast on the model's discovered capability.
@@ -235,9 +242,20 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
       },
       isPermanent: isClaudePermanentRefreshError }),
     onAccountRemoved: claudeChanged });
+  let grokHandle: ReturnType<Context['llm']['registerAdapter']> | undefined;
+  let grokCollision: string | undefined;
+  const grokChanged = (account?: string) => { if (!disposed) { grokAdapter.clearAccountCatalog(account); health.clear('grok', account); imagePool.clear('grok', account); usage.invalidate('grok', account); pool?.invalidate(); grokHandle?.replace(['grok']); } };
+  const grokTokens = new AccountTokenManager<GrokSession>({ provider: 'grok', displayName: 'Grok',
+    makeOptions: () => ({ preemptMs: GROK_PREEMPT_MS, refresh: refreshGrok, isPermanent: isGrokPermanentRefreshError }), onAccountRemoved: grokChanged });
+  const grokAuth = new GrokAuthController(flows, grokChanged, error => browserSafeError(error, 'grok login'));
+  const grokAdapter = new GrokAdapter({ tokens: grokTokens, models: config.models?.grok ?? [{ id: 'grok-4', name: 'Grok 4' }],
+    discovery: !config.models?.grok?.length, streamIdleTimeoutMs: 300_000, pool: () => pool,
+    defaultEffortOf: model => defaultEffortOf('grok', model), resolveAttachments: () => ctx.get('attachments') as never,
+    catalogStore: catalogStore('grok'), accountCatalogStore: account => accountCatalogStore('grok', account),
+    onCatalogChanged: () => { if (!disposed) { pool?.invalidate(); grokHandle?.replace(['grok']); } }, onWarn: message => ctx.logger.warn(`dsh-majed: ${message}`) });
   const usage = new PoolUsageTracker((provider, account) => provider === 'codex'
     ? () => readUsage(account, AbortSignal.timeout(20_000))
-    : provider === 'claude' ? async () => fetchClaudeUsage(await claudeTokens.session(account), proxiedFetch, AbortSignal.timeout(20_000), () => claudeVersion.resolve()) : undefined);
+    : provider === 'claude' ? async () => fetchClaudeUsage(await claudeTokens.session(account), proxiedFetch, AbortSignal.timeout(20_000), () => claudeVersion.resolve()) : provider === 'grok' ? async () => fetchGrokUsage(await grokTokens.session(account), proxiedFetch, AbortSignal.timeout(20_000)) : undefined);
   const auth = new CodexAuthController(flows, changed, error => browserSafeError(error, 'codex login'));
   const claudeAuth = new ClaudeAuthController(flows, claudeChanged, error => browserSafeError(error, 'claude login'), () => readClaudeCodeCredentials(claudeCredsIo), session => recordClaudeEmail(session, claudeIdentity, claudeLifecycle.signal));
   const resets = new ResetRedemption(readUsage,
@@ -304,9 +322,10 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
     accounts: async () => (await tokens.list()).map(({ key, session }) => ({ key, label: session.emailAddress ?? key })), pool: () => pool });
   const presentedClaude = new AccountPreferencesAdapter({ provider: 'claude', adapter: claudeAdapter, settings: preferences,
     accounts: async () => (await claudeTokens.list()).map(({ key, session }) => ({ key, label: session.emailAddress ?? key })), pool: () => pool });
-  pool = new PoolAdapter({ adapters: { copilot: presentedCopilot.poolMember(), codex: presented.poolMember(), claude: presentedClaude.poolMember() }, health, usage, strategy: config.pool?.strategy ?? 'quota_aware', switchMargin: config.pool?.switchMargin ?? 2,
-    defaultAccount: provider => provider === 'copilot' ? copilotTokens.defaultAccount() : provider === 'claude' ? claudeTokens.defaultAccount() : tokens.defaultAccount(),
-    resolveAccount: (provider, account) => provider === 'copilot' ? copilotTokens.resolveAccount(account) : provider === 'claude' ? claudeTokens.resolveAccount(account) : tokens.resolveAccount(account),
+  const presentedGrok = new AccountPreferencesAdapter({ provider: 'grok', adapter: grokAdapter, settings: preferences, accounts: async () => (await grokTokens.list()).map(({ key, session }) => ({ key, label: session.account ?? key })), pool: () => pool });
+  pool = new PoolAdapter({ adapters: { grok: presentedGrok.poolMember(), copilot: presentedCopilot.poolMember(), codex: presented.poolMember(), claude: presentedClaude.poolMember() }, health, usage, strategy: config.pool?.strategy ?? 'quota_aware', switchMargin: config.pool?.switchMargin ?? 2,
+    defaultAccount: provider => provider === 'grok' ? grokTokens.defaultAccount() : provider === 'copilot' ? copilotTokens.defaultAccount() : provider === 'claude' ? claudeTokens.defaultAccount() : tokens.defaultAccount(),
+    resolveAccount: (provider, account) => provider === 'grok' ? grokTokens.resolveAccount(account) : provider === 'copilot' ? copilotTokens.resolveAccount(account) : provider === 'claude' ? claudeTokens.resolveAccount(account) : tokens.resolveAccount(account),
     families: async () => {
       if (config.pool?.enabled === false) return new Map();
       const families = new Map<string, PoolDefinition>();
@@ -314,7 +333,7 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
         // Discover each account separately and bound each read: a hang or failure sits that account out
         // instead of failing the whole assembly (reference index.ts `families`). Codex and Claude alike.
         const sources: Parameters<typeof buildAccountPools>[0] = {};
-        await Promise.all(([['codex', tokens, adapter], ['claude', claudeTokens, claudeAdapter], ['copilot', copilotTokens, copilotAdapter]] as const).map(async ([provider, accountTokens, raw]) => {
+        await Promise.all(([['codex', tokens, adapter], ['claude', claudeTokens, claudeAdapter], ['grok', grokTokens, grokAdapter], ['copilot', copilotTokens, copilotAdapter]] as const).map(async ([provider, accountTokens, raw]) => {
           try {
             const accounts = (await accountTokens.list()).map(entry => entry.key);
             const catalogs = (await Promise.all(accounts.map(async account => {
@@ -344,8 +363,9 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
 
   try { claudeHandle = ctx.llm.registerAdapter(['claude'], presentedClaude); }
   catch (error) { claudeCollisionError = error; claudeCollision = 'Claude registration is unavailable'; }
+  try { grokHandle = ctx.llm.registerAdapter(['grok'], presentedGrok); } catch { grokCollision = 'Grok registration is unavailable'; }
   try { copilotHandle = ctx.llm.registerAdapter(['copilot'], presentedCopilot); } catch { copilotCollision = true; }
-  ctx.effect(() => () => { disposed = true; copilotAuth.dispose(); copilotAdapter.clearReplayState(); claudeLifecycle.abort(); auth.dispose(); claudeAuth.dispose(); void disposeProxyTransport(); }, 'dsh-majed: subscriptions auth disposal');
+  ctx.effect(() => () => { disposed = true; grokAuth.dispose(); copilotAuth.dispose(); copilotAdapter.clearReplayState(); claudeLifecycle.abort(); auth.dispose(); claudeAuth.dispose(); void disposeProxyTransport(); }, 'dsh-majed: subscriptions auth disposal');
   // Keep keychain-bound Claude accounts synced with Claude Code's own store (reference `claude background sync timer`).
   // One interval, bounded: each tick reads the account list and refreshes only bound sessions, errors are swallowed
   // (TokenManager already reports permanent failures), and dispose clears the timer.
@@ -375,6 +395,10 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
     if ((await claudeTokens.list()).length && !signal.aborted) await claudeAdapter.listOwnModels('claude', undefined, signal);
   }, () => ctx.logger.warn('dsh-majed: Claude catalog refresh failed')), 'dsh-majed: claude catalog refresh');
 
+  if (grokHandle) ctx.effect(() => startCatalogRefresh(async signal => {
+    if ((await grokTokens.list()).length && !signal.aborted) await grokAdapter.listOwnModels('grok', undefined, signal);
+  }, () => ctx.logger.warn('dsh-majed: Grok catalog refresh failed')), 'dsh-majed: grok catalog refresh');
+
   // `web` is optional on headless/minimal compositions. The Codex switch gates this provider's
   // `available()` rather than the host's web_search tool, so other providers keep working.
   ctx.inject(['web'], webCtx => {
@@ -386,17 +410,19 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
   // schema and execution path; each new agent is restricted from the switches in force at its creation.
   ctx.inject(['tools'], toolsCtx => {
     const registeredNames = new Map<string, string>();
-    const result = registerWithAlias(toolsCtx.tools, createImageGenerateTool({ imagePool, codexTokens: tokens,
+    const result = registerWithAlias(toolsCtx.tools, createImageGenerateTool({ imagePool, codexTokens: tokens, grokTokens,
       resolveAttachments: () => ctx.get('attachments') as AttachmentStore | undefined,
       resolveLlm: () => ctx.get('llm'),
       providerEnabled: (provider, createdAt) => preferences.toolEnabled(provider, 'image_generate', createdAt) }),
       message => ctx.logger.warn(message));
     if (result !== undefined) registeredNames.set('image_generate', result.name);
+    for (const tool of [createVideoGenerateTool({ tokens: grokTokens }), createXSearchTool({ tokens: grokTokens })]) { const entry = registerWithAlias(toolsCtx.tools, tool, message => ctx.logger.warn(message)); if (entry) registeredNames.set(tool.name, entry.name); }
     toolsCtx.on('agent/created', ({ agent }) => {
       const at = agent.session.header.createdAt;
       const deny: string[] = [];
       const registered = registeredNames.get('image_generate');
-      if (registered !== undefined && !preferences.toolEnabled('codex', 'image_generate', at)) deny.push(registered);
+      if (registered !== undefined && !preferences.toolEnabled('codex', 'image_generate', at) && !preferences.toolEnabled('grok', 'image_generate', at)) deny.push(registered);
+      for (const name of ['video_generate', 'x_search'] as const) { const actual = registeredNames.get(name); if (actual && !preferences.toolEnabled('grok', name, at)) deny.push(actual); }
       if (deny.length) agent.ctx.tools.restrict({ deny });
       return undefined;
     });
@@ -428,7 +454,7 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
 
   ctx.inject(['connection'], ctx => {
     const connection = ctx.get('connection') as unknown as { fetch: { register(route: object): () => unknown } };
-    const endpoints = ['status', 'login', 'manual', 'cancel', 'logout', 'setDefault', 'usage', 'prepareReset', 'consumeReset', 'providerSettings', 'setProviderSettings', 'modelDefaults', 'setModelDefault', 'proxyGet', 'proxySet', 'proxyTest', 'speed', 'setSpeed'];
+    const endpoints = ['image', 'video', 'status', 'login', 'manual', 'cancel', 'logout', 'setDefault', 'usage', 'prepareReset', 'consumeReset', 'providerSettings', 'setProviderSettings', 'modelDefaults', 'setModelDefault', 'proxyGet', 'proxySet', 'proxyTest', 'speed', 'setSpeed'];
     for (const endpoint of endpoints) {
       const NS = 'majed-subscriptions.';
       const method = `${NS}${endpoint}`;
@@ -450,6 +476,40 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
             if (provider !== 'codex' && !CLAUDE_ENDPOINTS.has(endpoint)) throw new Error('Only Codex is available');
             let value: unknown = { ok: true };
             switch (endpoint) {
+              case 'image': {
+                const ref = payload as unknown as Parameters<AttachmentStore['readImage']>[0];
+                if (!ref || typeof ref.attachmentId !== 'string' || !/^sha256:[a-f0-9]{64}$/.test(ref.attachmentId)) throw new Error('Invalid image reference');
+                const attachments = ctx.get('attachments') as AttachmentStore | undefined;
+                if (!attachments) throw new Error('Image storage unavailable');
+                const stored = await attachments.readImage(ref, request.signal);
+                value = { mediaType: stored.ref.mediaType, dataBase64: Buffer.from(stored.data).toString('base64') }; break;
+              }
+              case 'video': {
+                const file = string('name');
+                if (!/^video-[a-zA-Z0-9_-]+\.mp4$/.test(file)) throw new Error('Invalid video name');
+                const directory = videosDirectory();
+                const directoryStat = await lstat(directory);
+                if (!directoryStat.isDirectory() || (process.getuid && directoryStat.uid !== process.getuid())) throw new Error('Invalid video directory');
+                const handle = await open(join(directory, file), constants.O_RDONLY | constants.O_NOFOLLOW);
+                try {
+                  const stat = await handle.stat();
+                  if (!stat.isFile() || (process.getuid && stat.uid !== process.getuid()) || stat.size > 100 * 1024 * 1024) throw new Error('Invalid video file');
+                  // Read only the admitted size: a concurrently growing file cannot cause an unbounded allocation.
+                  const data = Buffer.alloc(stat.size);
+                  let offset = 0;
+                  while (offset < data.length) {
+                    request.signal.throwIfAborted();
+                    const { bytesRead } = await handle.read(data, offset, data.length - offset, offset);
+                    if (!bytesRead) throw new Error('Video file changed during read');
+                    offset += bytesRead;
+                  }
+                  request.signal.throwIfAborted();
+                  if ((await handle.stat()).size !== stat.size) throw new Error('Video file changed during read');
+                  if (data.length < 8 || data.toString('ascii', 4, 8) !== 'ftyp') throw new Error('Invalid MP4 file');
+                  value = { mediaType: 'video/mp4', dataBase64: data.toString('base64') };
+                } finally { await handle.close(); }
+                break;
+              }
               case 'status': {
                 const state = await auth.status();
                 // Never resolve npm client metadata for a provider with no saved login.
@@ -458,9 +518,10 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
                 // Claude account or the Claude route is in use; an unused provider does no network (spec story 61).
                 const claudeState = await claudeAuth.status().catch(() => undefined);
                 const claudeAccounts = await claudeTokens.list().catch(() => []);
+                const grokState = await grokAuth.status();
                 value = { ok: true, component: 'subscriptions', version: '0.2.0', registrationError: collision === undefined ? undefined : await collisionText(),
-                  claudeRegistrationError: claudeCollision, copilotRegistrationError: copilotCollision,
-                  providers: { copilot: { ...await copilotAuth.status(), accounts: (await copilotAuth.status()).accounts.map(account => ({ ...account, alias: ownAlias('copilot', account.key) })), displayName: preferences.get('copilot').displayName }, codex: { ...state, displayName: preferences.get('codex').displayName,
+                  claudeRegistrationError: claudeCollision, copilotRegistrationError: copilotCollision, grokRegistrationError: grokCollision,
+                  providers: { grok: { ...grokState, displayName: preferences.get('grok').displayName, accounts: grokState.accounts.map(account => ({ ...account, alias: ownAlias('grok', account.key) })) }, copilot: { ...await copilotAuth.status(), accounts: (await copilotAuth.status()).accounts.map(account => ({ ...account, alias: ownAlias('copilot', account.key) })), displayName: preferences.get('copilot').displayName }, codex: { ...state, displayName: preferences.get('codex').displayName,
                     accounts: state.accounts.map(account => ({ ...account, alias: ownAlias('codex', account.key) })), clientVersion: config.codexClientVersion ? { version: config.codexClientVersion, source: 'config' }
                     : version.current() ?? { version: CODEX_CLIENT_VERSION, source: 'fallback' } },
                   ...claudeState === undefined ? {} : { claude: { ...claudeState, displayName: preferences.get('claude').displayName,
@@ -513,6 +574,16 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
                   }));
                   value = { provider: 'copilot', settings: preferences.get('copilot'), accounts, models, tools: PROVIDER_TOOLS.copilot }; break;
                 }
+                if (provider === 'grok') {
+                  if (force) { grokAdapter.clearAccountCatalog(); pool.invalidate(); grokHandle?.replace(['grok']); }
+                  const accounts = await readAccountCatalogsFor(grokAdapter, { list: async () => (await grokTokens.list()).map(({key, session}) => ({key, session: {emailAddress: session.account}})) }, !force, deadline, 'grok');
+                  const listed = await withTimeout(() => grokAdapter.listModels('grok'), DISCOVERY_TIMEOUT_MS, deadline);
+                  const models = await Promise.all((listed ?? []).map(async model => {
+                    const info = await withTimeout(() => grokAdapter.resolveModel('grok', model.id), DISCOVERY_TIMEOUT_MS, deadline).catch(() => undefined);
+                    return { ...model, contextWindow: info?.context?.contextWindow, efforts: info?.reasoning?.efforts.map(({ id, name }) => ({ id, name })) ?? [], configured: defaultEffortOf('grok', model.id) };
+                  }));
+                  value = { provider: 'grok', settings: preferences.get('grok'), accounts, models, tools: PROVIDER_TOOLS.grok }; break;
+                }
                 if (provider === 'claude') {
                   // Reference `providerSettings` for Claude: same bounded reads, no context bounds or fast tier, and the
                   // config value "follow config" resolves to (`promptCacheTtlDefault`).
@@ -557,11 +628,11 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
                 // Reference `modelDefaults.catalog`: re-read from the live model info (the picker's own source), so the
                 // offered efforts match the picker exactly and the configured default merges in through the adapter.
                 const budget = deadlineSignal(DISCOVERY_TIMEOUT_MS, request.signal); releases.push(budget.release); const deadline = budget.signal;
-                if (readForce(payload)) { version.invalidate(); claudeVersion.invalidate(); adapter.clearAccountCatalog(); claudeAdapter.clearAccountCatalog(); copilotAdapter.clearAccountCatalog(); pool.invalidate(); handle?.replace(['codex']); claudeHandle?.replace(['claude']); copilotHandle?.replace(['copilot']); }
+                if (readForce(payload)) { version.invalidate(); claudeVersion.invalidate(); adapter.clearAccountCatalog(); claudeAdapter.clearAccountCatalog(); copilotAdapter.clearAccountCatalog(); grokAdapter.clearAccountCatalog(); grokHandle?.replace(['grok']); pool.invalidate(); handle?.replace(['codex']); claudeHandle?.replace(['claude']); copilotHandle?.replace(['copilot']); }
                 await loadModelDefaults();
                 const catalog: { provider: string; models: { id: string; name: string; efforts: { id: string; name: string }[]; configured?: string }[] }[] = [];
                 // Both routes read the live picker source (`ctx.llm`) and merge the saved default per model.
-                for (const route of ['codex', 'claude', 'copilot'] as const) {
+                for (const route of ['codex', 'claude', 'grok', 'copilot'] as const) {
                   if (!(await ctx.llm.listProviders()).some(entry => entry.id === route)) continue;
                   const listed = await withTimeout(() => ctx.llm.listModels(route), DISCOVERY_TIMEOUT_MS, deadline).catch(() => undefined);
                   if (listed === undefined) continue;
@@ -584,7 +655,7 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
               case 'setModelDefault': {
                 const model = string('model');
                 const effort = payload.effort === undefined ? undefined : string('effort');
-                const info = provider === 'copilot' ? await withTimeout(() => copilotAdapter.resolveModel('copilot', model), DISCOVERY_TIMEOUT_MS, request.signal) : provider === 'claude'
+                const info = provider === 'copilot' ? await withTimeout(() => copilotAdapter.resolveModel('copilot', model), DISCOVERY_TIMEOUT_MS, request.signal) : provider === 'grok' ? await withTimeout(() => grokAdapter.resolveModel('grok', model), DISCOVERY_TIMEOUT_MS, request.signal) : provider === 'claude'
                   ? await withTimeout(() => claudeAdapter.resolveModel('claude', model), DISCOVERY_TIMEOUT_MS, request.signal).catch(() => undefined)
                   : await withTimeout(signal => adapter.resolveModel('codex', model, signal), DISCOVERY_TIMEOUT_MS, request.signal).catch(() => undefined);
                 if (effort && info?.reasoning?.efforts.length && !info.reasoning.efforts.some(entry => entry.id === effort)) throw new Error(`model ${model} does not advertise a "${effort}" reasoning effort`);
@@ -594,6 +665,7 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
                 // Claude route: the browser sends `method` ('oauth' or 'keychain'); absent means import-first.
                 const method = readLoginMethod(payload, provider);
                  if (provider === 'copilot') { if (copilotCollision) throw new Error('Copilot is already registered. Disable the reference component first.'); value = await copilotAuth.login(); break; }
+                if (provider === 'grok') { if (grokCollision) throw new Error(grokCollision); value = await grokAuth.login(); break; }
                 if (provider === 'claude') {
                   if (claudeCollision) throw new Error('Claude is already registered. Disable the reference component first.');
                   value = await claudeAuth.login(method); break;
@@ -601,12 +673,13 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
                 if (collision) throw new Error('Codex is already registered. Disable the reference component first.');
                 value = await auth.login(); break;
               }
-              case 'manual': if (provider === 'copilot') throw new Error('Enter the device code on the verification page'); else if (provider === 'claude') claudeAuth.manual(string('input')); else auth.manual(string('input')); break;
-              case 'cancel': if (provider === 'copilot') copilotAuth.cancel(); else if (provider === 'claude') claudeAuth.cancel(); else auth.cancel(); break;
-              case 'logout': if (provider === 'copilot') await copilotAuth.logout(string('account')); else if (provider === 'claude') await claudeAuth.logout(string('account')); else await auth.logout(string('account')); break;
-              case 'setDefault': if (provider === 'copilot') await copilotAuth.setDefault(string('account')); else if (provider === 'claude') await claudeAuth.setDefault(string('account')); else await auth.setDefault(string('account')); break;
+              case 'manual': if (provider === 'copilot') throw new Error('Enter the device code on the verification page'); else if (provider === 'grok') grokAuth.manual(string('input')); else if (provider === 'claude') claudeAuth.manual(string('input')); else auth.manual(string('input')); break;
+              case 'cancel': if (provider === 'copilot') copilotAuth.cancel(); else if (provider === 'grok') grokAuth.cancel(); else if (provider === 'claude') claudeAuth.cancel(); else auth.cancel(); break;
+              case 'logout': if (provider === 'copilot') await copilotAuth.logout(string('account')); else if (provider === 'grok') await grokAuth.logout(string('account')); else if (provider === 'claude') await claudeAuth.logout(string('account')); else await auth.logout(string('account')); break;
+              case 'setDefault': if (provider === 'copilot') await copilotAuth.setDefault(string('account')); else if (provider === 'grok') await grokAuth.setDefault(string('account')); else if (provider === 'claude') await claudeAuth.setDefault(string('account')); else await auth.setDefault(string('account')); break;
               case 'usage': {
                  if (provider === 'copilot') { value = await usage.snapshotFor('copilot', string('account'), readForce(payload)); break; }
+                if (provider === 'grok') { if (grokCollision) throw new Error(grokCollision); const account = string('account'); const force = readForce(payload); value = await usage.snapshotFor('grok', account, force); break; }
                 if (provider === 'claude') {
                   if (claudeCollision) throw new Error('Claude registration is unavailable');
                   const account = string('account'); const force = readForce(payload); if (force) health.clear('claude', account);

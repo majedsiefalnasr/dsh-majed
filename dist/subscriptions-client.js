@@ -28,6 +28,250 @@ react = __toESM(react);
 let react_jsx_runtime = require("react/jsx-runtime");
 react_jsx_runtime = __toESM(react_jsx_runtime);
 
+//#region src/ImageGallery.tsx
+/** Display box for a lone image (platform rule): long edge 240px with the
+* rendered aspect ratio clamped to [0.25, 4] — the overflow is cropped by
+* `object-fit: cover` — and never upscaled past the image's natural size. The
+* crop anchor keeps the top of very tall images and the left of very wide
+* ones, where the informative content usually starts. */
+function singleFit(attachment) {
+	const natural = attachment.width / attachment.height;
+	const ratio = Math.min(4, Math.max(.25, natural));
+	const box = ratio >= 1 ? {
+		width: 240,
+		height: 240 / ratio
+	} : {
+		width: 240 * ratio,
+		height: 240
+	};
+	const scale = Math.min(1, attachment.width / box.width, attachment.height / box.height);
+	return {
+		width: Math.max(1, Math.round(box.width * scale)),
+		height: Math.max(1, Math.round(box.height * scale)),
+		objectPosition: natural < .25 ? "center top" : natural > 4 ? "left center" : "center"
+	};
+}
+const styles$6 = {
+	gallery: {
+		display: "flex",
+		flexWrap: "wrap",
+		gap: 8,
+		justifyContent: "flex-start"
+	},
+	frame: {
+		display: "grid",
+		placeItems: "center",
+		overflow: "hidden",
+		padding: 0,
+		border: "1px solid var(--dsw-alias-border-l2-darkmode-thin)",
+		borderRadius: 8,
+		background: "var(--dsw-alias-interactive-bg-hover-solid)",
+		cursor: "zoom-in"
+	},
+	tile: {
+		width: 64,
+		height: 64
+	},
+	img: {
+		width: "100%",
+		height: "100%",
+		objectFit: "cover",
+		display: "block"
+	},
+	loading: {
+		font: "var(--dsw-font-s-12)",
+		color: "var(--dsw-alias-label-tertiary)",
+		padding: "0 8px"
+	},
+	error: {
+		font: "var(--dsw-font-s-12)",
+		color: "var(--dsw-alias-state-error-primary)",
+		cursor: "pointer",
+		border: "1px solid var(--dsw-alias-border-l2-darkmode-thin)",
+		borderRadius: 8,
+		background: "transparent",
+		padding: "6px 10px"
+	},
+	overlay: {
+		position: "fixed",
+		inset: 0,
+		zIndex: 1e3,
+		display: "grid",
+		placeItems: "center",
+		background: "var(--dsw-alias-bg-mask-1)",
+		padding: 24
+	},
+	overlayImg: {
+		maxWidth: "92vw",
+		maxHeight: "92vh",
+		objectFit: "contain",
+		borderRadius: 4
+	},
+	close: {
+		position: "absolute",
+		insetBlockStart: 12,
+		insetInlineEnd: 12,
+		width: 32,
+		height: 32,
+		display: "grid",
+		placeItems: "center",
+		border: "none",
+		borderRadius: "50%",
+		cursor: "pointer",
+		background: "var(--dsw-alias-bg-layer-1)",
+		color: "var(--dsw-alias-label-primary)",
+		font: "var(--dsw-font-s-13)"
+	}
+};
+/**
+* Full-viewport original-image preview: backdrop or close-control click and
+* Escape all dismiss; the image itself is inert so a click on it does not
+* fall through to the backdrop dismissal.
+*/
+function ImageLightbox({ src, alt, labels, onClose }) {
+	const closeButton = (0, react.useRef)(null);
+	(0, react.useEffect)(() => {
+		const opener = document.activeElement;
+		closeButton.current?.focus();
+		const onKey = (event) => {
+			if (event.key === "Escape") onClose();
+			if (event.key === "Tab") {
+				event.preventDefault();
+				closeButton.current?.focus();
+			}
+		};
+		window.addEventListener("keydown", onKey);
+		return () => {
+			window.removeEventListener("keydown", onKey);
+			opener?.focus();
+		};
+	}, [onClose]);
+	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+		role: "dialog",
+		"aria-modal": true,
+		"aria-label": labels.dialog,
+		style: styles$6.overlay,
+		onClick: onClose,
+		children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("img", {
+			src,
+			alt,
+			style: styles$6.overlayImg,
+			onClick: (event) => {
+				event.stopPropagation();
+			}
+		}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+			ref: closeButton,
+			type: "button",
+			"aria-label": labels.close,
+			style: styles$6.close,
+			onClick: onClose,
+			children: "×"
+		})]
+	});
+}
+/**
+* Compact history renderer with retryable loading and click-to-open original
+* preview. A lone image renders at its `singleFit` size; an image among
+* several renders as a fixed 64px square tile.
+*/
+function MessageImage({ attachment, load, variant, labels }) {
+	const [src, setSrc] = (0, react.useState)(null);
+	const [error, setError] = (0, react.useState)(false);
+	const [open, setOpen] = (0, react.useState)(false);
+	const [attempt, setAttempt] = (0, react.useState)(0);
+	const retry = (0, react.useCallback)(() => {
+		setAttempt((a) => a + 1);
+	}, []);
+	const close = (0, react.useCallback)(() => {
+		setOpen(false);
+	}, []);
+	const fit = (0, react.useMemo)(() => variant === "single" ? singleFit(attachment) : void 0, [attachment, variant]);
+	(0, react.useEffect)(() => {
+		let live = true;
+		setError(false);
+		setSrc(null);
+		load(attachment).then((url) => {
+			if (live) setSrc(url);
+		}).catch(() => {
+			if (live) setError(true);
+		});
+		return () => {
+			live = false;
+		};
+	}, [
+		attachment,
+		load,
+		attempt
+	]);
+	const label = attachment.name ?? labels.image;
+	if (error) return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+		type: "button",
+		style: styles$6.error,
+		onClick: retry,
+		children: labels.loadFailed
+	});
+	const box = fit === void 0 ? styles$6.tile : {
+		width: fit.width,
+		height: fit.height
+	};
+	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+		type: "button",
+		style: {
+			...styles$6.frame,
+			...box
+		},
+		title: labels.open,
+		"aria-label": labels.openNamed(label),
+		onClick: () => {
+			if (src !== null) setOpen(true);
+		},
+		children: src === null ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+			style: styles$6.loading,
+			children: labels.loading
+		}) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("img", {
+			src,
+			alt: label,
+			style: {
+				...styles$6.img,
+				objectPosition: fit?.objectPosition
+			},
+			onError: () => {
+				setOpen(false);
+				setError(true);
+			}
+		})
+	}), open && src !== null && /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ImageLightbox, {
+		src,
+		alt: label,
+		labels: labels.lightbox,
+		onClose: close
+	})] });
+}
+/** Wrapping image group: a lone image renders large, several render as 64px
+* square tiles (same rule as the platform gallery). */
+function ImageGallery({ images, load, labels }) {
+	if (images.length === 0) return null;
+	const variant = images.length === 1 ? "single" : "tile";
+	return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+		style: styles$6.gallery,
+		children: images.map((image, index) => /* @__PURE__ */ (0, react_jsx_runtime.jsx)(MessageImage, {
+			attachment: image.attachment,
+			load,
+			variant,
+			labels
+		}, `${image.attachment.attachmentId}:${index}`))
+	});
+}
+
+//#endregion
+//#region src/subscriptions-rpc.ts
+async function callSubscriptionsAuth$1(rpc, endpoint, payload) {
+	const result = await rpc.call("/api", `majed-subscriptions.${endpoint}`, payload);
+	if (!result?.ok) throw new Error(result?.error?.message ?? "Subscriptions unavailable");
+	return result.value;
+}
+
+//#endregion
 //#region locale/en.json
 var subscriptions$1 = {
 	"copilotDeviceHint": "Enter this code on the GitHub verification page.",
@@ -210,8 +454,403 @@ var subscriptions$1 = {
 	"claudePromptCacheTtlHint": "How long Anthropic keeps the conversation cache after its last use. Cache reads cost the same either way; a one-hour cache write costs 2× base input instead of 1.25×. Applies from the next turn.",
 	"claudePromptCacheTtlDefault": "Follow config ({ttl})",
 	"claudePromptCacheTtl5m": "5 minutes",
-	"claudePromptCacheTtl1h": "1 hour"
+	"claudePromptCacheTtl1h": "1 hour",
+	"grokProviderUnavailable": "Grok registration is unavailable.",
+	"image": "Image",
+	"viewImage": "View image",
+	"viewImageNamed": "View {name}",
+	"imageLoading": "Loading image…",
+	"imageLoadFailed": "Could not load image. Retry",
+	"imagePreview": "Image preview",
+	"generating": "Generating image…",
+	"generatingVideo": "Generating video…",
+	"videoLoading": "Loading video…",
+	"videoLoadFailed": "Could not load video: {message}",
+	"videoPlaybackFailed": "The browser could not play this video."
 };
+
+//#endregion
+//#region src/locales.ts
+const en = subscriptions$1;
+
+//#endregion
+//#region src/ImageGenerateToolview.tsx
+/** DSH 0.1.7 renamed IconSparkle16; resolving it by name keeps older hosts working too. */
+const SparkleIcon$1 = (_props) => null;
+/** Title prompt truncation budget (characters). */
+const PROMPT_MAX_LENGTH$1 = 60;
+/**
+* Build the ImageGallery loader over the `image` endpoint.
+* @param rpc - Connection RPC caller.
+* @returns loader resolving an attachment ref to a data URL.
+*/
+function createImageLoader(rpc) {
+	return (attachment) => callSubscriptionsAuth$1(rpc, "image", { ...attachment }).then((result) => `data:${result.mediaType};base64,${result.dataBase64}`);
+}
+/**
+* English-dictionary fallback for a missing locale seat (standalone renders);
+* the framework always supplies the namespace-bound one.
+* @param key - dictionary key.
+* @param params - `{name}` template params.
+* @returns the template with params substituted.
+*/
+function fallbackTranslate$3(key, params) {
+	let text = en[key];
+	for (const [name, value] of Object.entries(params ?? {})) text = text.replaceAll(`{${name}}`, String(value));
+	return text;
+}
+/** Extract the prompt from the call's raw args JSON; falls back to the first string value, then the raw line. */
+function derivePrompt$1(argsRaw) {
+	let parsed;
+	try {
+		parsed = JSON.parse(argsRaw);
+	} catch {
+		parsed = void 0;
+	}
+	let prompt;
+	if (typeof parsed === "object" && parsed !== null) {
+		const args = parsed;
+		if (typeof args.prompt === "string" && args.prompt !== "") prompt = args.prompt;
+		else for (const value of Object.values(args)) if (typeof value === "string" && value !== "") {
+			prompt = value;
+			break;
+		}
+	}
+	const line = (prompt ?? argsRaw).split("\n", 1)[0] ?? "";
+	return line.length > PROMPT_MAX_LENGTH$1 ? `${line.slice(0, PROMPT_MAX_LENGTH$1)}…` : line;
+}
+/** Flatten a settled result's text blocks (the degraded text-only route and the error line). */
+function resultText$1(block) {
+	if (!("kind" in block)) return "";
+	const parts = [];
+	for (const part of block.content) if (part.type === "text") parts.push(part.text);
+	if (parts.length === 0 && block.error !== void 0) parts.push(`${block.error.name}: ${block.error.code}`);
+	return parts.join("\n");
+}
+/** Image attachments of a settled result; empty while running or on the text-only route. */
+function resultImages(block) {
+	if (!("kind" in block)) return [];
+	const images = [];
+	for (const part of block.content) if (part.type === "image") images.push({ attachment: part.attachment });
+	return images;
+}
+const styles$5 = {
+	container: {
+		display: "flex",
+		flexDirection: "column",
+		gap: 6,
+		padding: "4px 0"
+	},
+	row: {
+		display: "flex",
+		alignItems: "center",
+		gap: 6,
+		minWidth: 0
+	},
+	icon: {
+		display: "inline-flex",
+		flexShrink: 0,
+		color: "var(--dsw-alias-label-tertiary)"
+	},
+	title: {
+		font: "var(--dsw-font-s-13)",
+		color: "var(--dsw-alias-label-primary)",
+		overflow: "hidden",
+		textOverflow: "ellipsis",
+		whiteSpace: "nowrap"
+	},
+	subtle: {
+		margin: 0,
+		font: "var(--dsw-font-s-12)",
+		color: "var(--dsw-alias-label-tertiary)"
+	},
+	output: {
+		margin: 0,
+		font: "var(--dsw-font-s-12)",
+		color: "var(--dsw-alias-label-secondary)",
+		whiteSpace: "pre-wrap",
+		overflowWrap: "anywhere"
+	},
+	error: {
+		margin: 0,
+		font: "var(--dsw-font-s-12)",
+		color: "var(--dsw-alias-state-error-primary)"
+	}
+};
+/**
+* The `image_generate` keyed toolview component.
+* @param props - owner share, inject face, and locale seat (spread flat).
+* @returns the call row plus, once settled, the gallery / text / error body.
+*/
+function ImageGenerateToolview(props) {
+	const { block, load } = props;
+	const t = props.t ?? fallbackTranslate$3;
+	if (block === void 0) return null;
+	const settled = "kind" in block;
+	const argsRaw = (settled ? block.call?.argsRaw : "argsRaw" in block ? block.argsRaw : void 0) ?? "";
+	let references = 0;
+	try {
+		const args = JSON.parse(argsRaw);
+		if (Array.isArray(args?.referenceImages)) references = args.referenceImages.length;
+	} catch {}
+	const title = `image_generate${references > 0 ? ` (${references} ref)` : ""}: ${derivePrompt$1(argsRaw)}`;
+	const images = resultImages(block);
+	const text = settled ? resultText$1(block) : "";
+	const labels = {
+		image: t("image"),
+		open: t("viewImage"),
+		openNamed: (name) => t("viewImageNamed", { name }),
+		loading: t("imageLoading"),
+		loadFailed: t("imageLoadFailed"),
+		lightbox: {
+			dialog: t("imagePreview"),
+			close: t("imageClose")
+		}
+	};
+	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+		style: styles$5.container,
+		children: [
+			/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+				style: styles$5.row,
+				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+					style: styles$5.icon,
+					children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(SparkleIcon$1, { size: 14 })
+				}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+					style: styles$5.title,
+					children: title
+				})]
+			}),
+			!settled && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+				style: styles$5.subtle,
+				children: t("generating")
+			}),
+			settled && block.isError && text !== "" && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+				style: styles$5.error,
+				children: text.split("\n", 1)[0]
+			}),
+			settled && !block.isError && images.length > 0 && load !== void 0 && /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ImageGallery, {
+				images,
+				load,
+				labels
+			}),
+			settled && !block.isError && images.length === 0 && text !== "" && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+				style: styles$5.output,
+				children: text
+			})
+		]
+	});
+}
+
+//#endregion
+//#region src/VideoGenerateToolview.tsx
+/** DSH 0.1.7 renamed IconSparkle16; resolving it by name keeps older hosts working too. */
+const SparkleIcon = (_props) => null;
+/** Title prompt truncation budget (characters). */
+const PROMPT_MAX_LENGTH = 60;
+/**
+* Build the video loader over the `/subscriptions-auth` `video` endpoint.
+* @param rpc - Connection RPC caller.
+* @returns loader resolving a bare file name to the decoded bytes.
+*/
+function createVideoLoader(rpc) {
+	return (name) => callSubscriptionsAuth$1(rpc, "video", { name });
+}
+/**
+* English-dictionary fallback for a missing locale seat (standalone renders);
+* the framework always supplies the namespace-bound one.
+*/
+function fallbackTranslate$2(key, params) {
+	let text = en[key];
+	for (const [name, value] of Object.entries(params ?? {})) text = text.replaceAll(`{${name}}`, String(value));
+	return text;
+}
+/** Extract the prompt from the call's raw args JSON; falls back to the first string value, then the raw line. */
+function derivePrompt(argsRaw) {
+	let parsed;
+	try {
+		parsed = JSON.parse(argsRaw);
+	} catch {
+		parsed = void 0;
+	}
+	let prompt;
+	if (typeof parsed === "object" && parsed !== null) {
+		const args = parsed;
+		if (typeof args.prompt === "string" && args.prompt !== "") prompt = args.prompt;
+		else for (const value of Object.values(args)) if (typeof value === "string" && value !== "") {
+			prompt = value;
+			break;
+		}
+	}
+	const line = (prompt ?? argsRaw).split("\n", 1)[0] ?? "";
+	return line.length > PROMPT_MAX_LENGTH ? `${line.slice(0, PROMPT_MAX_LENGTH)}…` : line;
+}
+/** Flatten a settled result's text blocks (the fallback body and the error line). */
+function resultText(block) {
+	if (!("kind" in block)) return "";
+	const parts = [];
+	for (const part of block.content) if (part.type === "text") parts.push(part.text);
+	if (parts.length === 0 && block.error !== void 0) parts.push(`${block.error.name}: ${block.error.code}`);
+	return parts.join("\n");
+}
+/**
+* The generated video's bare file name: presentation meta first (top-level
+* dispatches), then the render text's "Saved video to …" line (nested
+* dispatches compute no meta).
+*/
+function resolveFileName(block) {
+	if (!("kind" in block)) return void 0;
+	const meta = block.meta;
+	if (typeof meta === "object" && meta !== null) {
+		const fileName = meta.fileName;
+		if (typeof fileName === "string" && fileName.length > 0) return fileName;
+	}
+	const match = /^Saved video to (.+\.mp4)/m.exec(resultText(block));
+	if (match === null) return void 0;
+	const path = match[1];
+	return path.slice(path.lastIndexOf("/") + 1);
+}
+/** Decode a base64 payload into bytes (browser-side; no Buffer). */
+function base64Bytes(dataBase64) {
+	const binary = atob(dataBase64);
+	const bytes = new Uint8Array(binary.length);
+	for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index);
+	return bytes;
+}
+const styles$4 = {
+	container: {
+		display: "flex",
+		flexDirection: "column",
+		gap: 6,
+		padding: "4px 0"
+	},
+	row: {
+		display: "flex",
+		alignItems: "center",
+		gap: 6,
+		minWidth: 0
+	},
+	icon: {
+		display: "inline-flex",
+		flexShrink: 0,
+		color: "var(--dsw-alias-label-tertiary)"
+	},
+	title: {
+		font: "var(--dsw-font-s-13)",
+		color: "var(--dsw-alias-label-primary)",
+		overflow: "hidden",
+		textOverflow: "ellipsis",
+		whiteSpace: "nowrap"
+	},
+	subtle: {
+		margin: 0,
+		font: "var(--dsw-font-s-12)",
+		color: "var(--dsw-alias-label-tertiary)"
+	},
+	output: {
+		margin: 0,
+		font: "var(--dsw-font-s-12)",
+		color: "var(--dsw-alias-label-secondary)",
+		whiteSpace: "pre-wrap",
+		overflowWrap: "anywhere"
+	},
+	error: {
+		margin: 0,
+		font: "var(--dsw-font-s-12)",
+		color: "var(--dsw-alias-state-error-primary)"
+	},
+	video: {
+		display: "block",
+		maxWidth: 480,
+		width: "100%",
+		borderRadius: 8,
+		backgroundColor: "var(--dsw-alias-fill-tertiary)"
+	}
+};
+/**
+* The `video_generate` keyed toolview component.
+* @param props - owner share, inject face, and locale seat (spread flat).
+* @returns the call row plus, once settled, the player / text / error body.
+*/
+function VideoGenerateToolview(props) {
+	const { block, loadVideo } = props;
+	const t = props.t ?? fallbackTranslate$2;
+	const settled = block !== void 0 && "kind" in block;
+	const isError = settled && block.isError;
+	const fileName = block !== void 0 && settled && !isError ? resolveFileName(block) : void 0;
+	const [load, setLoad] = (0, react.useState)({ phase: "loading" });
+	(0, react.useEffect)(() => {
+		if (fileName === void 0 || loadVideo === void 0) return;
+		let cancelled = false;
+		let objectUrl;
+		setLoad({ phase: "loading" });
+		loadVideo(fileName).then((video) => {
+			if (cancelled) return;
+			objectUrl = URL.createObjectURL(new Blob([base64Bytes(video.dataBase64).slice()], { type: video.mediaType }));
+			setLoad({
+				phase: "ready",
+				url: objectUrl
+			});
+		}, (error) => {
+			if (cancelled) return;
+			setLoad({
+				phase: "failed",
+				message: error instanceof Error ? error.message : String(error)
+			});
+		});
+		return () => {
+			cancelled = true;
+			if (objectUrl !== void 0) URL.revokeObjectURL(objectUrl);
+		};
+	}, [fileName, loadVideo]);
+	if (block === void 0) return null;
+	const title = `video_generate: ${derivePrompt((settled ? block.call?.argsRaw : "argsRaw" in block ? block.argsRaw : void 0) ?? "")}`;
+	const text = settled ? resultText(block) : "";
+	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+		style: styles$4.container,
+		children: [
+			/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+				style: styles$4.row,
+				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+					style: styles$4.icon,
+					children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(SparkleIcon, { size: 14 })
+				}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+					style: styles$4.title,
+					children: title
+				})]
+			}),
+			!settled && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+				style: styles$4.subtle,
+				children: t("generatingVideo")
+			}),
+			settled && isError && text !== "" && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+				style: styles$4.error,
+				children: text.split("\n", 1)[0]
+			}),
+			settled && !isError && fileName !== void 0 && load.phase === "loading" && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+				style: styles$4.subtle,
+				children: t("videoLoading")
+			}),
+			settled && !isError && fileName !== void 0 && load.phase === "failed" && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+				style: styles$4.error,
+				children: t("videoLoadFailed", { message: load.message })
+			}),
+			settled && !isError && fileName !== void 0 && load.phase === "ready" && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("video", {
+				style: styles$4.video,
+				src: load.url,
+				controls: true,
+				preload: "metadata",
+				onError: () => setLoad({
+					phase: "failed",
+					message: t("videoPlaybackFailed")
+				})
+			}),
+			settled && !isError && fileName === void 0 && text !== "" && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+				style: styles$4.output,
+				children: text
+			})
+		]
+	});
+}
 
 //#endregion
 //#region locale/ar.json
@@ -396,7 +1035,19 @@ var subscriptions = {
 	"claudePromptCacheTtlHint": "المدة التي تحتفظ بها Anthropic بذاكرة المحادثة المؤقتة بعد آخر استخدام. تكلفة قراءة الذاكرة واحدة في الحالتين؛ أما كتابة ذاكرة لمدة ساعة فتكلّف ضعف مدخلات الأساس بدل 1.25 ضعفًا. يسري من الدور التالي.",
 	"claudePromptCacheTtlDefault": "اتباع الإعداد ({ttl})",
 	"claudePromptCacheTtl5m": "5 دقائق",
-	"claudePromptCacheTtl1h": "ساعة واحدة"
+	"claudePromptCacheTtl1h": "ساعة واحدة",
+	"grokProviderUnavailable": "تسجيل Grok غير متاح.",
+	"image": "صورة",
+	"viewImage": "عرض الصورة",
+	"viewImageNamed": "عرض {name}",
+	"imageLoading": "جارٍ تحميل الصورة…",
+	"imageLoadFailed": "تعذر تحميل الصورة. أعد المحاولة",
+	"imagePreview": "معاينة الصورة",
+	"generating": "جارٍ إنشاء الصورة…",
+	"generatingVideo": "جارٍ إنشاء الفيديو…",
+	"videoLoading": "جارٍ تحميل الفيديو…",
+	"videoLoadFailed": "تعذر تحميل الفيديو: {message}",
+	"videoPlaybackFailed": "تعذر على المتصفح تشغيل هذا الفيديو."
 };
 
 //#endregion
@@ -2976,6 +3627,268 @@ function createClaudeCard(React, primitives$1, rpc, t) {
 }
 
 //#endregion
+//#region src/grok-card.ts
+/**
+* Grok Settings card (ticket #133). Scoped presentation port of the Grok part of V1ki v0.9.12 b802311
+* SubscriptionsSection; see PROVENANCE.md. It only ever receives sanitized status from the owned RPC: account
+* labels, plan and expiry, never a token or credential-store path.
+*/
+function createGrokCard(React, primitives$1, rpc, t) {
+	const h = React.createElement;
+	const Button = primitives$1.Button ?? "button";
+	const Input = primitives$1.Input ?? "input";
+	const DEFAULT_NAME = "Grok (Subscription)";
+	return function GrokCard() {
+		const [manager, setManager] = React.useState(false);
+		const [status, setStatus] = React.useState(null);
+		const [error, setError] = React.useState("");
+		const [pending, setPending] = React.useState(false);
+		const [login, setLogin] = React.useState(null);
+		const [input, setInput] = React.useState("");
+		const [usage, setUsage] = React.useState({});
+		const [confirmation, setConfirmation] = React.useState(null);
+		const alive = React.useRef(true);
+		const usageRequests = React.useRef(/* @__PURE__ */ new Map());
+		const accountKeys = React.useRef(/* @__PURE__ */ new Set());
+		const call = async (endpoint, payload = {}) => {
+			const response = await rpc.call("/api", `majed-subscriptions.${endpoint}`, {
+				provider: "grok",
+				...payload
+			});
+			if (!response?.ok) throw new Error(response?.error?.message ?? t("unreachable"));
+			return response.value;
+		};
+		const refreshStatus = async () => {
+			const value = await call("status");
+			if (alive.current) setStatus({
+				...value.providers.grok ?? { accounts: [] },
+				registrationError: value.grokRegistrationError
+			});
+		};
+		const action = async (run) => {
+			setPending(true);
+			setError("");
+			try {
+				await run();
+			} catch (failure) {
+				if (alive.current) setError(failure instanceof Error ? failure.message : String(failure));
+			} finally {
+				if (alive.current) setPending(false);
+			}
+		};
+		React.useEffect(() => {
+			alive.current = true;
+			refreshStatus().catch((failure) => {
+				if (alive.current) setError(failure.message);
+			});
+			return () => {
+				alive.current = false;
+			};
+		}, []);
+		React.useEffect(() => {
+			if (!status?.busy) return;
+			const timer = setInterval(() => {
+				refreshStatus().catch((failure) => {
+					if (alive.current) setError(failure.message);
+				});
+			}, 2e3);
+			return () => clearInterval(timer);
+		}, [status?.busy]);
+		const refreshUsage = (account, force = false) => {
+			if (usageRequests.current.has(account)) return usageRequests.current.get(account);
+			const request = (async () => {
+				try {
+					const snapshot = await call("usage", {
+						account,
+						force
+					});
+					if (alive.current && accountKeys.current.has(account) && usageRequests.current.get(account) === request) setUsage((previous) => ({
+						...previous,
+						[account]: snapshot
+					}));
+				} catch (failure) {
+					if (alive.current && accountKeys.current.has(account) && usageRequests.current.get(account) === request) setUsage((previous) => ({
+						...previous,
+						[account]: { error: failure instanceof Error ? failure.message : String(failure) }
+					}));
+				} finally {
+					if (usageRequests.current.get(account) === request) usageRequests.current.delete(account);
+				}
+			})();
+			usageRequests.current.set(account, request);
+			return request;
+		};
+		const accountsSignature = JSON.stringify((status?.accounts ?? []).map((account) => account.key));
+		React.useEffect(() => {
+			const keys = new Set((status?.accounts ?? []).map((account) => account.key));
+			const added = [...keys].filter((key) => !accountKeys.current.has(key));
+			accountKeys.current = keys;
+			for (const key of usageRequests.current.keys()) if (!keys.has(key)) usageRequests.current.delete(key);
+			setUsage((previous) => Object.fromEntries(Object.entries(previous).filter(([key]) => keys.has(key))));
+			for (const key of added) refreshUsage(key);
+		}, [accountsSignature]);
+		const button = (label, onClick, disabled = false, props = {}) => h(Button, {
+			type: "button",
+			disabled: pending || disabled,
+			onClick,
+			...props
+		}, label);
+		const date = (time) => new Date(time).toLocaleString();
+		const part = (name$1, style, ...children) => h("div", {
+			style,
+			"data-majed-grok-part": name$1
+		}, ...children);
+		const startLogin = () => {
+			action(async () => {
+				const result = await call("login");
+				if (!alive.current) return;
+				if (result.authorizeUrl) window.open(result.authorizeUrl, "_blank", "noopener");
+				setLogin(result.authorizeUrl ? result : null);
+				await refreshStatus();
+			});
+		};
+		const busy = status?.busy;
+		const name = status?.displayName || DEFAULT_NAME;
+		const hasAccounts = !!status?.accounts?.length;
+		return h("div", {
+			style: {
+				...styles$3.section,
+				textAlign: "start"
+			},
+			className: "majed-subscriptions-settings",
+			"data-majed-grok-card": true
+		}, h("style", null, controlCss), manager ? h(ProviderAccountManager, {
+			provider: "grok",
+			name,
+			rpc,
+			t,
+			onClose: () => {
+				setManager(false);
+				refreshStatus();
+			}
+		}) : null, part("card", styles$3.card, part("header", styles$3.cardHeader, h("span", {
+			"aria-hidden": true,
+			style: {
+				...styles$3.dot,
+				background: busy ? "var(--dsw-alias-state-warn-label)" : hasAccounts ? "var(--dsw-alias-state-success-primary)" : "var(--dsw-alias-label-dimmed)"
+			}
+		}), h("span", { style: styles$3.name }, name), button(t("accountsManage"), () => setManager(true), false, { style: { marginInlineStart: "auto" } }), status?.clientVersion ? h("span", {
+			style: styles$3.clientVersion,
+			title: t("clientVersionHint")
+		}, "CLI ", h("bdi", { dir: "ltr" }, status.clientVersion.version), " · ", t(`source_${status.clientVersion.source}`)) : null), h("p", {
+			style: styles$3.statusLine,
+			role: "status"
+		}, status?.registrationError ? t("grokProviderUnavailable") : busy ? t("loginProgress") : hasAccounts ? `${status.accounts.length} ${t("connected")}` : status ? t("notLoggedIn") : t("checking")), status?.detail ? h("p", { style: styles$3.statusLine }, status.detail) : null, error ? h("p", {
+			style: styles$3.errorLine,
+			role: "alert"
+		}, error) : null, ...(status?.accounts ?? []).map((account) => {
+			const snapshot = usage[account.key];
+			return h("div", {
+				key: account.key,
+				style: styles$3.accountRow,
+				"data-majed-grok-part": "account"
+			}, part("account-header", styles$3.accountHeader, button(account.isDefault ? "★" : "☆", () => {
+				if (!account.isDefault) action(async () => {
+					await call("setDefault", { account: account.key });
+					await refreshStatus();
+				});
+			}, false, {
+				style: styles$3.starButton,
+				title: t(account.isDefault ? "defaultAccount" : "makeDefault"),
+				"aria-label": t(account.isDefault ? "defaultAccount" : "makeDefault")
+			}), h("bdi", {
+				dir: "ltr",
+				style: styles$3.accountName
+			}, account.alias || account.account || account.key), account.plan ? h("bdi", { style: styles$3.usagePlan }, account.plan) : null, account.expiresAt ? h("span", { style: styles$3.statusLine }, t("expires"), " ", h("bdi", null, date(account.expiresAt))) : null, button(t("logout"), () => setConfirmation({
+				account: account.key,
+				label: account.account
+			}), false, { style: { marginInlineStart: "auto" } })), snapshot?.supported === false ? h("p", { style: styles$3.statusLine }, t("usageUnavailable")) : part("usage", styles$3.usage, part("usage-header", styles$3.usageHeader, h("span", { style: styles$3.usageTitle }, t("usageTitle")), button(t("refreshUsage"), () => {
+				action(() => refreshUsage(account.key, true));
+			}, false, { style: styles$3.usageRefresh })), !snapshot ? h("p", { style: styles$3.statusLine }, t("usageNotLoaded")) : snapshot.error ? h("p", {
+				style: styles$3.errorLine,
+				role: "alert"
+			}, snapshot.error) : !snapshot.windows?.length ? h("p", { style: styles$3.statusLine }, t("usageUnavailable")) : null, ...(snapshot?.windows ?? []).map((window$1, index) => {
+				const percent = Math.max(0, Math.min(100, window$1.usedPercent));
+				const color = percent >= 95 ? "var(--dsw-alias-state-error-primary)" : percent >= 80 ? "var(--dsw-alias-state-warn-label)" : "var(--dsw-alias-state-success-primary)";
+				return h("div", {
+					key: index,
+					style: styles$3.usageRow
+				}, part("usage-meta", styles$3.usageMeta, h("span", null, t(`window_${window$1.kind}`), window$1.scope ? ` · ${window$1.scope}` : ""), h("span", null, h("bdi", null, `${Math.round(percent)}%`), window$1.resetsAt ? h("span", null, " · ", t("resets"), " ", h("bdi", null, date(window$1.resetsAt))) : null)), h("div", {
+					role: "progressbar",
+					"aria-label": t(`window_${window$1.kind}`),
+					"aria-valuenow": percent,
+					"aria-valuemin": 0,
+					"aria-valuemax": 100,
+					style: styles$3.usageTrack
+				}, h("div", { style: {
+					...styles$3.usageFill,
+					background: color,
+					inlineSize: `${percent}%`
+				} })));
+			})));
+		}), part("actions", styles$3.actions, busy ? button(t("cancelLogin"), () => {
+			action(async () => {
+				await call("cancel");
+				setLogin(null);
+				await refreshStatus();
+			});
+		}) : button(t(hasAccounts ? "addAccountOAuth" : "login"), () => startLogin(), !!status?.registrationError)), busy ? h("div", null, (status.pendingAuth ?? login)?.authorizeUrl ? h("a", {
+			href: (status.pendingAuth ?? login).authorizeUrl,
+			target: "_blank",
+			rel: "noopener noreferrer",
+			style: styles$3.manual
+		}, t("openAuthorization")) : null, h("details", { style: styles$3.manual }, h("summary", null, t("manualSummary")), part("manual-row", styles$3.manualRow, h(Input, {
+			style: styles$3.manualInput,
+			value: input,
+			placeholder: t("pasteCallback"),
+			"aria-label": t("pasteCallback"),
+			dir: "ltr",
+			onChange: (event) => setInput(event.target.value)
+		}), button(t("submitCallback"), () => {
+			action(async () => {
+				await call("manual", { input });
+				setInput("");
+				await refreshStatus();
+			});
+		}, !input.trim())))) : null), confirmation ? h("dialog", {
+			ref: (node) => {
+				if (node && !node.open) node.showModal();
+			},
+			className: "majed-reset-dialog",
+			role: "dialog",
+			"aria-modal": true,
+			"aria-label": t("confirmLogout"),
+			onCancel: () => setConfirmation(null),
+			onClose: () => setConfirmation(null),
+			style: {
+				...styles$3.modal,
+				margin: "auto",
+				color: "var(--dsw-alias-label-primary)"
+			}
+		}, h("h3", { style: {
+			...styles$3.modalTitle,
+			margin: 0
+		} }, t("confirmLogout")), h("p", { style: {
+			...styles$3.statusLine,
+			overflowWrap: "anywhere"
+		} }, h("bdi", { dir: "ltr" }, confirmation.label ?? confirmation.account)), h("div", {
+			className: "majed-subscription-dialog-actions",
+			style: {
+				...styles$3.actions,
+				justifyContent: "flex-end",
+				marginBlockStart: 8
+			}
+		}, button(t("cancel"), () => setConfirmation(null), false, { autoFocus: true }), button(t("logout"), () => {
+			action(async () => {
+				await call("logout", { account: confirmation.account });
+				setConfirmation(null);
+				await refreshStatus();
+			});
+		}))) : null);
+	};
+}
+
+//#endregion
 //#region src/speed/SpeedSelect.tsx
 /**
 * The `loadSpeed` half of the inject face: the plugin's own speed state plus
@@ -4110,6 +5023,7 @@ function applySubscriptions(root) {
 		const CodexCard = createCodexCard(React, primitives$1, connection.rpc, t);
 		const CopilotCard = guarded(React, createCopilotCard(React, primitives$1, connection.rpc, t), "Copilot card");
 		const ClaudeCard = guarded(React, createClaudeCard(React, primitives$1, connection.rpc, t), "Claude card");
+		const GrokCard = guarded(React, createGrokCard(React, primitives$1, connection.rpc, t), "Grok card");
 		const GuardedSetting = guarded(React, UsageBadgeDisplaySetting, "usage display setting");
 		const GuardedSpeed = guarded(React, SpeedSelect, "Speed control");
 		const GuardedBadge = guarded(React, SubscriptionUsageBadge, "usage badge");
@@ -4138,7 +5052,7 @@ function applySubscriptions(root) {
 			}, h("h3", { style: { font: "var(--dsw-font-s-strong-14)" } }, h(IconSettingsOutlineMedium, { "aria-hidden": true }), t(part)), part === "accounts" ? h("div", null, h("p", { style: {
 				marginBlock: "0 var(--dsw-spacing-3)",
 				color: "var(--dsw-alias-label-tertiary)"
-			} }, t("intro")), h(GuardedSetting, { t }), h(CodexCard), h(ClaudeCard), h(CopilotCard)) : h("p", { style: { color: "var(--dsw-alias-label-tertiary)" } }, t(`${part}Empty`)))));
+			} }, t("intro")), h(GuardedSetting, { t }), h(CodexCard), h(ClaudeCard), h(GrokCard), h(CopilotCard)) : h("p", { style: { color: "var(--dsw-alias-label-tertiary)" } }, t(`${part}Empty`)))));
 		}
 		const models = () => ctx.get("modelDirectories");
 		const surfaceWanted = () => !disposed && present && !referenceEnabled;
@@ -4151,6 +5065,21 @@ function applySubscriptions(root) {
 					const off = register();
 					if (typeof off === "function") surfaces.push(off);
 				});
+				for (const [name, view, inject] of [[
+					"image_generate",
+					ImageGenerateToolview,
+					() => ({ load: createImageLoader(connection.rpc) })
+				], [
+					"video_generate",
+					VideoGenerateToolview,
+					() => ({ loadVideo: createVideoLoader(connection.rpc) })
+				]]) for (const key of [name, `dsh_majed_${name}`]) add(() => ctx.slots.inject("tool.call.toolview", () => ctx.slots.register({
+					name: "tool.call.toolview",
+					id: `majed-toolview-${key}`,
+					key,
+					locale: NS,
+					inject
+				}, guarded(React, view, name))));
 				add(() => ctx.slots.inject("conversation.input.right", () => ctx.slots.register({
 					name: "conversation.input.right",
 					id: "majed-subscription-speed",

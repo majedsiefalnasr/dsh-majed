@@ -1,5 +1,23 @@
 # Subscriptions provenance
 
+## #133 overall video deadline correction
+
+Locally reuse the owned `deadlineSignal` and `withAbortSignal` helpers before video submission, composing caller cancellation across submission headers/body, poll headers/body, polling sleep and download headers/reader. Always release the budget; cancel late/unconsumed response bodies without awaiting a potentially stalled cancellation. Offline injected-transport tests reproduce the original unbounded submission and verify bounded settlement and cleanup. No upstream behavior or live-provider proof is claimed.
+
+## #133 continued acceptance corrections
+
+Independently implemented localized native-player error handling, owned video-directory lstat admission and size-bounded positional reads with post-read growth rejection. New controlled tests exercise registered Grok preferences and revocation, nested video text recovery, playback failure and object-URL replacement/unmount lifecycle. These changes are local, not copied upstream. Directory admission assumes the DSH home and its ancestor directories remain under the same trusted OS user; it is not a cross-user filesystem sandbox or an atomic defense against a malicious same-user process replacing ancestors.
+
+## #133 review remediation
+
+Owned corrections after the pinned port: per-attempt cancellation/deadline wrappers around discovery and full token-body exchange; saved Grok aliases in composed status; existing DSH media token/logical-position seams, parameter-free localized retry, focus restoration and decoded-thumbnail retry; no-follow leaf video reads with regular-file/current-uid/size/MP4 checks and bounded streamed provider downloads. These are local safety/integration adaptations, not claims that upstream supplied the fixes. Fixture coverage and remaining mandatory proof are recorded in `docs/ai/ticket-133-verification.md`; no provider or restart acceptance is implied.
+
+## #133 Grok and media port
+
+Pinned MIT source: V1ki/dsh-plugin-subscriptions v0.9.12, `b8023110864494acefc6f5963c2a197d85dda20c`.
+Added `providers/grok.ts`, `tools/video-generate.ts`, `tools/x-search.ts`, `ImageGallery.tsx`, `ImageGenerateToolview.tsx`, `VideoGenerateToolview.tsx`; extended the existing #130 `tools/image-generate.ts` rather than duplicating its pool or Codex search. Owned storage roots remain `plugins/majed/subscriptions`. Auth controller and card adapt the existing owned controller/card lifecycle; host composition adds Grok, settings, billing usage and durable media RPC. Browser contributions use owned IDs and both public/alias tool keys, withdraw with component/reference presence, and reuse the pinned gallery/lightbox behavior. Decorative tool icons are omitted to preserve lazy primitive failure isolation. Locale fallback and RPC facade are owned adaptations. Adapted pinned Grok and complete tools reference tests; fixture expectations now include approved Grok routes/tools. MIT notice below remains unchanged. No upstream runtime dependency or Copilot implementation added.
+
+
 - Source: https://github.com/V1ki/dsh-plugin-subscriptions
 - Version: v0.9.12
 - Commit: b802311
@@ -101,6 +119,10 @@ Source: V1ki/dsh-plugin-subscriptions v0.9.12 (`b8023110864494acefc6f5963c2a197d
 | Claude registration, token manager, catalog, usage, pool/health branches, background sync timer, prompt cache lifetime (`src/index.ts`, `provider-settings.ts`) | `src/subscriptions.ts` | Ported; the timer is `unref()`ed, skips when registration collided and is cleared on dispose; `ApplyOptions.claudeCredsIo` is a host-only test seam (the host never passes it). Claude registers `AccountPreferencesAdapter` like Codex and joins the pool families; a lifecycle `AbortController` is aborted on disposal (remediation). |
 | Claude part of `SubscriptionsSection.tsx`, `ProviderAccountManager.tsx`, `locales.ts` | `src/claude-card.ts`, `src/settings/ProviderAccountManager.tsx`, `locale/{en,ar}.json` | Presentation port on our `codex-card` styles; owned RPC and attributes; Arabic written here. |
 | tests `claude-cache-ttl`, `claude-cli-version`, `claude-models`, `claude-rate-limit`, `claude-usage`, `anthropic-translation`, `detect-cli`, `image-request-limit` | `test/reference/*.spec.ts` | Ported and passing in our suite. |
+
+## #133 proof-only continuation
+
+The registered quota matrix, deterministic file-growth mutation, media RPC admission/cancellation and assembled public/Majed outlet execution tests added after `7ba57c5` are independently written controlled fixtures, not copied upstream implementations. Upstream `test/grok.spec.ts` at `b8023110864494acefc6f5963c2a197d85dda20c` contains two cache-affinity tests; both remain in the owned reference suite with no exclusions. The synthetic loopback fixture transport is test-only, not a DSH runtime companion. No provider/runtime/generated implementation changed in this proof slice. Browser execution remains unavailable because BrowserSkill reports no connected browser; fixture bundling is not DOM acceptance.
 
 ## License
 

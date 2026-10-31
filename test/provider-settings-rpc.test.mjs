@@ -31,7 +31,7 @@ test('provider settings RPC edits picker visibility, names and tool policy witho
   try {
     await new Promise(resolve => setTimeout(resolve, 50));
     assert.ok(routes.has('/api/majed-subscriptions.providerSettings'), 'the component mounted');
-    assert.deepEqual(llm.listProviders(), [{ id: 'codex', name: 'ChatGPT (Codex)' }, { id: 'claude', name: 'Claude (Subscription)' }, { id: 'copilot', name: 'GitHub Copilot' }]);
+    assert.deepEqual(llm.listProviders(), [{ id: 'codex', name: 'ChatGPT (Codex)' }, { id: 'claude', name: 'Claude (Subscription)' }, { id: 'grok', name: 'Grok (Subscription)' }, { id: 'copilot', name: 'GitHub Copilot' }]);
     await saveAccountSession('codex', 'account', { accessToken: 'token', refreshToken: 'refresh', expiresAt: Date.now() + 3600_000, accountId: 'account' });
     const call = async (endpoint, payload) => {
       const method = `majed-subscriptions.${endpoint}`;
@@ -53,7 +53,7 @@ test('provider settings RPC edits picker visibility, names and tool policy witho
     assert.equal(badForce.ok, false, 'a non-boolean force is rejected, as in the reference');
     assert.match(badForce.error.message, /payload\.force must be a boolean when present/);
     assert.equal((await call('setProviderSettings', { provider: 'codex', settings: { contextWindows: { m1: 0 } } })).ok, false);
-    assert.equal((await call('setProviderSettings', { provider: 'grok', settings: {} })).ok, false, 'unknown providers are rejected');
+    assert.equal((await call('setProviderSettings', { provider: 'unsupported', settings: {} })).ok, false, 'unknown providers are rejected');
 
     const names = { displayName: '我的 Codex', modelDisplayNames: { m1: '主力模型' }, visibleModels: ['m1'], tools: { image_generate: false, web_search: false } };
     assert.equal((await call('setProviderSettings', { provider: 'codex', settings: names })).ok, true);
@@ -71,7 +71,8 @@ test('provider settings RPC edits picker visibility, names and tool policy witho
       ctx.emit('agent/created', { agent: { session: { header: { createdAt: at } }, ctx: { tools: { restrict: ({ deny }) => { denied.push(...deny); } } } }, source: 'startup' });
       return denied;
     };
-    assert.deepEqual([...tools.keys()], ['image_generate']);
+    assert.deepEqual([...tools.keys()], ['image_generate', 'video_generate', 'x_search']);
+    await call('setProviderSettings', { provider: 'grok', settings: { tools: { image_generate: false } } });
     assert.deepEqual(create(Date.now() - 1000), [], 'a session created before the switch keeps the tool');
     assert.deepEqual(create(Date.now() + 1000), ['image_generate'], 'a session created after the switch loses it');
     assert.equal((await call('setProviderSettings', { provider: 'codex', settings: {} })).ok, true);
