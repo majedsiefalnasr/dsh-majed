@@ -4,6 +4,10 @@
     "description": "دعم النصوص ثنائية الاتجاه (RTL/LTR) للعربية والفارسية والعبرية، وعكس مكوّنات GenUI، وخيارات إضافية في الإعدادات ▸ عام مثل حجم خط واجهة التطبيق."
   },
   "subscriptions": {
+    "copilotDeviceHint": "أدخل هذا الرمز في صفحة التحقق من GitHub.",
+    "copyDeviceCode": "نسخ الرمز",
+    "copilotProviderUnavailable": "Copilot غير متاح. أوقف المكوّن المرجعي أولًا.",
+
     "title": "الاشتراكات (Majed)",
     "accounts": "حسابات الاشتراك",
     "providers": "موفرو API",

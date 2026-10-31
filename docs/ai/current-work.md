@@ -2,6 +2,14 @@
 
 Updated 2026-10-31 (Africa/Cairo).
 
+## #134 isolated worker candidate — independent review pending
+
+Owner directly authorized parallel #133/#134 isolated worktrees (serial review/merge/install and one consolidated live session per ticket); this supersedes historical one-at-a-time gates only for those tickets. #134 branch `impl/134-copilot`, worktree `dsh-majed-t134`, baseline `d56439e`. Copilot provider/device flow/chat translation and reference regressions ported, EN/AR code/copy/verification card integrated with shared owned auth/store/preferences/Manage/pool/usage. No Grok work. Direct execution, no nested delegation/Claude agent models.
+
+Fixture gates: Copilot reference 37/37, catalog 10/10, device 7/7, EN/AR card 2/2, assembled host 1/1. Final full suite exit 0: classifier166/166, Node632/632; archive pack exit 0, SHA-256 `9628863f4938c89dd7d618f0070594f01ec4d03fbd6fd142493041351a95d5e3` at `/tmp/majed-t134/dsh-majed-0.2.0.tgz`. Full evidence recorded in `docs/ai/ticket-134-verification.md` / worker handoff. Build and fresh-build comparison exit 0; classifier166 retained. Initial full-run expected provider registration/model-ID assertions and stale browser output were corrected; no sandbox bypass. Locked dependency install reported 15 high audit vulnerabilities; no unrelated fixes. Local/unmerged/unpushed candidate only; no installed changes, credentials, Keychain, real OAuth/inference or restart. Independent review and all installed/live acceptance are NOT proven.
+
+Next allowed action: Lead independent Standards/Spec review against `d56439e`, serial integration conflict reconciliation with #133 (exact files in verification), then full integrated tests/build/package verification. Only separate Owner approval may install/restart and perform the single consolidated real-account/chat session. No push/merge by this worker. Original checkpoints below are historical relative to this direct #134 authorization.
+
 ## Authoritative checkpoint — #132 Owner accepted; closure authorized
 
 Owner reported the consolidated live test successful and explicitly instructed closing #132. Screenshot confirmed connected Claude account and usage display; do not retain account identity. Weekly quota was exhausted, so a real chat reply and natural CLI refresh/sync are NOT independently proven and are not claimed tested. Owner accepts closure with those evidence limits. The missing generic “Add account” label is classified by the Owner as deferred UX polish, not missing functionality: existing Browser authorization / Import Claude Code actions remain. After all current Subscriptions tickets finish, propose a final UI/UX improvement ticket; do not create it or start it now. Next: close #132, push `feat/subscriptions` with explicit refspec and verify remote/main; #133 waits for Owner request. Claude agent model prohibition remains active.

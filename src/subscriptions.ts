@@ -1,3 +1,7 @@
+import { DeviceFlowManager } from './auth/device-flow.js';
+import { CopilotAuthController } from './auth/copilot-controller.js';
+import { CopilotAdapter, COPILOT_PREEMPT_MS, refreshCopilot, isCopilotPermanentRefreshError } from './providers/copilot.js';
+import type { CopilotSession } from './auth/store.js';
 /** Owned Codex component composition. Reference v0.9.12: see PROVENANCE.md. */
 import type { Context } from '@deepseek-ai/cordis';
 import z from '@deepseek-ai/schemastery';
@@ -45,7 +49,7 @@ export const POOL_USAGE_TIMEOUT_MS = DISCOVERY_TIMEOUT_MS;
  * every five minutes, so a token rotated by the `claude` CLI is picked up before the next turn needs it.
  */
 export const CLAUDE_KEYCHAIN_SYNC_MS = 5 * 60_000;
-export interface Config { codexClientVersion?: string; claudePromptCacheTtl?: PromptCacheTtl; models?: { codex?: ModelEntry[]; claude?: ModelEntry[] };
+export interface Config { codexClientVersion?: string; claudePromptCacheTtl?: PromptCacheTtl; models?: { codex?: ModelEntry[]; claude?: ModelEntry[]; copilot?: ModelEntry[] };
   pool?: { enabled?: boolean; strategy?: 'priority' | 'quota_aware'; switchMargin?: number; autoAccounts?: boolean; autoFamilies?: boolean; families?: Record<string, PoolMemberRef[]>; tiers?: Record<string, PoolMemberRef[]> };
 }
 // Same-named schemastery schema, as in the reference (index.ts `Config`). Only the Codex slice is owned here;
@@ -67,7 +71,7 @@ export const Config: z<Config> = z.object({
   codexClientVersion: z.string(),
   // Reference `claudePromptCacheTtl`: the plugin-wide default cache lifetime; the Settings choice overrides it per save.
   claudePromptCacheTtl: z.union(['5m', '1h']).default(DEFAULT_PROMPT_CACHE_TTL),
-  models: z.object({ codex: z.array(modelEntrySchema), claude: z.array(modelEntrySchema) }),
+  models: z.object({ codex: z.array(modelEntrySchema), claude: z.array(modelEntrySchema), copilot: z.array(modelEntrySchema) }),
   pool: z.object({
     enabled: z.boolean().default(true),
     strategy: z.union(['priority', 'quota_aware']).default('quota_aware'),
@@ -130,14 +134,15 @@ function browserSafeError(error: unknown, label: string): string {
   return safeDiagnostic(error);
 }
 /** The provider a route serves: Codex unless the payload names Claude. Any other value is rejected. */
-function readRouteProvider(value: unknown): 'codex' | 'claude' {
+function readRouteProvider(value: unknown): 'codex' | 'claude' | 'copilot' {
   if (value === undefined || value === 'codex') return 'codex';
   if (value === 'claude') return 'claude';
-  throw new Error('payload.provider must be one of codex, claude');
+  if (value === 'copilot') return 'copilot';
+  throw new Error('payload.provider must be one of codex, claude, copilot');
 }
 
 /** Reference `readLoginMethod`: `method` selects the Claude login route and is valid for Claude only. */
-function readLoginMethod(payload: Record<string, unknown>, provider: 'codex' | 'claude'): ClaudeLoginMethod | undefined {
+function readLoginMethod(payload: Record<string, unknown>, provider: 'codex' | 'claude' | 'copilot'): ClaudeLoginMethod | undefined {
   const method = payload.method;
   if (method === undefined) return undefined;
   if (provider !== 'claude') throw new Error('payload.method is only valid for claude');
@@ -175,7 +180,7 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
   let disposed = false;
   const ownAlias = (provider: ProviderId, key: string) => { const settings = preferences.get(provider).accounts; return settings && Object.hasOwn(settings, key) ? settings[key]?.alias : undefined; };
   /** The registration handle serving one provider; Codex and Claude register separately (ADR-0002). */
-  const handleFor = (provider: ProviderId) => provider === 'claude' ? claudeHandle : handle;
+  const handleFor = (provider: ProviderId) => provider === 'copilot' ? copilotHandle : provider === 'claude' ? claudeHandle : handle;
   // Composer Speed (ticket #131; reference src/index.ts speedBySession/selectedSpeed). Explicit choices are
   // per session and reset on restart. A subagent without an explicit choice uses its saved model default, and
   // every request still gates Fast on the model's discovered capability.
@@ -276,13 +281,32 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
     promptCacheTtlOverride: () => preferences.promptCacheTtl(),
     onWarn: message => ctx.logger.warn(`dsh-majed: ${message}`),
   });
+  let copilotHandle: ReturnType<Context['llm']['registerAdapter']> | undefined;
+  let copilotCollision = false;
+  const copilotChanged = (account?: string) => { if (!disposed) { copilotAdapter.clearAccountCatalog(account); copilotAdapter.clearReplayState(); health.clear('copilot', account); usage.invalidate('copilot', account); pool?.invalidate(); copilotHandle?.replace(['copilot']); } };
+  const copilotTokens = new AccountTokenManager<CopilotSession>({ provider: 'copilot', displayName: 'GitHub Copilot',
+    makeOptions: () => ({ preemptMs: COPILOT_PREEMPT_MS, refresh: refreshCopilot, isPermanent: isCopilotPermanentRefreshError }), onAccountRemoved: copilotChanged });
+  const copilotAuth = new CopilotAuthController(new DeviceFlowManager(), copilotChanged, error => browserSafeError(error, 'copilot login'));
+  const copilotAdapter = new CopilotAdapter({ tokens: copilotTokens, models: config.models?.copilot ?? [
+      { id: 'gpt-4.1', name: 'GPT-4.1', inputModalities: ['text', 'image'] },
+      { id: 'gpt-4o', name: 'GPT-4o', inputModalities: ['text', 'image'] },
+      { id: 'claude-sonnet-4.5', name: 'Claude Sonnet 4.5', inputModalities: ['text', 'image'] },
+      { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', inputModalities: ['text', 'image'] },
+    ],
+    discovery: !config.models?.copilot?.length, streamIdleTimeoutMs: 300_000, pool: () => pool,
+    catalogStore: catalogStore('copilot'), accountCatalogStore: account => accountCatalogStore('copilot', account),
+    defaultEffortOf: model => defaultEffortOf('copilot', model), resolveAttachments: () => ctx.get('attachments') as never,
+    onCatalogChanged: () => { if (!disposed) { pool?.invalidate(); copilotHandle?.replace(['copilot']); } },
+    onWarn: message => ctx.logger.warn(`dsh-majed: ${message}`) });
+  const presentedCopilot = new AccountPreferencesAdapter({ provider: 'copilot', adapter: copilotAdapter, settings: preferences,
+    accounts: async () => (await copilotTokens.list()).map(({ key, session }) => ({ key, label: session.account ?? key })), pool: () => pool });
   const presented = new AccountPreferencesAdapter({ provider: 'codex', adapter, settings: preferences,
     accounts: async () => (await tokens.list()).map(({ key, session }) => ({ key, label: session.emailAddress ?? key })), pool: () => pool });
   const presentedClaude = new AccountPreferencesAdapter({ provider: 'claude', adapter: claudeAdapter, settings: preferences,
     accounts: async () => (await claudeTokens.list()).map(({ key, session }) => ({ key, label: session.emailAddress ?? key })), pool: () => pool });
-  pool = new PoolAdapter({ adapters: { codex: presented.poolMember(), claude: presentedClaude.poolMember() }, health, usage, strategy: config.pool?.strategy ?? 'quota_aware', switchMargin: config.pool?.switchMargin ?? 2,
-    defaultAccount: provider => provider === 'claude' ? claudeTokens.defaultAccount() : tokens.defaultAccount(),
-    resolveAccount: (provider, account) => provider === 'claude' ? claudeTokens.resolveAccount(account) : tokens.resolveAccount(account),
+  pool = new PoolAdapter({ adapters: { copilot: presentedCopilot.poolMember(), codex: presented.poolMember(), claude: presentedClaude.poolMember() }, health, usage, strategy: config.pool?.strategy ?? 'quota_aware', switchMargin: config.pool?.switchMargin ?? 2,
+    defaultAccount: provider => provider === 'copilot' ? copilotTokens.defaultAccount() : provider === 'claude' ? claudeTokens.defaultAccount() : tokens.defaultAccount(),
+    resolveAccount: (provider, account) => provider === 'copilot' ? copilotTokens.resolveAccount(account) : provider === 'claude' ? claudeTokens.resolveAccount(account) : tokens.resolveAccount(account),
     families: async () => {
       if (config.pool?.enabled === false) return new Map();
       const families = new Map<string, PoolDefinition>();
@@ -290,7 +314,7 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
         // Discover each account separately and bound each read: a hang or failure sits that account out
         // instead of failing the whole assembly (reference index.ts `families`). Codex and Claude alike.
         const sources: Parameters<typeof buildAccountPools>[0] = {};
-        await Promise.all(([['codex', tokens, adapter], ['claude', claudeTokens, claudeAdapter]] as const).map(async ([provider, accountTokens, raw]) => {
+        await Promise.all(([['codex', tokens, adapter], ['claude', claudeTokens, claudeAdapter], ['copilot', copilotTokens, copilotAdapter]] as const).map(async ([provider, accountTokens, raw]) => {
           try {
             const accounts = (await accountTokens.list()).map(entry => entry.key);
             const catalogs = (await Promise.all(accounts.map(async account => {
@@ -320,7 +344,8 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
 
   try { claudeHandle = ctx.llm.registerAdapter(['claude'], presentedClaude); }
   catch (error) { claudeCollisionError = error; claudeCollision = 'Claude registration is unavailable'; }
-  ctx.effect(() => () => { disposed = true; claudeLifecycle.abort(); auth.dispose(); claudeAuth.dispose(); void disposeProxyTransport(); }, 'dsh-majed: subscriptions auth disposal');
+  try { copilotHandle = ctx.llm.registerAdapter(['copilot'], presentedCopilot); } catch { copilotCollision = true; }
+  ctx.effect(() => () => { disposed = true; copilotAuth.dispose(); copilotAdapter.clearReplayState(); claudeLifecycle.abort(); auth.dispose(); claudeAuth.dispose(); void disposeProxyTransport(); }, 'dsh-majed: subscriptions auth disposal');
   // Keep keychain-bound Claude accounts synced with Claude Code's own store (reference `claude background sync timer`).
   // One interval, bounded: each tick reads the account list and refreshes only bound sessions, errors are swallowed
   // (TokenManager already reports permanent failures), and dispose clears the timer.
@@ -343,6 +368,9 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
   if (handle) ctx.effect(() => startCatalogRefresh(async signal => {
     if ((await tokens.list()).length && !signal.aborted) await adapter.listOwnModels('codex', undefined, signal);
   }, () => ctx.logger.warn('dsh-majed: Codex catalog refresh failed')), 'dsh-majed: subscriptions catalog refresh');
+  if (copilotHandle) ctx.effect(() => startCatalogRefresh(async signal => {
+    if ((await copilotTokens.list()).length && !signal.aborted) await copilotAdapter.listOwnModels('copilot', undefined, signal);
+  }, () => ctx.logger.warn('dsh-majed: Copilot catalog refresh failed')), 'dsh-majed: copilot catalog refresh');
   if (claudeHandle) ctx.effect(() => startCatalogRefresh(async signal => {
     if ((await claudeTokens.list()).length && !signal.aborted) await claudeAdapter.listOwnModels('claude', undefined, signal);
   }, () => ctx.logger.warn('dsh-majed: Claude catalog refresh failed')), 'dsh-majed: claude catalog refresh');
@@ -381,11 +409,11 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
   const readAccountCatalogs = async (preferCached: boolean, signal: AbortSignal) => readAccountCatalogsFor(adapter, tokens, preferCached, signal, 'codex');
   /** Per-account catalog read for one provider (Codex or Claude); the same bounded per-account contract. */
   async function readAccountCatalogsFor(route: { listOwnModels(provider: string, account?: string, signal?: AbortSignal, preferCached?: boolean): Promise<readonly { id: string; name: string }[]> },
-    manager: { list(): Promise<{ key: string; session: { emailAddress?: string } }[]> }, preferCached: boolean, signal: AbortSignal, provider: ProviderId = 'claude') {
+    manager: { list(): Promise<{ key: string; session: { emailAddress?: string; account?: string } }[]> }, preferCached: boolean, signal: AbortSignal, provider: ProviderId = 'claude') {
     const accounts = await manager.list();
     return Promise.all(accounts.map(async ({ key, session }) => {
       const models = await withTimeout(accountSignal => route.listOwnModels(provider, key, accountSignal, preferCached), DISCOVERY_TIMEOUT_MS, signal).catch(() => undefined);
-      return { key, label: session.emailAddress ?? key, models: models ?? [], ...(models === undefined ? { unavailable: true } : {}) };
+      return { key, label: session.emailAddress ?? session.account ?? key, models: models ?? [], ...(models === undefined ? { unavailable: true } : {}) };
     }));
   }
   /**
@@ -419,7 +447,7 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
             if (disposed) throw new Error('Subscriptions component is disabled');
             // Claude is served by the endpoints in CLAUDE_ENDPOINTS; every other provider stays unavailable.
             const provider = endpoint === 'status' ? 'codex' : readRouteProvider(payload.provider);
-            if (provider === 'claude' && !CLAUDE_ENDPOINTS.has(endpoint)) throw new Error('Only Codex is available');
+            if (provider !== 'codex' && !CLAUDE_ENDPOINTS.has(endpoint)) throw new Error('Only Codex is available');
             let value: unknown = { ok: true };
             switch (endpoint) {
               case 'status': {
@@ -431,8 +459,8 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
                 const claudeState = await claudeAuth.status().catch(() => undefined);
                 const claudeAccounts = await claudeTokens.list().catch(() => []);
                 value = { ok: true, component: 'subscriptions', version: '0.2.0', registrationError: collision === undefined ? undefined : await collisionText(),
-                  claudeRegistrationError: claudeCollision,
-                  providers: { codex: { ...state, displayName: preferences.get('codex').displayName,
+                  claudeRegistrationError: claudeCollision, copilotRegistrationError: copilotCollision,
+                  providers: { copilot: { ...await copilotAuth.status(), accounts: (await copilotAuth.status()).accounts.map(account => ({ ...account, alias: ownAlias('copilot', account.key) })), displayName: preferences.get('copilot').displayName }, codex: { ...state, displayName: preferences.get('codex').displayName,
                     accounts: state.accounts.map(account => ({ ...account, alias: ownAlias('codex', account.key) })), clientVersion: config.codexClientVersion ? { version: config.codexClientVersion, source: 'config' }
                     : version.current() ?? { version: CODEX_CLIENT_VERSION, source: 'fallback' } },
                   ...claudeState === undefined ? {} : { claude: { ...claudeState, displayName: preferences.get('claude').displayName,
@@ -521,7 +549,7 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
                 await loadModelDefaults();
                 const catalog: { provider: string; models: { id: string; name: string; efforts: { id: string; name: string }[]; configured?: string }[] }[] = [];
                 // Both routes read the live picker source (`ctx.llm`) and merge the saved default per model.
-                for (const route of ['codex', 'claude'] as const) {
+                for (const route of ['codex', 'claude', 'copilot'] as const) {
                   if (!(await ctx.llm.listProviders()).some(entry => entry.id === route)) continue;
                   const listed = await withTimeout(() => ctx.llm.listModels(route), DISCOVERY_TIMEOUT_MS, deadline).catch(() => undefined);
                   if (listed === undefined) continue;
@@ -544,7 +572,7 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
               case 'setModelDefault': {
                 const model = string('model');
                 const effort = payload.effort === undefined ? undefined : string('effort');
-                const info = provider === 'claude'
+                const info = provider === 'copilot' ? await withTimeout(() => copilotAdapter.resolveModel('copilot', model), DISCOVERY_TIMEOUT_MS, request.signal) : provider === 'claude'
                   ? await withTimeout(() => claudeAdapter.resolveModel('claude', model), DISCOVERY_TIMEOUT_MS, request.signal).catch(() => undefined)
                   : await withTimeout(signal => adapter.resolveModel('codex', model, signal), DISCOVERY_TIMEOUT_MS, request.signal).catch(() => undefined);
                 if (effort && info?.reasoning?.efforts.length && !info.reasoning.efforts.some(entry => entry.id === effort)) throw new Error(`model ${model} does not advertise a "${effort}" reasoning effort`);
@@ -553,6 +581,7 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
               case 'login': {
                 // Claude route: the browser sends `method` ('oauth' or 'keychain'); absent means import-first.
                 const method = readLoginMethod(payload, provider);
+                 if (provider === 'copilot') { if (copilotCollision) throw new Error('Copilot is already registered. Disable the reference component first.'); value = await copilotAuth.login(); break; }
                 if (provider === 'claude') {
                   if (claudeCollision) throw new Error('Claude is already registered. Disable the reference component first.');
                   value = await claudeAuth.login(method); break;
@@ -560,11 +589,12 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
                 if (collision) throw new Error('Codex is already registered. Disable the reference component first.');
                 value = await auth.login(); break;
               }
-              case 'manual': if (provider === 'claude') claudeAuth.manual(string('input')); else auth.manual(string('input')); break;
-              case 'cancel': if (provider === 'claude') claudeAuth.cancel(); else auth.cancel(); break;
-              case 'logout': if (provider === 'claude') await claudeAuth.logout(string('account')); else await auth.logout(string('account')); break;
-              case 'setDefault': if (provider === 'claude') await claudeAuth.setDefault(string('account')); else await auth.setDefault(string('account')); break;
+              case 'manual': if (provider === 'copilot') throw new Error('Enter the device code on the verification page'); else if (provider === 'claude') claudeAuth.manual(string('input')); else auth.manual(string('input')); break;
+              case 'cancel': if (provider === 'copilot') copilotAuth.cancel(); else if (provider === 'claude') claudeAuth.cancel(); else auth.cancel(); break;
+              case 'logout': if (provider === 'copilot') await copilotAuth.logout(string('account')); else if (provider === 'claude') await claudeAuth.logout(string('account')); else await auth.logout(string('account')); break;
+              case 'setDefault': if (provider === 'copilot') await copilotAuth.setDefault(string('account')); else if (provider === 'claude') await claudeAuth.setDefault(string('account')); else await auth.setDefault(string('account')); break;
               case 'usage': {
+                 if (provider === 'copilot') { value = await usage.snapshotFor('copilot', string('account'), readForce(payload)); break; }
                 if (provider === 'claude') {
                   if (claudeCollision) throw new Error('Claude registration is unavailable');
                   const account = string('account'); const force = readForce(payload); if (force) health.clear('claude', account);

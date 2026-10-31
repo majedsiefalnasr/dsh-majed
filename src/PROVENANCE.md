@@ -117,3 +117,14 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+## #134 GitHub Copilot
+
+Pinned source: https://github.com/V1ki/dsh-plugin-subscriptions v0.9.12,
+`b8023110864494acefc6f5963c2a197d85dda20c`, MIT, Copyright (c) 2026 V1ki.
+
+- Ported `providers/copilot.ts`, `auth/device-flow.ts`, `translate/chat-completions.ts` unchanged from the pin; reused the already owned store, token manager, Responses/image/SSE translation, retry, proxy, catalog and pool implementations.
+- Ported all `test/copilot.spec.ts` and `test/device-flow.spec.ts`, plus the ten Copilot cases and fixture helpers from `test/models.spec.ts` with source import paths adjusted for the owned reference-test directory. No real provider is used by these tests.
+- Added `auth/copilot-controller.ts` as the Copilot slice of reference auth composition, with claim/disposal checks and sanitized errors. Integrated into existing owned RPC, provider preferences, account presentation, Manage/model defaults and pools, without new RPC names or storage.
+- Added `copilot-card.ts`, adapting the existing owned account card plus reference device-code controls; EN/AR labels, logical styles, isolated code, clipboard error reporting and safe external link. No manual callback, CLI import or usage endpoint is invented for Copilot.
+- Shared provider id remains `copilot`; all new owned browser attributes and lifecycle labels use Majed prefixes. Built output lives in dist. This is a local candidate, not installed/live acceptance.

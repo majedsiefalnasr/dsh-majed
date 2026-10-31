@@ -54,6 +54,9 @@ react_jsx_runtime = __toESM(react_jsx_runtime);
 
 //#region locale/en.json
 var subscriptions$1 = {
+	"copilotDeviceHint": "Enter this code on the GitHub verification page.",
+	"copyDeviceCode": "Copy code",
+	"copilotProviderUnavailable": "Copilot is unavailable. Disable the reference component first.",
 	"title": "Subscriptions (Majed)",
 	"accounts": "Subscription accounts",
 	"providers": "API providers",
@@ -237,6 +240,9 @@ var subscriptions$1 = {
 //#endregion
 //#region locale/ar.json
 var subscriptions = {
+	"copilotDeviceHint": "أدخل هذا الرمز في صفحة التحقق من GitHub.",
+	"copyDeviceCode": "نسخ الرمز",
+	"copilotProviderUnavailable": "Copilot غير متاح. أوقف المكوّن المرجعي أولًا.",
 	"title": "الاشتراكات (Majed)",
 	"accounts": "حسابات الاشتراك",
 	"providers": "موفرو API",
@@ -2479,6 +2485,259 @@ function createCodexCard(React, primitives$1, rpc, t) {
 }
 
 //#endregion
+//#region src/copilot-card.ts
+/** GitHub Copilot Settings card, adapted from pinned reference SubscriptionsSection device login and shared
+* account presentation. Only sanitized status crosses RPC; see PROVENANCE.md (#134). */
+function createCopilotCard(React, primitives$1, rpc, t) {
+	const h = React.createElement;
+	const Button = primitives$1.Button ?? "button";
+	primitives$1.Input;
+	const DEFAULT_NAME = "GitHub Copilot";
+	return function CopilotCard() {
+		const [manager, setManager] = React.useState(false);
+		const [status, setStatus] = React.useState(null);
+		const [error, setError] = React.useState("");
+		const [pending, setPending] = React.useState(false);
+		const [login, setLogin] = React.useState(null);
+		const [input, setInput] = React.useState("");
+		const [usage, setUsage] = React.useState({});
+		const [confirmation, setConfirmation] = React.useState(null);
+		const alive = React.useRef(true);
+		const usageRequests = React.useRef(/* @__PURE__ */ new Map());
+		const accountKeys = React.useRef(/* @__PURE__ */ new Set());
+		const call = async (endpoint, payload = {}) => {
+			const response = await rpc.call("/api", `majed-subscriptions.${endpoint}`, {
+				provider: "copilot",
+				...payload
+			});
+			if (!response?.ok) throw new Error(response?.error?.message ?? t("unreachable"));
+			return response.value;
+		};
+		const refreshStatus = async () => {
+			const value = await call("status");
+			if (alive.current) setStatus({
+				...value.providers.copilot ?? { accounts: [] },
+				registrationError: value.copilotRegistrationError
+			});
+		};
+		const action = async (run) => {
+			setPending(true);
+			setError("");
+			try {
+				await run();
+			} catch (failure) {
+				if (alive.current) setError(failure instanceof Error ? failure.message : String(failure));
+			} finally {
+				if (alive.current) setPending(false);
+			}
+		};
+		React.useEffect(() => {
+			alive.current = true;
+			refreshStatus().catch((failure) => {
+				if (alive.current) setError(failure.message);
+			});
+			return () => {
+				alive.current = false;
+			};
+		}, []);
+		React.useEffect(() => {
+			if (!status?.busy) return;
+			const timer = setInterval(() => {
+				refreshStatus().catch((failure) => {
+					if (alive.current) setError(failure.message);
+				});
+			}, 2e3);
+			return () => clearInterval(timer);
+		}, [status?.busy]);
+		const refreshUsage = (account, force = false) => {
+			if (usageRequests.current.has(account)) return usageRequests.current.get(account);
+			const request = (async () => {
+				try {
+					const snapshot = await call("usage", {
+						account,
+						force
+					});
+					if (alive.current && accountKeys.current.has(account) && usageRequests.current.get(account) === request) setUsage((previous) => ({
+						...previous,
+						[account]: snapshot
+					}));
+				} catch (failure) {
+					if (alive.current && accountKeys.current.has(account) && usageRequests.current.get(account) === request) setUsage((previous) => ({
+						...previous,
+						[account]: { error: failure instanceof Error ? failure.message : String(failure) }
+					}));
+				} finally {
+					if (usageRequests.current.get(account) === request) usageRequests.current.delete(account);
+				}
+			})();
+			usageRequests.current.set(account, request);
+			return request;
+		};
+		const accountsSignature = JSON.stringify((status?.accounts ?? []).map((account) => account.key));
+		React.useEffect(() => {
+			const keys = new Set((status?.accounts ?? []).map((account) => account.key));
+			const added = [...keys].filter((key) => !accountKeys.current.has(key));
+			accountKeys.current = keys;
+			for (const key of usageRequests.current.keys()) if (!keys.has(key)) usageRequests.current.delete(key);
+			setUsage((previous) => Object.fromEntries(Object.entries(previous).filter(([key]) => keys.has(key))));
+			for (const key of added) refreshUsage(key);
+		}, [accountsSignature]);
+		const button = (label, onClick, disabled = false, props = {}) => h(Button, {
+			type: "button",
+			disabled: pending || disabled,
+			onClick,
+			...props
+		}, label);
+		const date = (time) => new Date(time).toLocaleString();
+		const part = (name$1, style, ...children) => h("div", {
+			style,
+			"data-majed-copilot-part": name$1
+		}, ...children);
+		const startLogin = () => {
+			action(async () => {
+				const result = await call("login");
+				if (!alive.current) return;
+				window.open(result.authorizeUrl, "_blank", "noopener");
+				setLogin(result);
+				await refreshStatus();
+			});
+		};
+		const busy = status?.busy;
+		const name = status?.displayName || DEFAULT_NAME;
+		const hasAccounts = !!status?.accounts?.length;
+		return h("div", {
+			style: {
+				...styles$3.section,
+				textAlign: "start"
+			},
+			className: "majed-subscriptions-settings",
+			"data-majed-copilot-card": true
+		}, h("style", null, controlCss), manager ? h(ProviderAccountManager, {
+			provider: "copilot",
+			name,
+			rpc,
+			t,
+			onClose: () => {
+				setManager(false);
+				refreshStatus();
+			}
+		}) : null, part("card", styles$3.card, part("header", styles$3.cardHeader, h("span", {
+			"aria-hidden": true,
+			style: {
+				...styles$3.dot,
+				background: busy ? "var(--dsw-alias-state-warn-label)" : hasAccounts ? "var(--dsw-alias-state-success-primary)" : "var(--dsw-alias-label-dimmed)"
+			}
+		}), h("span", { style: styles$3.name }, name), button(t("accountsManage"), () => setManager(true), false, { style: { marginInlineStart: "auto" } }), status?.clientVersion ? h("span", {
+			style: styles$3.clientVersion,
+			title: t("clientVersionHint")
+		}, "CLI ", h("bdi", { dir: "ltr" }, status.clientVersion.version), " · ", t(`source_${status.clientVersion.source}`)) : null), h("p", {
+			style: styles$3.statusLine,
+			role: "status"
+		}, status?.registrationError ? t("copilotProviderUnavailable") : busy ? t("loginProgress") : hasAccounts ? `${status.accounts.length} ${t("connected")}` : status ? t("notLoggedIn") : t("checking")), status?.detail ? h("p", { style: styles$3.statusLine }, status.detail) : null, error ? h("p", {
+			style: styles$3.errorLine,
+			role: "alert"
+		}, error) : null, ...(status?.accounts ?? []).map((account) => {
+			const snapshot = usage[account.key];
+			return h("div", {
+				key: account.key,
+				style: styles$3.accountRow,
+				"data-majed-copilot-part": "account"
+			}, part("account-header", styles$3.accountHeader, button(account.isDefault ? "★" : "☆", () => {
+				if (!account.isDefault) action(async () => {
+					await call("setDefault", { account: account.key });
+					await refreshStatus();
+				});
+			}, false, {
+				style: styles$3.starButton,
+				title: t(account.isDefault ? "defaultAccount" : "makeDefault"),
+				"aria-label": t(account.isDefault ? "defaultAccount" : "makeDefault")
+			}), h("bdi", {
+				dir: "ltr",
+				style: styles$3.accountName
+			}, account.alias || account.account || account.key), account.plan ? h("bdi", { style: styles$3.usagePlan }, account.plan) : null, account.expiresAt ? h("span", { style: styles$3.statusLine }, t("expires"), " ", h("bdi", null, date(account.expiresAt))) : null, button(t("logout"), () => setConfirmation({
+				account: account.key,
+				label: account.account
+			}), false, { style: { marginInlineStart: "auto" } })), snapshot?.supported === false ? h("p", { style: styles$3.statusLine }, t("usageUnavailable")) : part("usage", styles$3.usage, part("usage-header", styles$3.usageHeader, h("span", { style: styles$3.usageTitle }, t("usageTitle")), button(t("refreshUsage"), () => {
+				action(() => refreshUsage(account.key, true));
+			}, false, { style: styles$3.usageRefresh })), !snapshot ? h("p", { style: styles$3.statusLine }, t("usageNotLoaded")) : snapshot.error ? h("p", {
+				style: styles$3.errorLine,
+				role: "alert"
+			}, snapshot.error) : !snapshot.windows?.length ? h("p", { style: styles$3.statusLine }, t("usageUnavailable")) : null, ...(snapshot?.windows ?? []).map((window$1, index) => {
+				const percent = Math.max(0, Math.min(100, window$1.usedPercent));
+				const color = percent >= 95 ? "var(--dsw-alias-state-error-primary)" : percent >= 80 ? "var(--dsw-alias-state-warn-label)" : "var(--dsw-alias-state-success-primary)";
+				return h("div", {
+					key: index,
+					style: styles$3.usageRow
+				}, part("usage-meta", styles$3.usageMeta, h("span", null, t(`window_${window$1.kind}`), window$1.scope ? ` · ${window$1.scope}` : ""), h("span", null, h("bdi", null, `${Math.round(percent)}%`), window$1.resetsAt ? h("span", null, " · ", t("resets"), " ", h("bdi", null, date(window$1.resetsAt))) : null)), h("div", {
+					role: "progressbar",
+					"aria-label": t(`window_${window$1.kind}`),
+					"aria-valuenow": percent,
+					"aria-valuemin": 0,
+					"aria-valuemax": 100,
+					style: styles$3.usageTrack
+				}, h("div", { style: {
+					...styles$3.usageFill,
+					background: color,
+					inlineSize: `${percent}%`
+				} })));
+			})));
+		}), part("actions", styles$3.actions, busy ? button(t("cancelLogin"), () => {
+			action(async () => {
+				await call("cancel");
+				setLogin(null);
+				await refreshStatus();
+			});
+		}) : button(t(hasAccounts ? "addAccount" : "login"), () => startLogin(), !!status?.registrationError)), busy && (status.pendingAuth ?? login) ? h("div", { style: styles$3.manual }, h("p", null, t("copilotDeviceHint")), h("bdi", {
+			dir: "ltr",
+			"data-majed-copilot-code": true
+		}, (status.pendingAuth ?? login).userCode), button(t("copyDeviceCode"), () => {
+			action(async () => {
+				await navigator.clipboard.writeText((status.pendingAuth ?? login).userCode);
+			});
+		}), h("a", {
+			href: (status.pendingAuth ?? login).authorizeUrl,
+			target: "_blank",
+			rel: "noopener noreferrer",
+			style: styles$3.manual
+		}, t("openAuthorization"))) : null), confirmation ? h("dialog", {
+			ref: (node) => {
+				if (node && !node.open) node.showModal();
+			},
+			className: "majed-reset-dialog",
+			role: "dialog",
+			"aria-modal": true,
+			"aria-label": t("confirmLogout"),
+			onCancel: () => setConfirmation(null),
+			onClose: () => setConfirmation(null),
+			style: {
+				...styles$3.modal,
+				margin: "auto",
+				color: "var(--dsw-alias-label-primary)"
+			}
+		}, h("h3", { style: {
+			...styles$3.modalTitle,
+			margin: 0
+		} }, t("confirmLogout")), h("p", { style: {
+			...styles$3.statusLine,
+			overflowWrap: "anywhere"
+		} }, h("bdi", { dir: "ltr" }, confirmation.label ?? confirmation.account)), h("div", {
+			className: "majed-subscription-dialog-actions",
+			style: {
+				...styles$3.actions,
+				justifyContent: "flex-end",
+				marginBlockStart: 8
+			}
+		}, button(t("cancel"), () => setConfirmation(null), false, { autoFocus: true }), button(t("logout"), () => {
+			action(async () => {
+				await call("logout", { account: confirmation.account });
+				setConfirmation(null);
+				await refreshStatus();
+			});
+		}))) : null);
+	};
+}
+
+//#endregion
 //#region src/claude-card.ts
 /**
 * Claude Settings card (ticket #132). Scoped presentation port of the Claude part of V1ki v0.9.12 b802311
@@ -3873,6 +4132,7 @@ function applySubscriptions(root) {
 		})), "dsh-majed: subscriptions dictionaries"));
 		const t = ctx.locale.bind(NS);
 		const CodexCard = createCodexCard(React, primitives$1, connection.rpc, t);
+		const CopilotCard = guarded(React, createCopilotCard(React, primitives$1, connection.rpc, t), "Copilot card");
 		const ClaudeCard = guarded(React, createClaudeCard(React, primitives$1, connection.rpc, t), "Claude card");
 		const GuardedSetting = guarded(React, UsageBadgeDisplaySetting, "usage display setting");
 		const GuardedSpeed = guarded(React, SpeedSelect, "Speed control");
@@ -3902,7 +4162,7 @@ function applySubscriptions(root) {
 			}, h("h3", { style: { font: "var(--dsw-font-s-strong-14)" } }, h(IconSettingsOutlineMedium, { "aria-hidden": true }), t(part)), part === "accounts" ? h("div", null, h("p", { style: {
 				marginBlock: "0 var(--dsw-spacing-3)",
 				color: "var(--dsw-alias-label-tertiary)"
-			} }, t("intro")), h(GuardedSetting, { t }), h(CodexCard), h(ClaudeCard)) : h("p", { style: { color: "var(--dsw-alias-label-tertiary)" } }, t(`${part}Empty`)))));
+			} }, t("intro")), h(GuardedSetting, { t }), h(CodexCard), h(ClaudeCard), h(CopilotCard)) : h("p", { style: { color: "var(--dsw-alias-label-tertiary)" } }, t(`${part}Empty`)))));
 		}
 		const models = () => ctx.get("modelDirectories");
 		const surfaceWanted = () => !disposed && present && !referenceEnabled;

@@ -2,6 +2,7 @@
 import en from '../locale/en.json';
 import ar from '../locale/ar.json';
 import { createCodexCard } from './codex-card.js';
+import { createCopilotCard } from './copilot-card.js';
 import { createClaudeCard } from './claude-card.js';
 import { SpeedSelect, createSpeedLoader, createSpeedSetter } from './speed/SpeedSelect.js';
 import { fastCommandDescription } from './speed/fast-command.js';
@@ -35,6 +36,7 @@ export function applySubscriptions(root: Context): void {
     const t = ctx.locale.bind(NS);
     const CodexCard = createCodexCard(React, primitives, connection.rpc, t);
     // A Claude card failure must not remove the Codex card or the rest of the section (#132 isolation).
+    const CopilotCard = guarded(React, createCopilotCard(React, primitives, connection.rpc, t), 'Copilot card');
     const ClaudeCard = guarded(React, createClaudeCard(React, primitives, connection.rpc, t), 'Claude card');
     const GuardedSetting = guarded(React, UsageBadgeDisplaySetting as any, 'usage display setting');
     const GuardedSpeed = guarded(React, SpeedSelect as any, 'Speed control');
@@ -53,7 +55,7 @@ export function applySubscriptions(root: Context): void {
         failing ? h('p', { role: 'alert' }, t('unreachable')) : null,
         ...['accounts', 'providers'].map((part) => h('section', { key: part, style: { paddingBlock: 'var(--dsw-spacing-4)', borderBlockEnd: '1px solid var(--dsw-alias-border-l2)' } },
           h('h3', { style: { font: 'var(--dsw-font-s-strong-14)' } }, h(IconSettingsOutlineMedium, { 'aria-hidden': true }), t(part)),
-          part === 'accounts' ? h('div', null, h('p', { style: { marginBlock: '0 var(--dsw-spacing-3)', color: 'var(--dsw-alias-label-tertiary)' } }, t('intro')), h(GuardedSetting, { t }), h(CodexCard), h(ClaudeCard)) : h('p', { style: { color: 'var(--dsw-alias-label-tertiary)' } }, t(`${part}Empty`)))));
+          part === 'accounts' ? h('div', null, h('p', { style: { marginBlock: '0 var(--dsw-spacing-3)', color: 'var(--dsw-alias-label-tertiary)' } }, t('intro')), h(GuardedSetting, { t }), h(CodexCard), h(ClaudeCard), h(CopilotCard)) : h('p', { style: { color: 'var(--dsw-alias-label-tertiary)' } }, t(`${part}Empty`)))));
     }
     // Composer surfaces (ticket #131): the usage badge, the Speed control and /fast exist only while the component
     // answers and the reference plugin is not serving the same provider ids. Each registration is isolated so a
