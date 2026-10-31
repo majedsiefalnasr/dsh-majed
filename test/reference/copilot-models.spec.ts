@@ -117,6 +117,32 @@ const COPILOT_MODELS_PAYLOAD = {
   ],
 }
 
+test('copilot pinned capabilities use only the requested account and honor pre-abort', async () => {
+  const sessions = new Map(['a', 'b'].map(key => [key, { ...copilotSession, accessToken: key }]))
+  const tokens = new AccountTokenManager<CopilotSession>({
+    provider: 'copilot', displayName: 'Fixture',
+    makeOptions: () => ({ preemptMs: 0, refresh: async session => session, isPermanent: () => false }),
+    io: { list: async () => [...sessions].map(([key, session]) => ({ key, session })),
+      get: async key => sessions.get(key ?? 'a'), save: async () => {}, remove: async () => {} },
+  })
+  const adapter = new CopilotAdapter({ tokens, models: [], discovery: true, streamIdleTimeoutMs: 1000,
+    fetchFn: (async (_url, init) => {
+      const account = new Headers(init?.headers).get('authorization') === 'Bearer b' ? 'b' : 'a'
+      return Response.json({ data: [{ id: 'same', name: account, model_picker_enabled: true,
+        supported_endpoints: [account === 'a' ? '/chat/completions' : '/responses'],
+        capabilities: { limits: { max_context_window_tokens: account === 'a' ? 8000 : 32000 },
+          supports: { reasoning_effort: account === 'a' ? ['low'] : ['high'] } } }] })
+    }) as FetchFn })
+  const b = await adapter.resolveOwnModel('copilot', 'same', 'b')
+  assert.equal(b.name, 'b')
+  assert.equal(b.context?.contextWindow, 32000)
+  assert.deepEqual(b.reasoning?.efforts.map(effort => effort.id), ['high'])
+  const a = await adapter.resolveOwnModel('copilot', 'same', 'a')
+  assert.equal(a.context?.contextWindow, 8000)
+  const controller = new AbortController(); controller.abort(new Error('fixture cancelled'))
+  await assert.rejects(adapter.resolveOwnModel('copilot', 'same', 'b', controller.signal), /fixture cancelled/)
+})
+
 test('copilot listModels returns [] when logged out', async () => {
   const adapter = copilotAdapter({})
   assert.deepEqual(await adapter.listModels('copilot'), [])

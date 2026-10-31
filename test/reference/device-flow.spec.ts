@@ -149,6 +149,45 @@ test('device flow: a second concurrent attempt for one provider is refused', asy
   attempt.cancel()
 })
 
+test('device flow: acquisition owns its slot before I/O and stale A cannot replace B', async () => {
+  let releaseA!: (response: Response) => void
+  const acquisitionA = new Promise<Response>(resolve => { releaseA = resolve })
+  const manager = new DeviceFlowManager()
+  const a = manager.start('copilot', spec((() => acquisitionA) as typeof fetch))
+  const rejectedA = assert.rejects(a, /cancelled/)
+  assert.equal(manager.isBusy('copilot'), true)
+  manager.pending('copilot')?.cancel()
+  const b = await manager.start('copilot', spec((async () => Response.json(DEVICE_CODE)) as typeof fetch))
+  releaseA(Response.json(DEVICE_CODE))
+  await rejectedA
+  assert.equal(manager.pending('copilot'), b)
+  b.cancel()
+  await assert.rejects(b.waitToken(), /cancelled/)
+  assert.equal(manager.isBusy('copilot'), false)
+})
+
+test('device flow: expiry bounds hung token bodies and rejects a late token', async () => {
+  let late!: (value: unknown) => void
+  const body = new Promise(resolve => { late = resolve })
+  const manager = new DeviceFlowManager()
+  const attempt = await manager.start('copilot', spec((async input => String(input) === DEVICE_CODE_URL
+    ? Response.json({ ...DEVICE_CODE, interval: 0.001, expires_in: 0.02 })
+    : { json: () => body }) as typeof fetch))
+  await assert.rejects(attempt.waitToken(), /expired/)
+  late({ access_token: 'fixture-late-secret' })
+  assert.equal(manager.isBusy('copilot'), false)
+  await assert.rejects(attempt.waitToken(), /expired/)
+})
+
+test('device flow: cancellation bounds acquisition body even if fetch ignores abort', async () => {
+  const manager = new DeviceFlowManager()
+  const pending = manager.start('copilot', spec((async () => new Response(new ReadableStream({ start() {} }))) as typeof fetch))
+  await Promise.resolve()
+  manager.pending('copilot')?.cancel()
+  await assert.rejects(pending, /cancelled/)
+  assert.equal(manager.isBusy('copilot'), false)
+})
+
 test('device flow: a malformed device-code response fails the start', async () => {
   const { fetchFn } = fakeFetch({
     [DEVICE_CODE_URL]: [{ device_code: 'dc-1' }],

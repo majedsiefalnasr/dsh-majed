@@ -2,7 +2,13 @@
 
 Updated 2026-10-31 (Africa/Cairo).
 
-## #134 isolated worker candidate — independent review pending
+## #134 independent-review remediation — partial candidate
+
+Direct remediation from `eb06561` on `impl/134-copilot`; no sibling edits, delegation, merge, push or installed/live operations. Implemented explicit Copilot Manage route and invalidation, account-pinned metadata/protocol discovery with abort racing, early device acquisition slot and bounded acquisition/poll bodies/expiry, and full 17-case reference translator suite. Assembled Manage route red 0/1 then green; device ownership red 0/1 then green. Rebuilt full suite classifier166/166 + Node653/653 exit 0; build/check:build/whitespace exit 0. Final rerun after abort/error-sanitization edits also passed classifier166/166 + Node653/653, build/check:build/diffcheck exit 0. Detailed evidence and residual coverage gaps in [ticket-134 verification](ticket-134-verification.md).
+
+NOT all requested proof is complete: rendered real Manage/multi-account/model-config matrices, protocol endpoint differential, and exhaustive acquisition timeout/dispose/hung-poll/error safety cases remain. Do not accept this as review PASS. Next allowed action: finish those fixture-only regressions within #134, then Lead independent re-review; serial merge/install and separate Owner live session remain later gates. Dependencies unchanged; prior audit output untriaged, not a verified vulnerability conclusion. No sandbox denial or bypass occurred.
+
+## #134 isolated worker candidate — independent review pending (historical)
 
 Owner directly authorized parallel #133/#134 isolated worktrees (serial review/merge/install and one consolidated live session per ticket); this supersedes historical one-at-a-time gates only for those tickets. #134 branch `impl/134-copilot`, worktree `dsh-majed-t134`, baseline `d56439e`. Copilot provider/device flow/chat translation and reference regressions ported, EN/AR code/copy/verification card integrated with shared owned auth/store/preferences/Manage/pool/usage. No Grok work. Direct execution, no nested delegation/Claude agent models.
 

@@ -6,6 +6,10 @@
 - License: MIT (copyright notice retained below).
 - Scope carried over in #128: host exact Fetch RPC envelope/registration convention from src/auth/rpc.ts and browser closure-factory build recipe from tsdown.config.ts; no provider implementation.
 
+## #134 review-remediation deviations
+
+Owned changes beyond v0.9.12: explicit Copilot Manage routing and force invalidation, selected-account capability/protocol lookup with caller cancellation, and early device-flow ownership reservation with a 30-second acquisition budget and expiry-bounded polling/body reads. Error descriptions from token responses are not echoed. These fixes intentionally diverge from reference defects; source equality is not a safety exemption. Dedicated `test/reference/chat-completions.spec.ts` ports the entire 17-case pinned translator suite with import-path adaptation only. Additional owned device and account fixtures exercise stale acquisition, cancellation, late token bodies and incompatible account metadata. Remaining proof gaps are recorded in ticket verification.
+
 ## Every local change so far
 
 - Reduced host behavior to one presence endpoint, majed-subscriptions.status; no accounts, storage, tools, adapters or credentials.

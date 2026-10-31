@@ -17,7 +17,7 @@ import { EMPTY_RESPONSE_CODE, errorChain, LlmAdapter, LlmError, ReasoningEffortI
 import { resolveImages } from '../translate/resolved.js';
 import { streamChatCompletions, toChatMessages, toChatTools, } from '../translate/chat-completions.js';
 import { streamResponses, toResponsesInput, toResponsesTools } from '../translate/responses.js';
-import { httpLlmError, idleWatchdog, mapFetchFailure, mergeReasoning, ModelCatalogCache, discoverAcrossAccounts, discoverOrRetryAuth, isDiscoveryAborted, isMissingOrInvalidCredential, oauthEndpointError, OAuthEndpointError, } from './common.js';
+import { httpLlmError, withAbortSignal, idleWatchdog, mapFetchFailure, mergeReasoning, ModelCatalogCache, discoverAcrossAccounts, discoverOrRetryAuth, isDiscoveryAborted, isMissingOrInvalidCredential, oauthEndpointError, OAuthEndpointError, } from './common.js';
 import { DISCOVERY_TIMEOUT_MS, unionAccountCatalogs } from './accounts.js';
 import { proxiedFetch } from '../http.js';
 import { DEFAULT_RATE_LIMIT_WAIT, DEFAULT_RETRY, subscriptionRetryPolicy, } from './rate-limit.js';
@@ -656,13 +656,16 @@ export class CopilotAdapter extends LlmAdapter {
      * a long conversation — a mid-turn refetch must neither block nor fail the
      * call before provider I/O.
      */
-    async discovered(model) {
+    async discovered(model, account, signal) {
+        signal?.throwIfAborted();
         if (!this.options.discovery)
             return undefined;
-        const accounts = (await this.options.tokens.list()).map(entry => entry.key);
+        const accounts = account === undefined ? (await this.options.tokens.list()).map(entry => entry.key) : [account];
         return discoverAcrossAccounts(accounts, async (account) => {
+            signal?.throwIfAborted();
             const catalog = await this.catalogFor(account);
-            const models = await catalog.resolve(() => this.fetchCatalog(account));
+            const models = await catalog.resolve(() => this.fetchCatalog(account, signal));
+            signal?.throwIfAborted();
             return models?.find(entry => entry.id === model);
         });
     }
@@ -784,16 +787,17 @@ export class CopilotAdapter extends LlmAdapter {
     clearReplayState() {
         this.replayByScope.clear();
     }
-    async resolveModel(provider, model) {
+    async resolveModel(provider, model, signal) {
         const pool = this.options.pool?.();
         if (pool !== undefined && await pool.owns(provider, model)) {
             return pool.resolveModel(provider, model);
         }
-        return this.resolveOwnModel(provider, model);
+        return this.resolveOwnModel(provider, model, undefined, signal);
     }
     /** Capability resolution of the provider's own models (the pool resolves members here). */
-    async resolveOwnModel(provider, model) {
-        const discovered = await this.discovered(model);
+    async resolveOwnModel(provider, model, account, signal) {
+        const discovered = await withAbortSignal(() => this.discovered(model, account, signal), signal);
+        signal?.throwIfAborted();
         const configured = this.options.models.find(entry => entry.id === model);
         // Efforts come from the discovered catalog's reasoning_effort array; a
         // model that did not advertise one exposes none, so the harness rejects
@@ -833,7 +837,7 @@ export class CopilotAdapter extends LlmAdapter {
             // dual-protocol models reroute there once the request combines function
             // tools with a reasoning effort (gpt-5.4 400s on the chat wire then).
             // A configured `wire` outranks the catalog (see configuredWireEntry).
-            const wire = copilotRequestWire(this.configuredWireEntry(options.model) ?? await this.discovered(options.model), options);
+            const wire = copilotRequestWire(this.configuredWireEntry(options.model) ?? await withAbortSignal(async () => this.discovered(options.model, account ?? await this.options.tokens.defaultAccount(), watchdog.signal), watchdog.signal), options);
             let session = await this.options.tokens.session(account);
             // Replay scope: account identity × conversation × model (see
             // replayScope); a Copilot-token refresh preserves the GitHub token, so

@@ -66,112 +66,137 @@ export class DeviceFlowManager {
             throw new Error(`a ${provider} login attempt is already in progress`);
         }
         const fetchFn = spec.fetchFn ?? proxiedFetch;
-        const response = await fetchFn(spec.deviceCodeUrl, {
-            method: 'POST',
-            headers: {
-                'accept': 'application/json',
-                'content-type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams({ client_id: spec.clientId, scope: spec.scope }).toString(),
-        });
-        if (!response.ok) {
-            throw new Error(`${provider} device-code request failed (HTTP ${String(response.status)})`);
-        }
-        const wire = await response.json();
-        if (typeof wire.device_code !== 'string' || wire.device_code.length === 0
-            || typeof wire.user_code !== 'string' || wire.user_code.length === 0
-            || typeof wire.verification_uri !== 'string' || wire.verification_uri.length === 0) {
-            throw new Error(`${provider} device-code response is missing device_code/user_code/verification_uri`);
-        }
-        const intervalSec = typeof wire.interval === 'number' && wire.interval > 0
-            ? wire.interval
-            : DEFAULT_INTERVAL_SEC;
-        const expiresInSec = typeof wire.expires_in === 'number' && wire.expires_in > 0
-            ? wire.expires_in
-            : DEFAULT_EXPIRES_IN_SEC;
         const controller = new AbortController();
         let resolveToken;
         let rejectToken;
-        const tokenPromise = new Promise((resolve, reject) => {
-            resolveToken = resolve;
-            rejectToken = reject;
-        });
-        // The promise settles exactly once, from the poll loop below; an unhandled
-        // rejection must not surface if nobody awaited waitToken after a cancel.
+        const tokenPromise = new Promise((resolve, reject) => { resolveToken = resolve; rejectToken = reject; });
         tokenPromise.catch(() => undefined);
+        let timer;
         const settle = (error, token) => {
-            // Identity check: a late settle from a stale attempt (its poll loop or a
-            // cancel arriving after it already settled) must not kill a NEW attempt
-            // the user started for the same provider.
             if (this.attempts.get(provider) !== attempt)
                 return;
             this.attempts.delete(provider);
-            if (error !== undefined)
+            clearTimeout(timer);
+            if (error !== undefined) {
                 rejectToken(error);
+                controller.abort(error);
+            }
             else if (token !== undefined)
                 resolveToken(token);
         };
-        const poll = async () => {
-            let intervalMs = intervalSec * 1000;
-            const deadline = Date.now() + expiresInSec * 1000;
-            while (true) {
-                await sleep(intervalMs, controller.signal);
-                if (Date.now() >= deadline) {
-                    settle(new Error(`login timed out after ${String(Math.round(expiresInSec))}s`));
-                    return;
-                }
-                const pollResponse = await fetchFn(spec.tokenUrl, {
-                    method: 'POST',
-                    headers: {
-                        'accept': 'application/json',
-                        'content-type': 'application/x-www-form-urlencoded',
-                    },
-                    body: new URLSearchParams({
-                        client_id: spec.clientId,
-                        device_code: wire.device_code,
-                        grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
-                    }).toString(),
-                    signal: controller.signal,
-                });
-                const result = await pollResponse.json();
-                if (typeof result.access_token === 'string' && result.access_token.length > 0) {
-                    settle(undefined, result.access_token);
-                    return;
-                }
-                switch (result.error) {
-                    case 'authorization_pending':
-                        break;
-                    case 'slow_down':
-                        // RFC 8628 §3.5: add five seconds to the poll interval.
-                        intervalMs += 5000;
-                        break;
-                    case 'access_denied':
-                        settle(new Error('login declined on the GitHub authorization page'));
-                        return;
-                    case 'expired_token':
-                        settle(new Error('the device code expired before authorization completed'));
-                        return;
-                    default:
-                        settle(new Error(`${provider} device-flow polling failed: ${result.error_description ?? result.error ?? `HTTP ${String(pollResponse.status)}`}`));
-                        return;
-                }
-            }
-        };
         const attempt = {
-            verificationUrl: wire.verification_uri,
-            userCode: wire.user_code,
+            verificationUrl: '', userCode: '',
             waitToken: () => tokenPromise,
-            cancel: () => {
-                controller.abort(new Error('login cancelled'));
-                settle(new Error('login cancelled'));
-            },
+            cancel: () => settle(new Error('login cancelled')),
         };
+        // Reserve before the first await: cancellation during acquisition owns this exact slot.
         this.attempts.set(provider, attempt);
-        void poll().catch((error) => {
-            // Aborts land here from sleep/fetch; everything else is a transport or
-            // parse failure worth surfacing as the login failure.
-            settle(error instanceof Error ? error : new Error(String(error)));
+        timer = setTimeout(() => settle(new Error('device-code request timed out')), 30_000);
+        timer.unref();
+        const bounded = (work) => new Promise((resolve, reject) => {
+            const signal = controller.signal;
+            const abort = () => reject(signal.reason);
+            if (signal.aborted) {
+                abort();
+                return;
+            }
+            signal.addEventListener('abort', abort, { once: true });
+            work.then(value => {
+                signal.removeEventListener('abort', abort);
+                if (signal.aborted)
+                    reject(signal.reason);
+                else
+                    resolve(value);
+            }, error => { signal.removeEventListener('abort', abort); reject(error); });
         });
-        return attempt;
+        try {
+            const response = await bounded(fetchFn(spec.deviceCodeUrl, {
+                method: 'POST',
+                headers: {
+                    'accept': 'application/json',
+                    'content-type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({ client_id: spec.clientId, scope: spec.scope }).toString(),
+                signal: controller.signal,
+            }));
+            if (!response.ok) {
+                throw new Error(`${provider} device-code request failed (HTTP ${String(response.status)})`);
+            }
+            const wire = await bounded(response.json());
+            if (typeof wire.device_code !== 'string' || wire.device_code.length === 0
+                || typeof wire.user_code !== 'string' || wire.user_code.length === 0
+                || typeof wire.verification_uri !== 'string' || wire.verification_uri.length === 0) {
+                throw new Error(`${provider} device-code response is missing device_code/user_code/verification_uri`);
+            }
+            const intervalSec = typeof wire.interval === 'number' && wire.interval > 0
+                ? wire.interval
+                : DEFAULT_INTERVAL_SEC;
+            const expiresInSec = typeof wire.expires_in === 'number' && wire.expires_in > 0
+                ? wire.expires_in
+                : DEFAULT_EXPIRES_IN_SEC;
+            clearTimeout(timer);
+            const deadline = Date.now() + expiresInSec * 1000;
+            timer = setTimeout(() => settle(new Error('device code expired')), expiresInSec * 1000);
+            timer.unref();
+            Object.assign(attempt, { verificationUrl: wire.verification_uri, userCode: wire.user_code });
+            const poll = async () => {
+                let intervalMs = intervalSec * 1000;
+                while (true) {
+                    await sleep(intervalMs, controller.signal);
+                    if (Date.now() >= deadline) {
+                        settle(new Error(`login timed out after ${String(Math.round(expiresInSec))}s`));
+                        return;
+                    }
+                    const pollResponse = await bounded(fetchFn(spec.tokenUrl, {
+                        method: 'POST',
+                        headers: {
+                            'accept': 'application/json',
+                            'content-type': 'application/x-www-form-urlencoded',
+                        },
+                        body: new URLSearchParams({
+                            client_id: spec.clientId,
+                            device_code: wire.device_code,
+                            grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+                        }).toString(),
+                        signal: controller.signal,
+                    }));
+                    const result = await bounded(pollResponse.json());
+                    if (Date.now() >= deadline)
+                        throw new Error('device code expired');
+                    if (typeof result.access_token === 'string' && result.access_token.length > 0) {
+                        settle(undefined, result.access_token);
+                        return;
+                    }
+                    switch (result.error) {
+                        case 'authorization_pending':
+                            break;
+                        case 'slow_down':
+                            // RFC 8628 §3.5: add five seconds to the poll interval.
+                            intervalMs += 5000;
+                            break;
+                        case 'access_denied':
+                            settle(new Error('login declined on the GitHub authorization page'));
+                            return;
+                        case 'expired_token':
+                            settle(new Error('the device code expired before authorization completed'));
+                            return;
+                        default:
+                            settle(new Error(`${provider} device-flow polling failed (HTTP ${String(pollResponse.status)})`));
+                            return;
+                    }
+                }
+            };
+            void poll().catch((error) => {
+                // Aborts land here from sleep/fetch; everything else is a transport or
+                // parse failure worth surfacing as the login failure.
+                settle(controller.signal.aborted ? controller.signal.reason : new Error(`${provider} device-flow polling failed`));
+            });
+            return attempt;
+        }
+        catch (error) {
+            const failure = controller.signal.aborted ? controller.signal.reason : new Error(`${provider} device-code request failed or response is missing required fields`);
+            settle(failure);
+            throw failure;
+        }
     }
 }

@@ -56,6 +56,21 @@ test('Copilot RPC device login persists privately, lists models, streams chat an
     const chunks = [];
     for await (const chunk of mounted.adapters.copilot.stream({ provider: 'copilot', model: 'fixture-model', messages: [], signal: new AbortController().signal })) chunks.push(chunk);
     assert.ok(JSON.stringify(chunks).includes('Fixture reply'));
+    const manage = await mounted.call('providerSettings');
+    assert.equal(manage.value.provider, 'copilot');
+    assert.equal(manage.value.accounts[0].key, account.key);
+    assert.equal(manage.value.models[0].id, 'fixture-model');
+    const settings = { ...manage.value.settings, displayName: 'Fixture Copilot',
+      accounts: { [account.key]: { alias: 'Fixture alias', independentEntry: true, poolEnabled: false } } };
+    assert.equal((await mounted.call('setProviderSettings', { original: manage.value.settings, settings })).ok, true);
+    const saved = await mounted.call('providerSettings', { force: true });
+    assert.equal(saved.value.settings.displayName, 'Fixture Copilot');
+    assert.equal(saved.value.settings.accounts[account.key].alias, 'Fixture alias');
+    const independent = await mounted.adapters.copilot.listModels('copilot');
+    assert.equal(independent.length, 1);
+    assert.ok(independent[0].id.startsWith('~account:'));
+    assert.match(independent[0].name, /Fixture alias/);
+    assert.equal(mounted.adapters.copilot.providerInfo('copilot').name, 'Fixture Copilot');
     assert.equal((await mounted.call('usage', { account: account.key })).value.supported, false);
     assert.equal((await mounted.call('logout', { account: account.key })).ok, true);
     assert.deepEqual(await mounted.adapters.copilot.listModels('copilot'), []);

@@ -572,6 +572,23 @@ export function apply(ctx, config = {}, options = {}) {
                                 releases.push(budget.release);
                                 const deadline = budget.signal;
                                 await loadModelDefaults();
+                                if (provider === 'copilot') {
+                                    if (force) {
+                                        copilotAdapter.clearAccountCatalog();
+                                        pool.invalidate();
+                                        copilotHandle?.replace(['copilot']);
+                                    }
+                                    const accounts = await readAccountCatalogsFor(copilotAdapter, copilotTokens, !force, deadline, 'copilot');
+                                    const listed = await withTimeout(signal => copilotAdapter.listOwnModels('copilot', undefined, signal, !force), DISCOVERY_TIMEOUT_MS, deadline);
+                                    const tiers = await withTimeout(() => pool.modelsForProvider('copilot'), DISCOVERY_TIMEOUT_MS, deadline);
+                                    const tierIds = new Set((tiers ?? []).map(tier => tier.id));
+                                    const models = await Promise.all([...(listed ?? []), ...(tiers ?? []).filter(tier => !(listed ?? []).some(model => model.id === tier.id))].map(async (model) => {
+                                        const info = await withTimeout(signal => copilotAdapter.resolveModel('copilot', model.id, signal), DISCOVERY_TIMEOUT_MS, deadline);
+                                        return { ...model, contextWindow: info?.context?.contextWindow, efforts: tierIds.has(model.id) ? [] : info?.reasoning?.efforts ?? [], configured: defaultEffortOf('copilot', model.id) };
+                                    }));
+                                    value = { provider: 'copilot', settings: preferences.get('copilot'), accounts, models, tools: PROVIDER_TOOLS.copilot };
+                                    break;
+                                }
                                 if (provider === 'claude') {
                                     // Reference `providerSettings` for Claude: same bounded reads, no context bounds or fast tier, and the
                                     // config value "follow config" resolves to (`promptCacheTtlDefault`).
@@ -635,9 +652,11 @@ export function apply(ctx, config = {}, options = {}) {
                                     claudeVersion.invalidate();
                                     adapter.clearAccountCatalog();
                                     claudeAdapter.clearAccountCatalog();
+                                    copilotAdapter.clearAccountCatalog();
                                     pool.invalidate();
                                     handle?.replace(['codex']);
                                     claudeHandle?.replace(['claude']);
+                                    copilotHandle?.replace(['copilot']);
                                 }
                                 await loadModelDefaults();
                                 const catalog = [];
