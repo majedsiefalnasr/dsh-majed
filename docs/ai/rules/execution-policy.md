@@ -40,6 +40,10 @@ Paid:
 
 The earlier opencode2dsh candidates are no longer listed by the Owner; use them only if the live catalog still offers them and the Owner has not removed them.
 
+## Consolidated live acceptance
+
+Owner instruction, 2026-10-31: schedule one consolidated Owner live-acceptance session at the end of each ticket, after implementation, all known fixes, independent review, automated tests, fresh-build comparison and package verification are complete. Prepare one concise checklist covering the ticket's functional acceptance criteria and prerequisites before requesting installation/live testing. Bundle interface, authentication, settings and permitted provider checks into that session rather than requesting piecemeal Owner trials. Keep installed-state and live/paid-operation approvals separate and explicit. If a real defect requires another session, explain the defect and rerun only affected checks after fixing and verifying it; do not promise that a single session can always suffice. A visibility check alone is not full ticket acceptance.
+
 ## Safety and acceptance
 
 Preserve existing workspace edits and use isolated worktrees for implementation candidates. Merge only reviewed, verified changes. Fixture success does not establish desktop/paired-remote/live parity. Installed state, real accounts, host restart, Cutover, reference removal and live/paid evaluation retain their separate approval requirements. Model-routing permission does not authorize changing installed model configuration or product Smart/Auto activation.

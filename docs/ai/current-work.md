@@ -2,7 +2,13 @@
 
 Updated 2026-10-31 (Africa/Cairo).
 
-## Authoritative checkpoint — #132 reviewed candidate integrated locally
+## Authoritative checkpoint — #132 installed for Owner acceptance
+
+Owner confirmed the Claude card is visible after installation (2026-10-31); authentication, cache settings, chat and sync are not yet accepted. Owner requested one consolidated live-acceptance session at the end of each ticket; recorded in `docs/ai/rules/execution-policy.md`. Prepare the remaining #132 acceptance checklist together instead of further piecemeal trials. Visibility confirmation does not close #132.
+
+Owner explicitly approved installation. Archive hash rechecked; previous installed package backed up at `/var/folders/vt/w58l5fv17nz9s5ybrbgpkgh80000gn/T/majed-132-install-hukjyor5/previous`; approved archive copied into the exact non-symlink Majed package target with elevated approval, and all archived files byte-verified. No profile, account storage, credentials or plugin switches changed; no restart or live provider operation performed. Next: Owner full restart, mutually exclusive reference-off/owned-component-on setup, and own-account live acceptance per verification steps. #132 stays OPEN; no later ticket or push authorized by installation.
+
+## Historical reviewed integration checkpoint
 
 Lead reviewed documentation commit `96565d6`: required reference-off prerequisites, Keychain denial consequences and provenance corrections are resolved. Integrated locally as `5cb5700` on `feat/subscriptions`; no push or ticket closure. Lead reran the full suite and build comparison in both ticket and integration worktrees: classifier 166/166, Node 575/575, build match. Archive `/tmp/majed-t132-final/dsh-majed-0.2.0.tgz`, SHA-256 `a43f1bb0cb80cc430e7d13a06a184cb39e95f4904ff0f2a037b59a13abc9a2f6`. Initial packaging hit existing default npm-cache EPERM; using `/tmp/npm-cache-majed` succeeded without modifying that cache. Existing untracked `dist/.DS_Store` was preserved. No installed/profile/account changes or live Claude operations. Next: separate Owner approval for reversible installation; Owner controls mutually exclusive reference switching and full restart, then own-account live acceptance. #132 remains OPEN; #133 has not started. All Claude agent models remain prohibited until the Owner lifts the quota restriction.
 
