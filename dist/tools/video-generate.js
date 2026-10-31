@@ -132,6 +132,46 @@ function sleep(ms, signal) {
         signal.addEventListener('abort', onAbort, { once: true });
     });
 }
+/** Consume response bodies with an owned reader so abort also frees the stream. */
+async function responseText(response, signal) {
+    signal.throwIfAborted();
+    if (!response.body)
+        return '';
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let text = '';
+    const abort = () => { void reader.cancel(signal.reason).catch(() => { }); };
+    signal.addEventListener('abort', abort, { once: true });
+    try {
+        for (;;) {
+            signal.throwIfAborted();
+            const part = await withAbortSignal(() => reader.read(), signal);
+            signal.throwIfAborted();
+            if (part.done)
+                return text + decoder.decode();
+            text += decoder.decode(part.value, { stream: true });
+        }
+    }
+    finally {
+        signal.removeEventListener('abort', abort);
+        void reader.cancel().catch(() => { });
+        reader.releaseLock();
+    }
+}
+/** Preserve HTTP classification and best-effort error-body reading. */
+async function responseError(response, label, signal) {
+    let text = '';
+    try {
+        text = await responseText(response, signal);
+    }
+    catch {
+        signal.throwIfAborted();
+    }
+    signal.throwIfAborted();
+    return httpLlmError(new Response(text, {
+        status: response.status, statusText: response.statusText, headers: response.headers,
+    }), label);
+}
 /**
  * Build the `video_generate` tool definition.
  * @param options - grok session source, fetch implementation, and video directory.
@@ -224,8 +264,8 @@ export function createVideoGenerateTool(options) {
                     signal,
                 });
                 if (!submit.ok)
-                    throw await withAbortSignal(() => httpLlmError(submit, 'video_generate'), signal);
-                const requestId = parseVideoStartResponse(await withAbortSignal(() => submit.json(), signal));
+                    throw await responseError(submit, 'video_generate', signal);
+                const requestId = parseVideoStartResponse(JSON.parse(await responseText(submit, signal)));
                 let done;
                 for (;;) {
                     if (Date.now() >= deadline)
@@ -237,8 +277,8 @@ export function createVideoGenerateTool(options) {
                         signal,
                     });
                     if (!poll.ok)
-                        throw await withAbortSignal(() => httpLlmError(poll, 'video_generate'), signal);
-                    const status = parseVideoStatusResponse(await withAbortSignal(() => poll.json(), signal));
+                        throw await responseError(poll, 'video_generate', signal);
+                    const status = parseVideoStatusResponse(JSON.parse(await responseText(poll, signal)));
                     if (status.status === 'done') {
                         done = status;
                         break;
@@ -254,7 +294,7 @@ export function createVideoGenerateTool(options) {
                 // The MP4 lives on a separate signed host: no auth header on purpose.
                 const download = await request(done.url, { method: 'GET' });
                 if (!download.ok)
-                    throw await withAbortSignal(() => httpLlmError(download, 'video_generate download'), signal);
+                    throw await responseError(download, 'video_generate download', signal);
                 const limit = 100 * 1024 * 1024;
                 const mime = download.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase();
                 if ((mime && mime !== 'video/mp4' && mime !== 'application/octet-stream') || Number(download.headers.get('content-length')) > limit) {

@@ -179,6 +179,40 @@ function sleep(ms: number, signal: AbortSignal): Promise<void> {
   })
 }
 
+/** Consume response bodies with an owned reader so abort also frees the stream. */
+async function responseText(response: Response, signal: AbortSignal): Promise<string> {
+  signal.throwIfAborted()
+  if (!response.body) return ''
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let text = ''
+  const abort = () => { void reader.cancel(signal.reason).catch(() => {}) }
+  signal.addEventListener('abort', abort, { once: true })
+  try {
+    for (;;) {
+      signal.throwIfAborted()
+      const part = await withAbortSignal(() => reader.read(), signal)
+      signal.throwIfAborted()
+      if (part.done) return text + decoder.decode()
+      text += decoder.decode(part.value, { stream: true })
+    }
+  } finally {
+    signal.removeEventListener('abort', abort)
+    void reader.cancel().catch(() => {})
+    reader.releaseLock()
+  }
+}
+
+/** Preserve HTTP classification and best-effort error-body reading. */
+async function responseError(response: Response, label: string, signal: AbortSignal) {
+  let text = ''
+  try { text = await responseText(response, signal) } catch { signal.throwIfAborted() }
+  signal.throwIfAborted()
+  return httpLlmError(new Response(text, {
+    status: response.status, statusText: response.statusText, headers: response.headers,
+  }), label)
+}
+
 /** The canonical output value of one successful generation. */
 interface VideoGenerateValue {
   path: string
@@ -277,8 +311,8 @@ export function createVideoGenerateTool(options: VideoGenerateToolOptions): Tool
           body: JSON.stringify(body),
           signal,
         })
-        if (!submit.ok) throw await withAbortSignal(() => httpLlmError(submit, 'video_generate'), signal)
-        const requestId = parseVideoStartResponse(await withAbortSignal(() => submit.json(), signal))
+        if (!submit.ok) throw await responseError(submit, 'video_generate', signal)
+        const requestId = parseVideoStartResponse(JSON.parse(await responseText(submit, signal)))
 
         let done: { url: string; duration?: number }
         for (;;) {
@@ -289,8 +323,8 @@ export function createVideoGenerateTool(options: VideoGenerateToolOptions): Tool
             headers,
             signal,
           })
-          if (!poll.ok) throw await withAbortSignal(() => httpLlmError(poll, 'video_generate'), signal)
-          const status = parseVideoStatusResponse(await withAbortSignal(() => poll.json(), signal))
+          if (!poll.ok) throw await responseError(poll, 'video_generate', signal)
+          const status = parseVideoStatusResponse(JSON.parse(await responseText(poll, signal)))
           if (status.status === 'done') {
             done = status
             break
@@ -306,7 +340,7 @@ export function createVideoGenerateTool(options: VideoGenerateToolOptions): Tool
 
         // The MP4 lives on a separate signed host: no auth header on purpose.
         const download = await request(done.url, { method: 'GET' })
-        if (!download.ok) throw await withAbortSignal(() => httpLlmError(download, 'video_generate download'), signal)
+        if (!download.ok) throw await responseError(download, 'video_generate download', signal)
         const limit = 100 * 1024 * 1024
         const mime = download.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase()
         if ((mime && mime !== 'video/mp4' && mime !== 'application/octet-stream') || Number(download.headers.get('content-length')) > limit) {

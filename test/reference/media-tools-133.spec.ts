@@ -648,6 +648,79 @@ for (const stage of ['submit headers', 'submit body', 'poll headers', 'poll body
   }
 }
 
+test('video response readers preserve JSON decoding and HTTP error classification', async () => {
+  const invalid = createVideoGenerateTool({ tokens: memoryTokens(grokSession),
+    fetchFn: async () => new Response('{invalid') })
+  await assert.rejects(() => invalid.execute({ prompt: 'fixture' }, fakeExec()), SyntaxError)
+  const bytes = new TextEncoder().encode('\uFEFF{"request_id":"é"}')
+  let calls = 0
+  const tool = createVideoGenerateTool({ tokens: memoryTokens(grokSession), pollIntervalMs: 0,
+    fetchFn: async url => {
+      if (calls++ === 0) return new Response(new ReadableStream<Uint8Array>({
+        start(controller) {
+          for (const byte of bytes) controller.enqueue(Uint8Array.of(byte))
+          controller.close()
+        },
+      }))
+      assert.ok(String(url).endsWith('/%C3%A9'))
+      return new Response('rate limited é', { status: 429, headers: { 'retry-after': '1' } })
+    } })
+  await assert.rejects(() => tool.execute({ prompt: 'fixture' }, fakeExec()),
+    (error: unknown) => error instanceof LlmError && error.code === 'RATE_LIMIT'
+      && error.message === 'video_generate error (HTTP 429): rate limited é'
+      && error.failure.providerRetryAfterMs !== undefined)
+  const broken = createVideoGenerateTool({ tokens: memoryTokens(grokSession), fetchFn: async () =>
+    new Response(new ReadableStream({ start(controller) { controller.error(new Error('read failed')) } }), { status: 503 }) })
+  await assert.rejects(() => broken.execute({ prompt: 'fixture' }, fakeExec()),
+    (error: unknown) => error instanceof LlmError && error.code === 'SERVER'
+      && error.message === 'video_generate error (HTTP 503)')
+})
+
+for (const stage of ['submit', 'poll', 'download error'] as const) {
+  for (const errorBody of stage === 'download error' ? [true] : [false, true]) {
+    for (const cause of ['deadline', 'caller'] as const) {
+      test(`video releases stalled ${stage} ${errorBody ? 'error' : 'JSON'} reader on ${cause}`, async () => {
+        const caller = new AbortController()
+        let response!: Response
+        let cancelled = false
+        let entered!: () => void
+        const reading = new Promise<void>(resolve => { entered = resolve })
+        const unhandled: unknown[] = []
+        const onUnhandled = (reason: unknown) => { unhandled.push(reason) }
+        process.on('unhandledRejection', onUnhandled)
+        const stalled = () => {
+          response = new Response(new ReadableStream<Uint8Array>({
+            pull() { entered() },
+            cancel() {
+              cancelled = true
+              return cause === 'deadline' ? new Promise<void>(() => {}) : Promise.reject(new Error('cancel failed'))
+            },
+          }, { highWaterMark: 0 }), { status: errorBody ? 500 : 200 })
+          return response
+        }
+        const fetchFn: FetchFn = async url => {
+          if (String(url).endsWith('/generations')) return stage === 'submit' ? stalled() : Response.json({ request_id: 'reader' })
+          if (String(url).includes('/videos/reader')) return stage === 'poll' ? stalled() : Response.json({ status: 'done', video: { url: 'https://fixture.test/video.mp4' } })
+          return stalled()
+        }
+        try {
+          const tool = createVideoGenerateTool({ tokens: memoryTokens(grokSession), fetchFn, pollIntervalMs: 0,
+            maxWaitMs: cause === 'deadline' ? 5 : 1000 })
+          const work = tool.execute({ prompt: 'fixture' }, { signal: caller.signal } as unknown as ToolRunContext)
+          const rejection = assert.rejects(work, cause === 'deadline' ? { name: 'TimeoutError' } : /caller stop/)
+          await reading
+          if (cause === 'caller') caller.abort(new Error('caller stop'))
+          await rejection
+          assert.equal(cancelled, true, 'underlying stream must be cancelled even when cancel never settles')
+          assert.equal(response.body?.locked, false, 'owned reader must release its lock')
+          await new Promise(resolve => setImmediate(resolve))
+          assert.deepEqual(unhandled, [])
+        } finally { process.removeListener('unhandledRejection', onUnhandled) }
+      })
+    }
+  }
+}
+
 test('video successful completion releases deadline timer and caller listener', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'majed-t133-release-'))
   const caller = new AbortController()

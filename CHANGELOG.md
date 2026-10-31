@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Cancel and unlock owned Grok video JSON/error response readers on deadline or caller abort, even when underlying cancellation stalls or rejects; preserve JSON decoding, HTTP classification and existing download validation. Controlled offline proof only; independent review and installed/provider acceptance remain separate.
+
 - Bound the whole Grok video submission, response parsing, polling, sleeps and download with one aborting deadline composed with caller cancellation; release the timer/listener after completion and settle stalled injected transports. Existing download limits and MP4 validation remain in force. Controlled offline regression proof only; installed/provider acceptance remains separate.
 
 - Show localized inline failure when native video playback fails; verify nested video loading, URL revocation and stale-unmount suppression. Refuse a symlinked video storage directory and bound local reads to the admitted file size, rejecting observed size changes. Added registered Grok preference/independent-entry/revocation coverage; remaining #133 acceptance gaps stay explicitly open.
