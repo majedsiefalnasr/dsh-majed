@@ -122,7 +122,7 @@ Source: V1ki/dsh-plugin-subscriptions v0.9.12 (`b8023110864494acefc6f5963c2a197d
 
 ## #133 proof-only continuation
 
-The registered quota matrix, deterministic file-growth mutation, media RPC admission/cancellation and assembled public/Majed outlet execution tests added after `7ba57c5` are independently written controlled fixtures, not copied upstream implementations. Upstream `test/grok.spec.ts` at `b8023110864494acefc6f5963c2a197d85dda20c` contains two cache-affinity tests; both remain in the owned reference suite with no exclusions. The synthetic loopback fixture transport is test-only, not a DSH runtime companion. No provider/runtime/generated implementation changed in this proof slice. Browser execution remains unavailable because BrowserSkill reports no connected browser; fixture bundling is not DOM acceptance.
+The registered quota matrix, deterministic file-growth mutation, media RPC admission/cancellation and assembled public/Majed outlet execution tests added after `7ba57c5` are independently written controlled fixtures, not copied upstream implementations. Upstream `test/grok.spec.ts` at `b8023110864494acefc6f5963c2a197d85dda20c` contains two cache-affinity tests; both remain in the owned reference suite with no exclusions. The synthetic loopback fixture transport is test-only, not a DSH runtime companion. No provider/runtime/generated implementation changed in this proof slice. Browser connectivity was unavailable at that historical checkpoint; subsequent Lead-observed synthetic EN/AR light/dark native playback and localized-error evidence supersedes it (see `docs/ai/ticket-133-verification.md`). Fixture evidence does not establish installed/provider acceptance.
 
 ## License
 
