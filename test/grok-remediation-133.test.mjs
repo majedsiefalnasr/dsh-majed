@@ -55,6 +55,22 @@ test('media RPC admission and cancellation reach actual storage boundaries', asy
   } finally { component.dispose(); }
 });
 
+test('image RPC in-flight cancellation settles storage rejection without returning late bytes', async () => {
+  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t133-image-flight-');
+  let entered;
+  const started = new Promise(resolve => { entered = resolve; });
+  const component = host({ readImage(_ref, signal) {
+    entered();
+    return new Promise((_resolve, reject) => signal.addEventListener('abort', () => reject(signal.reason), { once: true }));
+  } });
+  try {
+    const controller = new AbortController();
+    const pending = component.call('image', { attachmentId: `sha256:${'a'.repeat(64)}` }, controller.signal);
+    await started; controller.abort();
+    assert.equal((await pending).ok, false);
+  } finally { component.dispose(); }
+});
+
 test('video RPC refuses an owned-name symlink instead of reading its target', async () => {
   const home = process.env.DSH_HOME = await mkdtemp('/tmp/majed-t133-video-');
   const directory = join(home, 'plugins/majed/subscriptions/videos');
@@ -114,6 +130,26 @@ test('video RPC deterministically refuses concurrent growth after admitted-size 
     assert.equal(mutated, true); assert.equal(result.ok, false);
     assert.match(JSON.stringify(result), /changed during read/);
   } finally { component.dispose(); fsPromises.open = original; syncBuiltinESMExports(); }
+});
+
+test('video RPC cancellation during actual handle read rejects and closes the handle', async () => {
+  const home = process.env.DSH_HOME = await mkdtemp('/tmp/majed-t133-video-flight-');
+  const directory = join(home, 'plugins/majed/subscriptions/videos'); await mkdir(directory, { recursive: true });
+  const path = join(directory, 'video-flight.mp4'); await writeFile(path, Buffer.from([0, 0, 0, 8, 102, 116, 121, 112]));
+  const controller = new AbortController(), original = fsPromises.open;
+  let closed = false;
+  fsPromises.open = async (...args) => {
+    const handle = await original(...args);
+    if (args[0] === path) {
+      const read = handle.read.bind(handle), close = handle.close.bind(handle);
+      handle.read = async (...values) => { const result = await read(...values); controller.abort(); return result; };
+      handle.close = async () => { closed = true; return close(); };
+    }
+    return handle;
+  }; syncBuiltinESMExports();
+  const component = host();
+  try { assert.equal((await component.call('video', { name: 'video-flight.mp4' }, controller.signal)).ok, false); assert.equal(closed, true); }
+  finally { component.dispose(); fsPromises.open = original; syncBuiltinESMExports(); }
 });
 
 test('video RPC refuses a symlinked owned videos directory', async () => {
