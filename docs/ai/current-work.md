@@ -2,7 +2,11 @@
 
 Updated 2026-10-31 (Africa/Cairo).
 
-## Authoritative checkpoint — #132 documentation remediation
+## Authoritative checkpoint — #132 reviewed candidate integrated locally
+
+Lead reviewed documentation commit `96565d6`: required reference-off prerequisites, Keychain denial consequences and provenance corrections are resolved. Integrated locally as `5cb5700` on `feat/subscriptions`; no push or ticket closure. Lead reran the full suite and build comparison in both ticket and integration worktrees: classifier 166/166, Node 575/575, build match. Archive `/tmp/majed-t132-final/dsh-majed-0.2.0.tgz`, SHA-256 `a43f1bb0cb80cc430e7d13a06a184cb39e95f4904ff0f2a037b59a13abc9a2f6`. Initial packaging hit existing default npm-cache EPERM; using `/tmp/npm-cache-majed` succeeded without modifying that cache. Existing untracked `dist/.DS_Store` was preserved. No installed/profile/account changes or live Claude operations. Next: separate Owner approval for reversible installation; Owner controls mutually exclusive reference switching and full restart, then own-account live acceptance. #132 remains OPEN; #133 has not started. All Claude agent models remain prohibited until the Owner lifts the quota restriction.
+
+## Historical #132 documentation remediation checkpoint
 
 Owner session evidence confirms **#128–#131 CLOSED and Owner accepted**; older pending/open statements below are historical, not current gates. #132 remains unmerged and unpushed on `impl/132-claude`, worktree `dsh-majed-t132`, code baseline `f9168c5`. Final independent code review of `df571d3..f9168c5` passed code soundness and reported classifier 166/166, Node 575/575 and build match. Its required documentation corrections are now made; awaiting Lead focused documentation review, then separate Owner installation and live acceptance. No claim of live Claude verification.
 
