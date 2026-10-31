@@ -143,15 +143,15 @@ const styles: Record<string, CSSProperties> = {
   row: { display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 },
   icon: { display: 'inline-flex', flexShrink: 0, color: 'var(--dsw-alias-label-tertiary)' },
   title: {
-    fontSize: 13, lineHeight: '20px', color: 'var(--dsw-alias-label-primary)',
+    font: 'var(--dsw-font-s-13)', color: 'var(--dsw-alias-label-primary)',
     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
   },
-  subtle: { margin: 0, fontSize: 12, lineHeight: '18px', color: 'var(--dsw-alias-label-tertiary)' },
+  subtle: { margin: 0, font: 'var(--dsw-font-s-12)', color: 'var(--dsw-alias-label-tertiary)' },
   output: {
-    margin: 0, fontSize: 12, lineHeight: '18px', color: 'var(--dsw-alias-label-secondary)',
+    margin: 0, font: 'var(--dsw-font-s-12)', color: 'var(--dsw-alias-label-secondary)',
     whiteSpace: 'pre-wrap', overflowWrap: 'anywhere',
   },
-  error: { margin: 0, fontSize: 12, lineHeight: '18px', color: 'var(--dsw-alias-state-error-primary)' },
+  error: { margin: 0, font: 'var(--dsw-font-s-12)', color: 'var(--dsw-alias-state-error-primary)' },
 }
 
 /**

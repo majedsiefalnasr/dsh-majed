@@ -2,6 +2,10 @@
 
 Updated 2026-10-31 (Africa/Cairo).
 
+## #133 remediation checkpoint — incomplete acceptance
+
+Remediation from `c72673b` fixes cancellable/bounded Grok discovery and exchange finalization, Grok saved aliases in status, DSH media tokens/logical positioning/localized retry copy, lightbox focus and decoded-thumbnail retry, and video leaf-symlink/MIME/size handling. Full latest fixture gate passes classifier 166/166 and Node 623/623; build, temporary-cache check:build and diffcheck exit 0. Mandatory Grok registered-adapter/session-toggle and broader media/theme/lifecycle proof remains incomplete, detailed in `docs/ai/ticket-133-verification.md`; no acceptance or live proof is claimed. No installed state, secrets/Keychain, provider calls, sibling edits, merge or push. Lead must finish outstanding proof before serial review/integration and the separately approved consolidated Owner test.
+
 ## #133 isolated implementation checkpoint
 
 Owner authorized #133 + #134 in parallel isolated worktrees, overriding the historical one-at-a-time rule; review/merge/install remain serial. #133 branch `impl/133-grok-media` starts at `d56439e`. Grok/media implementation and generated output are present; full fixture suite passes classifier 166/166 and Node 607/607, build and check:build exit 0. Independent review and Owner live acceptance remain pending; no install, push, merge or live provider test. Shared integration seams: `src/subscriptions.ts`, `src/browser.ts`, EN/AR locales, generated client and provenance/current-work/changelog. See `docs/ai/ticket-133-verification.md` for limits and consolidated checklist. Historical checkpoints below are not current authorization.

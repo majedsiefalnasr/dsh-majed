@@ -187,7 +187,7 @@
     "viewImage": "View image",
     "viewImageNamed": "View {name}",
     "imageLoading": "Loading image…",
-    "imageLoadFailed": "Could not load image: {message}",
+    "imageLoadFailed": "Could not load image. Retry",
     "imagePreview": "Image preview",
     "generating": "Generating image…",
     "generatingVideo": "Generating video…",

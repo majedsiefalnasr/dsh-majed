@@ -293,7 +293,35 @@ export function createVideoGenerateTool(options: VideoGenerateToolOptions): Tool
       // The MP4 lives on a separate signed host: no auth header on purpose.
       const download = await fetchFn(done.url, { method: 'GET', signal: exec.signal })
       if (!download.ok) throw await httpLlmError(download, 'video_generate download')
-      const data = Buffer.from(await download.arrayBuffer())
+      const limit = 100 * 1024 * 1024
+      const mime = download.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase()
+      if ((mime && mime !== 'video/mp4' && mime !== 'application/octet-stream') || Number(download.headers.get('content-length')) > limit) {
+        await download.body?.cancel()
+        throw new Error('video_generate: invalid video download type or size')
+      }
+      if (!download.body) throw new Error('video_generate: empty video download')
+      const reader = download.body.getReader()
+      const chunks: Uint8Array[] = []
+      let bytes = 0
+      const abort = () => { void reader.cancel(exec.signal.reason).catch(() => {}) }
+      exec.signal.addEventListener('abort', abort, { once: true })
+      try {
+        for (;;) {
+          exec.signal.throwIfAborted()
+          const part = await reader.read()
+          exec.signal.throwIfAborted()
+          if (part.done) break
+          bytes += part.value.byteLength
+          if (bytes > limit) throw new Error('video_generate: video download exceeds size limit')
+          chunks.push(part.value)
+        }
+      } finally {
+        exec.signal.removeEventListener('abort', abort)
+        await reader.cancel().catch(() => {})
+        reader.releaseLock()
+      }
+      const data = Buffer.concat(chunks)
+      if (data.length < 8 || data.toString('ascii', 4, 8) !== 'ftyp') throw new Error('video_generate: invalid MP4 download')
       const directory = options.videosDir ?? videosDirectory()
       await mkdir(directory, { recursive: true })
       const path = join(directory, videoFileName())

@@ -1,5 +1,9 @@
 # Subscriptions provenance
 
+## #133 review remediation
+
+Owned corrections after the pinned port: per-attempt cancellation/deadline wrappers around discovery and full token-body exchange; saved Grok aliases in composed status; existing DSH media token/logical-position seams, parameter-free localized retry, focus restoration and decoded-thumbnail retry; no-follow leaf video reads with regular-file/current-uid/size/MP4 checks and bounded streamed provider downloads. These are local safety/integration adaptations, not claims that upstream supplied the fixes. Fixture coverage and remaining mandatory proof are recorded in `docs/ai/ticket-133-verification.md`; no provider or restart acceptance is implied.
+
 ## #133 Grok and media port
 
 Pinned MIT source: V1ki/dsh-plugin-subscriptions v0.9.12, `b8023110864494acefc6f5963c2a197d85dda20c`.

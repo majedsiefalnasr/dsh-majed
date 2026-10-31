@@ -7,7 +7,7 @@ import { Context } from '@deepseek-ai/cordis';
 import { HostConnectionService, Peer } from '@deepseek-ai/dsh-client-connection';
 import { apply } from '../dist/subscriptions.js';
 
-const ENDPOINTS = ['status', 'login', 'manual', 'cancel', 'logout', 'setDefault', 'usage', 'prepareReset', 'consumeReset', 'providerSettings', 'setProviderSettings', 'modelDefaults', 'setModelDefault', 'proxyGet', 'proxySet', 'proxyTest'];
+const ENDPOINTS = ['image', 'video', 'status', 'login', 'manual', 'cancel', 'logout', 'setDefault', 'usage', 'prepareReset', 'consumeReset', 'providerSettings', 'setProviderSettings', 'modelDefaults', 'setModelDefault', 'proxyGet', 'proxySet', 'proxyTest'];
 const SECRET = 'fixture-proxy-secret-Zq9';
 
 async function mount() {
@@ -52,6 +52,62 @@ test('every exact route is owner-only at the real host gate and never runs for a
     const get = await host.handler.fetch(new Request('http://127.0.0.1/api/majed-subscriptions.status', { method: 'GET' }), host.owner);
     assert.equal(get.status, 404, 'only POST is owned');
   } finally { host.dispose(); }
+});
+
+test('Grok auth, billing and media routes pass the real Owner admission gate and refuse foreign principals without network', async () => {
+  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t133-security-');
+  const original = globalThis.fetch;
+  let network = 0;
+  globalThis.fetch = async () => { network++; throw new Error('network forbidden'); };
+  const host = await mount();
+  try {
+    for (const endpoint of ['login', 'manual', 'cancel', 'logout', 'setDefault', 'usage', 'image', 'video']) {
+      const payload = { provider: 'grok', account: 'missing', input: 'fixture', name: '../foreign.mp4', attachmentId: 'invalid' };
+      assert.equal((await host.handler.fetch(host.envelope(endpoint, payload), host.stranger)).status, 403);
+    }
+    assert.equal(network, 0);
+    const admitted = await host.rpc('usage', { provider: 'grok', account: 'missing' });
+    assert.equal(admitted.status, 200);
+    assert.equal(JSON.parse(admitted.text).result.ok, false);
+    assert.equal(network, 0);
+  } finally { host.dispose(); globalThis.fetch = original; }
+});
+
+test('Grok billing current, legacy, null and error responses cross the assembled Owner RPC with tier fallback', async () => {
+  const original = globalThis.fetch;
+  try {
+    for (const [payload, percent] of [
+      [{ config: { currentPeriod: { type: 'USAGE_PERIOD_TYPE_WEEKLY' }, creditUsagePercent: 23 }, subscriptionTier: 'Fixture plan' }, 23],
+      [{ config: { monthlyLimit: { val: 100 }, used: { val: 17 } } }, 17],
+      [{ config: null }, undefined],
+      [undefined, undefined],
+    ]) {
+      process.env.DSH_HOME = await mkdtemp('/tmp/majed-t133-billing-');
+      const { saveAccountSession } = await import('../dist/auth/store.js');
+      const token = `fixture.${Buffer.from(JSON.stringify({ tier: 1 })).toString('base64url')}.fixture`;
+      await saveAccountSession('grok', 'fixture', { accessToken: token, refreshToken: 'fixture-refresh', expiresAt: 4000000000000, tokenEndpoint: 'https://accounts.x.ai/token' });
+      let billing = 0;
+      globalThis.fetch = async url => {
+        if (String(url).includes('/v1/billing')) { billing++; return payload === undefined ? new Response('fixture unavailable', { status: 503 }) : Response.json(payload); }
+        return Response.json({ data: [] });
+      };
+      const host = await mount();
+      try {
+        const response = await host.rpc('usage', { provider: 'grok', account: 'fixture', force: true });
+        const result = JSON.parse(response.text).result;
+        assert.equal(response.status, 200);
+        assert.equal(result.ok, payload !== undefined);
+        assert.ok(billing > 0);
+        assert.ok(!response.text.includes(token));
+        if (payload !== undefined) {
+          const serialized = JSON.stringify(result.value);
+          assert.match(serialized, /supported/);
+          if (percent !== undefined) assert.ok(serialized.includes(`"usedPercent":${percent}`));
+          assert.match(serialized, payload.subscriptionTier ? /Fixture plan/ : /plan/);
+        }
+      } finally { host.dispose(); }
+    }
+  } finally { globalThis.fetch = original; }
 });
 
 test('invalid envelopes are rejected before any endpoint runs and are not business errors', async () => {

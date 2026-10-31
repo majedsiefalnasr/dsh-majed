@@ -10,7 +10,7 @@
  * failure, click-to-open lightbox) with the same sizing rules as the platform
  * component, keeping this plugin independent of harness component exports.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 
 /**
@@ -77,21 +77,21 @@ const styles: Record<string, CSSProperties> = {
   },
   tile: { width: 64, height: 64 },
   img: { width: '100%', height: '100%', objectFit: 'cover', display: 'block' },
-  loading: { fontSize: 12, color: 'var(--dsw-alias-label-tertiary)', padding: '0 8px' },
+  loading: { font: 'var(--dsw-font-s-12)', color: 'var(--dsw-alias-label-tertiary)', padding: '0 8px' },
   error: {
-    fontSize: 12, color: 'var(--dsw-alias-state-error-primary)', cursor: 'pointer',
+    font: 'var(--dsw-font-s-12)', color: 'var(--dsw-alias-state-error-primary)', cursor: 'pointer',
     border: '1px solid var(--dsw-alias-border-l2-darkmode-thin)', borderRadius: 8,
     background: 'transparent', padding: '6px 10px',
   },
   overlay: {
     position: 'fixed', inset: 0, zIndex: 1000, display: 'grid', placeItems: 'center',
-    background: 'rgba(0, 0, 0, 0.72)', padding: 24,
+    background: 'var(--dsw-alias-bg-mask-1)', padding: 24,
   },
   overlayImg: { maxWidth: '92vw', maxHeight: '92vh', objectFit: 'contain', borderRadius: 4 },
   close: {
-    position: 'absolute', top: 12, right: 12, width: 32, height: 32, display: 'grid',
+    position: 'absolute', insetBlockStart: 12, insetInlineEnd: 12, width: 32, height: 32, display: 'grid',
     placeItems: 'center', border: 'none', borderRadius: '50%', cursor: 'pointer',
-    background: 'rgba(255, 255, 255, 0.16)', color: '#fff', fontSize: 16, lineHeight: 1,
+    background: 'var(--dsw-alias-bg-layer-1)', color: 'var(--dsw-alias-label-primary)', font: 'var(--dsw-font-s-13)',
   },
 }
 
@@ -106,15 +106,21 @@ function ImageLightbox({ src, alt, labels, onClose }: {
   labels: ImageLightboxLabels
   onClose: () => void
 }) {
+  const closeButton = useRef<HTMLButtonElement>(null)
   useEffect(() => {
-    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
+    const opener = document.activeElement as HTMLElement | null
+    closeButton.current?.focus()
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+      if (event.key === 'Tab') { event.preventDefault(); closeButton.current?.focus() }
+    }
     window.addEventListener('keydown', onKey)
-    return () => { window.removeEventListener('keydown', onKey) }
+    return () => { window.removeEventListener('keydown', onKey); opener?.focus() }
   }, [onClose])
   return (
-    <div role="dialog" aria-label={labels.dialog} style={styles.overlay} onClick={onClose}>
+    <div role="dialog" aria-modal={true} aria-label={labels.dialog} style={styles.overlay} onClick={onClose}>
       <img src={src} alt={alt} style={styles.overlayImg} onClick={event => { event.stopPropagation() }} />
-      <button type="button" aria-label={labels.close} style={styles.close} onClick={onClose}>×</button>
+      <button ref={closeButton} type="button" aria-label={labels.close} style={styles.close} onClick={onClose}>×</button>
     </div>
   )
 }
@@ -167,7 +173,7 @@ export function MessageImage({ attachment, load, variant, labels }: {
       >
         {src === null
           ? <span style={styles.loading}>{labels.loading}</span>
-          : <img src={src} alt={label} style={{ ...styles.img, objectPosition: fit?.objectPosition }} />}
+          : <img src={src} alt={label} style={{ ...styles.img, objectPosition: fit?.objectPosition }} onError={() => { setOpen(false); setError(true) }} />}
       </button>
       {open && src !== null && <ImageLightbox src={src} alt={label} labels={labels.lightbox} onClose={close} />}
     </>

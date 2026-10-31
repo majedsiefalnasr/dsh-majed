@@ -69,6 +69,27 @@ test('a colliding image_generate name falls back to the Majed alias and is the o
   } finally { component.dispose(); }
 });
 
+test('Grok video and X switches restrict new sessions under public and collision aliases without disabling Codex search', async () => {
+  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t133-tools-');
+  const { saveAccountSession } = await import('../dist/auth/store.js');
+  await saveAccountSession('codex', 'fixture', { accountId: 'fixture', accessToken: 'fake-access', refreshToken: 'fake-refresh', expiresAt: 2000000000000 });
+  for (const occupied of [[], ['video_generate', 'x_search']]) {
+    const component = host({ tool: { occupied } });
+    try {
+      const names = occupied.length ? ['dsh_majed_video_generate', 'dsh_majed_x_search'] : ['video_generate', 'x_search'];
+      assert.ok(names.every(name => component.registered.has(name)));
+      const before = Date.now() - 1000;
+      assert.equal((await component.call('setProviderSettings', { provider: 'grok', settings: { tools: { video_generate: false, x_search: false } } })).ok, true);
+      assert.deepEqual(await component.create(before), []);
+      assert.deepEqual(await component.create(Date.now() + 1000), names);
+      assert.equal(component.providers[0].available(), true, 'Codex search stays independent');
+      assert.equal((await component.call('setProviderSettings', { provider: 'grok', settings: { tools: {} } })).ok, true);
+      assert.deepEqual(await component.create(Date.now() + 2000), []);
+    } finally { component.dispose(); }
+    assert.equal(component.registered.size, 0);
+  }
+});
+
 test('absent tools and web services leave the component functional', async () => {
   process.env.DSH_HOME = await mkdtemp('/tmp/majed-t130/tools-');
   const component = host({ withTools: false, withWeb: false });

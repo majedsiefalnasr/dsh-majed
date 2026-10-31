@@ -8,9 +8,9 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { MessageId } from '@deepseek-ai/dsh-llm'
+import { MessageId, ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import type { GenerateOptions } from '@deepseek-ai/dsh-llm'
-import { GrokAdapter, GROK_API_URL } from '../../src/providers/grok.js'
+import { GrokAdapter, GROK_API_URL, fetchGrokUsage, grokRequestBody, grokRateLimitReset } from '../../src/providers/grok.js'
 import { AccountTokenManager } from '../../src/providers/accounts.js'
 import type { GrokSession } from '../../src/auth/store.js'
 
@@ -103,6 +103,25 @@ function grokAdapter(): GrokAdapter {
 async function drain(adapter: GrokAdapter, options: GenerateOptions): Promise<void> {
   for await (const chunk of adapter.stream(options)) void chunk
 }
+
+test('Grok request body omits empty tool controls and preserves reasoning without storing responses', () => {
+  const body = grokRequestBody({ ...STREAM_OPTIONS, tools: [], reasoningEffort: ReasoningEffortId('high') }, { input: [] })
+  assert.equal(body.store, false)
+  assert.equal(body.max_output_tokens, 1000)
+  assert.deepEqual(body.reasoning, { effort: 'high' })
+  for (const key of ['tools', 'tool_choice', 'parallel_tool_calls']) assert.ok(!(key in body))
+})
+
+test('Grok usage null config is supported and endpoint failures retain an error', async () => {
+  const usage = await fetchGrokUsage(grokSession, async () => Response.json({ config: null }))
+  assert.equal(usage.supported, true)
+  assert.deepEqual(usage.windows, [])
+  await assert.rejects(fetchGrokUsage(grokSession, async () => new Response('unavailable', { status: 503 })))
+})
+
+test('Grok rate-limit reader ignores rollover snapshot headers without an exhausted body window', () => {
+  assert.equal(grokRateLimitReset(new Response('', { status: 429, headers: { 'x-ratelimit-reset-tokens': '6m0s' } }), '{}', Date.now()), undefined)
+})
 
 test('the request carries prompt_cache_key = sessionId when the harness supplies one', async () => {
   const { calls, restore } = recordingSseFetch()

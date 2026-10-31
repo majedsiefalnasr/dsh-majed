@@ -103,12 +103,12 @@ const styles$6 = {
 		display: "block"
 	},
 	loading: {
-		fontSize: 12,
+		font: "var(--dsw-font-s-12)",
 		color: "var(--dsw-alias-label-tertiary)",
 		padding: "0 8px"
 	},
 	error: {
-		fontSize: 12,
+		font: "var(--dsw-font-s-12)",
 		color: "var(--dsw-alias-state-error-primary)",
 		cursor: "pointer",
 		border: "1px solid var(--dsw-alias-border-l2-darkmode-thin)",
@@ -122,7 +122,7 @@ const styles$6 = {
 		zIndex: 1e3,
 		display: "grid",
 		placeItems: "center",
-		background: "rgba(0, 0, 0, 0.72)",
+		background: "var(--dsw-alias-bg-mask-1)",
 		padding: 24
 	},
 	overlayImg: {
@@ -133,8 +133,8 @@ const styles$6 = {
 	},
 	close: {
 		position: "absolute",
-		top: 12,
-		right: 12,
+		insetBlockStart: 12,
+		insetInlineEnd: 12,
 		width: 32,
 		height: 32,
 		display: "grid",
@@ -142,10 +142,9 @@ const styles$6 = {
 		border: "none",
 		borderRadius: "50%",
 		cursor: "pointer",
-		background: "rgba(255, 255, 255, 0.16)",
-		color: "#fff",
-		fontSize: 16,
-		lineHeight: 1
+		background: "var(--dsw-alias-bg-layer-1)",
+		color: "var(--dsw-alias-label-primary)",
+		font: "var(--dsw-font-s-13)"
 	}
 };
 /**
@@ -154,17 +153,26 @@ const styles$6 = {
 * fall through to the backdrop dismissal.
 */
 function ImageLightbox({ src, alt, labels, onClose }) {
+	const closeButton = (0, react.useRef)(null);
 	(0, react.useEffect)(() => {
+		const opener = document.activeElement;
+		closeButton.current?.focus();
 		const onKey = (event) => {
 			if (event.key === "Escape") onClose();
+			if (event.key === "Tab") {
+				event.preventDefault();
+				closeButton.current?.focus();
+			}
 		};
 		window.addEventListener("keydown", onKey);
 		return () => {
 			window.removeEventListener("keydown", onKey);
+			opener?.focus();
 		};
 	}, [onClose]);
 	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 		role: "dialog",
+		"aria-modal": true,
 		"aria-label": labels.dialog,
 		style: styles$6.overlay,
 		onClick: onClose,
@@ -176,6 +184,7 @@ function ImageLightbox({ src, alt, labels, onClose }) {
 				event.stopPropagation();
 			}
 		}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+			ref: closeButton,
 			type: "button",
 			"aria-label": labels.close,
 			style: styles$6.close,
@@ -249,6 +258,10 @@ function MessageImage({ attachment, load, variant, labels }) {
 			style: {
 				...styles$6.img,
 				objectPosition: fit?.objectPosition
+			},
+			onError: () => {
+				setOpen(false);
+				setError(true);
 			}
 		})
 	}), open && src !== null && /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ImageLightbox, {
@@ -468,7 +481,7 @@ var subscriptions$1 = {
 	"viewImage": "View image",
 	"viewImageNamed": "View {name}",
 	"imageLoading": "Loading image…",
-	"imageLoadFailed": "Could not load image: {message}",
+	"imageLoadFailed": "Could not load image. Retry",
 	"imagePreview": "Image preview",
 	"generating": "Generating image…",
 	"generatingVideo": "Generating video…",
@@ -560,8 +573,7 @@ const styles$5 = {
 		color: "var(--dsw-alias-label-tertiary)"
 	},
 	title: {
-		fontSize: 13,
-		lineHeight: "20px",
+		font: "var(--dsw-font-s-13)",
 		color: "var(--dsw-alias-label-primary)",
 		overflow: "hidden",
 		textOverflow: "ellipsis",
@@ -569,22 +581,19 @@ const styles$5 = {
 	},
 	subtle: {
 		margin: 0,
-		fontSize: 12,
-		lineHeight: "18px",
+		font: "var(--dsw-font-s-12)",
 		color: "var(--dsw-alias-label-tertiary)"
 	},
 	output: {
 		margin: 0,
-		fontSize: 12,
-		lineHeight: "18px",
+		font: "var(--dsw-font-s-12)",
 		color: "var(--dsw-alias-label-secondary)",
 		whiteSpace: "pre-wrap",
 		overflowWrap: "anywhere"
 	},
 	error: {
 		margin: 0,
-		fontSize: 12,
-		lineHeight: "18px",
+		font: "var(--dsw-font-s-12)",
 		color: "var(--dsw-alias-state-error-primary)"
 	}
 };
@@ -746,8 +755,7 @@ const styles$4 = {
 		color: "var(--dsw-alias-label-tertiary)"
 	},
 	title: {
-		fontSize: 13,
-		lineHeight: "20px",
+		font: "var(--dsw-font-s-13)",
 		color: "var(--dsw-alias-label-primary)",
 		overflow: "hidden",
 		textOverflow: "ellipsis",
@@ -755,22 +763,19 @@ const styles$4 = {
 	},
 	subtle: {
 		margin: 0,
-		fontSize: 12,
-		lineHeight: "18px",
+		font: "var(--dsw-font-s-12)",
 		color: "var(--dsw-alias-label-tertiary)"
 	},
 	output: {
 		margin: 0,
-		fontSize: 12,
-		lineHeight: "18px",
+		font: "var(--dsw-font-s-12)",
 		color: "var(--dsw-alias-label-secondary)",
 		whiteSpace: "pre-wrap",
 		overflowWrap: "anywhere"
 	},
 	error: {
 		margin: 0,
-		fontSize: 12,
-		lineHeight: "18px",
+		font: "var(--dsw-font-s-12)",
 		color: "var(--dsw-alias-state-error-primary)"
 	},
 	video: {
@@ -1049,7 +1054,7 @@ var subscriptions = {
 	"viewImage": "عرض الصورة",
 	"viewImageNamed": "عرض {name}",
 	"imageLoading": "جارٍ تحميل الصورة…",
-	"imageLoadFailed": "تعذر تحميل الصورة: {message}",
+	"imageLoadFailed": "تعذر تحميل الصورة. أعد المحاولة",
 	"imagePreview": "معاينة الصورة",
 	"generating": "جارٍ إنشاء الصورة…",
 	"generatingVideo": "جارٍ إنشاء الفيديو…",

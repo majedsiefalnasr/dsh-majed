@@ -187,7 +187,7 @@
     "viewImage": "عرض الصورة",
     "viewImageNamed": "عرض {name}",
     "imageLoading": "جارٍ تحميل الصورة…",
-    "imageLoadFailed": "تعذر تحميل الصورة: {message}",
+    "imageLoadFailed": "تعذر تحميل الصورة. أعد المحاولة",
     "imagePreview": "معاينة الصورة",
     "generating": "جارٍ إنشاء الصورة…",
     "generatingVideo": "جارٍ إنشاء الفيديو…",

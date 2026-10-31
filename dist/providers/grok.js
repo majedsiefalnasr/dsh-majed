@@ -53,16 +53,18 @@ let discoveryCache;
  * Resolve the xAI OIDC endpoints (cached after the first fetch).
  * @returns validated authorization and token endpoints.
  */
-export async function grokDiscovery() {
+export async function grokDiscovery(signal) {
     if (discoveryCache !== undefined)
         return discoveryCache;
-    const response = await proxiedFetch(GROK_DISCOVERY_URL);
+    signal?.throwIfAborted();
+    const response = await proxiedFetch(GROK_DISCOVERY_URL, { signal });
     if (!response.ok)
         throw await oauthEndpointError(response, 'grok OIDC discovery');
     const document = await response.json();
     if (typeof document.authorization_endpoint !== 'string' || typeof document.token_endpoint !== 'string') {
         throw new Error('grok OIDC discovery document is missing endpoints');
     }
+    signal?.throwIfAborted();
     discoveryCache = {
         authorizationEndpoint: assertXaiEndpoint(document.authorization_endpoint, 'authorization_endpoint'),
         tokenEndpoint: assertXaiEndpoint(document.token_endpoint, 'token_endpoint'),
@@ -74,8 +76,8 @@ export async function grokDiscovery() {
  * authorize URL comes from OIDC discovery).
  * @returns the flow spec for one attempt.
  */
-export async function grokFlow() {
-    const discovery = await grokDiscovery();
+export async function grokFlow(signal) {
+    const discovery = await grokDiscovery(signal);
     return {
         callbackPath: GROK_CALLBACK_PATH,
         listen: { host: '127.0.0.1', ports: [56121] },
@@ -161,9 +163,10 @@ function grokSession(tokens, tokenEndpoint, fallbackRefreshToken) {
  * @param challenge - the PKCE challenge sent at authorize time.
  * @returns the session to store.
  */
-export async function exchangeGrokCode(code, verifier, redirectUri, challenge) {
-    const discovery = await grokDiscovery();
+export async function exchangeGrokCode(code, verifier, redirectUri, challenge, signal) {
+    const discovery = await grokDiscovery(signal);
     const response = await proxiedFetch(discovery.tokenEndpoint, {
+        signal,
         method: 'POST',
         headers: { 'content-type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({

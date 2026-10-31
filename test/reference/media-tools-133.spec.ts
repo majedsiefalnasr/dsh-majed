@@ -607,6 +607,20 @@ test('video_generate execute: submit, poll to done, download and save', async ()
   assert.equal(requests[3].url, 'https://vidgen.x.ai/v.mp4')
 })
 
+test('video download rejects wrong MIME and oversized declared bodies without saving', async () => {
+  for (const headers of [{ 'content-type': 'text/html' }, { 'content-type': 'video/mp4', 'content-length': String(101 * 1024 * 1024) }]) {
+    const dir = mkdtempSync(join(tmpdir(), 'majed-t133-video-bound-'))
+    const { fetchFn } = sequenceFetch([
+      Response.json({ request_id: 'fixture' }),
+      Response.json({ status: 'done', video: { url: 'https://vidgen.x.ai/v.mp4' } }),
+      new Response(Buffer.from([0, 0, 0, 24, 0x66, 0x74, 0x79, 0x70]), { headers: headers as Record<string, string> }),
+    ])
+    const tool = createVideoGenerateTool({ tokens: memoryTokens(grokSession), fetchFn, videosDir: dir, pollIntervalMs: 0 })
+    await assert.rejects(() => tool.execute({ prompt: 'fixture' }, fakeExec()), /video/i)
+    assert.deepEqual(readdirSync(dir), [])
+  }
+})
+
 test('video_generate execute: failed status, poll timeout, error status, logged-out', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'subscriptions-videos-'))
   const failed = createVideoGenerateTool({
