@@ -9,8 +9,12 @@ async function mount() {
   const store = await import('../dist/auth/store.js');
   for (const key of ['a', 'b']) await store.saveAccountSession('grok', key, { accessToken: `fixture-${key}`, refreshToken: 'fixture-refresh', expiresAt: 4000000000000, tokenEndpoint: 'https://auth.x.ai/token', account: `${key}@example.test` });
   const saved = globalThis.fetch, requests = [], routes = new Map(), cleanups = [], limited = new Set();
+  const billing = new Map();
   globalThis.fetch = async (url, init = {}) => {
-    if (String(url).includes('/billing')) return Response.json({ config: { creditUsagePercent: 0 } });
+    if (String(url).includes('/billing')) {
+      const value = billing.get(new Headers(init.headers).get('authorization'));
+      return value instanceof Response ? value : Response.json(value ?? { config: { creditUsagePercent: 0 } });
+    }
     if (String(url).endsWith('/responses')) {
       requests.push({ body: JSON.parse(init.body), headers: init.headers });
       if (limited.has(new Headers(init.headers).get('authorization'))) return new Response('{"error":{"message":"rate limited"}}', { status: 429, headers: { 'retry-after': '60' } });
@@ -23,12 +27,31 @@ async function mount() {
     get: () => ({ fetch: { register(route) { routes.set(route.path, route); return () => routes.delete(route.path); } } }),
     effect(fn) { const off = fn(); if (off) cleanups.push(off); }, inject(names, fn) { if ([].concat(names).includes('connection')) fn(ctx); } };
   apply(ctx, { models: { grok: [{ id: 'grok-4', name: 'Grok 4' }, { id: 'grok-other', name: 'Other' }] } });
-  return { adapter, requests, limited, async call(endpoint, payload) {
+  return { adapter, requests, limited, billing, async call(endpoint, payload) {
     const method = `majed-subscriptions.${endpoint}`;
     return (await (await routes.get(`/api/${method}`).fetch(new Request(`http://localhost/api/${method}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'client-request', rpcId: 'fixture', method, payload }) }))).json()).result;
   }, async stream(model, extra = {}) { for await (const chunk of adapter.stream({ provider: 'grok', model, messages: [], ...extra })) void chunk; },
   dispose() { cleanups.reverse().forEach(off => off()); globalThis.fetch = saved; } };
 }
+
+test('registered Grok quota matrix ranks healthy accounts and degrades unavailable telemetry safely', async () => {
+  for (const [label, first, second, expected] of [
+    ['exhausted default', { config: { creditUsagePercent: 100 } }, { config: { creditUsagePercent: 0 } }, 'b'],
+    ['healthy default', { config: { creditUsagePercent: 0 } }, { config: { creditUsagePercent: 100 } }, 'a'],
+    ['both exhausted last resort', { config: { creditUsagePercent: 100 } }, { config: { creditUsagePercent: 100 } }, 'a'],
+    ['missing telemetry', { config: null }, { config: null }, 'a'],
+    ['billing unavailable', new Response('unavailable', { status: 503 }), new Response('unavailable', { status: 503 }), 'a'],
+  ]) {
+    const host = await mount();
+    try {
+      host.billing.set('Bearer fixture-a', first); host.billing.set('Bearer fixture-b', second);
+      await host.call('setDefault', { provider: 'grok', account: 'a' });
+      await host.stream('grok-4');
+      assert.equal(new Headers(host.requests[0].headers).get('authorization'), `Bearer fixture-${expected}`, label);
+      assert.equal(host.requests.length, 1, label);
+    } finally { host.dispose(); }
+  }
+});
 
 test('registered Grok pool fails over a rate-limited default without retrying a disabled member', async () => {
   const host = await mount();

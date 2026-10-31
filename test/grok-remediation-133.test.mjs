@@ -13,22 +13,48 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, symlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import fsPromises from 'node:fs/promises';
+import { syncBuiltinESMExports } from 'node:module';
 import { apply } from '../dist/subscriptions.js';
 const tick = () => new Promise(resolve => setImmediate(resolve));
-function host() {
+function host(attachments) {
   const routes = new Map(), cleanups = [];
   const ctx = { logger: { warn() {} }, llm: { registerAdapter() { return { replace() {} }; } },
-    get: () => ({ fetch: { register(route) { routes.set(route.path, route); return () => routes.delete(route.path); } } }),
+    get: name => name === 'attachments' ? attachments : ({ fetch: { register(route) { routes.set(route.path, route); return () => routes.delete(route.path); } } }),
     effect(fn) { const cleanup = fn(); if (cleanup) cleanups.push(cleanup); },
     inject(names, fn) { if ([].concat(names).includes('connection')) fn(ctx); } };
   apply(ctx, {});
-  return { async call(endpoint, payload = {}) {
+  return { async call(endpoint, payload = {}, signal) {
     const method = `majed-subscriptions.${endpoint}`;
     return (await (await routes.get(`/api/${method}`).fetch(new Request(`http://localhost/api/${method}`, {
-      method: 'POST', headers: { 'content-type': 'application/json' },
+      method: 'POST', signal, headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ type: 'client-request', rpcId: 'fixture', method, payload }) }))).json()).result;
   }, dispose() { cleanups.splice(0).reverse().forEach(fn => fn()); } };
 }
+test('media RPC admission and cancellation reach actual storage boundaries', async () => {
+  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t133-admission-');
+  let reads = 0, observedSignal;
+  const component = host({ async readImage(ref, signal) {
+    reads++; observedSignal = signal; signal.throwIfAborted();
+    if (ref.attachmentId.endsWith('b')) throw new Error('Image not found');
+    return { ref: { mediaType: 'image/png' }, data: Buffer.from('fixture-image') };
+  } });
+  try {
+    for (const attachmentId of ['', '../foreign', 'sha256:bad', 1]) assert.equal((await component.call('image', { attachmentId })).ok, false);
+    assert.equal(reads, 0);
+    const attachmentId = `sha256:${'a'.repeat(64)}`;
+    assert.equal((await component.call('image', { attachmentId })).value.dataBase64, Buffer.from('fixture-image').toString('base64'));
+    assert.equal((await component.call('image', { attachmentId: `sha256:${'b'.repeat(64)}` })).ok, false);
+    const controller = new AbortController(); controller.abort();
+    assert.equal((await component.call('image', { attachmentId }, controller.signal)).ok, false);
+    assert.equal(observedSignal.aborted, true);
+    const directory = join(process.env.DSH_HOME, 'plugins/majed/subscriptions/videos');
+    await mkdir(directory, { recursive: true });
+    await writeFile(join(directory, 'video-cancel.mp4'), Buffer.from([0, 0, 0, 8, 102, 116, 121, 112]));
+    assert.equal((await component.call('video', { name: 'video-cancel.mp4' }, controller.signal)).ok, false);
+  } finally { component.dispose(); }
+});
+
 test('video RPC refuses an owned-name symlink instead of reading its target', async () => {
   const home = process.env.DSH_HOME = await mkdtemp('/tmp/majed-t133-video-');
   const directory = join(home, 'plugins/majed/subscriptions/videos');
@@ -59,6 +85,35 @@ test('video RPC validates names, missing files, regular files and MP4 bytes whil
     component.dispose(); component = host();
     assert.deepEqual(await component.call('video', { name: 'video-persisted.mp4' }), first);
   } finally { component.dispose(); }
+});
+
+test('video RPC deterministically refuses concurrent growth after admitted-size read', async () => {
+  const home = process.env.DSH_HOME = await mkdtemp('/tmp/majed-t133-growth-');
+  const directory = join(home, 'plugins/majed/subscriptions/videos');
+  await mkdir(directory, { recursive: true });
+  const path = join(directory, 'video-growth.mp4');
+  await writeFile(path, Buffer.from([0, 0, 0, 8, 102, 116, 121, 112]));
+  const original = fsPromises.open;
+  let mutated = false;
+  fsPromises.open = async (...args) => {
+    const handle = await original(...args);
+    if (args[0] === path) {
+      const read = handle.read.bind(handle);
+      handle.read = async (...readArgs) => {
+        const result = await read(...readArgs);
+        await fsPromises.appendFile(path, Buffer.alloc(32)); mutated = true;
+        return result;
+      };
+    }
+    return handle;
+  };
+  syncBuiltinESMExports();
+  const component = host();
+  try {
+    const result = await component.call('video', { name: 'video-growth.mp4' });
+    assert.equal(mutated, true); assert.equal(result.ok, false);
+    assert.match(JSON.stringify(result), /changed during read/);
+  } finally { component.dispose(); fsPromises.open = original; syncBuiltinESMExports(); }
 });
 
 test('video RPC refuses a symlinked owned videos directory', async () => {

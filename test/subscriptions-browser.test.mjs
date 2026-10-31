@@ -1,6 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
+import ActualReact from 'react';
+import * as jsxRuntime from 'react/jsx-runtime';
+import { create, act } from 'react-test-renderer';
 import { readFile } from 'node:fs/promises';
 const code = await readFile(new URL('../dist/subscriptions-client.js', import.meta.url), 'utf8');
 function browser(locale = 'en', initialAnswer, options = {}) {
@@ -10,8 +13,8 @@ function browser(locale = 'en', initialAnswer, options = {}) {
   let referenceAnswer = () => Promise.reject(new Error('transport failure for /api/subscriptions-auth.proxyGet: HTTP 404'));
   let answer = initialAnswer ?? (() => Promise.resolve({ ok: true, value: { component: 'subscriptions' } }));
   const cleanups = []; const commandService = options.commandService;
-  const React = { Component: class {}, forwardRef: fn => fn, createElement: (tag, props, ...children) => ({ tag, props, children }), useSyncExternalStore: (_, read) => read() };
-  vm.runInNewContext(code + '\nresult(majedSubscriptionsFactory);', { result: factory => { api = factory(id => id === 'react' ? React : { IconSettingsOutlineMedium: 'svg' }); },
+  const React = options.React ?? { Component: class {}, forwardRef: fn => fn, createElement: (tag, props, ...children) => ({ tag, props, children }), useSyncExternalStore: (_, read) => read() };
+  vm.runInNewContext(code + '\nresult(majedSubscriptionsFactory);', { result: factory => { api = factory(id => id === 'react' ? React : id === 'react/jsx-runtime' ? jsxRuntime : { IconSettingsOutlineMedium: 'svg' }); },
     setInterval: fn => { timer = fn; return 1; }, clearInterval() {}, Error });
   const connection = { rpc: { call: (...args) => args[1] === 'subscriptions-auth.proxyGet' ? referenceAnswer(...args) : answer(...args) }, state: { subscribe: fn => { reconnect = fn; return () => {}; }, getSnapshot: () => 'connected' } };
   const ctx = { effect: fn => cleanups.push(fn()),
@@ -32,6 +35,44 @@ function browser(locale = 'en', initialAnswer, options = {}) {
     get surfaces() { return [...live.keys()].filter(id => id !== 'majed-subscriptions').sort(); }, cleanup() { cleanups.reverse().forEach(fn => fn?.()); },
   };
 }
+test('actual public and alias video outlets recover after reference withdrawal and component remount', async () => {
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  const page = browser('en', undefined, { React: ActualReact }); await page.settle();
+  try {
+    for (const key of ['video_generate', 'dsh_majed_video_generate']) {
+      const entry = page.live.get(`majed-toolview-${key}`);
+      assert.equal(entry.options.key, key);
+      let renderer;
+      await act(async () => { renderer = create(ActualReact.createElement(entry.component, {
+        t: key => key,
+        block: { kind: 'result', call: { argsRaw: '{}' }, content: [{ type: 'text', text: 'Saved video to /fixture/video-outlet.mp4' }] },
+        loadVideo: async name => { assert.equal(name, 'video-outlet.mp4'); throw new Error('fixture storage unavailable'); },
+      })); });
+      assert.match(JSON.stringify(renderer.toJSON()), /videoLoadFailed/);
+      await act(async () => renderer.unmount());
+    }
+    for (const key of ['image_generate', 'dsh_majed_image_generate']) {
+      const entry = page.live.get(`majed-toolview-${key}`);
+      assert.equal(entry.options.key, key);
+      let renderer;
+      await act(async () => { renderer = create(ActualReact.createElement(entry.component, {
+        t: key => key,
+        block: { kind: 'result', call: { argsRaw: '{}' }, content: [{ type: 'image', attachment: { attachmentId: 'fixture', width: 20, height: 20 } }], isError: false },
+        load: async () => { throw new Error('fixture unavailable'); },
+      })); });
+      assert.match(JSON.stringify(renderer.toJSON()), /imageLoadFailed/);
+      await act(async () => renderer.unmount());
+    }
+    page.setReferenceAnswer(() => Promise.resolve({ ok: true })); page.tick(); await page.settle();
+    assert.ok(!page.surfaces.some(id => id.includes('toolview')));
+    page.setReferenceAnswer(() => Promise.reject(new Error('transport failure for /api/majed-subscriptions.status: HTTP 404'))); page.tick(); await page.settle();
+    assert.ok(page.live.has('majed-toolview-dsh_majed_video_generate'));
+    page.setAnswer(() => Promise.reject(new Error('transport failure for /api/majed-subscriptions.status: HTTP 404'))); page.tick(); await page.settle();
+    assert.ok(!page.live.has('majed-toolview-video_generate'));
+    page.setAnswer(() => Promise.resolve({ ok: true, value: { component: 'subscriptions' } })); page.tick(); await page.settle();
+    assert.ok(page.live.has('majed-toolview-video_generate'));
+  } finally { page.cleanup(); }
+});
 function text(node) { return typeof node === 'string' ? node : node?.children?.flat(Infinity).map(text).join(' ') ?? ''; }
 test('present component registers one section with both empty parts, then withdraws on absence', async () => {
   const page = browser(); await page.settle();
