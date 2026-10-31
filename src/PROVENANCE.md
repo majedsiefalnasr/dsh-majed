@@ -1,5 +1,11 @@
 # Subscriptions provenance
 
+## #133 Grok and media port
+
+Pinned MIT source: V1ki/dsh-plugin-subscriptions v0.9.12, `b8023110864494acefc6f5963c2a197d85dda20c`.
+Added `providers/grok.ts`, `tools/video-generate.ts`, `tools/x-search.ts`, `ImageGallery.tsx`, `ImageGenerateToolview.tsx`, `VideoGenerateToolview.tsx`; extended the existing #130 `tools/image-generate.ts` rather than duplicating its pool or Codex search. Owned storage roots remain `plugins/majed/subscriptions`. Auth controller and card adapt the existing owned controller/card lifecycle; host composition adds Grok, settings, billing usage and durable media RPC. Browser contributions use owned IDs and both public/alias tool keys, withdraw with component/reference presence, and reuse the pinned gallery/lightbox behavior. Decorative tool icons are omitted to preserve lazy primitive failure isolation. Locale fallback and RPC facade are owned adaptations. Adapted pinned Grok and complete tools reference tests; fixture expectations now include approved Grok routes/tools. MIT notice below remains unchanged. No upstream runtime dependency or Copilot implementation added.
+
+
 - Source: https://github.com/V1ki/dsh-plugin-subscriptions
 - Version: v0.9.12
 - Commit: b802311

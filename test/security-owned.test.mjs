@@ -73,7 +73,7 @@ test('invalid envelopes are rejected before any endpoint runs and are not busine
     // An unknown endpoint under our prefix is not owned by any route.
     assert.equal(await status(host.envelope('nonexistent')), 404);
     // Business errors keep the envelope: HTTP 200 with ok:false and the caller's rpcId.
-    const response = await host.handler.fetch(host.envelope('setProviderSettings', { provider: 'grok', settings: {} }), host.owner);
+    const response = await host.handler.fetch(host.envelope('setProviderSettings', { provider: 'unsupported', settings: {} }), host.owner);
     const body = await response.json();
     assert.deepEqual([response.status, body.type, body.rpcId, body.result.ok, body.result.error.code], [200, 'server-response', 'r', false, 'subscriptions/error']);
     assert.match(body.result.error.message, /payload\.provider must be one of codex, claude/);

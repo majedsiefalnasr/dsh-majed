@@ -41,8 +41,8 @@ test('disposing the component removes every owned registration and stops owned w
   const first = mount(ctx);
   try {
     await settle();
-    assert.equal(first.routes.size, 18, 'eighteen owner routes (sixteen plus speed and setSpeed)');
-    assert.deepEqual(first.llm.listProviders().map(provider => provider.id), ['codex', 'claude']);
+    assert.equal(first.routes.size, 20, 'eighteen owner routes (sixteen plus speed and setSpeed)');
+    assert.deepEqual(first.llm.listProviders().map(provider => provider.id), ['codex', 'claude', 'grok']);
     assert.equal(first.tools.has('image_generate'), true, 'image_generate registered on the real tool runtime');
     await assert.rejects(first.search('q'), error => error.code === 'CODEX_AUTH_REQUIRED', 'the mounted Codex provider owns web search (no login → its own auth error)');
     assert.equal((await first.call('login', { provider: 'codex' })).ok, true, 'a pending authorization exists');
@@ -62,7 +62,7 @@ test('disposing the component removes every owned registration and stops owned w
     // A second mount of the same module works and is independent of the disposed one.
     const second = mount(ctx, {}, false);
     await settle();
-    assert.equal(second.routes.size, 18);
+    assert.equal(second.routes.size, 20);
     assert.equal((await second.call('status')).ok, true);
     second.runtime.dispose();
   } finally { globalThis.fetch = savedFetch; }

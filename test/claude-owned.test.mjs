@@ -284,7 +284,7 @@ test('RPC payloads are validated: provider, method and cache lifetime enums, Cod
     await rejected('login', { provider: 'claude', method: 'password' }, /payload\.method must be "oauth" or "keychain"/);
     await rejected('login', { provider: 'claude', method: 7 }, /payload\.method/);
     await rejected('login', { provider: 'codex', method: 'oauth' }, /payload\.method is only valid for claude/);
-    await rejected('login', { provider: 'grok' }, /payload\.provider must be one of codex, claude/);
+    await rejected('login', { provider: 'unsupported' }, /payload\.provider must be one of codex, claude/);
     await rejected('login', { provider: ['claude'] }, /payload\.provider/);
     for (const endpoint of ['speed', 'setSpeed', 'prepareReset', 'consumeReset']) await rejected(endpoint, { provider: 'claude', account: 'a', ticket: 't', tier: 'fast' }, /Only Codex is available/);
     await rejected('setProviderSettings', { provider: 'claude', settings: { promptCacheTtl: '24h' }, original: {} }, /promptCacheTtl must be one of 5m, 1h/);

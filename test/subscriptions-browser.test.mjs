@@ -192,7 +192,7 @@ test('owned global registrations in src use the Majed namespace', async () => {
     // global registrations (ADR-0002); the tier ids are values sent to the `setSpeed` endpoint.
     // #132: Claude's provider-native model IDs (`claude-*`) are shared the same way, and `oauth`/`keychain` are the values of the
     // Claude login `method` enum sent to the `login` endpoint, not a registration.
-    for (const id of ids.filter(id => !['gpt-5.1-codex', 'gpt-5.1-codex-mini', 'gpt-5.1', 'standard', 'fast', 'oauth', 'keychain'].includes(id) && !/^claude-/.test(id))) assert.match(id, /^(?:\/api\/)?majed[.-]/, `${file}: ${id}`);
+    for (const id of ids.filter(id => !['gpt-5.1-codex', 'gpt-5.1-codex-mini', 'gpt-5.1', 'standard', 'fast', 'oauth', 'keychain'].includes(id) && !/^(claude|grok)-/.test(id))) assert.match(id, /^(?:\/api\/)?majed[.-]/, `${file}: ${id}`);
     for (const [, label] of source.matchAll(/},?\)?\), ['"]([^'"]+)['"]\)/g)) assert.match(label, /^(?:dsh-)?majed:/, `${file}: ${label}`);
   }
 });
@@ -202,7 +202,8 @@ function commandService() {
   const commands = new Map();
   return { commands, register(command) { commands.set(command.name, command); return () => { commands.delete(command.name); }; } };
 }
-const SURFACES = ['majed-subscription-speed', 'majed-subscription-usage'];
+const MEDIA_SURFACES = ['image_generate', 'dsh_majed_image_generate', 'video_generate', 'dsh_majed_video_generate'].map(key => `majed-toolview-${key}`).sort();
+const SURFACES = ['majed-subscription-speed', 'majed-subscription-usage', ...MEDIA_SURFACES].sort();
 test('composer surfaces register with majed ids while present and withdraw when absent', async () => {
   const page = browser('en', undefined, { commandService: commandService() }); await page.settle();
   assert.deepEqual(page.surfaces, SURFACES);
@@ -236,7 +237,7 @@ test('a composer surface that fails to register does not affect the section or t
   try {
     const page = browser('en', undefined, { commandService: commandService(), failSlot: 'conversation.input.right' }); await page.settle();
     assert.ok(page.section, 'Settings section registered');
-    assert.deepEqual(page.surfaces, ['majed-subscription-usage']);
+    assert.deepEqual(page.surfaces, ['majed-subscription-usage', ...MEDIA_SURFACES].sort());
   } finally { console.error = originalError; }
 });
 test('/fast registers as `fast`, is listed only while wanted, and offers Standard/Fast for a fast-capable model', async () => {
