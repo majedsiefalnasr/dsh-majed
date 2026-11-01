@@ -1,5 +1,9 @@
 # #137 candidate evidence — controlled verification
 
+## Owner acceptance disposition — 2026-11-01
+
+Owner approved installation, confirmed full restart, then separately approved gateway discovery and one short free-model inference with reference coexistence requested. Owner screenshot shows gateway catalog reachable and eight available models (catalog only). Owner reported inference failure exactly: `Failure reason: OpenCode Zen is rate limited. Please try again later.` No successful live chat is claimed, and no automatic retry was performed. Owner explicitly approved closing #137 with the successful-live-answer criterion substituted by acceptance of this external rate-limit constraint. Real installed reference coexistence and Arabic rendering were not independently observed; controlled EN/AR interaction and fake-registry coexistence proof remain the evidence for those behaviors. Independent Standards and Spec PASS, integrated Node851/851 and fresh-build match remain recorded prerequisites. No claim of universal gateway availability or unrestricted free quota. Final UI/UX improvements are still to be proposed separately.
+
 Direct bounded implementation on `impl/137-opencode-zen`; stories 77–80 only. Existing owner-approved assembled adapter/RPC and actual rendered-card seams; no nested delegation or live operations.
 
 ## Reviewed-finding remediation — 2026-11-01
