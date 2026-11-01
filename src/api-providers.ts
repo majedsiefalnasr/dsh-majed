@@ -15,6 +15,15 @@ export function createApiProviders(React: any, remote: any, t: (key: string) => 
     const [busy, setBusy] = React.useState(false);
     const generation = React.useRef(0);
     const mounted = React.useRef(true);
+    const addButton = React.useRef(null as HTMLButtonElement | null);
+    const restoreAddFocus = React.useRef(false);
+    const visitedDrafts = React.useRef({} as Record<string, any>);
+    React.useEffect(() => {
+      if (!addOpen && restoreAddFocus.current) {
+        restoreAddFocus.current = false;
+        addButton.current?.focus();
+      }
+    }, [addOpen]);
     // Never forward remote error text: transports/providers may echo a submitted key.
     const valueOf = (result: any) => {
       if (!result.ok) throw new Error(result.error?.code === 'settings/conflict' ? 'apiConflict' : 'apiFailed');
@@ -61,6 +70,14 @@ export function createApiProviders(React: any, remote: any, t: (key: string) => 
       const ns = snapshot.namespaces.find((n: any) => n.ns === 'llm-pi-ai');
       setMessage('');
       setDraft({ entry: { provider: '', settingsNs: 'llm-pi-ai', settingsPath: [], declared: true }, revision: ns.revision, user: {}, profile: { api: 'openai-completions', baseURL: '', displayName: '' }, key: '', keyAction: 'keep', models: [], isNew: true, custom: true });
+    }
+    function switchMode(mode: string) {
+      if (busy || mode === addMode) return;
+      if (draft) visitedDrafts.current[addMode] = { ...draft, key: '', keyAction: 'keep' };
+      setAddMode(mode);
+      setMessage('');
+      if (visitedDrafts.current[mode]) setDraft(visitedDrafts.current[mode]);
+      else { setDraft(null); if (mode === 'custom') custom(); else if (addable[0]) edit(addable[0]); }
     }
     const change = (field: string, value: any) => setDraft((d: any) => ({ ...d, [field]: value }));
     const profileChange = (field: string, value: string) => setDraft((d: any) => ({ ...d, profile: { ...d.profile, [field]: value } }));
@@ -117,7 +134,7 @@ export function createApiProviders(React: any, remote: any, t: (key: string) => 
           if (!result.ok) throw new Error('apiFailed');
         } catch { throw new Error(committed ? 'apiPartial' : 'apiFailed'); }
       }
-      if (mounted.current) { setDraft(null); setAddOpen(false); setMessage('apiSaved'); }
+      if (mounted.current) { restoreAddFocus.current = addOpen; visitedDrafts.current = {}; setDraft(null); setAddOpen(false); setMessage('apiSaved'); }
       await load();
     }
     async function discover() {
@@ -135,12 +152,12 @@ export function createApiProviders(React: any, remote: any, t: (key: string) => 
       setMessage('apiSaved'); await load();
     }
     // Narrow adaptation of MIT native ModelsSection structure/styles; see PROVENANCE.md.
-    const button = (key: string, onClick: () => void, disabled = false) => h('button', { type: 'button', style: control, onClick, disabled: busy || disabled }, t(key));
+    const button = (key: string, onClick: () => void, disabled = false) => h('button', { type: 'button', style: control, onClick, disabled: busy || disabled, ...(key === 'apiAdd' ? { ref: addButton } : {}) }, t(key));
     const field = (key: string, value: string, onChange: (v: string) => void, type = 'text') => h('label', { className: 'majed-api-field' }, t(key), h('input', { 'aria-label': t(key), type, value, autoComplete: 'off', style: control, disabled: busy, onChange: (e: any) => onChange(e.target.value), dir: type === 'password' ? undefined : 'auto' }));
     const configured = (entry: any) => { const ns = nsOf(entry); return ns !== undefined && (entry.settingsPath.length === 0 || at(ns.value, entry.settingsPath) !== undefined); };
     const addable = snapshot?.rows.filter((entry: any) => nsOf(entry) && !configured(entry)) ?? [];
     const select = (key: string, value: string, onChange: (v: string) => void, options: any[]) => h('label', { className: 'majed-api-field' }, t(key), h('select', { 'aria-label': t(key), value, style: control, disabled: busy, onChange: (e: any) => onChange(e.target.value) }, ...options));
-    const close = () => { setDraft(null); setAddOpen(false); };
+    const close = () => { restoreAddFocus.current = addOpen; visitedDrafts.current = {}; setDraft(null); setAddOpen(false); };
     const editor = () => h('div', { role: 'group', 'aria-label': t('apiEditor'), className: 'majed-api-editor' },
       draft.custom ? field('apiRoute', draft.entry.provider, v => change('entry', { ...draft.entry, provider: v })) : h('bdi', { className: 'majed-api-muted' }, draft.entry.provider),
       field('apiName', draft.profile.displayName ?? '', v => profileChange('displayName', v)),
@@ -179,16 +196,21 @@ export function createApiProviders(React: any, remote: any, t: (key: string) => 
       !snapshot ? h('p', null, t('apiLoading')) : h(React.Fragment, null,
         h('ul', { className: 'majed-api-rows' }, ...snapshot.rows.filter(configured).map((entry: any) => {
           const ns = nsOf(entry), profile = at(ns.value, entry.settingsPath);
-          const keySet = snapshot.credentials[refOf(entry, profile)]?.configured || (entry.nativeAuth?.env ?? []).some((r: string) => snapshot.credentials[r]?.configured);
+          const refs = profile?.apiKeyEnv ? [profile.apiKeyEnv] : [refOf(entry, profile), ...(entry.nativeAuth?.env ?? [])];
+          const metadata = refs.map((ref: string) => snapshot.credentials[ref]);
+          const credentialStatus = entry.provider === 'deepseek-account' ? 'account-unknown'
+            : metadata.some((value: any) => value?.configured === true) ? 'configured'
+            : metadata.every((value: any) => value?.configured === false) ? 'missing' : 'unknown';
+          const statusLabel = credentialStatus === 'configured' ? 'apiKeySet' : credentialStatus === 'missing' ? 'apiKeyMissing' : credentialStatus === 'account-unknown' ? 'apiAccountUnknown' : 'apiKeyUnknown';
           return h('li', { key: entry.provider, 'data-majed-api-provider': entry.provider, className: 'majed-api-row' },
-            h('div', { className: 'majed-api-head' }, h('span', { className: 'majed-api-identity' }, h('strong', null, profile?.displayName ?? entry.displayName), h('span', { className: 'majed-api-muted' }, t(keySet ? 'apiKeySet' : 'apiKeyMissing'))),
-              h('span', { className: 'majed-api-actions' }, button('apiEdit', () => { setAddOpen(false); edit(entry); }, !snapshot.writable), removable(entry, ns) ? button('apiDelete', () => { void run(() => remove(entry)); }, !snapshot.writable) : null)),
+            h('div', { className: 'majed-api-head' }, h('span', { className: 'majed-api-identity' }, h('strong', null, profile?.displayName ?? entry.displayName), h('span', { className: 'majed-api-muted', 'data-majed-credential-status': credentialStatus }, h('span', { 'aria-hidden': true, style: { display: 'inline-block', width: 6, height: 6, borderRadius: '50%', marginInlineEnd: 6, background: 'currentColor' } }), t(statusLabel))),
+              h('span', { className: 'majed-api-actions' }, entry.provider === 'deepseek-account' ? null : button('apiEdit', () => { setAddOpen(false); edit(entry); }, !snapshot.writable), removable(entry, ns) ? button('apiDelete', () => { void run(() => remove(entry)); }, !snapshot.writable) : null)),
             !addOpen && draft?.entry.provider === entry.provider ? editor() : null);
         })),
-        h('div', { className: 'majed-api-add' }, button('apiAdd', () => { setAddOpen(true); setAddMode('catalog'); setDraft(null); if (addable[0]) edit(addable[0]); }, !snapshot.writable),
+        h('div', { className: 'majed-api-add' }, !addOpen ? button('apiAdd', () => { setAddOpen(true); setAddMode('catalog'); setDraft(null); if (addable[0]) edit(addable[0]); }, !snapshot.writable) : null,
           addOpen ? h(React.Fragment, null,
             h('div', { role: 'tablist', 'aria-label': t('apiAdd'), className: 'majed-api-tabs' },
-              ...['catalog', 'custom'].map(mode => h('button', { type: 'button', role: 'tab', 'aria-selected': addMode === mode, style: control, disabled: busy || (mode === 'custom' && !snapshot.namespaces.some((n: any) => n.ns === 'llm-pi-ai')), onClick: () => { setAddMode(mode); setDraft(null); if (mode === 'custom') custom(); else if (addable[0]) edit(addable[0]); } }, t(mode === 'catalog' ? 'apiCatalog' : 'apiCustom')))),
+              ...['catalog', 'custom'].map(mode => h('button', { type: 'button', role: 'tab', 'aria-selected': addMode === mode, style: control, disabled: busy || (mode === 'custom' && !snapshot.namespaces.some((n: any) => n.ns === 'llm-pi-ai')), onClick: () => switchMode(mode) }, t(mode === 'catalog' ? 'apiCatalog' : 'apiCustom')))),
             addMode === 'catalog' ? select('apiCatalog', draft?.entry.provider ?? '', v => { const entry = addable.find((e: any) => e.provider === v); if (entry) edit(entry); }, [h('option', { key: '', value: '', disabled: true }, t('apiChoose')), ...addable.map((e: any) => h('option', { key: e.provider, value: e.provider }, e.displayName))]) : null,
             draft ? editor() : button('apiCancel', close)) : null)));
   };

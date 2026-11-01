@@ -11,13 +11,14 @@ vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/api-providers
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 const ok = value => ({ ok: true, value });
 const model = [{ id: 'fixture-model', name: 'Fixture', contextWindow: 8192, maxTokens: 1024, input: ['text'], reasoningEfforts: false }];
-async function fixture(locale) {
+async function fixture(locale, { omitCredentialMetadata = false, includeAccountProvider = false } = {}) {
   const dict = JSON.parse(readFileSync(new URL(`../locale/${locale}.json`, import.meta.url))).subscriptions;
   const ns = { ns: 'llm-pi-ai', revision: 4, base: { providers: { deployment: { baseURL: 'https://deployment.example.test' } } }, user: { providers: { custom: { displayName: 'Custom', baseURL: 'https://custom.example.test', api: 'openai-completions', models: model, apiKeyEnv: 'CUSTOM_API_KEY' } } }, value: {} };
   function resolve() { ns.value = { providers: { ...ns.base.providers, ...ns.user.providers } }; }
   resolve();
   const calls = [], listeners = new Map(); let failKey = false, failSettings = false;
   const entries = [{ provider: 'builtin', displayName: 'Built in', declared: false }, { provider: 'custom', displayName: 'Custom', declared: true }, { provider: 'deployment', displayName: 'Deployment', declared: true }].map(e => ({ ...e, settingsNs: ns.ns, settingsPath: ['providers', e.provider] }));
+  if (includeAccountProvider) entries.push({ provider: 'deepseek-account', displayName: 'DeepSeek Account', settingsNs: ns.ns, settingsPath: [], declared: false });
   const credentials = { CUSTOM_API_KEY: { configured: true, writable: true, source: 'store' } };
   const remote = {
     $on(event, fn) { listeners.set(event, fn); return () => listeners.delete(event); },
@@ -35,7 +36,7 @@ async function fixture(locale) {
       },
     },
     credentials: {
-      async describe(refs) { calls.push(['credentials.describe', refs]); return ok(Object.fromEntries(refs.map(ref => [ref, credentials[ref] ?? { configured: false, writable: true }]))); },
+      async describe(refs) { calls.push(['credentials.describe', refs]); return ok(omitCredentialMetadata ? {} : Object.fromEntries(refs.map(ref => [ref, credentials[ref] ?? { configured: false, writable: true }]))); },
       async set(ref, value) { calls.push(['set', ref, value]); if (failKey) return { ok: false, error: { message: value } }; credentials[ref] = { configured: true, writable: true }; return ok(); },
       async unset(ref) { calls.push(['unset', ref]); credentials[ref] = { configured: false, writable: true }; return ok(); },
     },
@@ -46,20 +47,64 @@ async function fixture(locale) {
     },
   };
   const Card = exports.createApiProviders(React, remote, key => dict[key]);
-  let renderer;
-  await act(async () => { renderer = create(React.createElement(Card)); });
+  let renderer, focusCount = 0;
+  await act(async () => { renderer = create(React.createElement(Card), { createNodeMock: node => node.type === 'button' ? { focus() { focusCount++; } } : null }); });
   const textNode = node => typeof node === 'string' ? node : (node.children ?? []).map(textNode).join('');
   const buttons = (key, root = renderer.root) => root.findAll(n => n.type === 'button' && textNode(n) === dict[key]);
   const click = async (key, root) => { const button = buttons(key, root)[0]; assert.ok(button, key); assert.equal(button.props.disabled, false); await act(async () => { button.props.onClick(); }); };
   const field = async (key, value) => { const input = renderer.root.find(n => n.props['aria-label'] === dict[key] && ['input', 'select', 'textarea'].includes(n.type)); await act(async () => { input.props.onChange({ target: { value } }); }); };
   const row = id => renderer.root.find(n => n.props['data-majed-api-provider'] === id);
   const text = () => JSON.stringify(renderer.toJSON());
-  return { dict, ns, calls, entries, credentials, remote, renderer, buttons, click, field, row, text,
+  return { dict, ns, calls, entries, credentials, remote, renderer, buttons, click, field, row, text, focusCount: () => focusCount,
     failKey(value) { failKey = value; }, failSettings(value) { failSettings = value; },
     async emit(event) { await act(async () => { listeners.get(event)?.(); }); },
     async dispose() { await act(async () => renderer.unmount()); assert.equal(listeners.size, 0); },
   };
 }
+test('safe API mode drafts survive a visit to the other mode (#138)', async () => {
+  const p = await fixture('en');
+  try {
+    await p.click('apiAdd');
+    await p.field('apiName', 'Retained catalog name');
+    await p.field('apiKeyAction', 'set');
+    await p.field('apiKey', 'dummy-visited-secret');
+    await p.click('apiCustom');
+    await p.field('apiRoute', 'retained-custom');
+    await p.click('apiCatalog');
+    assert.equal(p.renderer.root.find(n => n.type === 'input' && n.props['aria-label'] === p.dict.apiName).props.value, 'Retained catalog name');
+    assert.equal(p.text().includes('dummy-visited-secret'), false);
+    await p.click('apiCustom');
+    assert.equal(p.renderer.root.find(n => n.type === 'input' && n.props['aria-label'] === p.dict.apiRoute).props.value, 'retained-custom');
+    await p.click('apiCancel');
+    await p.click('apiAdd');
+    assert.equal(p.renderer.root.find(n => n.type === 'input' && n.props['aria-label'] === p.dict.apiName).props.value, '');
+  } finally { await p.dispose(); }
+});
+test('inline API Add replaces its entry button and restores it on Cancel (#138)', async () => {
+  const p = await fixture('en');
+  try {
+    await p.click('apiAdd');
+    assert.equal(p.buttons('apiAdd').length, 0);
+    await p.click('apiCancel');
+    assert.equal(p.buttons('apiAdd').length, 1);
+    assert.equal(p.focusCount(), 1);
+  } finally { await p.dispose(); }
+});
+test('DeepSeek Account never exposes a generic key editor or credential lookup (#138)', async () => {
+  const p = await fixture('en', { includeAccountProvider: true });
+  try {
+    assert.equal(p.buttons('apiEdit', p.row('deepseek-account')).length, 0);
+    assert.equal(p.row('deepseek-account').findAll(n => n.props['data-majed-credential-status'] === 'account-unknown').length, 1);
+    assert.equal(p.calls.filter(c => c[0] === 'credentials.describe').flatMap(c => c[1]).some(ref => ref.includes('DEEPSEEK_ACCOUNT')), false);
+  } finally { await p.dispose(); }
+});
+test('missing credential metadata is unknown, not a missing key (#138)', async () => {
+  const p = await fixture('en', { omitCredentialMetadata: true });
+  try {
+    assert.equal(p.row('custom').findAll(n => n.props['data-majed-credential-status'] === 'unknown').length, 1);
+    assert.equal(p.text().includes(p.dict.apiKeyMissing), false);
+  } finally { await p.dispose(); }
+});
 for (const locale of ['en', 'ar']) {
   test(`native provider list, catalog add, edit and key set/unset in ${locale}`, async () => {
     const p = await fixture(locale);

@@ -1,4 +1,3 @@
-import { ProxySettings } from './settings/ProxySettings.js';
 import { ProviderAccountManager } from './settings/ProviderAccountManager.js';
 /** Scoped presentation port of V1ki v0.9.12 b802311; see PROVENANCE.md. */
 export const styles: Record<string, any> = {
@@ -261,7 +260,6 @@ export function createCodexCard(React: any, primitives: any, rpc: any, t: (key: 
     const busy = status?.busy;
     return h('div', { style: { ...styles.section, textAlign: 'start' }, className: 'majed-subscriptions-settings', 'data-majed-codex-card': true },
       h('style', null, controlCss),
-      h(ProxySettings, { rpc, t }),
       manager ? h(ProviderAccountManager, { provider: 'codex', name: status?.displayName || 'Codex (ChatGPT)', rpc, t, onClose: () => { setManager(false); void refreshStatus(); } }) : null,
       part('card', styles.card,
         part('header', styles.cardHeader,

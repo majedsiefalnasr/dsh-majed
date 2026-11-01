@@ -105,7 +105,12 @@ test('assembled section renders injected native provider directory with actual R
   let renderer;
   try {
     await act(async () => { renderer = create(ActualReact.createElement(page.section.component)); });
+    const settings = renderer.root.findAll(n => n.type === 'details' && n.props['data-majed-settings'] === true);
+    assert.equal(settings.length, 1, 'one page-level Settings disclosure');
+    assert.equal(settings[0].findAll(n => n.props.className === 'majed-proxy-settings').length, 1, 'Proxy belongs to page Settings');
+    assert.equal(renderer.root.findAll(n => n.props.className === 'majed-proxy-settings').length, 1, 'Proxy is mounted only once');
     assert.match(JSON.stringify(renderer.toJSON()), /Native fixture directory/);
+    assert.equal(renderer.root.findAll(n => n.props['data-majed-credential-status'] === 'unknown').length, 1, 'assembled native directory preserves unknown credential metadata');
     assert.doesNotMatch(JSON.stringify(renderer.toJSON()), /No API providers yet|Browser admission must be verified/);
   } finally { if (renderer) await act(async () => renderer.unmount()); page.cleanup(); }
 });

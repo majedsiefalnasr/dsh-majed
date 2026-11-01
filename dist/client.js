@@ -298,6 +298,7 @@ async function callSubscriptionsAuth$1(rpc, endpoint, payload) {
 //#endregion
 //#region locale/en.json
 var subscriptions$1 = {
+	"pageSettings": "Settings",
 	"zenRefresh": "Refresh status",
 	"zenNoLogin": "Free models · no login required",
 	"zenUnavailable": "OpenCode Zen is unavailable.",
@@ -317,6 +318,8 @@ var subscriptions$1 = {
 	"apiSaved": "Saved to native DSH settings.",
 	"apiKeySet": "Key configured",
 	"apiKeyMissing": "No key configured",
+	"apiKeyUnknown": "Key status unavailable",
+	"apiAccountUnknown": "Account status unavailable",
 	"apiAdd": "Add provider",
 	"apiEdit": "Edit provider",
 	"apiDelete": "Delete added provider",
@@ -928,6 +931,7 @@ function VideoGenerateToolview(props) {
 //#endregion
 //#region locale/ar.json
 var subscriptions = {
+	"pageSettings": "الإعدادات",
 	"zenRefresh": "تحديث الحالة",
 	"zenNoLogin": "نماذج مجانية · لا يلزم تسجيل الدخول",
 	"zenUnavailable": "خدمة OpenCode Zen غير متاحة.",
@@ -947,6 +951,8 @@ var subscriptions = {
 	"apiSaved": "حُفظ في إعدادات DSH الأصلية.",
 	"apiKeySet": "المفتاح مُعدّ",
 	"apiKeyMissing": "لا يوجد مفتاح مُعدّ",
+	"apiKeyUnknown": "حالة المفتاح غير متاحة",
+	"apiAccountUnknown": "حالة الحساب غير متاحة",
 	"apiAdd": "إضافة موفر",
 	"apiEdit": "تحرير الموفر",
 	"apiDelete": "حذف الموفر المضاف",
@@ -1203,207 +1209,6 @@ async function callSubscriptionsAuth(rpc, endpoint, payload) {
 	}
 	if (!result.ok) throw new SubscriptionsAuthError(result.error.message);
 	return result.value;
-}
-
-//#endregion
-//#region src/settings/ProxySettings.tsx
-/** Draft/test/save behavior ported from v0.9.12 SubscriptionsSection. Password never pre-fills. */
-function ProxySettings({ rpc, t }) {
-	const [view, setView] = (0, react.useState)();
-	const [open, setOpen] = (0, react.useState)(false);
-	const [draft, setDraft] = (0, react.useState)({});
-	const [error, setError] = (0, react.useState)("");
-	const [busy, setBusy] = (0, react.useState)("");
-	const [result, setResult] = (0, react.useState)();
-	const dialog = (0, react.useRef)(null);
-	const generation = (0, react.useRef)(0);
-	(0, react.useEffect)(() => () => {
-		generation.current++;
-	}, []);
-	const close = () => {
-		generation.current++;
-		setOpen(false);
-		setBusy("");
-	};
-	(0, react.useEffect)(() => {
-		let alive = true;
-		callSubscriptionsAuth(rpc, "proxyGet", {}).then((value) => {
-			if (alive) setView(value);
-		}).catch((reason) => {
-			if (alive) setError(String(reason.message));
-		});
-		return () => {
-			alive = false;
-		};
-	}, [rpc]);
-	(0, react.useEffect)(() => {
-		if (!open) return;
-		const previous = document.activeElement;
-		dialog.current?.showModal();
-		return () => {
-			dialog.current?.close();
-			if (previous instanceof HTMLElement && previous.isConnected) previous.focus();
-		};
-	}, [open]);
-	const field = (key, value) => setDraft((old) => ({
-		...old,
-		[key]: value
-	}));
-	const run = async (test) => {
-		if (busy) return;
-		const request = ++generation.current;
-		setBusy(test ? "test" : "save");
-		setError("");
-		setResult(void 0);
-		const password = draft.clearPassword ? { password: null } : draft.password ? { password: draft.password } : {};
-		try {
-			if (test) {
-				const tested = await callSubscriptionsAuth(rpc, "proxyTest", { proxy: {
-					enabled: draft.enabled,
-					url: draft.url.trim(),
-					...draft.username.trim() !== "" ? { username: draft.username.trim() } : {},
-					...password,
-					bypass: draft.bypass.split(/[,\n]/).map((s) => s.trim()).filter(Boolean)
-				} });
-				if (generation.current === request) setResult(tested);
-			} else {
-				const saved = await callSubscriptionsAuth(rpc, "proxySet", {
-					enabled: draft.enabled,
-					url: draft.url.trim(),
-					username: draft.username,
-					...password,
-					bypass: draft.bypass.split(/[,\n]/).map((s) => s.trim()).filter(Boolean)
-				});
-				if (generation.current === request) {
-					setView(saved);
-					setOpen(false);
-				}
-			}
-		} catch (reason) {
-			if (generation.current === request) setError(reason.message);
-		} finally {
-			if (generation.current === request) setBusy("");
-		}
-	};
-	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("section", {
-		className: "majed-proxy-settings",
-		children: [
-			/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("header", { children: [
-				/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", { children: t("proxyTitle") }),
-				" ",
-				/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-					type: "button",
-					disabled: !view,
-					onClick: () => {
-						setDraft({
-							...view,
-							username: view.username ?? "",
-							password: "",
-							clearPassword: false,
-							bypass: view.bypass.join(", ")
-						});
-						setError("");
-						setResult(void 0);
-						setOpen(true);
-					},
-					children: t("proxyConfigure")
-				})
-			] }),
-			/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-				role: "status",
-				children: view ? view.error ? t("proxyStatusError", { message: view.error }) : view.enabled ? t("proxyStatusEnabled", { url: view.url }) : t("proxyStatusNone") : t("proxyLoading")
-			}),
-			error && !open && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-				role: "alert",
-				children: error
-			}),
-			open && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("dialog", {
-				ref: dialog,
-				"aria-labelledby": "majed-proxy-title",
-				onCancel: close,
-				style: {
-					maxInlineSize: 560,
-					inlineSize: "calc(100% - 32px)"
-				},
-				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("h3", {
-					id: "majed-proxy-title",
-					children: t("proxyDialogTitle")
-				}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-					style: {
-						display: "grid",
-						gap: 12
-					},
-					children: [
-						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
-							type: "checkbox",
-							checked: draft.enabled,
-							onChange: (event) => field("enabled", event.target.checked)
-						}), t("proxyEnabled")] }),
-						[
-							"url",
-							"username",
-							"password",
-							"bypass"
-						].map((key) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
-							style: {
-								display: "grid",
-								gap: 4
-							},
-							children: [
-								t(`proxy${key[0].toUpperCase()}${key.slice(1)}`),
-								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
-									type: key === "password" ? "password" : "text",
-									autoComplete: "off",
-									dir: key === "url" ? "ltr" : void 0,
-									value: draft[key],
-									onChange: (event) => field(key, event.target.value)
-								}),
-								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", { children: t(`proxy${key[0].toUpperCase()}${key.slice(1)}Hint`) })
-							]
-						}, key)),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
-							type: "checkbox",
-							checked: draft.clearPassword,
-							onChange: (event) => field("clearPassword", event.target.checked)
-						}), t("proxyClearPassword")] }),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", { children: t("proxyNote") }),
-						error && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-							role: "alert",
-							children: error
-						}),
-						result && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-							role: "status",
-							children: result.ok ? t(result.viaProxy ? "proxyTestOk" : "proxyTestOkDirect", {
-								status: String(result.status),
-								ms: String(result.latencyMs)
-							}) : t("proxyTestFail", { message: result.error ?? "" })
-						}),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("footer", { children: [
-							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-								type: "button",
-								disabled: !!busy,
-								onClick: () => void run(true),
-								children: t(busy === "test" ? "proxyTesting" : "proxyTest")
-							}),
-							" ",
-							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-								type: "button",
-								disabled: !!busy,
-								onClick: () => void run(false),
-								children: t(busy === "save" ? "proxySaving" : "proxySave")
-							}),
-							" ",
-							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-								type: "button",
-								onClick: close,
-								children: t("proxyCancel")
-							})
-						] })
-					]
-				})]
-			})
-		]
-	});
 }
 
 //#endregion
@@ -3017,10 +2822,7 @@ function createCodexCard(React, primitives$1, rpc, t) {
 			},
 			className: "majed-subscriptions-settings",
 			"data-majed-codex-card": true
-		}, h("style", null, controlCss), h(ProxySettings, {
-			rpc,
-			t
-		}), manager ? h(ProviderAccountManager, {
+		}, h("style", null, controlCss), manager ? h(ProviderAccountManager, {
 			provider: "codex",
 			name: status?.displayName || "Codex (ChatGPT)",
 			rpc,
@@ -3234,6 +3036,207 @@ function createCodexCard(React, primitives$1, rpc, t) {
 }
 
 //#endregion
+//#region src/settings/ProxySettings.tsx
+/** Draft/test/save behavior ported from v0.9.12 SubscriptionsSection. Password never pre-fills. */
+function ProxySettings({ rpc, t }) {
+	const [view, setView] = (0, react.useState)();
+	const [open, setOpen] = (0, react.useState)(false);
+	const [draft, setDraft] = (0, react.useState)({});
+	const [error, setError] = (0, react.useState)("");
+	const [busy, setBusy] = (0, react.useState)("");
+	const [result, setResult] = (0, react.useState)();
+	const dialog = (0, react.useRef)(null);
+	const generation = (0, react.useRef)(0);
+	(0, react.useEffect)(() => () => {
+		generation.current++;
+	}, []);
+	const close = () => {
+		generation.current++;
+		setOpen(false);
+		setBusy("");
+	};
+	(0, react.useEffect)(() => {
+		let alive = true;
+		callSubscriptionsAuth(rpc, "proxyGet", {}).then((value) => {
+			if (alive) setView(value);
+		}).catch((reason) => {
+			if (alive) setError(String(reason.message));
+		});
+		return () => {
+			alive = false;
+		};
+	}, [rpc]);
+	(0, react.useEffect)(() => {
+		if (!open) return;
+		const previous = document.activeElement;
+		dialog.current?.showModal();
+		return () => {
+			dialog.current?.close();
+			if (previous instanceof HTMLElement && previous.isConnected) previous.focus();
+		};
+	}, [open]);
+	const field = (key, value) => setDraft((old) => ({
+		...old,
+		[key]: value
+	}));
+	const run = async (test) => {
+		if (busy) return;
+		const request = ++generation.current;
+		setBusy(test ? "test" : "save");
+		setError("");
+		setResult(void 0);
+		const password = draft.clearPassword ? { password: null } : draft.password ? { password: draft.password } : {};
+		try {
+			if (test) {
+				const tested = await callSubscriptionsAuth(rpc, "proxyTest", { proxy: {
+					enabled: draft.enabled,
+					url: draft.url.trim(),
+					...draft.username.trim() !== "" ? { username: draft.username.trim() } : {},
+					...password,
+					bypass: draft.bypass.split(/[,\n]/).map((s) => s.trim()).filter(Boolean)
+				} });
+				if (generation.current === request) setResult(tested);
+			} else {
+				const saved = await callSubscriptionsAuth(rpc, "proxySet", {
+					enabled: draft.enabled,
+					url: draft.url.trim(),
+					username: draft.username,
+					...password,
+					bypass: draft.bypass.split(/[,\n]/).map((s) => s.trim()).filter(Boolean)
+				});
+				if (generation.current === request) {
+					setView(saved);
+					setOpen(false);
+				}
+			}
+		} catch (reason) {
+			if (generation.current === request) setError(reason.message);
+		} finally {
+			if (generation.current === request) setBusy("");
+		}
+	};
+	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("section", {
+		className: "majed-proxy-settings",
+		children: [
+			/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("header", { children: [
+				/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", { children: t("proxyTitle") }),
+				" ",
+				/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+					type: "button",
+					disabled: !view,
+					onClick: () => {
+						setDraft({
+							...view,
+							username: view.username ?? "",
+							password: "",
+							clearPassword: false,
+							bypass: view.bypass.join(", ")
+						});
+						setError("");
+						setResult(void 0);
+						setOpen(true);
+					},
+					children: t("proxyConfigure")
+				})
+			] }),
+			/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+				role: "status",
+				children: view ? view.error ? t("proxyStatusError", { message: view.error }) : view.enabled ? t("proxyStatusEnabled", { url: view.url }) : t("proxyStatusNone") : t("proxyLoading")
+			}),
+			error && !open && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+				role: "alert",
+				children: error
+			}),
+			open && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("dialog", {
+				ref: dialog,
+				"aria-labelledby": "majed-proxy-title",
+				onCancel: close,
+				style: {
+					maxInlineSize: 560,
+					inlineSize: "calc(100% - 32px)"
+				},
+				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("h3", {
+					id: "majed-proxy-title",
+					children: t("proxyDialogTitle")
+				}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+					style: {
+						display: "grid",
+						gap: 12
+					},
+					children: [
+						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+							type: "checkbox",
+							checked: draft.enabled,
+							onChange: (event) => field("enabled", event.target.checked)
+						}), t("proxyEnabled")] }),
+						[
+							"url",
+							"username",
+							"password",
+							"bypass"
+						].map((key) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+							style: {
+								display: "grid",
+								gap: 4
+							},
+							children: [
+								t(`proxy${key[0].toUpperCase()}${key.slice(1)}`),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+									type: key === "password" ? "password" : "text",
+									autoComplete: "off",
+									dir: key === "url" ? "ltr" : void 0,
+									value: draft[key],
+									onChange: (event) => field(key, event.target.value)
+								}),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", { children: t(`proxy${key[0].toUpperCase()}${key.slice(1)}Hint`) })
+							]
+						}, key)),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+							type: "checkbox",
+							checked: draft.clearPassword,
+							onChange: (event) => field("clearPassword", event.target.checked)
+						}), t("proxyClearPassword")] }),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", { children: t("proxyNote") }),
+						error && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+							role: "alert",
+							children: error
+						}),
+						result && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+							role: "status",
+							children: result.ok ? t(result.viaProxy ? "proxyTestOk" : "proxyTestOkDirect", {
+								status: String(result.status),
+								ms: String(result.latencyMs)
+							}) : t("proxyTestFail", { message: result.error ?? "" })
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("footer", { children: [
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+								type: "button",
+								disabled: !!busy,
+								onClick: () => void run(true),
+								children: t(busy === "test" ? "proxyTesting" : "proxyTest")
+							}),
+							" ",
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+								type: "button",
+								disabled: !!busy,
+								onClick: () => void run(false),
+								children: t(busy === "save" ? "proxySaving" : "proxySave")
+							}),
+							" ",
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+								type: "button",
+								onClick: close,
+								children: t("proxyCancel")
+							})
+						] })
+					]
+				})]
+			})
+		]
+	});
+}
+
+//#endregion
 //#region src/api-providers.ts
 function createApiProviders(React, remote, t) {
 	const h = React.createElement;
@@ -3260,6 +3263,15 @@ function createApiProviders(React, remote, t) {
 		const [busy, setBusy] = React.useState(false);
 		const generation = React.useRef(0);
 		const mounted = React.useRef(true);
+		const addButton = React.useRef(null);
+		const restoreAddFocus = React.useRef(false);
+		const visitedDrafts = React.useRef({});
+		React.useEffect(() => {
+			if (!addOpen && restoreAddFocus.current) {
+				restoreAddFocus.current = false;
+				addButton.current?.focus();
+			}
+		}, [addOpen]);
 		const valueOf = (result) => {
 			if (!result.ok) throw new Error(result.error?.code === "settings/conflict" ? "apiConflict" : "apiFailed");
 			return result.value;
@@ -3361,6 +3373,22 @@ function createApiProviders(React, remote, t) {
 				custom: true
 			});
 		}
+		function switchMode(mode) {
+			if (busy || mode === addMode) return;
+			if (draft) visitedDrafts.current[addMode] = {
+				...draft,
+				key: "",
+				keyAction: "keep"
+			};
+			setAddMode(mode);
+			setMessage("");
+			if (visitedDrafts.current[mode]) setDraft(visitedDrafts.current[mode]);
+			else {
+				setDraft(null);
+				if (mode === "custom") custom();
+				else if (addable[0]) edit(addable[0]);
+			}
+		}
 		const change = (field$1, value) => setDraft((d) => ({
 			...d,
 			[field$1]: value
@@ -3456,6 +3484,8 @@ function createApiProviders(React, remote, t) {
 				throw new Error(committed ? "apiPartial" : "apiFailed");
 			}
 			if (mounted.current) {
+				restoreAddFocus.current = addOpen;
+				visitedDrafts.current = {};
 				setDraft(null);
 				setAddOpen(false);
 				setMessage("apiSaved");
@@ -3489,7 +3519,8 @@ function createApiProviders(React, remote, t) {
 			type: "button",
 			style: control,
 			onClick,
-			disabled: busy || disabled
+			disabled: busy || disabled,
+			...key === "apiAdd" ? { ref: addButton } : {}
 		}, t(key));
 		const field = (key, value, onChange, type = "text") => h("label", { className: "majed-api-field" }, t(key), h("input", {
 			"aria-label": t(key),
@@ -3514,6 +3545,8 @@ function createApiProviders(React, remote, t) {
 			onChange: (e) => onChange(e.target.value)
 		}, ...options));
 		const close = () => {
+			restoreAddFocus.current = addOpen;
+			visitedDrafts.current = {};
 			setDraft(null);
 			setAddOpen(false);
 		};
@@ -3579,23 +3612,38 @@ function createApiProviders(React, remote, t) {
 			load();
 		})), !snapshot ? h("p", null, t("apiLoading")) : h(React.Fragment, null, h("ul", { className: "majed-api-rows" }, ...snapshot.rows.filter(configured).map((entry) => {
 			const ns = nsOf(entry), profile = at(ns.value, entry.settingsPath);
-			const keySet = snapshot.credentials[refOf(entry, profile)]?.configured || (entry.nativeAuth?.env ?? []).some((r) => snapshot.credentials[r]?.configured);
+			const metadata = (profile?.apiKeyEnv ? [profile.apiKeyEnv] : [refOf(entry, profile), ...entry.nativeAuth?.env ?? []]).map((ref) => snapshot.credentials[ref]);
+			const credentialStatus = entry.provider === "deepseek-account" ? "account-unknown" : metadata.some((value) => value?.configured === true) ? "configured" : metadata.every((value) => value?.configured === false) ? "missing" : "unknown";
+			const statusLabel = credentialStatus === "configured" ? "apiKeySet" : credentialStatus === "missing" ? "apiKeyMissing" : credentialStatus === "account-unknown" ? "apiAccountUnknown" : "apiKeyUnknown";
 			return h("li", {
 				key: entry.provider,
 				"data-majed-api-provider": entry.provider,
 				className: "majed-api-row"
-			}, h("div", { className: "majed-api-head" }, h("span", { className: "majed-api-identity" }, h("strong", null, profile?.displayName ?? entry.displayName), h("span", { className: "majed-api-muted" }, t(keySet ? "apiKeySet" : "apiKeyMissing"))), h("span", { className: "majed-api-actions" }, button("apiEdit", () => {
+			}, h("div", { className: "majed-api-head" }, h("span", { className: "majed-api-identity" }, h("strong", null, profile?.displayName ?? entry.displayName), h("span", {
+				className: "majed-api-muted",
+				"data-majed-credential-status": credentialStatus
+			}, h("span", {
+				"aria-hidden": true,
+				style: {
+					display: "inline-block",
+					width: 6,
+					height: 6,
+					borderRadius: "50%",
+					marginInlineEnd: 6,
+					background: "currentColor"
+				}
+			}), t(statusLabel))), h("span", { className: "majed-api-actions" }, entry.provider === "deepseek-account" ? null : button("apiEdit", () => {
 				setAddOpen(false);
 				edit(entry);
 			}, !snapshot.writable), removable(entry, ns) ? button("apiDelete", () => {
 				run(() => remove(entry));
 			}, !snapshot.writable) : null)), !addOpen && draft?.entry.provider === entry.provider ? editor() : null);
-		})), h("div", { className: "majed-api-add" }, button("apiAdd", () => {
+		})), h("div", { className: "majed-api-add" }, !addOpen ? button("apiAdd", () => {
 			setAddOpen(true);
 			setAddMode("catalog");
 			setDraft(null);
 			if (addable[0]) edit(addable[0]);
-		}, !snapshot.writable), addOpen ? h(React.Fragment, null, h("div", {
+		}, !snapshot.writable) : null, addOpen ? h(React.Fragment, null, h("div", {
 			role: "tablist",
 			"aria-label": t("apiAdd"),
 			className: "majed-api-tabs"
@@ -3605,12 +3653,7 @@ function createApiProviders(React, remote, t) {
 			"aria-selected": addMode === mode,
 			style: control,
 			disabled: busy || mode === "custom" && !snapshot.namespaces.some((n) => n.ns === "llm-pi-ai"),
-			onClick: () => {
-				setAddMode(mode);
-				setDraft(null);
-				if (mode === "custom") custom();
-				else if (addable[0]) edit(addable[0]);
-			}
+			onClick: () => switchMode(mode)
 		}, t(mode === "catalog" ? "apiCatalog" : "apiCustom")))), addMode === "catalog" ? select("apiCatalog", draft?.entry.provider ?? "", (v) => {
 			const entry = addable.find((e) => e.provider === v);
 			if (entry) edit(entry);
@@ -5867,6 +5910,7 @@ function applySubscriptions(root) {
 		const ZenCard = guarded(React, createZenCard(React, primitives$1, connection.rpc, t), "Zen card");
 		const GrokCard = guarded(React, createGrokCard(React, primitives$1, connection.rpc, t), "Grok card");
 		const GuardedSetting = guarded(React, UsageBadgeDisplaySetting, "usage display setting");
+		const GuardedProxy = guarded(React, ProxySettings, "proxy setting");
 		const GuardedSpeed = guarded(React, SpeedSelect, "Speed control");
 		const GuardedBadge = guarded(React, SubscriptionUsageBadge, "usage badge");
 		const listeners = /* @__PURE__ */ new Set();
@@ -5899,7 +5943,24 @@ function applySubscriptions(root) {
 				textAlign: "start",
 				color: "var(--dsw-alias-label-primary)",
 				font: "var(--dsw-font-s-14)"
-			} }, referenceEnabled ? h("p", { role: "status" }, t("coexistence")) : null, failing ? h("p", { role: "alert" }, t("unreachable")) : null, ...["accounts", "providers"].map((part) => h("section", {
+			} }, referenceEnabled ? h("p", { role: "status" }, t("coexistence")) : null, failing ? h("p", { role: "alert" }, t("unreachable")) : null, h("details", {
+				"data-majed-settings": true,
+				style: {
+					maxInlineSize: 720,
+					paddingBlock: "var(--dsw-spacing-4)"
+				}
+			}, h("summary", { style: {
+				cursor: "pointer",
+				font: "var(--dsw-font-s-strong-14)"
+			} }, t("pageSettings")), h("div", { style: {
+				display: "flex",
+				flexDirection: "column",
+				gap: 12,
+				paddingBlockStart: "var(--dsw-spacing-3)"
+			} }, h(GuardedProxy, {
+				rpc: connection.rpc,
+				t
+			}), h(GuardedSetting, { t }))), ...["accounts", "providers"].map((part) => h("section", {
 				key: part,
 				style: {
 					paddingBlock: "var(--dsw-spacing-4)",
@@ -5908,7 +5969,7 @@ function applySubscriptions(root) {
 			}, h("h3", { style: { font: "var(--dsw-font-s-strong-14)" } }, h(IconSettingsOutlineMedium, { "aria-hidden": true }), t(part)), part === "accounts" ? h("div", null, h("p", { style: {
 				marginBlock: "0 var(--dsw-spacing-3)",
 				color: "var(--dsw-alias-label-tertiary)"
-			} }, t("intro")), h(GuardedSetting, { t }), h(CodexCard), h(ClaudeCard), h(GrokCard), h(AntigravityCard), h(CopilotCard), h(ZenCard)) : ApiProviders ? h(ApiProviders) : h("p", { role: "status" }, t("apiUnavailable")))));
+			} }, t("intro")), h(CodexCard), h(ClaudeCard), h(GrokCard), h(AntigravityCard), h(CopilotCard), h(ZenCard)) : ApiProviders ? h(ApiProviders) : h("p", { role: "status" }, t("apiUnavailable")))));
 		}
 		const models = () => ctx.get("modelDirectories");
 		const surfaceWanted = () => !disposed && present && !referenceEnabled;

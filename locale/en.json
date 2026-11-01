@@ -4,6 +4,7 @@
     "description": "Bidirectional (RTL/LTR) text support for Arabic, Persian and Hebrew, GenUI RTL mirroring, and extra Settings > General options such as an app-UI font size."
   },
   "subscriptions": {
+    "pageSettings": "Settings",
     "zenRefresh": "Refresh status",
     "zenNoLogin": "Free models · no login required",
     "zenUnavailable": "OpenCode Zen is unavailable.",
@@ -23,6 +24,8 @@
     "apiSaved": "Saved to native DSH settings.",
     "apiKeySet": "Key configured",
     "apiKeyMissing": "No key configured",
+    "apiKeyUnknown": "Key status unavailable",
+    "apiAccountUnknown": "Account status unavailable",
     "apiAdd": "Add provider",
     "apiEdit": "Edit provider",
     "apiDelete": "Delete added provider",

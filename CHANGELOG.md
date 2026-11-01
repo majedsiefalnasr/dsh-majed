@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Begin #138 with honest API credential indicators: absent native metadata is unknown rather than missing, and DeepSeek Account has an account-status fallback without a generic key editor. The existing API Add entry is replaced while its inline editor is open, restores focus and retains safe visited drafts. Move existing Proxy and usage-display controls into one page-level Settings disclosure instead of nesting Proxy under Codex. This is a verified partial implementation; the mixed provider list, subscription Add orchestration, grouped accounts and whole-section visual acceptance remain pending.
+
 - Repair the missing composer usage badge when status includes login-less OpenCode Zen before account-bearing providers. Limit the usage roster to supported account providers with account arrays; keep Codex, Claude, Grok, Copilot and Antigravity usage and popup accounts intact. Actual-component fake-RPC regression only; installed/live acceptance remains separate.
 
 - Add #137 OpenCode Zen in-process anonymous free-model adapter and login-less English/Arabic status card. Reuse owned Chat/Responses translators, canonical reference client headers, bounded catalog/error bodies, static/in-memory fallback and generic errors. Cancelled discovery remains retryable; last-known paid/deprecated metadata survives metadata outages. Controlled assembled host and registered-card interaction tests pass; final independent review, package and Owner installed/live acceptance remain separate gates.

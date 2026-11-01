@@ -4,6 +4,7 @@ import { VideoGenerateToolview, createVideoLoader } from './VideoGenerateToolvie
 import en from '../locale/en.json';
 import ar from '../locale/ar.json';
 import { createCodexCard } from './codex-card.js';
+import { ProxySettings } from './settings/ProxySettings.js';
 import { createApiProviders } from './api-providers.js';
 import { createCopilotCard } from './copilot-card.js';
 import { createClaudeCard } from './claude-card.js';
@@ -48,6 +49,7 @@ export function applySubscriptions(root: Context): void {
     const ZenCard = guarded(React, createZenCard(React, primitives, connection.rpc, t), 'Zen card');
     const GrokCard = guarded(React, createGrokCard(React, primitives, connection.rpc, t), 'Grok card');
     const GuardedSetting = guarded(React, UsageBadgeDisplaySetting as any, 'usage display setting');
+    const GuardedProxy = guarded(React, ProxySettings as any, 'proxy setting');
     const GuardedSpeed = guarded(React, SpeedSelect as any, 'Speed control');
     const GuardedBadge = guarded(React, SubscriptionUsageBadge as any, 'usage badge');
     const listeners = new Set<() => void>();
@@ -68,9 +70,12 @@ export function applySubscriptions(root: Context): void {
       return h('div', { style: { textAlign: 'start', color: 'var(--dsw-alias-label-primary)', font: 'var(--dsw-font-s-14)' } },
         referenceEnabled ? h('p', { role: 'status' }, t('coexistence')) : null,
         failing ? h('p', { role: 'alert' }, t('unreachable')) : null,
+        h('details', { 'data-majed-settings': true, style: { maxInlineSize: 720, paddingBlock: 'var(--dsw-spacing-4)' } },
+          h('summary', { style: { cursor: 'pointer', font: 'var(--dsw-font-s-strong-14)' } }, t('pageSettings')),
+          h('div', { style: { display: 'flex', flexDirection: 'column', gap: 12, paddingBlockStart: 'var(--dsw-spacing-3)' } }, h(GuardedProxy, { rpc: connection.rpc, t }), h(GuardedSetting, { t }))),
         ...['accounts', 'providers'].map((part) => h('section', { key: part, style: { paddingBlock: 'var(--dsw-spacing-4)', borderBlockEnd: '1px solid var(--dsw-alias-border-l2)' } },
           h('h3', { style: { font: 'var(--dsw-font-s-strong-14)' } }, h(IconSettingsOutlineMedium, { 'aria-hidden': true }), t(part)),
-          part === 'accounts' ? h('div', null, h('p', { style: { marginBlock: '0 var(--dsw-spacing-3)', color: 'var(--dsw-alias-label-tertiary)' } }, t('intro')), h(GuardedSetting, { t }), h(CodexCard), h(ClaudeCard), h(GrokCard), h(AntigravityCard), h(CopilotCard), h(ZenCard)) : ApiProviders ? h(ApiProviders) : h('p', { role: 'status' }, t('apiUnavailable')))));
+          part === 'accounts' ? h('div', null, h('p', { style: { marginBlock: '0 var(--dsw-spacing-3)', color: 'var(--dsw-alias-label-tertiary)' } }, t('intro')), h(CodexCard), h(ClaudeCard), h(GrokCard), h(AntigravityCard), h(CopilotCard), h(ZenCard)) : ApiProviders ? h(ApiProviders) : h('p', { role: 'status' }, t('apiUnavailable')))));
     }
     // Composer surfaces (ticket #131): the usage badge, the Speed control and /fast exist only while the component
     // answers and the reference plugin is not serving the same provider ids. Each registration is isolated so a

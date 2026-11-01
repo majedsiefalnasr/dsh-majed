@@ -1,5 +1,9 @@
 # Subscriptions provenance
 
+## #138 partial API presentation corrections
+
+The credential-state labels/dot, DeepSeek Account unknown fallback and generic-editor exclusion, and in-place API Add entry/focus restoration are independently authored changes to the existing #136 adaptation. They introduce no additional third-party source or private imports. The existing DeepSeek MIT notice and #136 source attribution below remain applicable. Page-level Settings ownership is independently authored: existing ProxySettings and UsageBadgeDisplaySetting move unchanged into one semantic disclosure, with Proxy no longer mounted by CodexCard. These changes do not yet implement the approved whole-section unified composition.
+
 ## #137 OpenCode Zen candidate
 
 Source: https://github.com/FishBottle7/opencode2dsh tag `v0.3.14`, commit `1aa212063cf68b0ad6f3ed310bca4588cf06c008`, MIT copyright 2026 FishBottle7. Inspected pinned source `/tmp/majed137-reference-P9VoiY/source/packages/plugin/src/adapter/{ids,catalog,messages,zen-adapter}.ts`. `providers/zen.ts` adapts canonical inverted-timestamp/session memo and CLI headers, static roster, metadata/name free classification, protocol blocklist, bash/read gate schemas and muse Responses routing. Local changes: provider `opencode-zen`, owned RPC/effects/card data names, existing Majed translators and fetch transport, bounded response readers, generic secrecy-preserving errors and overall request deadline. No sidecar, adaptive inference probes, IP pool, dispatcher mutation, binary downloads, credential delegation or reference runtime dependency. Card independently authored using existing owned styles; English/Arabic are local presentation. No live verification. Full verification and independent Standards/Spec review remain incomplete.

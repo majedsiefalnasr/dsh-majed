@@ -4,6 +4,7 @@
     "description": "دعم النصوص ثنائية الاتجاه (RTL/LTR) للعربية والفارسية والعبرية، وعكس مكوّنات GenUI، وخيارات إضافية في الإعدادات ▸ عام مثل حجم خط واجهة التطبيق."
   },
   "subscriptions": {
+    "pageSettings": "الإعدادات",
     "zenRefresh": "تحديث الحالة",
     "zenNoLogin": "نماذج مجانية · لا يلزم تسجيل الدخول",
     "zenUnavailable": "خدمة OpenCode Zen غير متاحة.",
@@ -23,6 +24,8 @@
     "apiSaved": "حُفظ في إعدادات DSH الأصلية.",
     "apiKeySet": "المفتاح مُعدّ",
     "apiKeyMissing": "لا يوجد مفتاح مُعدّ",
+    "apiKeyUnknown": "حالة المفتاح غير متاحة",
+    "apiAccountUnknown": "حالة الحساب غير متاحة",
     "apiAdd": "إضافة موفر",
     "apiEdit": "تحرير الموفر",
     "apiDelete": "حذف الموفر المضاف",
