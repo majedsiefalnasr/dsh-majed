@@ -8,6 +8,7 @@ import { createApiProviders } from './api-providers.js';
 import { createCopilotCard } from './copilot-card.js';
 import { createClaudeCard } from './claude-card.js';
 import { createAntigravityCard } from './antigravity-card.js';
+import { createZenCard } from './zen-card.js';
 import { createGrokCard } from './grok-card.js';
 import { SpeedSelect, createSpeedLoader, createSpeedSetter } from './speed/SpeedSelect.js';
 import { fastCommandDescription } from './speed/fast-command.js';
@@ -44,6 +45,7 @@ export function applySubscriptions(root: Context): void {
     const CopilotCard = guarded(React, createCopilotCard(React, primitives, connection.rpc, t), 'Copilot card');
     const ClaudeCard = guarded(React, createClaudeCard(React, primitives, connection.rpc, t), 'Claude card');
     const AntigravityCard = guarded(React, createAntigravityCard(React, primitives, connection.rpc, t), 'Antigravity card');
+    const ZenCard = guarded(React, createZenCard(React, primitives, connection.rpc, t), 'Zen card');
     const GrokCard = guarded(React, createGrokCard(React, primitives, connection.rpc, t), 'Grok card');
     const GuardedSetting = guarded(React, UsageBadgeDisplaySetting as any, 'usage display setting');
     const GuardedSpeed = guarded(React, SpeedSelect as any, 'Speed control');
@@ -68,7 +70,7 @@ export function applySubscriptions(root: Context): void {
         failing ? h('p', { role: 'alert' }, t('unreachable')) : null,
         ...['accounts', 'providers'].map((part) => h('section', { key: part, style: { paddingBlock: 'var(--dsw-spacing-4)', borderBlockEnd: '1px solid var(--dsw-alias-border-l2)' } },
           h('h3', { style: { font: 'var(--dsw-font-s-strong-14)' } }, h(IconSettingsOutlineMedium, { 'aria-hidden': true }), t(part)),
-          part === 'accounts' ? h('div', null, h('p', { style: { marginBlock: '0 var(--dsw-spacing-3)', color: 'var(--dsw-alias-label-tertiary)' } }, t('intro')), h(GuardedSetting, { t }), h(CodexCard), h(ClaudeCard), h(GrokCard), h(AntigravityCard), h(CopilotCard)) : ApiProviders ? h(ApiProviders) : h('p', { role: 'status' }, t('apiUnavailable')))));
+          part === 'accounts' ? h('div', null, h('p', { style: { marginBlock: '0 var(--dsw-spacing-3)', color: 'var(--dsw-alias-label-tertiary)' } }, t('intro')), h(GuardedSetting, { t }), h(CodexCard), h(ClaudeCard), h(GrokCard), h(AntigravityCard), h(CopilotCard), h(ZenCard)) : ApiProviders ? h(ApiProviders) : h('p', { role: 'status' }, t('apiUnavailable')))));
     }
     // Composer surfaces (ticket #131): the usage badge, the Speed control and /fast exist only while the component
     // answers and the reference plugin is not serving the same provider ids. Each registration is isolated so a

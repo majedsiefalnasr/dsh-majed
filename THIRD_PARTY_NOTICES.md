@@ -1,5 +1,7 @@
 # Third-party notices
 
+#137 adapts OpenCode Zen client identification, free-lane catalog and gate schemas from https://github.com/FishBottle7/opencode2dsh `v0.3.14`, commit `1aa212063cf68b0ad6f3ed310bca4588cf06c008`. MIT License, Copyright (c) 2026 FishBottle7. The complete MIT permission, inclusion condition and warranty disclaimer reproduced below apply to these adapted portions as well. See `src/PROVENANCE.md` for local changes.
+
 #136's native API-provider UI narrowly adapts ModelsSection structure and styles from DeepSeek Harness `dsh-client-ui-settings-models` `0.2.1-rc.3`, https://github.com/deepseek-ai/deepseek-harness, under MIT. The precise source ranges and local adaptations are recorded in `src/PROVENANCE.md`. Controlled tests and public-remotes composition are locally authored.
 
 MIT License

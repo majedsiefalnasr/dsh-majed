@@ -109,6 +109,34 @@ test('assembled section renders injected native provider directory with actual R
     assert.doesNotMatch(JSON.stringify(renderer.toJSON()), /No API providers yet|Browser admission must be verified/);
   } finally { if (renderer) await act(async () => renderer.unmount()); page.cleanup(); }
 });
+for (const locale of ['en', 'ar']) test('registered Zen card refresh, pending, error recovery and pending unmount: '+locale, async () => {
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  const dictionary=JSON.parse(await readFile(new URL('../locale/'+locale+'.json',import.meta.url),'utf8')).subscriptions;
+  const pending=[];
+  const page=browser(locale,(_channel,method)=>method==='majed-subscriptions.zenStatus'
+    ?new Promise((resolve,reject)=>pending.push({resolve,reject}))
+    :Promise.resolve({ok:true,value:{component:'subscriptions'}}),{React:ActualReact});
+  await page.settle();let renderer;
+  const value={ok:true,value:{reachable:true,modelCount:2,source:'gateway'}};
+  try{
+    await act(async()=>{renderer=create(ActualReact.createElement(page.section.component));});
+    const card=()=>renderer.root.findByProps({'data-majed-zen-card':true});
+    const button=()=>card().findByType('button');
+    assert.equal(pending.length,1);assert.equal(button().props.disabled,true);
+    assert.equal(button().children.join(''),dictionary.zenRefresh);
+    await act(async()=>pending.shift().resolve(value));assert.equal(button().props.disabled,false);
+    await act(async()=>button().props.onClick());assert.equal(pending.length,1);assert.equal(button().props.disabled,true);
+    await act(async()=>pending.shift().reject(Error('fixture unavailable')));
+    assert.ok(JSON.stringify(card().findByProps({role:'status'}).children).includes(dictionary.zenUnavailable));assert.equal(button().props.disabled,false);
+    await act(async()=>button().props.onClick());assert.equal(button().props.disabled,true);
+    await act(async()=>pending.shift().resolve(value));
+    assert.ok(JSON.stringify(card().findByProps({role:'status'}).children).includes(dictionary.zenReachable));assert.equal(button().props.disabled,false);
+    await act(async()=>button().props.onClick());assert.equal(pending.length,1);
+    await act(async()=>renderer.unmount());renderer=null;
+    await act(async()=>pending.shift().reject(Error('late fixture failure')));
+    assert.equal(pending.length,0);assert.ok(page.section,'late completion does not withdraw registration');
+  }finally{if(renderer)await act(async()=>renderer.unmount());page.cleanup();}
+});
 test('real Cordis admits the remote root and namespaces before registered API directory RPC', async () => {
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   const root = new Context();

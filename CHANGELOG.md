@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Add #137 OpenCode Zen in-process anonymous free-model adapter and login-less English/Arabic status card. Reuse owned Chat/Responses translators, canonical reference client headers, bounded catalog/error bodies, static/in-memory fallback and generic errors. Cancelled discovery remains retryable; last-known paid/deprecated metadata survives metadata outages. Controlled assembled host and registered-card interaction tests pass; final independent review, package and Owner installed/live acceptance remain separate gates.
+
 - Repair #136 API-provider presentation with native-style configured-only rows, inset editors, a separate catalog/custom Add flow and labeled model ID/name rows that preserve existing capabilities and metadata. Keep revision/conflict, write-only key and partial-retry behavior. Add an actual-component synthetic DOM fixture; browser visual verification remains pending because no BrowserSkill browser was connected. No installed-state changes.
 
 - Fix #136 native API-provider admission by explicitly injecting the public `remote` root alongside its settings, credentials and llm namespaces. Real Cordis scoped-service regression proves no directory RPC before admission and withdrawal/remount recovery. Controlled proof only; actual installed SDK/principal and consolidated Owner acceptance remain pending.
