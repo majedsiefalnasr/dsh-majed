@@ -1,5 +1,25 @@
 # #138 partial candidate verification
 
+## Test-only metadata-contract continuation — stopped 2026-11-01
+
+Owner renewed twenty minutes/two unexpected failures; read current scope/execution/state and issue brief plus both harness versions. Added exact synthetic metadata response for `https://models.dev/api.json`: `{ opencode: { models: {} } }`, matching the decoder in `src/providers/zen.ts:65-67`. Existing empty synthetic gateway catalog is unchanged. Denied-request throw/assertion remains intact, with no fetch fallback or live HTTP. Other existing fake contracts were not broadened; a comprehensive exact-URL/method audit remains unperformed.
+
+Workspace-only requirement prompted replacing the candidate temporary-home prefix with `new URL('../.ui138-host-home-', import.meta.url).pathname`. This is a test-harness defect: `.pathname` retains `%20`, so the actual path does not exist. The future narrow correction is URL-to-filesystem conversion, not a new directory or broader filesystem permission.
+
+Unexpected failure1: lookup under nonexistent `src/zen`, grep exit2. Actual Zen source was then read at `src/providers/zen.ts`. Unexpected failure2: `node --test test/unified-host-flow-138.candidate.mjs > ui138-host-final-candidate.log 2>&1`, exit1, all five tests fail fixture setup with `ENOENT` from mkdtemp at `DeepSeek%20Harness`. No admission assertions ran; this is neither product RED nor metadata GREEN. No external HTTP was invoked by this failed fixture setup.
+
+Stopped at cap without repair/retry. Candidate remains non-suite; original draft and historical logs preserved. No activation, focused/full/build/check:build/diffcheck or scoped delivery commit after failed prerequisite. Remaining real-controller matrix: success first/same/second identities still needs valid overall GREEN; cancellation/import/failure/recovery/late-completion not added. Existing narrower fake-RPC/host proofs do not substitute for this full matrix. Independent Standards/Spec review, visual/browser reconciliation, safe package/byte comparison and separately authorized installed/live gates remain open. No source/auth/product/generated/DOM edits or installed/profile/secrets/network/browser/nested-agent/push/merge/closure operations.
+
+## Renewed deterministic settlement diagnosis at 2d0cf6e — stopped 2026-11-01
+
+Original draft/logs preserved; candidate `test/unified-host-flow-138.candidate.mjs` remains outside suite discovery. Actual interval callback discards `refreshStatus()` promise; one event-loop turn cannot await asynchronous host file IO. Candidate wraps real registered-route dispatch, tracks pending promises, awaits them inside React act and repeats for RPC enqueued by flushed effects. No fake authRevision, inflated sleep/deadline, product fix or live HTTP.
+
+First command `node --test test/unified-host-flow-138.candidate.mjs > ui138-host-settlement.log 2>&1`, exit1: Codex/Claude/Grok/Copilot reach final denied-request check after all admission assertions, but dummy transport omitted Zen discovery, registry version and reset-credit endpoints. Antigravity failed its second-login wait because existing-account auth uses addAccountOAuth, not group addAccount. Unexpected failure1. Added narrow dummy responses for observed requests and corrected Antigravity selector only.
+
+Second command `node --test test/unified-host-flow-138.candidate.mjs > ui138-host-settlement-green.log 2>&1`, exit1 (misleading filename retained as exact evidence): all five reach final denied-request assertion, each with only `https://models.dev/api.json`. Thus each executed first/same/second identity counts1/1/2, real authRevision increments, Add close, one group, refreshed count, no group callback input and focus callback assertions successfully, but the tests themselves FAIL. No valid deterministic GREEN claimed. All requests were intercepted, including denied requests. No product defect established.
+
+STOP at renewed unexpected failure2; no more edit/retry to test code, no activation, full/focused/buildmatch/diffcheck, commit or outcome expansion. Remaining immediate gate: authorized renewed budget to finish explicit dummy Zen metadata contract and pass candidate before activating suite. Cancellation/import/failure/late-controller cases, independent Standards/Spec review, deferred whole-DOM/browser matrix, package/byte match and separately approved installation/live acceptance remain incomplete. No source/auth/generated/DOM/installed/profile/real-secret/nested-agent/push/merge/closure operations.
+
 ## Real UI/host bridge attempt at cc3b2b5 — 2026-11-01
 
 Owner-authorized test/docs-only continuation; actual registered section and real `apply` route handlers/controllers, dummy global HTTP and injected Claude credential IO, isolated temporary DSH_HOME. Browser opening explicitly deferred; no browser/screenshots, network/live providers, installed/profile/real credential access, nested agents, source/auth/generated changes or offline DOM worker edits.
