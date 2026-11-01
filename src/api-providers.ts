@@ -5,10 +5,12 @@ export function createApiProviders(React: any, remote: any, t: (key: string) => 
   const at = (value: any, path: string[]) => path.reduce((v, key) => v?.[key], value);
   const refOf = (entry: any, profile: any) => profile?.apiKeyEnv ?? `${entry.provider.toUpperCase().replace(/[^A-Z0-9]+/g, '_')}_API_KEY`;
   const copy = (value: any) => JSON.parse(JSON.stringify(value));
-  const control = { font: 'inherit', color: 'inherit', background: 'var(--dsw-alias-settings-card-fill)', border: '1px solid var(--dsw-alias-border-l2)', borderRadius: 'var(--dsw-radius-md)', padding: 'var(--dsw-spacing-2)' };
+  const control = { font: 'inherit', color: 'inherit', background: 'var(--dsw-alias-settings-card-fill)', border: '1px solid var(--dsw-alias-border-l2)', borderRadius: 'var(--dsw-radius-md)', padding: '8px 12px', minHeight: '36px', minWidth: 0, boxSizing: 'border-box' as const };
   return function ApiProviders() {
     const [snapshot, setSnapshot] = React.useState(null as any);
     const [draft, setDraft] = React.useState(null as any);
+    const [addOpen, setAddOpen] = React.useState(false);
+    const [addMode, setAddMode] = React.useState('catalog');
     const [message, setMessage] = React.useState('');
     const [busy, setBusy] = React.useState(false);
     const generation = React.useRef(0);
@@ -53,12 +55,12 @@ export function createApiProviders(React: any, remote: any, t: (key: string) => 
       if (!ns) return;
       const profile = at(ns.value, entry.settingsPath) ?? {};
       setMessage('');
-      setDraft({ entry, revision: ns.revision, user: copy(at(ns.user, entry.settingsPath) ?? {}), profile: copy(profile), key: '', keyAction: 'keep', models: JSON.stringify(profile.models ?? [], null, 2), isNew: at(ns.value, entry.settingsPath) === undefined, custom: false });
+      setDraft({ entry, revision: ns.revision, user: copy(at(ns.user, entry.settingsPath) ?? {}), profile: copy(profile), key: '', keyAction: 'keep', models: copy(profile.models ?? []), isNew: at(ns.value, entry.settingsPath) === undefined, custom: false });
     }
     function custom() {
       const ns = snapshot.namespaces.find((n: any) => n.ns === 'llm-pi-ai');
       setMessage('');
-      setDraft({ entry: { provider: '', settingsNs: 'llm-pi-ai', settingsPath: [], declared: true }, revision: ns.revision, user: {}, profile: { api: 'openai-completions', baseURL: '', displayName: '' }, key: '', keyAction: 'keep', models: '[]', isNew: true, custom: true });
+      setDraft({ entry: { provider: '', settingsNs: 'llm-pi-ai', settingsPath: [], declared: true }, revision: ns.revision, user: {}, profile: { api: 'openai-completions', baseURL: '', displayName: '' }, key: '', keyAction: 'keep', models: [], isNew: true, custom: true });
     }
     const change = (field: string, value: any) => setDraft((d: any) => ({ ...d, [field]: value }));
     const profileChange = (field: string, value: string) => setDraft((d: any) => ({ ...d, profile: { ...d.profile, [field]: value } }));
@@ -69,8 +71,7 @@ export function createApiProviders(React: any, remote: any, t: (key: string) => 
       finally { if (mounted.current) setBusy(false); }
     }
     function parsedModels() {
-      let models;
-      try { models = JSON.parse(draft.models); } catch { throw new Error('apiInvalid'); }
+      const models = draft.models;
       if (!Array.isArray(models) || models.some((m: any) => !m || typeof m.id !== 'string' || !m.id.trim() || (m.name !== undefined && typeof m.name !== 'string') || ['contextWindow', 'maxTokens'].some(k => m[k] !== undefined && (!Number.isInteger(m[k]) || m[k] < 1)) || (m.input !== undefined && (!Array.isArray(m.input) || m.input.some((v: any) => !['text', 'image'].includes(v)))) || (m.reasoningEfforts !== undefined && m.reasoningEfforts !== false && (typeof m.reasoningEfforts !== 'object' || m.reasoningEfforts === null || Array.isArray(m.reasoningEfforts))))) throw new Error('apiInvalid');
       if (new Set(models.map((m: any) => m.id)).size !== models.length) throw new Error('apiInvalid');
       return models;
@@ -116,7 +117,7 @@ export function createApiProviders(React: any, remote: any, t: (key: string) => 
           if (!result.ok) throw new Error('apiFailed');
         } catch { throw new Error(committed ? 'apiPartial' : 'apiFailed'); }
       }
-      if (mounted.current) { setDraft(null); setMessage('apiSaved'); }
+      if (mounted.current) { setDraft(null); setAddOpen(false); setMessage('apiSaved'); }
       await load();
     }
     async function discover() {
@@ -124,7 +125,7 @@ export function createApiProviders(React: any, remote: any, t: (key: string) => 
       if (draft.keyAction === 'set' && draft.key.trim()) request.apiKey = draft.key.trim();
       const found = valueOf(await remote.llm.discoverModels(draft.entry.settingsNs, request));
       const models = found.map(({ inputModalities, ...model }: any) => ({ ...model, ...(inputModalities === undefined ? {} : { input: inputModalities }) }));
-      if (mounted.current) change('models', JSON.stringify(models, null, 2));
+      if (mounted.current) change('models', models);
     }
     async function remove(entry: any) {
       const ns = nsOf(entry);
@@ -133,34 +134,62 @@ export function createApiProviders(React: any, remote: any, t: (key: string) => 
       valueOf(await remote.settings.mutate(ns.ns, [{ op: 'unset', path: entry.settingsPath }], ns.revision));
       setMessage('apiSaved'); await load();
     }
+    // Narrow adaptation of MIT native ModelsSection structure/styles; see PROVENANCE.md.
     const button = (key: string, onClick: () => void, disabled = false) => h('button', { type: 'button', style: control, onClick, disabled: busy || disabled }, t(key));
-    const field = (key: string, value: string, onChange: (v: string) => void, type = 'text') => h('label', { style: { display: 'grid', gap: 'var(--dsw-spacing-1)' } }, t(key), h('input', { 'aria-label': t(key), type, value, autoComplete: 'off', style: control, disabled: busy, onChange: (e: any) => onChange(e.target.value), dir: type === 'password' ? undefined : 'auto' }));
-    return h('div', { 'data-majed-api-providers': true, style: { display: 'grid', gap: 'var(--dsw-spacing-3)', textAlign: 'start' } },
+    const field = (key: string, value: string, onChange: (v: string) => void, type = 'text') => h('label', { className: 'majed-api-field' }, t(key), h('input', { 'aria-label': t(key), type, value, autoComplete: 'off', style: control, disabled: busy, onChange: (e: any) => onChange(e.target.value), dir: type === 'password' ? undefined : 'auto' }));
+    const configured = (entry: any) => { const ns = nsOf(entry); return ns !== undefined && (entry.settingsPath.length === 0 || at(ns.value, entry.settingsPath) !== undefined); };
+    const addable = snapshot?.rows.filter((entry: any) => nsOf(entry) && !configured(entry)) ?? [];
+    const select = (key: string, value: string, onChange: (v: string) => void, options: any[]) => h('label', { className: 'majed-api-field' }, t(key), h('select', { 'aria-label': t(key), value, style: control, disabled: busy, onChange: (e: any) => onChange(e.target.value) }, ...options));
+    const close = () => { setDraft(null); setAddOpen(false); };
+    const editor = () => h('div', { role: 'group', 'aria-label': t('apiEditor'), className: 'majed-api-editor' },
+      draft.custom ? field('apiRoute', draft.entry.provider, v => change('entry', { ...draft.entry, provider: v })) : h('bdi', { className: 'majed-api-muted' }, draft.entry.provider),
+      field('apiName', draft.profile.displayName ?? '', v => profileChange('displayName', v)),
+      field('apiURL', draft.profile.baseURL ?? '', v => profileChange('baseURL', v)),
+      draft.custom ? select('apiProtocol', draft.profile.api, v => profileChange('api', v), ['openai-completions', 'openai-responses', 'anthropic-messages'].map(v => h('option', { key: v, value: v }, v))) : null,
+      select('apiKeyAction', draft.keyAction, v => change('keyAction', v), ['keep', 'set', 'unset'].map(v => h('option', { key: v, value: v }, t(`apiKey_${v}`)))),
+      draft.keyAction === 'set' ? field('apiKey', draft.key, v => change('key', v), 'password') : null,
+      h('p', { className: 'majed-api-muted' }, t('apiKeyLimit')),
+      h('div', { className: 'majed-api-head' }, h('strong', null, t('apiModels')), button('apiFetch', () => { void run(discover); })),
+      ...draft.models.map((model: any, index: number) => h('div', { key: index, className: 'majed-api-model', 'data-majed-api-model': index },
+        field('apiModelID', model.id, v => change('models', draft.models.map((m: any, i: number) => i === index ? { ...m, id: v } : m))),
+        field('apiModelName', model.name ?? '', v => change('models', draft.models.map((m: any, i: number) => i === index ? { ...m, name: v } : m))),
+        button('apiModelRemove', () => change('models', draft.models.filter((_: any, i: number) => i !== index))))),
+      button('apiModelAdd', () => change('models', [...draft.models, { id: '', name: '' }])),
+      h('p', { className: 'majed-api-muted' }, t('apiModelsHint')),
+      h('div', { className: 'majed-api-actions' }, button('apiSave', () => { void run(save); }), button('apiCancel', close)));
+    return h('div', { 'data-majed-api-providers': true, 'aria-busy': busy, className: 'majed-api-section' },
+      h('style', null, `
+        .majed-api-section{max-width:720px;display:flex;flex-direction:column;gap:12px;text-align:start;color:var(--dsw-alias-label-primary);font-size:14px;line-height:22px}
+        .majed-api-section *{box-sizing:border-box}.majed-api-section p{margin:0}
+        .majed-api-rows{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}
+        .majed-api-row{border:1px solid var(--dsw-alias-settings-card-stroke,var(--dsw-alias-border-l2));background:var(--dsw-alias-settings-card-fill);border-radius:var(--dsw-radius-xl,12px);padding:12px 14px;min-width:0}
+        .majed-api-head,.majed-api-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+        .majed-api-identity{display:flex;align-items:center;gap:8px;flex:1 1 180px;min-width:0;overflow-wrap:anywhere}
+        .majed-api-actions{margin-inline-start:auto}.majed-api-muted{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px;overflow-wrap:anywhere}
+        .majed-api-editor{display:flex;flex-direction:column;gap:16px;padding:16px 0 4px;margin-top:12px;border-top:1px solid var(--dsw-alias-border-l2)}
+        .majed-api-field{display:flex;flex-direction:column;gap:6px;min-width:0;font-weight:500}.majed-api-field input,.majed-api-field select{width:100%;font-weight:400}
+        .majed-api-model{display:grid;grid-template-columns:repeat(2,minmax(0,1fr)) auto;gap:8px;align-items:end}
+        .majed-api-add{margin-top:12px}.majed-api-tabs{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}.majed-api-tabs [aria-selected=true]{font-weight:600;background:var(--dsw-alias-interactive-secondary-hover,var(--dsw-alias-settings-card-fill))}
+        .majed-api-section button{cursor:pointer}.majed-api-section button:hover:not(:disabled){background:var(--dsw-alias-interactive-secondary-hover,var(--dsw-alias-settings-card-fill))}
+        .majed-api-section :is(button,input,select):focus-visible{outline:2px solid var(--dsw-alias-brand-primary,#367cff);outline-offset:2px}.majed-api-section :disabled{opacity:.5;cursor:not-allowed}
+        @media(max-width:520px){.majed-api-model{grid-template-columns:minmax(0,1fr)}.majed-api-model button{justify-self:start}.majed-api-row{padding:12px}.majed-api-actions{margin-inline-start:0}}
+      `),
       message ? h('p', { role: message === 'apiSaved' ? 'status' : 'alert' }, t(message)) : null,
-      button('apiRefresh', () => { void load(); }),
+      h('div', { className: 'majed-api-actions' }, button('apiRefresh', () => { void load(); })),
       !snapshot ? h('p', null, t('apiLoading')) : h(React.Fragment, null,
-        ...snapshot.rows.map((entry: any) => {
-          const ns = nsOf(entry), profile = at(ns?.value, entry.settingsPath);
-          const ref = refOf(entry, profile);
-          const configured = snapshot.credentials[ref]?.configured || (entry.nativeAuth?.env ?? []).some((r: string) => snapshot.credentials[r]?.configured);
-          return h('article', { key: entry.provider, 'data-majed-api-provider': entry.provider, style: { border: '1px solid var(--dsw-alias-border-l2)', borderRadius: 'var(--dsw-radius-xl)', padding: 'var(--dsw-spacing-3)' } },
-            h('strong', null, profile?.displayName ?? entry.displayName), h('bdi', null, ` (${entry.provider}) `),
-            h('span', null, t(configured ? 'apiKeySet' : 'apiKeyMissing')),
-            button(profile === undefined ? 'apiAdd' : 'apiEdit', () => edit(entry), !snapshot.writable || !ns),
-            removable(entry, ns) ? button('apiDelete', () => { void run(() => remove(entry)); }, !snapshot.writable) : null);
-        }),
-        button('apiCustom', custom, !snapshot.writable || !snapshot.namespaces.some((n: any) => n.ns === 'llm-pi-ai'))),
-      draft ? h('div', { role: 'group', 'aria-label': t('apiEditor'), style: { display: 'grid', gap: 'var(--dsw-spacing-3)' } },
-        draft.custom ? field('apiRoute', draft.entry.provider, v => change('entry', { ...draft.entry, provider: v })) : h('bdi', null, draft.entry.provider),
-        field('apiName', draft.profile.displayName ?? '', v => profileChange('displayName', v)),
-        field('apiURL', draft.profile.baseURL ?? '', v => profileChange('baseURL', v)),
-        draft.custom ? h('label', null, t('apiProtocol'), h('select', { 'aria-label': t('apiProtocol'), value: draft.profile.api, disabled: busy, style: control, onChange: (e: any) => profileChange('api', e.target.value) }, ...['openai-completions', 'openai-responses', 'anthropic-messages'].map(v => h('option', { key: v, value: v }, v)))) : null,
-        h('label', null, t('apiKeyAction'), h('select', { 'aria-label': t('apiKeyAction'), value: draft.keyAction, disabled: busy, style: control, onChange: (e: any) => change('keyAction', e.target.value) }, ...['keep', 'set', 'unset'].map(v => h('option', { key: v, value: v }, t(`apiKey_${v}`))))),
-        draft.keyAction === 'set' ? field('apiKey', draft.key, v => change('key', v), 'password') : null,
-        h('p', null, t('apiKeyLimit')),
-        button('apiFetch', () => { void run(discover); }),
-        h('label', null, t('apiModels'), h('textarea', { 'aria-label': t('apiModels'), value: draft.models, rows: 12, dir: 'ltr', disabled: busy, style: { ...control, width: '100%', boxSizing: 'border-box' }, onChange: (e: any) => change('models', e.target.value) })),
-        h('p', null, t('apiModelsHint')),
-        button('apiSave', () => { void run(save); }), button('apiCancel', () => setDraft(null))) : null);
+        h('ul', { className: 'majed-api-rows' }, ...snapshot.rows.filter(configured).map((entry: any) => {
+          const ns = nsOf(entry), profile = at(ns.value, entry.settingsPath);
+          const keySet = snapshot.credentials[refOf(entry, profile)]?.configured || (entry.nativeAuth?.env ?? []).some((r: string) => snapshot.credentials[r]?.configured);
+          return h('li', { key: entry.provider, 'data-majed-api-provider': entry.provider, className: 'majed-api-row' },
+            h('div', { className: 'majed-api-head' }, h('span', { className: 'majed-api-identity' }, h('strong', null, profile?.displayName ?? entry.displayName), h('span', { className: 'majed-api-muted' }, t(keySet ? 'apiKeySet' : 'apiKeyMissing'))),
+              h('span', { className: 'majed-api-actions' }, button('apiEdit', () => { setAddOpen(false); edit(entry); }, !snapshot.writable), removable(entry, ns) ? button('apiDelete', () => { void run(() => remove(entry)); }, !snapshot.writable) : null)),
+            !addOpen && draft?.entry.provider === entry.provider ? editor() : null);
+        })),
+        h('div', { className: 'majed-api-add' }, button('apiAdd', () => { setAddOpen(true); setAddMode('catalog'); setDraft(null); if (addable[0]) edit(addable[0]); }, !snapshot.writable),
+          addOpen ? h(React.Fragment, null,
+            h('div', { role: 'tablist', 'aria-label': t('apiAdd'), className: 'majed-api-tabs' },
+              ...['catalog', 'custom'].map(mode => h('button', { type: 'button', role: 'tab', 'aria-selected': addMode === mode, style: control, disabled: busy || (mode === 'custom' && !snapshot.namespaces.some((n: any) => n.ns === 'llm-pi-ai')), onClick: () => { setAddMode(mode); setDraft(null); if (mode === 'custom') custom(); else if (addable[0]) edit(addable[0]); } }, t(mode === 'catalog' ? 'apiCatalog' : 'apiCustom')))),
+            addMode === 'catalog' ? select('apiCatalog', draft?.entry.provider ?? '', v => { const entry = addable.find((e: any) => e.provider === v); if (entry) edit(entry); }, [h('option', { key: '', value: '', disabled: true }, t('apiChoose')), ...addable.map((e: any) => h('option', { key: e.provider, value: e.provider }, e.displayName))]) : null,
+            draft ? editor() : button('apiCancel', close)) : null)));
   };
 }
