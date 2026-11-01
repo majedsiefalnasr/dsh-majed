@@ -1,5 +1,9 @@
 # Current work
 
+## #138 functional composition continuation — 2026-11-01
+
+Mixed configured subscription/API list and shared catalog/custom/subscription Add now implemented on `impl/138-unified-ui`. Group counts expand existing account/quota/reset-credit content, Add account preselects the shared flow, selected provider authentication reuses controllers, and cancellation waits before unmount. No hidden unconfigured cards, native Models/store/global Pool/auth algorithm changes. Existing provider Manage/account dialogs retained. Actual assembled regression covers list membership, collapsed content, unconfigured absence and Add-account selection; shared-flow tests cover success/focus and asynchronous cancellation lock. Build/focused/full859/checkbuild/diffcheck pass; final composition detector passes. See [ticket-138-verification.md](ticket-138-verification.md) for exact evidence and diagnostic fixes. Whole-section synthetic DOM visual matrix, fuller provider-specific race proof, independent Standards/Spec review, package and authorized installed/live acceptance remain separate incomplete gates. No push/merge/closure or installed-state changes.
+
 ## #138 renewed direct continuation — verified partial slice, 2026-11-01
 
 Owner explicitly renewed twenty minutes/two unexpected failures for direct workspace-local implementation; this supersedes the historical stop below. Branch `impl/138-unified-ui`, preserved baseline `92072f805f44bd26a9addf2f13d7ce5caebf75b5`. All prior candidate edits retained. Read current scope/execution/product/design/issue/glossary; loaded Karpathy/TDD/safe-refactor/Impeccable and Operate/craft floor. No nested agents, Claude, network, installed/profile/secrets/live operations, push, merge or closure.

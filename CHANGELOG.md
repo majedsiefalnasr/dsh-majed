@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Compose #138 configured subscription groups, login-less Zen and native API entries in one list. A shared inline Add offers catalog, custom and subscription modes; configured Add account preselects that same subscription workflow. Reuse existing provider authentication/controllers and Manage/account/quota/reset-credit actions, mount only selected authentication, expand account contents on demand, and guard mode changes during authentication. Controlled React/build/full-suite proof passes; whole-section visual matrix, independent review and installed/live acceptance remain separate gates.
+
 - Begin #138 with honest API credential indicators: absent native metadata is unknown rather than missing, and DeepSeek Account has an account-status fallback without a generic key editor. The existing API Add entry is replaced while its inline editor is open, restores focus and retains safe visited drafts. Move existing Proxy and usage-display controls into one page-level Settings disclosure instead of nesting Proxy under Codex. This is a verified partial implementation; the mixed provider list, subscription Add orchestration, grouped accounts and whole-section visual acceptance remain pending.
 
 - Repair the missing composer usage badge when status includes login-less OpenCode Zen before account-bearing providers. Limit the usage roster to supported account providers with account arrays; keep Codex, Claude, Grok, Copilot and Antigravity usage and popup accounts intact. Actual-component fake-RPC regression only; installed/live acceptance remains separate.

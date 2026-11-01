@@ -5,6 +5,7 @@
   },
   "subscriptions": {
     "pageSettings": "Settings",
+    "apiSubscription": "Subscription",
     "zenRefresh": "Refresh status",
     "zenNoLogin": "Free models · no login required",
     "zenUnavailable": "OpenCode Zen is unavailable.",

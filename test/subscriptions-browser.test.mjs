@@ -85,7 +85,7 @@ function text(node) { return typeof node === 'string' ? node : node?.children?.f
 test('present component registers accounts and native-remotes availability, then withdraws on absence', async () => {
   const page = browser(); await page.settle();
   assert.equal(page.section.options.id, 'majed-subscriptions');
-  assert.match(text(page.section.component()), /Subscription accounts.*API providers.*Native API-provider remotes are unavailable/);
+  assert.match(text(page.section.component()), /API providers.*Native API-provider remotes are unavailable/);
   page.setAnswer(() => Promise.reject(new Error('transport failure for /api/majed-subscriptions.status: HTTP 404')));
   page.tick(); await page.settle(); assert.equal(page.section, undefined); page.cleanup();
 });
@@ -101,7 +101,7 @@ test('assembled section renders injected native provider directory with actual R
       listProviders: async () => ok([{ id: 'fixture-native', name: 'Native fixture directory' }]),
     },
   };
-  const page = browser('en', undefined, { React: ActualReact, remote }); await page.settle();
+  const page = browser('en', (_channel, method) => Promise.resolve({ ok: true, value: method === 'majed-subscriptions.status' ? { component: 'subscriptions', providers: { codex: { accounts: [{ key: 'fixture-account', account: 'Fixture account' }] } } } : {} }), { React: ActualReact, remote }); await page.settle();
   let renderer;
   try {
     await act(async () => { renderer = create(ActualReact.createElement(page.section.component)); });
@@ -109,6 +109,17 @@ test('assembled section renders injected native provider directory with actual R
     assert.equal(settings.length, 1, 'one page-level Settings disclosure');
     assert.equal(settings[0].findAll(n => n.props.className === 'majed-proxy-settings').length, 1, 'Proxy belongs to page Settings');
     assert.equal(renderer.root.findAll(n => n.props.className === 'majed-proxy-settings').length, 1, 'Proxy is mounted only once');
+    const list = renderer.root.findByProps({ className: 'majed-api-rows' });
+    assert.equal(list.findAll(n => n.type === 'li' && n.props['data-majed-subscription-row'] === 'codex').length, 1);
+    assert.equal(renderer.root.findAll(n => n.props['data-majed-claude-card']).length, 0, 'unconfigured controllers are not mounted');
+    assert.equal(list.findAll(n => n.props['data-majed-codex-part'] === 'account').length, 0, 'collapsed accounts are not mounted');
+    const expand = list.findAllByType('button').find(n => n.props['aria-expanded'] === false);
+    await act(async () => expand.props.onClick());
+    assert.equal(list.findAll(n => n.props['data-majed-codex-part'] === 'account').length, 1);
+    const addAccount = list.findAllByType('button').find(n => n.children.includes('Add account'));
+    await act(async () => addAccount.props.onClick());
+    assert.equal(renderer.root.findAllByType('select').find(n => n.props['aria-label'] === 'Subscription').props.value, 'codex', 'Add account preselects shared subscription mode');
+    assert.equal(renderer.root.findAll(n => n.type === 'button' && n.props.role === 'tab').length, 3);
     assert.match(JSON.stringify(renderer.toJSON()), /Native fixture directory/);
     assert.equal(renderer.root.findAll(n => n.props['data-majed-credential-status'] === 'unknown').length, 1, 'assembled native directory preserves unknown credential metadata');
     assert.doesNotMatch(JSON.stringify(renderer.toJSON()), /No API providers yet|Browser admission must be verified/);
@@ -222,7 +233,7 @@ test('unreachable then success restores both parts', async () => {
   assert.match(text(page.section.component()), /[\u0600-\u06ff]/);
   page.setAnswer(() => Promise.resolve({ ok: true, value: { component: 'subscriptions' } }));
   page.tick(); await page.settle();
-  assert.match(text(page.section.component()), /حسابات الاشتراك.*موفرو API/);
+  assert.match(text(page.section.component()), /موفرو API/);
   assert.equal(page.section.component().children.flat().filter(node => node?.props?.role === 'alert').length, 0);
   page.cleanup();
 });
@@ -283,7 +294,7 @@ test('Arabic copy covers every new key and rendered content uses logical alignme
   assert.deepEqual(Object.keys(ar).sort(), Object.keys(en).sort());
   Object.values(ar).forEach(value => assert.match(value, /[\u0600-\u06ff]/));
   const page = browser('ar'); await page.settle(); const view = page.section.component();
-  assert.match(text(view), /حسابات الاشتراك.*موفرو API/);
+  assert.match(text(view), /موفرو API/);
   assert.equal(view.props.style.textAlign, 'start');
   for (const part of view.children.flat().filter(node => node?.tag === 'section')) {
     assert.ok(part.props.style.paddingBlock); assert.ok(part.props.style.borderBlockEnd);

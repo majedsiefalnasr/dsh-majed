@@ -7,7 +7,9 @@ export function createCopilotCard(React: any, primitives: any, rpc: any, t: (key
   const Button = primitives.Button ?? 'button';
   const Input = primitives.Input ?? 'input';
   const DEFAULT_NAME = 'GitHub Copilot';
-  return function CopilotCard() {
+  return function CopilotCard({ presentation, onAdd, onComplete, onFlowState, onAccountsChange }: any = {}) {
+    const [expanded, setExpanded] = React.useState(false);
+    const initialAccounts = React.useRef(null as number | null);
     const [manager, setManager] = React.useState(false);
     const [status, setStatus] = React.useState(null);
     const [error, setError] = React.useState('');
@@ -57,8 +59,13 @@ export function createCopilotCard(React: any, primitives: any, rpc: any, t: (key
       usageRequests.current.set(account, request);
       return request;
     };
+    const reportedAccounts = React.useRef(null as string | null);
     const accountsSignature = JSON.stringify((status?.accounts ?? []).map((account: any) => account.key));
     React.useEffect(() => {
+      if (presentation === 'group' && status) {
+        if (reportedAccounts.current !== null && reportedAccounts.current !== accountsSignature) onAccountsChange?.();
+        reportedAccounts.current = accountsSignature;
+      }
       const keys = new Set<string>((status?.accounts ?? []).map((account: any) => account.key));
       const added = [...keys].filter(key => !accountKeys.current.has(key));
       accountKeys.current = keys;
@@ -77,22 +84,36 @@ export function createCopilotCard(React: any, primitives: any, rpc: any, t: (key
         setLogin(result); await refreshStatus();
       });
     };
+    React.useEffect(() => {
+      if (!status) return;
+      const count = status.accounts?.length ?? 0;
+      if (initialAccounts.current === null) initialAccounts.current = count;
+      else if (presentation === 'auth' && !status.busy && count > initialAccounts.current) onComplete?.();
+    }, [status]);
     const busy = status?.busy;
+    React.useEffect(() => {
+      if (presentation !== 'auth') return;
+      onFlowState?.({ busy: pending || !!busy, cancel: async () => {
+        if (pending) return false;
+        if (busy) { await call('cancel'); setLogin(null); await refreshStatus(); }
+        return true;
+      } });
+    }, [pending, busy]);
     const name = status?.displayName || DEFAULT_NAME;
     const hasAccounts = !!status?.accounts?.length;
-    return h('div', { style: { ...styles.section, textAlign: 'start' }, className: 'majed-subscriptions-settings', 'data-majed-copilot-card': true },
+    return h('div', { style: { ...styles.section, ...(presentation ? { maxWidth: 'none', maxInlineSize: 'none', width: '100%' } : {}), textAlign: 'start' }, className: 'majed-subscriptions-settings', 'data-majed-copilot-card': true },
       h('style', null, controlCss),
       manager ? h(ProviderAccountManager, { provider: 'copilot', name, rpc, t, onClose: () => { setManager(false); void refreshStatus(); } }) : null,
       part('card', styles.card,
         part('header', styles.cardHeader,
           h('span', { 'aria-hidden': true, style: { ...styles.dot, background: busy ? 'var(--dsw-alias-state-warn-label)' : hasAccounts ? 'var(--dsw-alias-state-success-primary)' : 'var(--dsw-alias-label-dimmed)' } }),
           h('span', { style: styles.name }, name),
-          button(t('accountsManage'), () => setManager(true), false, { style: { marginInlineStart: 'auto' } }),
+          presentation === 'auth' ? null : button(t('accountsManage'), () => setManager(true), false, { style: { marginInlineStart: 'auto' } }),
           status?.clientVersion ? h('span', { style: styles.clientVersion, title: t('clientVersionHint') }, 'CLI ', h('bdi', { dir: 'ltr' }, status.clientVersion.version), ' · ', t(`source_${status.clientVersion.source}`)) : null),
         h('p', { style: styles.statusLine, role: 'status' }, status?.registrationError ? t('copilotProviderUnavailable') : busy ? t('loginProgress') : hasAccounts ? `${status.accounts.length} ${t('connected')}` : status ? t('notLoggedIn') : t('checking')),
         status?.detail ? h('p', { style: styles.statusLine }, status.detail) : null,
         error ? h('p', { style: styles.errorLine, role: 'alert' }, error) : null,
-        ...(status?.accounts ?? []).map((account: any) => {
+        ...(presentation === 'auth' || (presentation === 'group' && !expanded) ? [] : status?.accounts ?? []).map((account: any) => {
           const snapshot = usage[account.key];
           return h('div', { key: account.key, style: styles.accountRow, 'data-majed-copilot-part': 'account' },
             part('account-header', styles.accountHeader,
@@ -117,7 +138,9 @@ export function createCopilotCard(React: any, primitives: any, rpc: any, t: (key
               })));
         }),
         part('actions', styles.actions,
-          busy ? button(t('cancelLogin'), () => { void action(async () => { await call('cancel'); setLogin(null); await refreshStatus(); }); })
+          presentation === 'group' ? h(React.Fragment, null,
+            button(`${status?.accounts?.length ?? 0} ${t('connected')}`, () => setExpanded(!expanded), false, { 'aria-expanded': expanded }),
+            button(t('addAccount'), onAdd)) : busy ? button(t('cancelLogin'), () => { void action(async () => { await call('cancel'); setLogin(null); await refreshStatus(); }); })
             : button(t(hasAccounts ? 'addAccount' : 'login'), () => startLogin(), !!status?.registrationError)),
         busy && (status.pendingAuth ?? login) ? h('div', { style: styles.manual },
           h('p', null, t('copilotDeviceHint')),

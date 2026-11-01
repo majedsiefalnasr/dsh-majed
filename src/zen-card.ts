@@ -17,7 +17,7 @@ export function createZenCard(React: any, primitives: any, rpc: any, t: (key: st
       finally { if (alive.current) setPending(false); }
     };
     React.useEffect(() => { alive.current = true; void refresh(); return () => { alive.current = false; }; }, []);
-    return h('div', { style: { ...styles.section, textAlign: 'start' }, 'data-majed-zen-card': true },
+    return h('div', { style: { ...styles.section, maxWidth: 'none', maxInlineSize: 'none', width: '100%', textAlign: 'start' }, 'data-majed-zen-card': true },
       h('div', { style: styles.card },
         h('div', { style: styles.cardHeader }, h('span', { style: styles.name }, 'OpenCode Zen'),
           h(primitives.Button ?? 'button', { type: 'button', disabled: pending, onClick: () => void refresh(), style: { marginInlineStart: 'auto' } }, t('zenRefresh'))),

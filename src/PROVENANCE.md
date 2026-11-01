@@ -2,7 +2,7 @@
 
 ## #138 partial API presentation corrections
 
-The credential-state labels/dot, DeepSeek Account unknown fallback and generic-editor exclusion, and in-place API Add entry/focus restoration are independently authored changes to the existing #136 adaptation. They introduce no additional third-party source or private imports. The existing DeepSeek MIT notice and #136 source attribution below remain applicable. Page-level Settings ownership is independently authored: existing ProxySettings and UsageBadgeDisplaySetting move unchanged into one semantic disclosure, with Proxy no longer mounted by CodexCard. These changes do not yet implement the approved whole-section unified composition.
+The credential-state labels/dot, DeepSeek Account unknown fallback and generic-editor exclusion, and in-place API Add entry/focus restoration are independently authored changes to the existing #136 adaptation. They introduce no additional third-party source or private imports. The existing DeepSeek MIT notice and #136 source attribution below remain applicable. Page-level Settings ownership is independently authored: existing ProxySettings and UsageBadgeDisplaySetting move unchanged into one semantic disclosure, with Proxy no longer mounted by CodexCard. The subsequent unified composition and optional provider-card presentation props are independently authored orchestration over these existing components: a mixed list, shared three-mode Add, configured account disclosure and selected authentication. Existing attributed controllers, account actions and dialogs remain the source of provider behavior; no further third-party source, private API, auth algorithm or durable store was introduced.
 
 ## #137 OpenCode Zen candidate
 

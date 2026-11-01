@@ -5,6 +5,7 @@
   },
   "subscriptions": {
     "pageSettings": "الإعدادات",
+    "apiSubscription": "اشتراك",
     "zenRefresh": "تحديث الحالة",
     "zenNoLogin": "نماذج مجانية · لا يلزم تسجيل الدخول",
     "zenUnavailable": "خدمة OpenCode Zen غير متاحة.",

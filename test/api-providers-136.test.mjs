@@ -11,7 +11,7 @@ vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/api-providers
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 const ok = value => ({ ok: true, value });
 const model = [{ id: 'fixture-model', name: 'Fixture', contextWindow: 8192, maxTokens: 1024, input: ['text'], reasoningEfforts: false }];
-async function fixture(locale, { omitCredentialMetadata = false, includeAccountProvider = false } = {}) {
+async function fixture(locale, { omitCredentialMetadata = false, includeAccountProvider = false, subscriptions } = {}) {
   const dict = JSON.parse(readFileSync(new URL(`../locale/${locale}.json`, import.meta.url))).subscriptions;
   const ns = { ns: 'llm-pi-ai', revision: 4, base: { providers: { deployment: { baseURL: 'https://deployment.example.test' } } }, user: { providers: { custom: { displayName: 'Custom', baseURL: 'https://custom.example.test', api: 'openai-completions', models: model, apiKeyEnv: 'CUSTOM_API_KEY' } } }, value: {} };
   function resolve() { ns.value = { providers: { ...ns.base.providers, ...ns.user.providers } }; }
@@ -48,7 +48,7 @@ async function fixture(locale, { omitCredentialMetadata = false, includeAccountP
   };
   const Card = exports.createApiProviders(React, remote, key => dict[key]);
   let renderer, focusCount = 0;
-  await act(async () => { renderer = create(React.createElement(Card), { createNodeMock: node => node.type === 'button' ? { focus() { focusCount++; } } : null }); });
+  await act(async () => { renderer = create(React.createElement(Card, { subscriptions }), { createNodeMock: node => node.type === 'button' ? { focus() { focusCount++; } } : null }); });
   const textNode = node => typeof node === 'string' ? node : (node.children ?? []).map(textNode).join('');
   const buttons = (key, root = renderer.root) => root.findAll(n => n.type === 'button' && textNode(n) === dict[key]);
   const click = async (key, root) => { const button = buttons(key, root)[0]; assert.ok(button, key); assert.equal(button.props.disabled, false); await act(async () => { button.props.onClick(); }); };
@@ -61,6 +61,37 @@ async function fixture(locale, { omitCredentialMetadata = false, includeAccountP
     async dispose() { await act(async () => renderer.unmount()); assert.equal(listeners.size, 0); },
   };
 }
+test('shared Add owns subscription selection and mixed configured list (#138)', async () => {
+  let selected;
+  const subscriptions = { rows: [React.createElement('li', { key: 'subscription', 'data-majed-subscription-row': 'codex' }, 'Codex')], providers: [{ id: 'codex', name: 'Codex' }], renderAuth: (id, done) => { selected = id; return React.createElement('button', { onClick: done }, 'Finish fixture'); } };
+  const p = await fixture('en', { subscriptions });
+  try {
+    assert.equal(p.renderer.root.findByProps({ 'data-majed-subscription-row': 'codex' }).parent.props.className, 'majed-api-rows');
+    await p.click('apiAdd'); await p.click('apiSubscription');
+    assert.equal(selected, 'codex');
+    assert.equal(p.renderer.root.findAll(n => n.props['aria-label'] === p.dict.apiEditor).length, 0);
+    await act(async () => p.renderer.root.findAllByType('button').find(n => n.children.includes('Finish fixture')).props.onClick());
+    assert.equal(p.buttons('apiAdd').length, 1);
+    assert.ok(p.focusCount() > 0);
+  } finally { await p.dispose(); }
+});
+test('subscription authorization locks modes and awaits cancellation before closing (#138)', async () => {
+  let cancel, resolveCancel;
+  function Auth({ report }) {
+    React.useEffect(() => { report({ busy: true, cancel: () => new Promise(resolve => { cancel = true; resolveCancel = resolve; }) }); }, []);
+    return React.createElement('span', null, 'Pending fixture authorization');
+  }
+  const subscriptions = { rows: [], providers: [{ id: 'codex', name: 'Codex' }], renderAuth: (_id, _done, report) => React.createElement(Auth, { report }) };
+  const p = await fixture('en', { subscriptions });
+  try {
+    await p.click('apiAdd'); await p.click('apiSubscription');
+    assert.equal(p.buttons('apiCatalog')[0].props.disabled, true);
+    await act(async () => { p.buttons('apiCancel')[0].props.onClick(); });
+    assert.equal(cancel, true); assert.equal(p.buttons('apiAdd').length, 0);
+    await act(async () => resolveCancel(true));
+    assert.equal(p.buttons('apiAdd').length, 1);
+  } finally { await p.dispose(); }
+});
 test('safe API mode drafts survive a visit to the other mode (#138)', async () => {
   const p = await fixture('en');
   try {

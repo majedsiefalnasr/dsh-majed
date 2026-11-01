@@ -59,6 +59,27 @@ export function applySubscriptions(root: Context): void {
       listeners.forEach(listener => listener());
       return () => { ApiProviders = undefined; listeners.forEach(listener => listener()); };
     }));
+    const providerCards: Record<string, any> = { codex: CodexCard, claude: ClaudeCard, grok: GrokCard, antigravity: AntigravityCard, copilot: CopilotCard };
+    function UnifiedProviders() {
+      const [status, setStatus] = React.useState(null as any);
+      const [request, setRequest] = React.useState(null as any);
+      const [error, setError] = React.useState(false);
+      const alive = React.useRef(true);
+      const refresh = async () => {
+        try {
+          const answer = await connection.rpc.call('/api', 'majed-subscriptions.status', {});
+          if (!answer?.ok) throw new Error();
+          if (alive.current) { setStatus(answer.value); setError(false); }
+        } catch { if (alive.current) setError(true); }
+      };
+      React.useEffect(() => { alive.current = true; void refresh(); return () => { alive.current = false; }; }, []);
+      const providers = Object.keys(providerCards).map(id => ({ id, name: ({ codex: 'Codex (ChatGPT)', claude: 'Claude', grok: 'Grok', antigravity: 'Antigravity', copilot: 'GitHub Copilot' } as any)[id] }));
+      const rows = providers.filter(({ id }) => status?.providers?.[id]?.accounts?.length).map(({ id }) => h('li', { key: id, 'data-majed-subscription-row': id }, h(providerCards[id], { presentation: 'group', onAccountsChange: refresh, onAdd: () => setRequest({ provider: id }) })));
+      rows.push(h('li', { key: 'zen', 'data-majed-subscription-row': 'zen' }, h(ZenCard)));
+      return h(React.Fragment, null,
+        error ? h('p', { role: 'alert' }, t('unreachable')) : null,
+        h(ApiProviders, { subscriptions: { rows, providers, request, renderAuth: (id: string, done: () => void, onFlowState: any) => id ? h(providerCards[id], { key: id, presentation: 'auth', onFlowState, onComplete: () => { done(); void refresh(); } }) : null } }));
+    }
     let present = false;
     let failing = false;
     let referenceEnabled = false;
@@ -73,9 +94,10 @@ export function applySubscriptions(root: Context): void {
         h('details', { 'data-majed-settings': true, style: { maxInlineSize: 720, paddingBlock: 'var(--dsw-spacing-4)' } },
           h('summary', { style: { cursor: 'pointer', font: 'var(--dsw-font-s-strong-14)' } }, t('pageSettings')),
           h('div', { style: { display: 'flex', flexDirection: 'column', gap: 12, paddingBlockStart: 'var(--dsw-spacing-3)' } }, h(GuardedProxy, { rpc: connection.rpc, t }), h(GuardedSetting, { t }))),
-        ...['accounts', 'providers'].map((part) => h('section', { key: part, style: { paddingBlock: 'var(--dsw-spacing-4)', borderBlockEnd: '1px solid var(--dsw-alias-border-l2)' } },
-          h('h3', { style: { font: 'var(--dsw-font-s-strong-14)' } }, h(IconSettingsOutlineMedium, { 'aria-hidden': true }), t(part)),
-          part === 'accounts' ? h('div', null, h('p', { style: { marginBlock: '0 var(--dsw-spacing-3)', color: 'var(--dsw-alias-label-tertiary)' } }, t('intro')), h(CodexCard), h(ClaudeCard), h(GrokCard), h(AntigravityCard), h(CopilotCard), h(ZenCard)) : ApiProviders ? h(ApiProviders) : h('p', { role: 'status' }, t('apiUnavailable')))));
+        h('section', { style: { paddingBlock: 'var(--dsw-spacing-4)', borderBlockEnd: '1px solid var(--dsw-alias-border-l2)' } },
+          h('h3', { style: { font: 'var(--dsw-font-s-strong-14)' } }, t('providers')),
+          ApiProviders ? h(UnifiedProviders) : h(React.Fragment, null, h('p', null, t('apiUnavailable')), h(ZenCard))));
+
     }
     // Composer surfaces (ticket #131): the usage badge, the Speed control and /fast exist only while the component
     // answers and the reference plugin is not serving the same provider ids. Each registration is isolated so a

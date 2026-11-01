@@ -275,6 +275,7 @@ async function callSubscriptionsAuth$1(rpc, endpoint, payload) {
 //#region locale/en.json
 var subscriptions$1 = {
 	"pageSettings": "Settings",
+	"apiSubscription": "Subscription",
 	"zenRefresh": "Refresh status",
 	"zenNoLogin": "Free models · no login required",
 	"zenUnavailable": "OpenCode Zen is unavailable.",
@@ -908,6 +909,7 @@ function VideoGenerateToolview(props) {
 //#region locale/ar.json
 var subscriptions = {
 	"pageSettings": "الإعدادات",
+	"apiSubscription": "اشتراك",
 	"zenRefresh": "تحديث الحالة",
 	"zenNoLogin": "نماذج مجانية · لا يلزم تسجيل الدخول",
 	"zenUnavailable": "خدمة OpenCode Zen غير متاحة.",
@@ -2680,7 +2682,9 @@ function createCodexCard(React, primitives$1, rpc, t) {
 	const h = React.createElement;
 	const Button = primitives$1.Button ?? "button";
 	const Input = primitives$1.Input ?? "input";
-	return function CodexCard() {
+	return function CodexCard({ presentation, onAdd, onComplete, onFlowState, onAccountsChange } = {}) {
+		const [expanded, setExpanded] = React.useState(false);
+		const initialAccounts = React.useRef(null);
 		const [manager, setManager] = React.useState(false);
 		const [status, setStatus] = React.useState(null);
 		const [error, setError] = React.useState("");
@@ -2761,8 +2765,13 @@ function createCodexCard(React, primitives$1, rpc, t) {
 			usageRequests.current.set(account, request);
 			return request;
 		};
+		const reportedAccounts = React.useRef(null);
 		const accountsSignature = JSON.stringify((status?.accounts ?? []).map((account) => account.key));
 		React.useEffect(() => {
+			if (presentation === "group" && status) {
+				if (reportedAccounts.current !== null && reportedAccounts.current !== accountsSignature) onAccountsChange?.();
+				reportedAccounts.current = accountsSignature;
+			}
 			const keys = new Set((status?.accounts ?? []).map((account) => account.key));
 			const added = [...keys].filter((key) => !accountKeys.current.has(key));
 			accountKeys.current = keys;
@@ -2790,10 +2799,36 @@ function createCodexCard(React, primitives$1, rpc, t) {
 				await refreshStatus();
 			});
 		};
+		React.useEffect(() => {
+			if (!status) return;
+			const count = status.accounts?.length ?? 0;
+			if (initialAccounts.current === null) initialAccounts.current = count;
+			else if (presentation === "auth" && !status.busy && count > initialAccounts.current) onComplete?.();
+		}, [status]);
 		const busy = status?.busy;
+		React.useEffect(() => {
+			if (presentation !== "auth") return;
+			onFlowState?.({
+				busy: pending || !!busy,
+				cancel: async () => {
+					if (pending) return false;
+					if (busy) {
+						await call("cancel");
+						setLogin(null);
+						await refreshStatus();
+					}
+					return true;
+				}
+			});
+		}, [pending, busy]);
 		return h("div", {
 			style: {
 				...styles$3.section,
+				...presentation ? {
+					maxWidth: "none",
+					maxInlineSize: "none",
+					width: "100%"
+				} : {},
 				textAlign: "start"
 			},
 			className: "majed-subscriptions-settings",
@@ -2813,7 +2848,7 @@ function createCodexCard(React, primitives$1, rpc, t) {
 				...styles$3.dot,
 				background: busy ? "var(--dsw-alias-state-warn-label)" : status?.accounts?.length ? "var(--dsw-alias-state-success-primary)" : "var(--dsw-alias-label-dimmed)"
 			}
-		}), h("span", { style: styles$3.name }, status?.displayName || "Codex (ChatGPT)"), button(t("accountsManage"), () => setManager(true), false, { style: { marginInlineStart: "auto" } }), status?.clientVersion ? h("span", {
+		}), h("span", { style: styles$3.name }, status?.displayName || "Codex (ChatGPT)"), presentation === "auth" ? null : button(t("accountsManage"), () => setManager(true), false, { style: { marginInlineStart: "auto" } }), status?.clientVersion ? h("span", {
 			style: styles$3.clientVersion,
 			title: t("clientVersionHint")
 		}, "CLI ", h("bdi", { dir: "ltr" }, status.clientVersion.version), " · ", t(`source_${status.clientVersion.source}`)) : null), h("p", {
@@ -2822,7 +2857,7 @@ function createCodexCard(React, primitives$1, rpc, t) {
 		}, status?.registrationError ? t("providerUnavailable") : busy ? t("loginProgress") : status?.accounts?.length ? `${status.accounts.length} ${t("connected")}` : status ? t("notLoggedIn") : t("checking")), status?.detail ? h("p", { style: styles$3.statusLine }, status.detail) : null, error ? h("p", {
 			style: styles$3.errorLine,
 			role: "alert"
-		}, error) : null, ...(status?.accounts ?? []).map((account) => {
+		}, error) : null, ...(presentation === "auth" || presentation === "group" && !expanded ? [] : status?.accounts ?? []).map((account) => {
 			const snapshot = usage[account.key];
 			const credits = [...snapshot?.resetCredits ?? []].sort((a, b) => (a.expiresAt ?? Infinity) - (b.expiresAt ?? Infinity));
 			const next = credits.find((credit) => credit.id && (credit.expiresAt === void 0 || credit.expiresAt > Date.now()));
@@ -2935,7 +2970,7 @@ function createCodexCard(React, primitives$1, rpc, t) {
 					cursor: resetBlocked ? "not-allowed" : "pointer"
 				}
 			}) : null), h("span", { style: { textAlign: "end" } }, credit.expiresAt === void 0 ? t("creditExpiryUnknown") : h("span", null, t("expires"), " ", h("bdi", null, date(credit.expiresAt)), credit.expiresAt <= Date.now() ? ` · ${t("creditExpired")}` : null)))))) : null));
-		}), part("actions", styles$3.actions, busy ? button(t("cancelLogin"), () => {
+		}), part("actions", styles$3.actions, presentation === "group" ? h(React.Fragment, null, button(`${status?.accounts?.length ?? 0} ${t("connected")}`, () => setExpanded(!expanded), false, { "aria-expanded": expanded }), button(t("addAccount"), onAdd)) : busy ? button(t("cancelLogin"), () => {
 			action(async () => {
 				await call("cancel");
 				setLogin(null);
@@ -3230,7 +3265,9 @@ function createApiProviders(React, remote, t) {
 		minWidth: 0,
 		boxSizing: "border-box"
 	};
-	return function ApiProviders() {
+	return function ApiProviders({ subscriptions: subscriptions$2 } = {}) {
+		const [subscription, setSubscription] = React.useState("");
+		const [authFlow, setAuthFlow] = React.useState(null);
 		const [snapshot, setSnapshot] = React.useState(null);
 		const [draft, setDraft] = React.useState(null);
 		const [addOpen, setAddOpen] = React.useState(false);
@@ -3350,19 +3387,20 @@ function createApiProviders(React, remote, t) {
 			});
 		}
 		function switchMode(mode) {
-			if (busy || mode === addMode) return;
+			if (busy || authFlow?.busy || mode === addMode) return;
 			if (draft) visitedDrafts.current[addMode] = {
 				...draft,
 				key: "",
 				keyAction: "keep"
 			};
+			setAuthFlow(null);
 			setAddMode(mode);
 			setMessage("");
 			if (visitedDrafts.current[mode]) setDraft(visitedDrafts.current[mode]);
 			else {
 				setDraft(null);
 				if (mode === "custom") custom();
-				else if (addable[0]) edit(addable[0]);
+				else if (mode === "catalog" && addable[0]) edit(addable[0]);
 			}
 		}
 		const change = (field$1, value) => setDraft((d) => ({
@@ -3495,7 +3533,7 @@ function createApiProviders(React, remote, t) {
 			type: "button",
 			style: control,
 			onClick,
-			disabled: busy || disabled,
+			disabled: busy || key !== "apiCancel" && !!authFlow?.busy || disabled,
 			...key === "apiAdd" ? { ref: addButton } : {}
 		}, t(key));
 		const field = (key, value, onChange, type = "text") => h("label", { className: "majed-api-field" }, t(key), h("input", {
@@ -3517,9 +3555,16 @@ function createApiProviders(React, remote, t) {
 			"aria-label": t(key),
 			value,
 			style: control,
-			disabled: busy,
+			disabled: busy || key === "apiSubscription" && !!authFlow?.busy,
 			onChange: (e) => onChange(e.target.value)
 		}, ...options));
+		React.useEffect(() => {
+			if (!subscriptions$2?.request || authFlow?.busy) return;
+			setSubscription(subscriptions$2.request.provider);
+			setAddMode("subscription");
+			setDraft(null);
+			setAddOpen(true);
+		}, [subscriptions$2?.request]);
 		const close = () => {
 			restoreAddFocus.current = addOpen;
 			visitedDrafts.current = {};
@@ -3586,7 +3631,7 @@ function createApiProviders(React, remote, t) {
         @media(max-width:520px){.majed-api-model{grid-template-columns:minmax(0,1fr)}.majed-api-model button{justify-self:start}.majed-api-row{padding:12px}.majed-api-actions{margin-inline-start:0}}
       `), message ? h("p", { role: message === "apiSaved" ? "status" : "alert" }, t(message)) : null, h("div", { className: "majed-api-actions" }, button("apiRefresh", () => {
 			load();
-		})), !snapshot ? h("p", null, t("apiLoading")) : h(React.Fragment, null, h("ul", { className: "majed-api-rows" }, ...snapshot.rows.filter(configured).map((entry) => {
+		})), !snapshot ? h("p", null, t("apiLoading")) : h(React.Fragment, null, h("ul", { className: "majed-api-rows" }, ...subscriptions$2?.rows ?? [], ...snapshot.rows.filter(configured).map((entry) => {
 			const ns = nsOf(entry), profile = at(ns.value, entry.settingsPath);
 			const metadata = (profile?.apiKeyEnv ? [profile.apiKeyEnv] : [refOf(entry, profile), ...entry.nativeAuth?.env ?? []]).map((ref) => snapshot.credentials[ref]);
 			const credentialStatus = entry.provider === "deepseek-account" ? "account-unknown" : metadata.some((value) => value?.configured === true) ? "configured" : metadata.every((value) => value?.configured === false) ? "missing" : "unknown";
@@ -3619,18 +3664,22 @@ function createApiProviders(React, remote, t) {
 			setAddMode("catalog");
 			setDraft(null);
 			if (addable[0]) edit(addable[0]);
-		}, !snapshot.writable) : null, addOpen ? h(React.Fragment, null, h("div", {
+		}, !snapshot.writable && !subscriptions$2) : null, addOpen ? h(React.Fragment, null, h("div", {
 			role: "tablist",
 			"aria-label": t("apiAdd"),
 			className: "majed-api-tabs"
-		}, ...["catalog", "custom"].map((mode) => h("button", {
+		}, ...[
+			"catalog",
+			"custom",
+			...subscriptions$2 ? ["subscription"] : []
+		].map((mode) => h("button", {
 			type: "button",
 			role: "tab",
 			"aria-selected": addMode === mode,
 			style: control,
-			disabled: busy || mode === "custom" && !snapshot.namespaces.some((n) => n.ns === "llm-pi-ai"),
+			disabled: busy || !!authFlow?.busy || mode === "custom" && !snapshot.namespaces.some((n) => n.ns === "llm-pi-ai"),
 			onClick: () => switchMode(mode)
-		}, t(mode === "catalog" ? "apiCatalog" : "apiCustom")))), addMode === "catalog" ? select("apiCatalog", draft?.entry.provider ?? "", (v) => {
+		}, t(mode === "catalog" ? "apiCatalog" : mode === "custom" ? "apiCustom" : "apiSubscription")))), addMode === "catalog" ? select("apiCatalog", draft?.entry.provider ?? "", (v) => {
 			const entry = addable.find((e) => e.provider === v);
 			if (entry) edit(entry);
 		}, [h("option", {
@@ -3640,7 +3689,19 @@ function createApiProviders(React, remote, t) {
 		}, t("apiChoose")), ...addable.map((e) => h("option", {
 			key: e.provider,
 			value: e.provider
-		}, e.displayName))]) : null, draft ? editor() : button("apiCancel", close)) : null)));
+		}, e.displayName))]) : null, addMode === "subscription" ? h(React.Fragment, null, select("apiSubscription", subscription || subscriptions$2.providers[0]?.id || "", (v) => {
+			if (!authFlow?.busy) {
+				setAuthFlow(null);
+				setSubscription(v);
+			}
+		}, subscriptions$2.providers.map((p) => h("option", {
+			key: p.id,
+			value: p.id
+		}, p.name))), subscriptions$2.renderAuth(subscription || subscriptions$2.providers[0]?.id, close, setAuthFlow), button("apiCancel", () => {
+			run(async () => {
+				if (!authFlow?.cancel || await authFlow.cancel()) close();
+			});
+		})) : draft ? editor() : button("apiCancel", close)) : null)));
 	};
 }
 
@@ -3653,7 +3714,9 @@ function createCopilotCard(React, primitives$1, rpc, t) {
 	const Button = primitives$1.Button ?? "button";
 	primitives$1.Input;
 	const DEFAULT_NAME = "GitHub Copilot";
-	return function CopilotCard() {
+	return function CopilotCard({ presentation, onAdd, onComplete, onFlowState, onAccountsChange } = {}) {
+		const [expanded, setExpanded] = React.useState(false);
+		const initialAccounts = React.useRef(null);
 		const [manager, setManager] = React.useState(false);
 		const [status, setStatus] = React.useState(null);
 		const [error, setError] = React.useState("");
@@ -3733,8 +3796,13 @@ function createCopilotCard(React, primitives$1, rpc, t) {
 			usageRequests.current.set(account, request);
 			return request;
 		};
+		const reportedAccounts = React.useRef(null);
 		const accountsSignature = JSON.stringify((status?.accounts ?? []).map((account) => account.key));
 		React.useEffect(() => {
+			if (presentation === "group" && status) {
+				if (reportedAccounts.current !== null && reportedAccounts.current !== accountsSignature) onAccountsChange?.();
+				reportedAccounts.current = accountsSignature;
+			}
 			const keys = new Set((status?.accounts ?? []).map((account) => account.key));
 			const added = [...keys].filter((key) => !accountKeys.current.has(key));
 			accountKeys.current = keys;
@@ -3762,12 +3830,38 @@ function createCopilotCard(React, primitives$1, rpc, t) {
 				await refreshStatus();
 			});
 		};
+		React.useEffect(() => {
+			if (!status) return;
+			const count = status.accounts?.length ?? 0;
+			if (initialAccounts.current === null) initialAccounts.current = count;
+			else if (presentation === "auth" && !status.busy && count > initialAccounts.current) onComplete?.();
+		}, [status]);
 		const busy = status?.busy;
+		React.useEffect(() => {
+			if (presentation !== "auth") return;
+			onFlowState?.({
+				busy: pending || !!busy,
+				cancel: async () => {
+					if (pending) return false;
+					if (busy) {
+						await call("cancel");
+						setLogin(null);
+						await refreshStatus();
+					}
+					return true;
+				}
+			});
+		}, [pending, busy]);
 		const name = status?.displayName || DEFAULT_NAME;
 		const hasAccounts = !!status?.accounts?.length;
 		return h("div", {
 			style: {
 				...styles$3.section,
+				...presentation ? {
+					maxWidth: "none",
+					maxInlineSize: "none",
+					width: "100%"
+				} : {},
 				textAlign: "start"
 			},
 			className: "majed-subscriptions-settings",
@@ -3787,7 +3881,7 @@ function createCopilotCard(React, primitives$1, rpc, t) {
 				...styles$3.dot,
 				background: busy ? "var(--dsw-alias-state-warn-label)" : hasAccounts ? "var(--dsw-alias-state-success-primary)" : "var(--dsw-alias-label-dimmed)"
 			}
-		}), h("span", { style: styles$3.name }, name), button(t("accountsManage"), () => setManager(true), false, { style: { marginInlineStart: "auto" } }), status?.clientVersion ? h("span", {
+		}), h("span", { style: styles$3.name }, name), presentation === "auth" ? null : button(t("accountsManage"), () => setManager(true), false, { style: { marginInlineStart: "auto" } }), status?.clientVersion ? h("span", {
 			style: styles$3.clientVersion,
 			title: t("clientVersionHint")
 		}, "CLI ", h("bdi", { dir: "ltr" }, status.clientVersion.version), " · ", t(`source_${status.clientVersion.source}`)) : null), h("p", {
@@ -3796,7 +3890,7 @@ function createCopilotCard(React, primitives$1, rpc, t) {
 		}, status?.registrationError ? t("copilotProviderUnavailable") : busy ? t("loginProgress") : hasAccounts ? `${status.accounts.length} ${t("connected")}` : status ? t("notLoggedIn") : t("checking")), status?.detail ? h("p", { style: styles$3.statusLine }, status.detail) : null, error ? h("p", {
 			style: styles$3.errorLine,
 			role: "alert"
-		}, error) : null, ...(status?.accounts ?? []).map((account) => {
+		}, error) : null, ...(presentation === "auth" || presentation === "group" && !expanded ? [] : status?.accounts ?? []).map((account) => {
 			const snapshot = usage[account.key];
 			return h("div", {
 				key: account.key,
@@ -3841,7 +3935,7 @@ function createCopilotCard(React, primitives$1, rpc, t) {
 					inlineSize: `${percent}%`
 				} })));
 			})));
-		}), part("actions", styles$3.actions, busy ? button(t("cancelLogin"), () => {
+		}), part("actions", styles$3.actions, presentation === "group" ? h(React.Fragment, null, button(`${status?.accounts?.length ?? 0} ${t("connected")}`, () => setExpanded(!expanded), false, { "aria-expanded": expanded }), button(t("addAccount"), onAdd)) : busy ? button(t("cancelLogin"), () => {
 			action(async () => {
 				await call("cancel");
 				setLogin(null);
@@ -3909,7 +4003,9 @@ function createClaudeCard(React, primitives$1, rpc, t) {
 	const Button = primitives$1.Button ?? "button";
 	const Input = primitives$1.Input ?? "input";
 	const DEFAULT_NAME = "Claude (Subscription)";
-	return function ClaudeCard() {
+	return function ClaudeCard({ presentation, onAdd, onComplete, onFlowState, onAccountsChange } = {}) {
+		const [expanded, setExpanded] = React.useState(false);
+		const initialAccounts = React.useRef(null);
 		const [manager, setManager] = React.useState(false);
 		const [status, setStatus] = React.useState(null);
 		const [error, setError] = React.useState("");
@@ -3989,8 +4085,13 @@ function createClaudeCard(React, primitives$1, rpc, t) {
 			usageRequests.current.set(account, request);
 			return request;
 		};
+		const reportedAccounts = React.useRef(null);
 		const accountsSignature = JSON.stringify((status?.accounts ?? []).map((account) => account.key));
 		React.useEffect(() => {
+			if (presentation === "group" && status) {
+				if (reportedAccounts.current !== null && reportedAccounts.current !== accountsSignature) onAccountsChange?.();
+				reportedAccounts.current = accountsSignature;
+			}
 			const keys = new Set((status?.accounts ?? []).map((account) => account.key));
 			const added = [...keys].filter((key) => !accountKeys.current.has(key));
 			accountKeys.current = keys;
@@ -4018,12 +4119,38 @@ function createClaudeCard(React, primitives$1, rpc, t) {
 				await refreshStatus();
 			});
 		};
+		React.useEffect(() => {
+			if (!status) return;
+			const count = status.accounts?.length ?? 0;
+			if (initialAccounts.current === null) initialAccounts.current = count;
+			else if (presentation === "auth" && !status.busy && count > initialAccounts.current) onComplete?.();
+		}, [status]);
 		const busy = status?.busy;
+		React.useEffect(() => {
+			if (presentation !== "auth") return;
+			onFlowState?.({
+				busy: pending || !!busy,
+				cancel: async () => {
+					if (pending) return false;
+					if (busy) {
+						await call("cancel");
+						setLogin(null);
+						await refreshStatus();
+					}
+					return true;
+				}
+			});
+		}, [pending, busy]);
 		const name = status?.displayName || DEFAULT_NAME;
 		const hasAccounts = !!status?.accounts?.length;
 		return h("div", {
 			style: {
 				...styles$3.section,
+				...presentation ? {
+					maxWidth: "none",
+					maxInlineSize: "none",
+					width: "100%"
+				} : {},
 				textAlign: "start"
 			},
 			className: "majed-subscriptions-settings",
@@ -4043,7 +4170,7 @@ function createClaudeCard(React, primitives$1, rpc, t) {
 				...styles$3.dot,
 				background: busy ? "var(--dsw-alias-state-warn-label)" : hasAccounts ? "var(--dsw-alias-state-success-primary)" : "var(--dsw-alias-label-dimmed)"
 			}
-		}), h("span", { style: styles$3.name }, name), button(t("accountsManage"), () => setManager(true), false, { style: { marginInlineStart: "auto" } }), status?.clientVersion ? h("span", {
+		}), h("span", { style: styles$3.name }, name), presentation === "auth" ? null : button(t("accountsManage"), () => setManager(true), false, { style: { marginInlineStart: "auto" } }), status?.clientVersion ? h("span", {
 			style: styles$3.clientVersion,
 			title: t("clientVersionHint")
 		}, "CLI ", h("bdi", { dir: "ltr" }, status.clientVersion.version), " · ", t(`source_${status.clientVersion.source}`)) : null), h("p", {
@@ -4052,7 +4179,7 @@ function createClaudeCard(React, primitives$1, rpc, t) {
 		}, status?.registrationError ? t("claudeProviderUnavailable") : busy ? t("loginProgress") : hasAccounts ? `${status.accounts.length} ${t("connected")}` : status ? t("notLoggedIn") : t("checking")), status?.detail ? h("p", { style: styles$3.statusLine }, status.detail) : null, error ? h("p", {
 			style: styles$3.errorLine,
 			role: "alert"
-		}, error) : null, ...(status?.accounts ?? []).map((account) => {
+		}, error) : null, ...(presentation === "auth" || presentation === "group" && !expanded ? [] : status?.accounts ?? []).map((account) => {
 			const snapshot = usage[account.key];
 			return h("div", {
 				key: account.key,
@@ -4097,7 +4224,7 @@ function createClaudeCard(React, primitives$1, rpc, t) {
 					inlineSize: `${percent}%`
 				} })));
 			})));
-		}), part("actions", styles$3.actions, busy ? button(t("cancelLogin"), () => {
+		}), part("actions", styles$3.actions, presentation === "group" ? h(React.Fragment, null, button(`${status?.accounts?.length ?? 0} ${t("connected")}`, () => setExpanded(!expanded), false, { "aria-expanded": expanded }), button(t("addAccount"), onAdd)) : busy ? button(t("cancelLogin"), () => {
 			action(async () => {
 				await call("cancel");
 				setLogin(null);
@@ -4181,7 +4308,9 @@ function createAntigravityCard(React, primitives$1, rpc, t) {
 	const Button = primitives$1.Button ?? "button";
 	const Input = primitives$1.Input ?? "input";
 	const DEFAULT_NAME = "Google Antigravity";
-	return function AntigravityCard() {
+	return function AntigravityCard({ presentation, onAdd, onComplete, onFlowState, onAccountsChange } = {}) {
+		const [expanded, setExpanded] = React.useState(false);
+		const initialAccounts = React.useRef(null);
 		const [manager, setManager] = React.useState(false);
 		const [status, setStatus] = React.useState(null);
 		const [error, setError] = React.useState("");
@@ -4262,8 +4391,13 @@ function createAntigravityCard(React, primitives$1, rpc, t) {
 			usageRequests.current.set(account, request);
 			return request;
 		};
+		const reportedAccounts = React.useRef(null);
 		const accountsSignature = JSON.stringify((status?.accounts ?? []).map((account) => account.key));
 		React.useEffect(() => {
+			if (presentation === "group" && status) {
+				if (reportedAccounts.current !== null && reportedAccounts.current !== accountsSignature) onAccountsChange?.();
+				reportedAccounts.current = accountsSignature;
+			}
 			const keys = new Set((status?.accounts ?? []).map((account) => account.key));
 			const added = [...keys].filter((key) => !accountKeys.current.has(key));
 			accountKeys.current = keys;
@@ -4291,12 +4425,38 @@ function createAntigravityCard(React, primitives$1, rpc, t) {
 				await refreshStatus();
 			});
 		};
+		React.useEffect(() => {
+			if (!status) return;
+			const count = status.accounts?.length ?? 0;
+			if (initialAccounts.current === null) initialAccounts.current = count;
+			else if (presentation === "auth" && !status.busy && count > initialAccounts.current) onComplete?.();
+		}, [status]);
 		const busy = status?.busy;
+		React.useEffect(() => {
+			if (presentation !== "auth") return;
+			onFlowState?.({
+				busy: pending || !!busy,
+				cancel: async () => {
+					if (pending) return false;
+					if (busy) {
+						await call("cancel");
+						setLogin(null);
+						await refreshStatus();
+					}
+					return true;
+				}
+			});
+		}, [pending, busy]);
 		const name = status?.displayName || DEFAULT_NAME;
 		const hasAccounts = !!status?.accounts?.length;
 		return h("div", {
 			style: {
 				...styles$3.section,
+				...presentation ? {
+					maxWidth: "none",
+					maxInlineSize: "none",
+					width: "100%"
+				} : {},
 				textAlign: "start"
 			},
 			className: "majed-subscriptions-settings",
@@ -4316,7 +4476,7 @@ function createAntigravityCard(React, primitives$1, rpc, t) {
 				...styles$3.dot,
 				background: busy ? "var(--dsw-alias-state-warn-label)" : hasAccounts ? "var(--dsw-alias-state-success-primary)" : "var(--dsw-alias-label-dimmed)"
 			}
-		}), h("span", { style: styles$3.name }, name), button(t("accountsManage"), () => setManager(true), false, { style: { marginInlineStart: "auto" } }), status?.clientVersion ? h("span", {
+		}), h("span", { style: styles$3.name }, name), presentation === "auth" ? null : button(t("accountsManage"), () => setManager(true), false, { style: { marginInlineStart: "auto" } }), status?.clientVersion ? h("span", {
 			style: styles$3.clientVersion,
 			title: t("clientVersionHint")
 		}, "CLI ", h("bdi", { dir: "ltr" }, status.clientVersion.version), " · ", t(`source_${status.clientVersion.source}`)) : null), h("p", {
@@ -4325,7 +4485,7 @@ function createAntigravityCard(React, primitives$1, rpc, t) {
 		}, status?.setupRequired ? t("antigravitySetupRequired") : status?.registrationError ? t("antigravityProviderUnavailable") : busy ? t("loginProgress") : hasAccounts ? `${status.accounts.length} ${t("connected")}` : status ? t("notLoggedIn") : t("checking")), status?.detail && !status?.setupRequired ? h("p", { style: styles$3.statusLine }, status.detail) : null, error ? h("p", {
 			style: styles$3.errorLine,
 			role: "alert"
-		}, error) : null, ...(status?.accounts ?? []).map((account) => {
+		}, error) : null, ...(presentation === "auth" || presentation === "group" && !expanded ? [] : status?.accounts ?? []).map((account) => {
 			const snapshot = usage[account.key];
 			const windows = visibleUsageWindows("antigravity", snapshot?.windows, status?.visibleModels);
 			return h("div", {
@@ -4371,7 +4531,7 @@ function createAntigravityCard(React, primitives$1, rpc, t) {
 					inlineSize: `${percent}%`
 				} })));
 			})));
-		}), part("actions", styles$3.actions, busy ? button(t("cancelLogin"), () => {
+		}), part("actions", styles$3.actions, presentation === "group" ? h(React.Fragment, null, button(`${status?.accounts?.length ?? 0} ${t("connected")}`, () => setExpanded(!expanded), false, { "aria-expanded": expanded }), button(t("addAccount"), onAdd)) : busy ? button(t("cancelLogin"), () => {
 			action(async () => {
 				await call("cancel");
 				setLogin(null);
@@ -4467,6 +4627,9 @@ function createZenCard(React, primitives$1, rpc, t) {
 		return h("div", {
 			style: {
 				...styles$3.section,
+				maxWidth: "none",
+				maxInlineSize: "none",
+				width: "100%",
 				textAlign: "start"
 			},
 			"data-majed-zen-card": true
@@ -4494,7 +4657,9 @@ function createGrokCard(React, primitives$1, rpc, t) {
 	const Button = primitives$1.Button ?? "button";
 	const Input = primitives$1.Input ?? "input";
 	const DEFAULT_NAME = "Grok (Subscription)";
-	return function GrokCard() {
+	return function GrokCard({ presentation, onAdd, onComplete, onFlowState, onAccountsChange } = {}) {
+		const [expanded, setExpanded] = React.useState(false);
+		const initialAccounts = React.useRef(null);
 		const [manager, setManager] = React.useState(false);
 		const [status, setStatus] = React.useState(null);
 		const [error, setError] = React.useState("");
@@ -4574,8 +4739,13 @@ function createGrokCard(React, primitives$1, rpc, t) {
 			usageRequests.current.set(account, request);
 			return request;
 		};
+		const reportedAccounts = React.useRef(null);
 		const accountsSignature = JSON.stringify((status?.accounts ?? []).map((account) => account.key));
 		React.useEffect(() => {
+			if (presentation === "group" && status) {
+				if (reportedAccounts.current !== null && reportedAccounts.current !== accountsSignature) onAccountsChange?.();
+				reportedAccounts.current = accountsSignature;
+			}
 			const keys = new Set((status?.accounts ?? []).map((account) => account.key));
 			const added = [...keys].filter((key) => !accountKeys.current.has(key));
 			accountKeys.current = keys;
@@ -4603,12 +4773,38 @@ function createGrokCard(React, primitives$1, rpc, t) {
 				await refreshStatus();
 			});
 		};
+		React.useEffect(() => {
+			if (!status) return;
+			const count = status.accounts?.length ?? 0;
+			if (initialAccounts.current === null) initialAccounts.current = count;
+			else if (presentation === "auth" && !status.busy && count > initialAccounts.current) onComplete?.();
+		}, [status]);
 		const busy = status?.busy;
+		React.useEffect(() => {
+			if (presentation !== "auth") return;
+			onFlowState?.({
+				busy: pending || !!busy,
+				cancel: async () => {
+					if (pending) return false;
+					if (busy) {
+						await call("cancel");
+						setLogin(null);
+						await refreshStatus();
+					}
+					return true;
+				}
+			});
+		}, [pending, busy]);
 		const name = status?.displayName || DEFAULT_NAME;
 		const hasAccounts = !!status?.accounts?.length;
 		return h("div", {
 			style: {
 				...styles$3.section,
+				...presentation ? {
+					maxWidth: "none",
+					maxInlineSize: "none",
+					width: "100%"
+				} : {},
 				textAlign: "start"
 			},
 			className: "majed-subscriptions-settings",
@@ -4628,7 +4824,7 @@ function createGrokCard(React, primitives$1, rpc, t) {
 				...styles$3.dot,
 				background: busy ? "var(--dsw-alias-state-warn-label)" : hasAccounts ? "var(--dsw-alias-state-success-primary)" : "var(--dsw-alias-label-dimmed)"
 			}
-		}), h("span", { style: styles$3.name }, name), button(t("accountsManage"), () => setManager(true), false, { style: { marginInlineStart: "auto" } }), status?.clientVersion ? h("span", {
+		}), h("span", { style: styles$3.name }, name), presentation === "auth" ? null : button(t("accountsManage"), () => setManager(true), false, { style: { marginInlineStart: "auto" } }), status?.clientVersion ? h("span", {
 			style: styles$3.clientVersion,
 			title: t("clientVersionHint")
 		}, "CLI ", h("bdi", { dir: "ltr" }, status.clientVersion.version), " · ", t(`source_${status.clientVersion.source}`)) : null), h("p", {
@@ -4637,7 +4833,7 @@ function createGrokCard(React, primitives$1, rpc, t) {
 		}, status?.registrationError ? t("grokProviderUnavailable") : busy ? t("loginProgress") : hasAccounts ? `${status.accounts.length} ${t("connected")}` : status ? t("notLoggedIn") : t("checking")), status?.detail ? h("p", { style: styles$3.statusLine }, status.detail) : null, error ? h("p", {
 			style: styles$3.errorLine,
 			role: "alert"
-		}, error) : null, ...(status?.accounts ?? []).map((account) => {
+		}, error) : null, ...(presentation === "auth" || presentation === "group" && !expanded ? [] : status?.accounts ?? []).map((account) => {
 			const snapshot = usage[account.key];
 			return h("div", {
 				key: account.key,
@@ -4682,7 +4878,7 @@ function createGrokCard(React, primitives$1, rpc, t) {
 					inlineSize: `${percent}%`
 				} })));
 			})));
-		}), part("actions", styles$3.actions, busy ? button(t("cancelLogin"), () => {
+		}), part("actions", styles$3.actions, presentation === "group" ? h(React.Fragment, null, button(`${status?.accounts?.length ?? 0} ${t("connected")}`, () => setExpanded(!expanded), false, { "aria-expanded": expanded }), button(t("addAccount"), onAdd)) : busy ? button(t("cancelLogin"), () => {
 			action(async () => {
 				await call("cancel");
 				setLogin(null);
@@ -5904,6 +6100,74 @@ function applySubscriptions(root) {
 				listeners.forEach((listener) => listener());
 			};
 		}));
+		const providerCards = {
+			codex: CodexCard,
+			claude: ClaudeCard,
+			grok: GrokCard,
+			antigravity: AntigravityCard,
+			copilot: CopilotCard
+		};
+		function UnifiedProviders() {
+			const [status, setStatus] = React.useState(null);
+			const [request, setRequest] = React.useState(null);
+			const [error, setError] = React.useState(false);
+			const alive = React.useRef(true);
+			const refresh = async () => {
+				try {
+					const answer = await connection.rpc.call("/api", "majed-subscriptions.status", {});
+					if (!answer?.ok) throw new Error();
+					if (alive.current) {
+						setStatus(answer.value);
+						setError(false);
+					}
+				} catch {
+					if (alive.current) setError(true);
+				}
+			};
+			React.useEffect(() => {
+				alive.current = true;
+				refresh();
+				return () => {
+					alive.current = false;
+				};
+			}, []);
+			const providers = Object.keys(providerCards).map((id) => ({
+				id,
+				name: {
+					codex: "Codex (ChatGPT)",
+					claude: "Claude",
+					grok: "Grok",
+					antigravity: "Antigravity",
+					copilot: "GitHub Copilot"
+				}[id]
+			}));
+			const rows = providers.filter(({ id }) => status?.providers?.[id]?.accounts?.length).map(({ id }) => h("li", {
+				key: id,
+				"data-majed-subscription-row": id
+			}, h(providerCards[id], {
+				presentation: "group",
+				onAccountsChange: refresh,
+				onAdd: () => setRequest({ provider: id })
+			})));
+			rows.push(h("li", {
+				key: "zen",
+				"data-majed-subscription-row": "zen"
+			}, h(ZenCard)));
+			return h(React.Fragment, null, error ? h("p", { role: "alert" }, t("unreachable")) : null, h(ApiProviders, { subscriptions: {
+				rows,
+				providers,
+				request,
+				renderAuth: (id, done, onFlowState) => id ? h(providerCards[id], {
+					key: id,
+					presentation: "auth",
+					onFlowState,
+					onComplete: () => {
+						done();
+						refresh();
+					}
+				}) : null
+			} }));
+		}
 		let present = false;
 		let failing = false;
 		let referenceEnabled = false;
@@ -5936,16 +6200,10 @@ function applySubscriptions(root) {
 			} }, h(GuardedProxy, {
 				rpc: connection.rpc,
 				t
-			}), h(GuardedSetting, { t }))), ...["accounts", "providers"].map((part) => h("section", {
-				key: part,
-				style: {
-					paddingBlock: "var(--dsw-spacing-4)",
-					borderBlockEnd: "1px solid var(--dsw-alias-border-l2)"
-				}
-			}, h("h3", { style: { font: "var(--dsw-font-s-strong-14)" } }, h(IconSettingsOutlineMedium, { "aria-hidden": true }), t(part)), part === "accounts" ? h("div", null, h("p", { style: {
-				marginBlock: "0 var(--dsw-spacing-3)",
-				color: "var(--dsw-alias-label-tertiary)"
-			} }, t("intro")), h(CodexCard), h(ClaudeCard), h(GrokCard), h(AntigravityCard), h(CopilotCard), h(ZenCard)) : ApiProviders ? h(ApiProviders) : h("p", { role: "status" }, t("apiUnavailable")))));
+			}), h(GuardedSetting, { t }))), h("section", { style: {
+				paddingBlock: "var(--dsw-spacing-4)",
+				borderBlockEnd: "1px solid var(--dsw-alias-border-l2)"
+			} }, h("h3", { style: { font: "var(--dsw-font-s-strong-14)" } }, t("providers")), ApiProviders ? h(UnifiedProviders) : h(React.Fragment, null, h("p", null, t("apiUnavailable")), h(ZenCard))));
 		}
 		const models = () => ctx.get("modelDirectories");
 		const surfaceWanted = () => !disposed && present && !referenceEnabled;
