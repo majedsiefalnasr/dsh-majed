@@ -1,5 +1,9 @@
 # #136 API providers — candidate verification
 
+## Owner acceptance disposition — 2026-11-01
+
+Owner reported successful provider addition and cross-page synchronization, and subsequently confirmed `Key configured` appears for ordinary providers. Owner explicitly deferred the missing visual status indicator and DeepSeek Account status presentation to the final UI/UX improvement scope. No ordinary-provider lookup defect was established; no speculative repair was applied. Owner explicitly accepted the existing automated revision-conflict tests instead of a live conflict trial and authorized closing #136. This is Owner acceptance with a stated validation substitution, not evidence of a live conflict test or provider connectivity. Final integrated automated evidence remains Node837/837, fresh-build match and independent Standards/Spec PASS. The final UI/UX ticket is still to be proposed after functional tickets; preserve these deferred items there.
+
 ## Contract and scope
 
 Ticket: https://github.com/majedsiefalnasr/dsh-majed/issues/136, “Subscriptions: API providers part”, stories 69–76. Isolated branch `impl/136-api-providers`, baseline `527d5f5cfcf2b6404ee5babddd617096bab4f7f2`. Existing partial edits were preserved. Owner approved a twenty-minute narrow finishing extension after the prior two-failure cap. No nested agents, installed/profile operations, real remotes, provider traffic, merge, push, closure or #137 work. Independent Lead Standards/Spec review is next, not performed by this implementer.
