@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import ActualReact from 'react';
+import { Context, Service } from '@deepseek-ai/cordis';
 import * as jsxRuntime from 'react/jsx-runtime';
 import { create, act } from 'react-test-renderer';
 import { readFile } from 'node:fs/promises';
@@ -15,6 +16,7 @@ function browser(locale = 'en', initialAnswer, options = {}) {
   const cleanups = []; const commandService = options.commandService;
   const React = options.React ?? { Component: class {}, forwardRef: fn => fn, createElement: (tag, props, ...children) => ({ tag, props, children }), useSyncExternalStore: (_, read) => read() };
   vm.runInNewContext(code + '\nresult(majedSubscriptionsFactory);', { result: factory => { api = factory(id => id === 'react' ? React : id === 'react/jsx-runtime' ? jsxRuntime : { IconSettingsOutlineMedium: 'svg' }); },
+    window: { localStorage: { getItem: () => null }, addEventListener() {}, removeEventListener() {} },
     setInterval: fn => { timer = fn; return 1; }, clearInterval() {}, Error });
   const connection = { rpc: { call: (...args) => args[1] === 'subscriptions-auth.proxyGet' ? referenceAnswer(...args) : answer(...args) }, state: { subscribe: fn => { reconnect = fn; return () => {}; }, getSnapshot: () => 'connected' } };
   const ctx = { effect: fn => cleanups.push(fn()),
@@ -25,7 +27,12 @@ function browser(locale = 'en', initialAnswer, options = {}) {
   const models = { directoryFor: () => ({ load: async () => ({ current: { provider: 'codex', model: 'fast-model' } }) }) };
   ctx.get = name => name === 'modelDirectories' ? models : connection;
   ctx.inject = (names, fn) => {
-    if (names.includes('remote.settings')) { if (!options.remote) return; return fn({ remote: options.remote }); }
+    if (names.includes('remote.settings')) {
+      if (options.remoteContext) return options.remoteContext.inject(Array.from(names), fn);
+      if (!options.remote) return;
+      // Even the lightweight fixture must not grant undeclared root access.
+      return fn({ get remote() { assert.ok(names.includes('remote'), 'remote root must be injected'); return options.remote; } });
+    }
     if (names.includes('commandUi')) { if (!commandService) return; const scope = { get: () => commandService, effect: (run) => cleanups.push(run()) }; return fn(scope); }
     return fn(ctx);
   };
@@ -101,6 +108,53 @@ test('assembled section renders injected native provider directory with actual R
     assert.match(JSON.stringify(renderer.toJSON()), /Native fixture directory/);
     assert.doesNotMatch(JSON.stringify(renderer.toJSON()), /No API providers yet|Browser admission must be verified/);
   } finally { if (renderer) await act(async () => renderer.unmount()); page.cleanup(); }
+});
+test('real Cordis admits the remote root and namespaces before registered API directory RPC', async () => {
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  const root = new Context();
+  const calls = [];
+  const ok = value => ({ ok: true, value });
+  class FixtureService extends Service {
+    constructor(ctx, name, methods) { super(ctx, name); Object.assign(this, methods); }
+  }
+  // Cordis resolves namespace services, not plain nested objects on the root.
+  const llmMethods = {
+    listConfigurableProviders: async () => { calls.push('configurable'); return ok([]); },
+    listProviders: async () => { calls.push('directory'); return ok([{ id: 'cordis-fixture', name: 'Cordis admitted directory' }]); },
+  };
+  const services = root.plugin(ctx => {
+    new FixtureService(ctx, 'remote', { $on: () => () => {} });
+    new FixtureService(ctx, 'remote.settings', { describe: async () => { calls.push('settings'); return ok({ writable: false, namespaces: [] }); } });
+    new FixtureService(ctx, 'remote.credentials', { describe: async () => { calls.push('credentials'); return ok({}); } });
+  });
+  await services;
+  const page = browser('en', undefined, { React: ActualReact, remoteContext: root });
+  let renderer, llm;
+  try {
+    await page.settle();
+    await act(async () => { renderer = create(ActualReact.createElement(page.section.component)); });
+    assert.match(JSON.stringify(renderer.toJSON()), /Browser admission must be verified/);
+    assert.deepEqual(calls, [], 'no native RPC before all required services are admitted');
+    await act(async () => {
+      llm = root.plugin(ctx => { new FixtureService(ctx, 'remote.llm', llmMethods); });
+      await llm;
+    });
+    assert.ok(JSON.stringify(renderer.toJSON()).includes('Cordis admitted directory'), `directory rendered; calls: ${calls.join(',')}; provider text: ${text(renderer.toJSON().children[1])}`);
+    assert.ok(calls.includes('directory'));
+    await act(async () => { await llm.dispose(); });
+    assert.match(JSON.stringify(renderer.toJSON()), /Browser admission must be verified/);
+    const withdrawnCalls = calls.length;
+    await act(async () => {
+      llm = root.plugin(ctx => { new FixtureService(ctx, 'remote.llm', llmMethods); });
+      await llm;
+    });
+    assert.ok(JSON.stringify(renderer.toJSON()).includes('Cordis admitted directory'), `directory rendered; calls: ${calls.join(',')}; provider text: ${text(renderer.toJSON().children[1])}`);
+    assert.ok(calls.length > withdrawnCalls, 'directory reloads after service remount');
+  } finally {
+    if (renderer) await act(async () => renderer.unmount());
+    page.cleanup();
+    await root.fiber.dispose();
+  }
 });
 test('unreachable known component displays a clear message; reconnect recovers', async () => {
   const page = browser(); await page.settle();

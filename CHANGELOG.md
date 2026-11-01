@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Fix #136 native API-provider admission by explicitly injecting the public `remote` root alongside its settings, credentials and llm namespaces. Real Cordis scoped-service regression proves no directory RPC before admission and withdrawal/remount recovery. Controlled proof only; actual installed SDK/principal and consolidated Owner acceptance remain pending.
+
 - Add #136 API providers to Subscriptions using DSH's public settings, credentials and llm remotes: native catalog/registered directory, custom Chat/Responses/Anthropic endpoints, write-only key presence/set/unset, display name/base URL, model discovery/editing, protected deletion and revision conflict messages in English/Arabic. Settings remain the only durable store; partial settings/key failures are reported without claiming atomicity. Controlled React proof only; browser admission, independent review and consolidated installed/live acceptance remain separate.
 
 - Restore the exact reference-faithful bundled Antigravity OAuth identity for zero-config Google login, on the Owner's assertion of redistribution permission (not independently verified documentary authorization). Explicit config and environment retain precedence and same-source pairing; malformed overrides retain provider-scoped guards and stored accounts. This transparently reintroduces the known scanner flag; any official GitHub push-protection exception remains a separate Owner action. Controlled dummy-only tests, not installed/live verification.
