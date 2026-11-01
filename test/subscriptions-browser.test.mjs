@@ -94,10 +94,10 @@ test('assembled section renders injected native provider directory with actual R
   const ok = value => ({ ok: true, value });
   const remote = {
     $on: () => () => {},
-    settings: { describe: async () => ok({ writable: false, namespaces: [] }) },
+    settings: { describe: async () => ok({ writable: false, namespaces: [{ ns: 'fixture-settings', value: {}, user: {}, base: {}, revision: 1 }] }) },
     credentials: { describe: async () => ok({}) },
     llm: {
-      listConfigurableProviders: async () => ok([]),
+      listConfigurableProviders: async () => ok([{ provider: 'fixture-native', displayName: 'Native fixture directory', settingsNs: 'fixture-settings', settingsPath: [] }]),
       listProviders: async () => ok([{ id: 'fixture-native', name: 'Native fixture directory' }]),
     },
   };
@@ -119,12 +119,12 @@ test('real Cordis admits the remote root and namespaces before registered API di
   }
   // Cordis resolves namespace services, not plain nested objects on the root.
   const llmMethods = {
-    listConfigurableProviders: async () => { calls.push('configurable'); return ok([]); },
+    listConfigurableProviders: async () => { calls.push('configurable'); return ok([{ provider: 'cordis-fixture', displayName: 'Cordis admitted directory', settingsNs: 'fixture-settings', settingsPath: [] }]); },
     listProviders: async () => { calls.push('directory'); return ok([{ id: 'cordis-fixture', name: 'Cordis admitted directory' }]); },
   };
   const services = root.plugin(ctx => {
     new FixtureService(ctx, 'remote', { $on: () => () => {} });
-    new FixtureService(ctx, 'remote.settings', { describe: async () => { calls.push('settings'); return ok({ writable: false, namespaces: [] }); } });
+    new FixtureService(ctx, 'remote.settings', { describe: async () => { calls.push('settings'); return ok({ writable: false, namespaces: [{ ns: 'fixture-settings', value: {}, user: {}, base: {}, revision: 1 }] }); } });
     new FixtureService(ctx, 'remote.credentials', { describe: async () => { calls.push('credentials'); return ok({}); } });
   });
   await services;

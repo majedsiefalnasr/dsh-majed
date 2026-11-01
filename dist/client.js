@@ -311,7 +311,13 @@ var subscriptions$1 = {
 	"apiAdd": "Add provider",
 	"apiEdit": "Edit provider",
 	"apiDelete": "Delete added provider",
-	"apiCustom": "Add custom endpoint",
+	"apiCustom": "Custom API",
+	"apiCatalog": "Provider catalog",
+	"apiChoose": "Choose a provider",
+	"apiModelID": "Model ID",
+	"apiModelName": "Model name",
+	"apiModelAdd": "Add model",
+	"apiModelRemove": "Remove model",
 	"apiEditor": "API provider editor",
 	"apiRoute": "Provider route (lowercase words separated by hyphens)",
 	"apiName": "Display name",
@@ -324,9 +330,9 @@ var subscriptions$1 = {
 	"apiKey": "New key (write only)",
 	"apiKeyLimit": "Stored keys are never read back. Settings and key writes are separate native operations, not a transaction. Removing a stored key may reveal an environment fallback. Deleting a provider does not delete shared credentials.",
 	"apiFetch": "Fetch available models",
-	"apiModels": "Models (JSON)",
-	"apiModelsHint": "Edit model id, name, contextWindow, maxTokens, input (text/image) and reasoningEfforts (false or a native level-to-effort object). Fetch updates this draft only; Save applies it.",
-	"apiSave": "Save provider",
+	"apiModels": "Models",
+	"apiModelsHint": "Edit model IDs and names. Existing model capabilities and metadata are preserved. Fetch replaces this draft only; Apply saves it.",
+	"apiSave": "Apply",
 	"apiCancel": "Cancel provider edit",
 	"antigravitySetupRequired": "Antigravity OAuth client configuration is malformed. Correct the configured client pair; stored accounts are retained.",
 	"copilotDeviceHint": "Enter this code on the GitHub verification page.",
@@ -926,7 +932,13 @@ var subscriptions = {
 	"apiAdd": "إضافة موفر",
 	"apiEdit": "تحرير الموفر",
 	"apiDelete": "حذف الموفر المضاف",
-	"apiCustom": "إضافة نقطة اتصال مخصصة",
+	"apiCustom": "API مخصص",
+	"apiCatalog": "دليل الموفرين",
+	"apiChoose": "اختر موفرًا",
+	"apiModelID": "معرّف النموذج",
+	"apiModelName": "اسم النموذج",
+	"apiModelAdd": "إضافة نموذج",
+	"apiModelRemove": "إزالة النموذج",
 	"apiEditor": "محرر موفر API",
 	"apiRoute": "معرّف الموفر (كلمات لاتينية صغيرة تفصلها شرطات)",
 	"apiName": "اسم العرض",
@@ -939,9 +951,9 @@ var subscriptions = {
 	"apiKey": "مفتاح جديد (للكتابة فقط)",
 	"apiKeyLimit": "لا تُقرأ المفاتيح المخزّنة مطلقًا. كتابة الإعدادات والمفتاح عمليتان أصليتان منفصلتان وليستا معاملة ذرية. إزالة المفتاح قد تكشف مفتاح البيئة البديل. حذف الموفر لا يحذف بيانات الاعتماد المشتركة.",
 	"apiFetch": "جلب النماذج المتاحة",
-	"apiModels": "النماذج (JSON)",
-	"apiModelsHint": "حرر id وname وcontextWindow وmaxTokens وinput (text/image) وreasoningEfforts (false أو كائن المستويات الأصلي). الجلب يحدّث المسودة فقط؛ الحفظ يطبّقها.",
-	"apiSave": "حفظ الموفر",
+	"apiModels": "النماذج",
+	"apiModelsHint": "حرر معرّفات النماذج وأسماءها. تُحفظ القدرات والبيانات الحالية. الجلب يستبدل المسودة فقط؛ التطبيق يحفظها.",
+	"apiSave": "تطبيق",
 	"apiCancel": "إلغاء تحرير الموفر",
 	"antigravitySetupRequired": "إعداد عميل OAuth في Antigravity غير صالح. صحّح بيانات العميل المُعدّة؛ تُحفظ الحسابات الحالية.",
 	"copilotDeviceHint": "أدخل هذا الرمز في صفحة التحقق من GitHub.",
@@ -3216,11 +3228,16 @@ function createApiProviders(React, remote, t) {
 		background: "var(--dsw-alias-settings-card-fill)",
 		border: "1px solid var(--dsw-alias-border-l2)",
 		borderRadius: "var(--dsw-radius-md)",
-		padding: "var(--dsw-spacing-2)"
+		padding: "8px 12px",
+		minHeight: "36px",
+		minWidth: 0,
+		boxSizing: "border-box"
 	};
 	return function ApiProviders() {
 		const [snapshot, setSnapshot] = React.useState(null);
 		const [draft, setDraft] = React.useState(null);
+		const [addOpen, setAddOpen] = React.useState(false);
+		const [addMode, setAddMode] = React.useState("catalog");
 		const [message, setMessage] = React.useState("");
 		const [busy, setBusy] = React.useState(false);
 		const generation = React.useRef(0);
@@ -3297,7 +3314,7 @@ function createApiProviders(React, remote, t) {
 				profile: copy(profile),
 				key: "",
 				keyAction: "keep",
-				models: JSON.stringify(profile.models ?? [], null, 2),
+				models: copy(profile.models ?? []),
 				isNew: at(ns.value, entry.settingsPath) === void 0,
 				custom: false
 			});
@@ -3321,7 +3338,7 @@ function createApiProviders(React, remote, t) {
 				},
 				key: "",
 				keyAction: "keep",
-				models: "[]",
+				models: [],
 				isNew: true,
 				custom: true
 			});
@@ -3354,12 +3371,7 @@ function createApiProviders(React, remote, t) {
 			}
 		}
 		function parsedModels() {
-			let models;
-			try {
-				models = JSON.parse(draft.models);
-			} catch {
-				throw new Error("apiInvalid");
-			}
+			const models = draft.models;
 			if (!Array.isArray(models) || models.some((m) => !m || typeof m.id !== "string" || !m.id.trim() || m.name !== void 0 && typeof m.name !== "string" || ["contextWindow", "maxTokens"].some((k) => m[k] !== void 0 && (!Number.isInteger(m[k]) || m[k] < 1)) || m.input !== void 0 && (!Array.isArray(m.input) || m.input.some((v) => !["text", "image"].includes(v))) || m.reasoningEfforts !== void 0 && m.reasoningEfforts !== false && (typeof m.reasoningEfforts !== "object" || m.reasoningEfforts === null || Array.isArray(m.reasoningEfforts)))) throw new Error("apiInvalid");
 			if (new Set(models.map((m) => m.id)).size !== models.length) throw new Error("apiInvalid");
 			return models;
@@ -3427,6 +3439,7 @@ function createApiProviders(React, remote, t) {
 			}
 			if (mounted.current) {
 				setDraft(null);
+				setAddOpen(false);
 				setMessage("apiSaved");
 			}
 			await load();
@@ -3442,7 +3455,7 @@ function createApiProviders(React, remote, t) {
 				...model,
 				...inputModalities === void 0 ? {} : { input: inputModalities }
 			}));
-			if (mounted.current) change("models", JSON.stringify(models, null, 2));
+			if (mounted.current) change("models", models);
 		}
 		async function remove(entry) {
 			const ns = nsOf(entry);
@@ -3460,10 +3473,7 @@ function createApiProviders(React, remote, t) {
 			onClick,
 			disabled: busy || disabled
 		}, t(key));
-		const field = (key, value, onChange, type = "text") => h("label", { style: {
-			display: "grid",
-			gap: "var(--dsw-spacing-1)"
-		} }, t(key), h("input", {
+		const field = (key, value, onChange, type = "text") => h("label", { className: "majed-api-field" }, t(key), h("input", {
 			"aria-label": t(key),
 			type,
 			value,
@@ -3473,83 +3483,127 @@ function createApiProviders(React, remote, t) {
 			onChange: (e) => onChange(e.target.value),
 			dir: type === "password" ? void 0 : "auto"
 		}));
-		return h("div", {
-			"data-majed-api-providers": true,
-			style: {
-				display: "grid",
-				gap: "var(--dsw-spacing-3)",
-				textAlign: "start"
-			}
-		}, message ? h("p", { role: message === "apiSaved" ? "status" : "alert" }, t(message)) : null, button("apiRefresh", () => {
-			load();
-		}), !snapshot ? h("p", null, t("apiLoading")) : h(React.Fragment, null, ...snapshot.rows.map((entry) => {
-			const ns = nsOf(entry), profile = at(ns?.value, entry.settingsPath);
-			const ref = refOf(entry, profile);
-			const configured = snapshot.credentials[ref]?.configured || (entry.nativeAuth?.env ?? []).some((r) => snapshot.credentials[r]?.configured);
-			return h("article", {
-				key: entry.provider,
-				"data-majed-api-provider": entry.provider,
-				style: {
-					border: "1px solid var(--dsw-alias-border-l2)",
-					borderRadius: "var(--dsw-radius-xl)",
-					padding: "var(--dsw-spacing-3)"
-				}
-			}, h("strong", null, profile?.displayName ?? entry.displayName), h("bdi", null, ` (${entry.provider}) `), h("span", null, t(configured ? "apiKeySet" : "apiKeyMissing")), button(profile === void 0 ? "apiAdd" : "apiEdit", () => edit(entry), !snapshot.writable || !ns), removable(entry, ns) ? button("apiDelete", () => {
-				run(() => remove(entry));
-			}, !snapshot.writable) : null);
-		}), button("apiCustom", custom, !snapshot.writable || !snapshot.namespaces.some((n) => n.ns === "llm-pi-ai"))), draft ? h("div", {
+		const configured = (entry) => {
+			const ns = nsOf(entry);
+			return ns !== void 0 && (entry.settingsPath.length === 0 || at(ns.value, entry.settingsPath) !== void 0);
+		};
+		const addable = snapshot?.rows.filter((entry) => nsOf(entry) && !configured(entry)) ?? [];
+		const select = (key, value, onChange, options) => h("label", { className: "majed-api-field" }, t(key), h("select", {
+			"aria-label": t(key),
+			value,
+			style: control,
+			disabled: busy,
+			onChange: (e) => onChange(e.target.value)
+		}, ...options));
+		const close = () => {
+			setDraft(null);
+			setAddOpen(false);
+		};
+		const editor = () => h("div", {
 			role: "group",
 			"aria-label": t("apiEditor"),
-			style: {
-				display: "grid",
-				gap: "var(--dsw-spacing-3)"
-			}
+			className: "majed-api-editor"
 		}, draft.custom ? field("apiRoute", draft.entry.provider, (v) => change("entry", {
 			...draft.entry,
 			provider: v
-		})) : h("bdi", null, draft.entry.provider), field("apiName", draft.profile.displayName ?? "", (v) => profileChange("displayName", v)), field("apiURL", draft.profile.baseURL ?? "", (v) => profileChange("baseURL", v)), draft.custom ? h("label", null, t("apiProtocol"), h("select", {
-			"aria-label": t("apiProtocol"),
-			value: draft.profile.api,
-			disabled: busy,
-			style: control,
-			onChange: (e) => profileChange("api", e.target.value)
-		}, ...[
+		})) : h("bdi", { className: "majed-api-muted" }, draft.entry.provider), field("apiName", draft.profile.displayName ?? "", (v) => profileChange("displayName", v)), field("apiURL", draft.profile.baseURL ?? "", (v) => profileChange("baseURL", v)), draft.custom ? select("apiProtocol", draft.profile.api, (v) => profileChange("api", v), [
 			"openai-completions",
 			"openai-responses",
 			"anthropic-messages"
 		].map((v) => h("option", {
 			key: v,
 			value: v
-		}, v)))) : null, h("label", null, t("apiKeyAction"), h("select", {
-			"aria-label": t("apiKeyAction"),
-			value: draft.keyAction,
-			disabled: busy,
-			style: control,
-			onChange: (e) => change("keyAction", e.target.value)
-		}, ...[
+		}, v))) : null, select("apiKeyAction", draft.keyAction, (v) => change("keyAction", v), [
 			"keep",
 			"set",
 			"unset"
 		].map((v) => h("option", {
 			key: v,
 			value: v
-		}, t(`apiKey_${v}`))))), draft.keyAction === "set" ? field("apiKey", draft.key, (v) => change("key", v), "password") : null, h("p", null, t("apiKeyLimit")), button("apiFetch", () => {
+		}, t(`apiKey_${v}`)))), draft.keyAction === "set" ? field("apiKey", draft.key, (v) => change("key", v), "password") : null, h("p", { className: "majed-api-muted" }, t("apiKeyLimit")), h("div", { className: "majed-api-head" }, h("strong", null, t("apiModels")), button("apiFetch", () => {
 			run(discover);
-		}), h("label", null, t("apiModels"), h("textarea", {
-			"aria-label": t("apiModels"),
-			value: draft.models,
-			rows: 12,
-			dir: "ltr",
-			disabled: busy,
-			style: {
-				...control,
-				width: "100%",
-				boxSizing: "border-box"
-			},
-			onChange: (e) => change("models", e.target.value)
-		})), h("p", null, t("apiModelsHint")), button("apiSave", () => {
+		})), ...draft.models.map((model, index) => h("div", {
+			key: index,
+			className: "majed-api-model",
+			"data-majed-api-model": index
+		}, field("apiModelID", model.id, (v) => change("models", draft.models.map((m, i) => i === index ? {
+			...m,
+			id: v
+		} : m))), field("apiModelName", model.name ?? "", (v) => change("models", draft.models.map((m, i) => i === index ? {
+			...m,
+			name: v
+		} : m))), button("apiModelRemove", () => change("models", draft.models.filter((_, i) => i !== index))))), button("apiModelAdd", () => change("models", [...draft.models, {
+			id: "",
+			name: ""
+		}])), h("p", { className: "majed-api-muted" }, t("apiModelsHint")), h("div", { className: "majed-api-actions" }, button("apiSave", () => {
 			run(save);
-		}), button("apiCancel", () => setDraft(null))) : null);
+		}), button("apiCancel", close)));
+		return h("div", {
+			"data-majed-api-providers": true,
+			"aria-busy": busy,
+			className: "majed-api-section"
+		}, h("style", null, `
+        .majed-api-section{max-width:720px;display:flex;flex-direction:column;gap:12px;text-align:start;color:var(--dsw-alias-label-primary);font-size:14px;line-height:22px}
+        .majed-api-section *{box-sizing:border-box}.majed-api-section p{margin:0}
+        .majed-api-rows{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}
+        .majed-api-row{border:1px solid var(--dsw-alias-settings-card-stroke,var(--dsw-alias-border-l2));background:var(--dsw-alias-settings-card-fill);border-radius:var(--dsw-radius-xl,12px);padding:12px 14px;min-width:0}
+        .majed-api-head,.majed-api-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+        .majed-api-identity{display:flex;align-items:center;gap:8px;flex:1 1 180px;min-width:0;overflow-wrap:anywhere}
+        .majed-api-actions{margin-inline-start:auto}.majed-api-muted{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px;overflow-wrap:anywhere}
+        .majed-api-editor{display:flex;flex-direction:column;gap:16px;padding:16px 0 4px;margin-top:12px;border-top:1px solid var(--dsw-alias-border-l2)}
+        .majed-api-field{display:flex;flex-direction:column;gap:6px;min-width:0;font-weight:500}.majed-api-field input,.majed-api-field select{width:100%;font-weight:400}
+        .majed-api-model{display:grid;grid-template-columns:repeat(2,minmax(0,1fr)) auto;gap:8px;align-items:end}
+        .majed-api-add{margin-top:12px}.majed-api-tabs{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}.majed-api-tabs [aria-selected=true]{font-weight:600;background:var(--dsw-alias-interactive-secondary-hover,var(--dsw-alias-settings-card-fill))}
+        .majed-api-section button{cursor:pointer}.majed-api-section button:hover:not(:disabled){background:var(--dsw-alias-interactive-secondary-hover,var(--dsw-alias-settings-card-fill))}
+        .majed-api-section :is(button,input,select):focus-visible{outline:2px solid var(--dsw-alias-brand-primary,#367cff);outline-offset:2px}.majed-api-section :disabled{opacity:.5;cursor:not-allowed}
+        @media(max-width:520px){.majed-api-model{grid-template-columns:minmax(0,1fr)}.majed-api-model button{justify-self:start}.majed-api-row{padding:12px}.majed-api-actions{margin-inline-start:0}}
+      `), message ? h("p", { role: message === "apiSaved" ? "status" : "alert" }, t(message)) : null, h("div", { className: "majed-api-actions" }, button("apiRefresh", () => {
+			load();
+		})), !snapshot ? h("p", null, t("apiLoading")) : h(React.Fragment, null, h("ul", { className: "majed-api-rows" }, ...snapshot.rows.filter(configured).map((entry) => {
+			const ns = nsOf(entry), profile = at(ns.value, entry.settingsPath);
+			const keySet = snapshot.credentials[refOf(entry, profile)]?.configured || (entry.nativeAuth?.env ?? []).some((r) => snapshot.credentials[r]?.configured);
+			return h("li", {
+				key: entry.provider,
+				"data-majed-api-provider": entry.provider,
+				className: "majed-api-row"
+			}, h("div", { className: "majed-api-head" }, h("span", { className: "majed-api-identity" }, h("strong", null, profile?.displayName ?? entry.displayName), h("span", { className: "majed-api-muted" }, t(keySet ? "apiKeySet" : "apiKeyMissing"))), h("span", { className: "majed-api-actions" }, button("apiEdit", () => {
+				setAddOpen(false);
+				edit(entry);
+			}, !snapshot.writable), removable(entry, ns) ? button("apiDelete", () => {
+				run(() => remove(entry));
+			}, !snapshot.writable) : null)), !addOpen && draft?.entry.provider === entry.provider ? editor() : null);
+		})), h("div", { className: "majed-api-add" }, button("apiAdd", () => {
+			setAddOpen(true);
+			setAddMode("catalog");
+			setDraft(null);
+			if (addable[0]) edit(addable[0]);
+		}, !snapshot.writable), addOpen ? h(React.Fragment, null, h("div", {
+			role: "tablist",
+			"aria-label": t("apiAdd"),
+			className: "majed-api-tabs"
+		}, ...["catalog", "custom"].map((mode) => h("button", {
+			type: "button",
+			role: "tab",
+			"aria-selected": addMode === mode,
+			style: control,
+			disabled: busy || mode === "custom" && !snapshot.namespaces.some((n) => n.ns === "llm-pi-ai"),
+			onClick: () => {
+				setAddMode(mode);
+				setDraft(null);
+				if (mode === "custom") custom();
+				else if (addable[0]) edit(addable[0]);
+			}
+		}, t(mode === "catalog" ? "apiCatalog" : "apiCustom")))), addMode === "catalog" ? select("apiCatalog", draft?.entry.provider ?? "", (v) => {
+			const entry = addable.find((e) => e.provider === v);
+			if (entry) edit(entry);
+		}, [h("option", {
+			key: "",
+			value: "",
+			disabled: true
+		}, t("apiChoose")), ...addable.map((e) => h("option", {
+			key: e.provider,
+			value: e.provider
+		}, e.displayName))]) : null, draft ? editor() : button("apiCancel", close)) : null)));
 	};
 }
 

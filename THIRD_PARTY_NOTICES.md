@@ -1,6 +1,28 @@
 # Third-party notices
 
-#136's native API-provider UI and tests are independently authored against public DSH `0.2.1-rc.3` contracts, not copied third-party implementation. The precise native package/source references and local adaptations are recorded in `src/PROVENANCE.md`; existing notices below remain unchanged.
+#136's native API-provider UI narrowly adapts ModelsSection structure and styles from DeepSeek Harness `dsh-client-ui-settings-models` `0.2.1-rc.3`, https://github.com/deepseek-ai/deepseek-harness, under MIT. The precise source ranges and local adaptations are recorded in `src/PROVENANCE.md`. Controlled tests and public-remotes composition are locally authored.
+
+MIT License
+
+Copyright (c) 2026 DeepSeek
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 
 #135 additionally ports Google Antigravity OAuth/provider and Gemini-shaped request/schema/thinking/stream translation, with its reference behavior and visible-model quota-filter tests, from V1ki/dsh-plugin-subscriptions v0.9.12 at `b8023110864494acefc6f5963c2a197d85dda20c` under MIT. The retained V1ki copyright and license in `src/PROVENANCE.md` apply; that record identifies owned lifecycle/composition and English/Arabic adaptations.
 

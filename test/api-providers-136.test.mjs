@@ -64,11 +64,13 @@ for (const locale of ['en', 'ar']) {
   test(`native provider list, catalog add, edit and key set/unset in ${locale}`, async () => {
     const p = await fixture(locale);
     try {
-      assert.match(p.text(), /Registered only/);
+      assert.equal(p.renderer.root.findAll(n => n.props['data-majed-api-provider'] === 'registered-only').length, 0);
+      assert.equal(p.renderer.root.findAll(n => n.props['data-majed-api-provider'] === 'builtin').length, 0);
       assert.ok(p.text().includes(p.dict.apiKeySet));
-      assert.equal(p.buttons('apiDelete', p.row('builtin')).length, 0);
+      assert.ok(p.row('deployment'), 'profile without a key is configured');
       assert.equal(p.buttons('apiDelete', p.row('deployment')).length, 0);
-      await p.click('apiAdd', p.row('builtin'));
+      await p.click('apiAdd');
+      await p.field('apiCatalog', 'builtin');
       await p.field('apiName', 'My catalog');
       await p.field('apiURL', 'https://catalog.example.test');
       await p.field('apiKeyAction', 'set');
@@ -94,17 +96,32 @@ for (const locale of ['en', 'ar']) {
     for (const protocol of ['openai-completions', 'openai-responses', 'anthropic-messages']) {
       const p = await fixture(locale);
       try {
-        await p.click('apiCustom'); await p.field('apiRoute', 'new-route'); await p.field('apiProtocol', protocol);
+        await p.click('apiAdd'); await p.click('apiCustom'); await p.field('apiRoute', 'new-route'); await p.field('apiProtocol', protocol);
         await p.field('apiURL', 'https://new.example.test'); await p.click('apiFetch');
         assert.deepEqual(JSON.parse(JSON.stringify(p.calls.find(c => c[0] === 'discover').slice(1))), ['llm-pi-ai', { provider: 'new-route', baseURL: 'https://new.example.test', api: protocol }]);
-        const edited = [{ ...model[0], reasoningEfforts: { low: 'low', high: 'high' }, input: ['text', 'image'] }];
-        await p.field('apiModels', JSON.stringify(edited)); await p.click('apiSave');
+        const edited = [{ id: 'discovered', name: 'Edited found', contextWindow: 4096, maxTokens: 512, input: ['text', 'image'] }];
+        await p.field('apiModelName', 'Edited found'); await p.click('apiSave');
         assert.equal(p.ns.user.providers['new-route'].api, protocol);
         assert.equal(Object.hasOwn(p.ns.user.providers['new-route'], 'displayName'), false, 'blank optional name uses native fallback');
         assert.deepEqual(p.ns.user.providers['new-route'].models, edited);
         assert.equal(p.calls.some(c => c[0] === 'set'), false);
       } finally { await p.dispose(); }
     }
+  });
+  test(`inset model rows preserve metadata, add/remove and cancel in ${locale}`, async () => {
+    const p = await fixture(locale);
+    try {
+      await p.click('apiEdit', p.row('custom'));
+      assert.ok(p.row('custom').find(n => n.props['aria-label'] === p.dict.apiEditor));
+      assert.equal(p.renderer.root.findAll(n => n.type === 'textarea').length, 0);
+      await p.field('apiModelName', 'Renamed'); await p.click('apiSave');
+      assert.deepEqual(p.ns.user.providers.custom.models, [{ ...model[0], name: 'Renamed' }]);
+      await p.click('apiEdit', p.row('custom')); await p.click('apiModelAdd');
+      const rows = p.renderer.root.findAll(n => n.props['data-majed-api-model'] !== undefined);
+      assert.equal(rows.length, 2); await p.click('apiModelRemove', rows[1]);
+      await p.field('apiModelID', 'cancelled'); await p.click('apiCancel');
+      assert.equal(p.ns.user.providers.custom.models[0].id, 'fixture-model');
+    } finally { await p.dispose(); }
   });
   test(`conflicts retain draft on edit and deletion; external invalidations refresh in ${locale}`, async () => {
     const p = await fixture(locale);
@@ -133,11 +150,11 @@ for (const locale of ['en', 'ar']) {
     const p = await fixture(locale);
     try {
       const unrelated = JSON.stringify(p.ns.user.providers.custom);
-      await p.click('apiCustom'); await p.field('apiRoute', 'invalid-route');
-      await p.field('apiURL', 'https://invalid.example.test'); await p.field('apiModels', '[{"id":"duplicate"},{"id":"duplicate"}]');
+      await p.click('apiAdd'); await p.click('apiCustom'); await p.field('apiRoute', 'invalid-route');
+      await p.field('apiURL', 'https://invalid.example.test'); await p.click('apiModelAdd'); await p.field('apiModelID', '');
       await p.click('apiSave'); assert.ok(p.text().includes(p.dict.apiInvalid));
       assert.equal(p.calls.some(c => c[0] === 'mutate'), false);
-      await p.click('apiCancel'); await p.click('apiAdd', p.row('builtin'));
+      await p.click('apiCancel'); await p.click('apiAdd'); await p.field('apiCatalog', 'builtin');
       await p.field('apiKeyAction', 'set'); await p.field('apiKey', 'dummy-never-written');
       p.failSettings(true); await p.click('apiSave');
       assert.ok(p.text().includes(p.dict.apiConflict));
