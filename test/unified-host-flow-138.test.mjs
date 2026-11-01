@@ -24,8 +24,27 @@ async function fixture(provider) {
   process.env.DSH_HOME = fixtureHome;
   const pendingRpc = new Set();
   const routes = new Map(), cleanups = [], calls = [], timers = new Set(), live = new Map(), denied = [];
-  let imported, identity = 'first', mode = 'success', release, focused = 0, renderer, dictionary;
+  let imported, identity = 'first', mode = 'success', release, focused = 0, renderer, dictionary, importReads = 0;
+  const exchanges = new Set();
   const originalFetch = globalThis.fetch;
+  async function dispose() {
+    try {
+      if (renderer) await act(async () => renderer.unmount());
+      renderer = undefined;
+      cleanups.reverse().forEach(fn => fn?.());
+      release?.(); release = undefined;
+      await Promise.all([...exchanges]);
+      await turn();
+    } finally {
+      globalThis.fetch = originalFetch;
+      if (previousHome === undefined) delete process.env.DSH_HOME; else process.env.DSH_HOME = previousHome;
+      assert.equal(fixtureHome.startsWith(join(tmpdir(), 'majed-ui138-host-')), true);
+      await rm(fixtureHome, { recursive: true, force: true });
+    }
+    assert.equal(routes.size, 0);
+    assert.equal(timers.size, 0);
+  }
+  try {
   const tokenBody = () => ({ access_token: 'dummy-access', refresh_token: 'dummy-refresh', expires_in: 3600,
     id_token: jwt({ email: `${identity}@example.invalid`, 'https://api.openai.com/auth': { chatgpt_account_id: identity, chatgpt_plan_type: 'plus' } }),
     account: { email_address: `${identity}@example.invalid` } });
@@ -38,7 +57,12 @@ async function fixture(provider) {
     if (url.includes('openid-configuration')) return Response.json({ authorization_endpoint: 'https://accounts.x.ai/authorize', token_endpoint: 'https://accounts.x.ai/token' });
     if (url.endsWith('/login/device/code')) return Response.json({ device_code: 'dummy-private', user_code: 'DUMMY-CODE', verification_uri: 'https://github.com/login/device', interval: 0.001 });
     if (url.endsWith('/login/oauth/access_token') || url.endsWith('/oauth/token') || url === 'https://accounts.x.ai/token' || url.includes('oauth2.googleapis.com/token')) {
-      if (mode === 'hold' || provider === 'copilot') await new Promise(resolve => { release = resolve; });
+      if (mode === 'hold' || provider === 'copilot') {
+        const exchange = new Promise(resolve => { release = resolve; });
+        exchanges.add(exchange);
+        await exchange;
+        exchanges.delete(exchange);
+      }
       if (mode === 'failure') return Response.json({ error: 'invalid_grant' }, { status: 400 });
       return Response.json(provider === 'copilot' ? { access_token: 'dummy-github' } : tokenBody());
     }
@@ -56,7 +80,7 @@ async function fixture(provider) {
     get: () => ({ fetch: { register(route) { routes.set(route.path, route); return () => routes.delete(route.path); } } }),
     inject(names, fn) { if (names.includes('connection')) fn(host); },
     effect(fn) { const off = fn(); if (off) cleanups.push(off); } };
-  const io = { platform: 'linux', credentialsFilePath: () => '/dummy/claude.json', readFileRaw: () => imported,
+  const io = { platform: 'linux', credentialsFilePath: () => '/dummy/claude.json', readFileRaw: () => { importReads++; return imported; },
     readKeychainRaw() { throw Error('Keychain forbidden'); }, getKeychainAccountName() { throw Error('Keychain forbidden'); },
     writeFileRaw() { throw Error('credential write-back forbidden'); }, writeKeychainRaw() { throw Error('Keychain forbidden'); } };
   apply(host, { antigravity: { clientId: 'dummy-authorized-client' }, models: Object.fromEntries(['codex','claude','grok','antigravity','copilot'].map(p => [p, [{ id: 'dummy-model', name: 'Dummy' }]])), pool: { enabled: false } }, { claudeCredsIo: io });
@@ -99,7 +123,7 @@ async function fixture(provider) {
   const click = async key => { const button = buttons(key).at(-1); assert.ok(button, key); assert.equal(!!button.props.disabled, false, key); await act(async () => { button.props.onClick(); await turn(); }); await settle(); };
   const tick = async () => { await act(async () => { for (const fn of [...timers]) fn(); }); await settle(); };
   const group = () => renderer.root.findAll(n => n.type === 'li' && n.props['data-majed-subscription-row'] === provider);
-  return { calls, denied, status, until, tick, click, buttons, group, get renderer() { return renderer; }, get focused() { return focused; },
+  return { calls, denied, status, until, tick, click, buttons, group, get renderer() { return renderer; }, get focused() { return focused; }, get importReads() { return importReads; },
     set identity(value) { identity = value; }, set mode(value) { mode = value; },
     importCredentials() { imported = JSON.stringify({ claudeAiOauth: { accessToken: 'dummy-import', refreshToken: 'dummy-refresh', expiresAt: 4000000000000, emailAddress: `${identity}@example.invalid`, scopes: ['user:inference'] } }); },
     async open() { await click('apiAdd'); await click('apiSubscription'); const select = renderer.root.findAllByType('select').find(n => n.props['aria-label'] === dict.apiSubscription); await act(async () => select.props.onChange({ target: { value: provider } })); await settle(); },
@@ -109,9 +133,18 @@ async function fixture(provider) {
       if (provider === 'copilot') { await until(() => !!release, 'device poll'); release(); release = undefined; }
       else { const url = new URL((await status()).pendingAuth.authorizeUrl); const callback = new URL(url.searchParams.get('redirect_uri')); callback.searchParams.set('state', url.searchParams.get('state')); callback.searchParams.set('code', 'dummy-code'); await this.submit(callback.href); }
     },
-    async releaseLate() { release?.(); release = undefined; await turn(); },
-    async dispose() { if (renderer) await act(async () => renderer.unmount()); renderer = undefined; cleanups.reverse().forEach(fn => fn?.()); release?.(); globalThis.fetch = originalFetch; if (previousHome === undefined) delete process.env.DSH_HOME; else process.env.DSH_HOME = previousHome; assert.equal(fixtureHome.startsWith(join(tmpdir(), 'majed-ui138-host-')), true); await rm(fixtureHome, { recursive: true, force: true }); assert.equal(routes.size, 0); assert.equal(timers.size, 0); }
+    async holdExchange() {
+      mode = 'hold';
+      if (provider !== 'copilot') await this.complete();
+      await until(() => !!release, 'token exchange held');
+    },
+    async releaseLate() { release?.(); release = undefined; await Promise.all([...exchanges]); await turn(); await settle(); },
+    dispose
   };
+  } catch (error) {
+    await dispose();
+    throw error;
+  }
 }
 
 for (const provider of ['codex', 'claude', 'grok', 'antigravity', 'copilot']) {
@@ -140,3 +173,96 @@ for (const provider of ['codex', 'claude', 'grok', 'antigravity', 'copilot']) {
     } finally { await f.dispose(); }
   });
 }
+
+for (const provider of ['codex', 'claude', 'grok', 'antigravity', 'copilot']) {
+  test(`${provider}: Add cancellation reaches controller and permits reentry after token failure`, async () => {
+    const f = await fixture(provider);
+    try {
+      await f.open();
+      const prior = await f.status();
+      await f.start();
+      await f.click('apiCancel');
+      if (provider === 'copilot') await f.releaseLate();
+      await f.until(async () => !(await f.status()).busy, 'cancel settles controller');
+      assert.ok(f.calls.some(c => c.method.endsWith('.cancel') && c.payload.provider === provider), 'Add invokes real cancel route');
+      assert.equal(f.buttons('apiAdd').length, 1, 'cancel restores Add');
+      assert.equal((await f.status()).accounts.length, 0);
+      assert.equal((await f.status()).authRevision, prior.authRevision);
+
+      await f.open();
+      f.mode = 'failure';
+      await f.start();
+      await f.complete();
+      await f.until(async () => !(await f.status()).busy, 'failed token exchange settles');
+      await f.tick();
+      const failed = await f.status();
+      assert.equal(failed.accounts.length, 0, 'token failure never admits');
+      assert.equal(failed.authRevision, prior.authRevision);
+      assert.ok(failed.detail, 'real controller exposes failure');
+      assert.equal(f.buttons('apiAdd').length, 0, 'failure retains Add flow');
+      assert.equal(f.group().length, 0);
+
+      f.mode = 'success';
+      await f.start();
+      await f.complete();
+      await f.until(async () => !(await f.status()).busy, 'recovery settles');
+      await f.tick();
+      const recovered = await f.status();
+      assert.equal(recovered.accounts.length, 1);
+      assert.equal(recovered.authRevision, prior.authRevision + 1);
+      assert.ok(!recovered.detail, 'successful retry clears failure');
+      assert.equal(f.buttons('apiAdd').length, 1);
+      assert.equal(f.group().length, 1);
+      assert.deepEqual(f.denied, []);
+    } finally { await f.dispose(); }
+  });
+
+  test(`${provider}: held token completion after Add cancellation cannot admit or close a reentered flow`, async () => {
+    const f = await fixture(provider);
+    try {
+      await f.open();
+      const prior = await f.status();
+      await f.start();
+      await f.holdExchange();
+      await f.click('apiCancel');
+      assert.equal(f.buttons('apiAdd').length, 1);
+      await f.open();
+      const focused = f.focused;
+      await f.releaseLate();
+      await f.until(async () => !(await f.status()).busy, 'cancelled late exchange settles');
+      await f.tick();
+      const late = await f.status();
+      assert.equal(late.accounts.length, 0, 'late token cannot persist admission');
+      assert.equal(late.authRevision, prior.authRevision);
+      assert.equal(f.group().length, 0);
+      assert.equal(f.buttons('apiAdd').length, 0, 'late completion cannot close new Add flow');
+      assert.equal(f.focused, focused, 'late completion cannot invoke success focus callback');
+      assert.equal(f.renderer.root.findAllByType('input').filter(n => n.props['aria-label'] === dict.pasteCallback).length, 0, 'no stale callback UI');
+      await f.click('apiCancel');
+      assert.equal(f.buttons('apiAdd').length, 1);
+      assert.deepEqual(f.denied, []);
+    } finally { await f.dispose(); }
+  });
+}
+
+test('claude: actual Add imports existing CLI credentials through injected IO, including same identity', async () => {
+  const f = await fixture('claude');
+  try {
+    f.importCredentials();
+    for (const [key, revision] of [['login', 1], ['addAccountKeychain', 2]]) {
+      await f.open();
+      await f.click(key);
+      await f.tick();
+      const imported = await f.status();
+      assert.equal(imported.accounts.length, 1);
+      assert.equal(imported.authRevision, revision);
+      assert.equal(imported.busy, false);
+      assert.equal(f.buttons('apiAdd').length, 1);
+      assert.equal(f.group().length, 1);
+      assert.ok(f.group()[0].findAllByType('button').some(n => n.children.join('') === `1 ${dict.connected}`));
+    }
+    assert.ok(f.importReads >= 2, 'genuine injected credential IO read');
+    assert.ok(f.calls.some(c => c.method.endsWith('.login') && c.payload.method === 'keychain'));
+    assert.deepEqual(f.denied, []);
+  } finally { await f.dispose(); }
+});
