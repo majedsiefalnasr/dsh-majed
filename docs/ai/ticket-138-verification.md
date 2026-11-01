@@ -1,5 +1,15 @@
 # #138 partial candidate verification
 
+## Reviewed admission repair at 43c64b8 — 2026-11-01
+
+Direct bounded repair of the independent Spec finding; full-ticket baseline remains `92072f8`. Shared reserved subscription IDs are now checked independently of rendered API rows. Collision knowledge retains the unfiltered configurable directory, registered adapters and resolved native `llm-pi-ai.providers` keys. Visible rows still exclude subscription IDs; no authentication or native Models changes.
+
+Actual-component/fake-remotes EN/AR matrix covers all six reserved IDs (including `opencode-zen`), directory-only `builtin`, registration-only `registered-only`, and native-configured-only `configured-only`. Valid model/URL plus dummy key intent ensure rejection is the route guard, not unrelated validation. Each rejection asserts no subsequent remote calls, unchanged native settings, retained route/name/URL/model/key draft and open inline editor. Existing legitimate custom protocols/discovery, revision conflicts, partial key retry and assembled auth regressions remain passing.
+
+Deliberate RED: `ui138-admission-red.log`, exit 1, 39 tests / 25 pass / 14 expected failures (six reserved plus configured-only in each locale); the four directory/registration preservation cases already passed. GREEN focused: `ui138-admission-focused.log`, 84/84. Full: `ui138-admission-full.log`, Node 893/893 and classifier 166/166, zero failures/cancellations/skips. Build and fresh-build comparison exit 0 (`ui138-admission-build.log`, `ui138-admission-checkbuild.log`). Finished source detector exit 0, `ui138-admission-detector.json` is `[]`. Whitespace gate recorded in `ui138-admission-diffcheck.log`. Zero unexpected failures in this repair budget; deliberate RED excluded.
+
+Separate DOM worker scripts/report and existing detector outputs are untouched/excluded. No nested delegation, network, installed/profile/secrets/live-provider actions, push, merge or closure. Local scoped commit only. Independent Standards/Spec re-review, full-flow/import/manual/device/controller-outcome proof, refreshed DOM/public-primitive reconciliation, package/byte match, and separately approved installation/restart/consolidated Owner live acceptance remain open. No visual or full-ticket acceptance claim. Stale Impeccable sidecar remains unchanged.
+
 ## Independent-review repairs at e7dc0a9 — 2026-11-01
 
 Bounded direct workspace repair; no nested agents, network, installed/profile/secrets, live providers, push/merge/closure. Baseline for prior full ticket remains `92072f8`; this repair starts at `e7dc0a9`. Separate DOM worker outputs are untouched and excluded from this commit.

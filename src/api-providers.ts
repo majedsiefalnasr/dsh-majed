@@ -5,6 +5,7 @@ export function createApiProviders(React: any, remote: any, t: (key: string) => 
   const at = (value: any, path: string[]) => path.reduce((v, key) => v?.[key], value);
   const refOf = (entry: any, profile: any) => profile?.apiKeyEnv ?? `${entry.provider.toUpperCase().replace(/[^A-Z0-9]+/g, '_')}_API_KEY`;
   const copy = (value: any) => JSON.parse(JSON.stringify(value));
+  const subscriptionIDs = new Set(['codex', 'claude', 'grok', 'antigravity', 'copilot', 'opencode-zen']);
   const control = { font: 'inherit', color: 'inherit', background: 'var(--dsw-alias-settings-card-fill)', border: '1px solid var(--dsw-alias-border-l2)', borderRadius: 'var(--dsw-radius-md)', padding: '8px 12px', minHeight: '36px', minWidth: 0, boxSizing: 'border-box' as const };
   return function ApiProviders({ subscriptions }: any = {}) {
     const [subscription, setSubscription] = React.useState('');
@@ -38,9 +39,11 @@ export function createApiProviders(React: any, remote: any, t: (key: string) => 
         const [settings, directory, registered] = await Promise.all([remote.settings.describe(), remote.llm.listConfigurableProviders(), remote.llm.listProviders()]);
         const described = valueOf(settings);
         const entries = valueOf(directory);
-        const subscriptionIDs = new Set(['codex', 'claude', 'grok', 'antigravity', 'copilot', 'opencode-zen']);
+        const providers = valueOf(registered);
+        const configuredIDs = Object.keys(described.namespaces.find((n: any) => n.ns === 'llm-pi-ai')?.value?.providers ?? {});
+        const occupiedIDs = new Set([...entries.map((entry: any) => entry.provider), ...providers.map((provider: any) => provider.id), ...configuredIDs]);
         const rows = entries.filter((entry: any) => !subscriptionIDs.has(entry.provider));
-        for (const provider of valueOf(registered)) if (!subscriptionIDs.has(provider.id) && !rows.some((e: any) => e.provider === provider.id)) rows.push({ provider: provider.id, displayName: provider.name, settingsNs: '', settingsPath: [] });
+        for (const provider of providers) if (!subscriptionIDs.has(provider.id) && !rows.some((e: any) => e.provider === provider.id)) rows.push({ provider: provider.id, displayName: provider.name, settingsNs: '', settingsPath: [] });
         rows.sort((a: any, b: any) => rank(a.provider) - rank(b.provider));
         const refs = [...new Set(rows.flatMap((e: any) => {
           if (e.provider === 'deepseek-account') return [];
@@ -50,7 +53,7 @@ export function createApiProviders(React: any, remote: any, t: (key: string) => 
         }))];
         const credentials: any = {};
         for (let i = 0; i < refs.length; i += 64) Object.assign(credentials, valueOf(await remote.credentials.describe(refs.slice(i, i + 64))));
-        if (mounted.current && sequence === generation.current) setSnapshot({ ...described, rows, credentials });
+        if (mounted.current && sequence === generation.current) setSnapshot({ ...described, rows, credentials, occupiedIDs });
       } catch { if (mounted.current && sequence === generation.current) setMessage('apiFailed'); }
     }
     function rank(id: string) { return id === 'deepseek-account' ? 0 : id === 'deepseek-official' ? 1 : 2; }
@@ -100,7 +103,7 @@ export function createApiProviders(React: any, remote: any, t: (key: string) => 
     async function save() {
       let entry = draft.entry;
       if (draft.custom) {
-        if (!/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(entry.provider) || snapshot.rows.some((e: any) => e.provider === entry.provider)) throw new Error('apiInvalid');
+        if (!/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(entry.provider) || subscriptionIDs.has(entry.provider) || snapshot.occupiedIDs.has(entry.provider)) throw new Error('apiInvalid');
         entry = { ...entry, settingsPath: ['providers', entry.provider] };
       }
       if (draft.profile.baseURL) {

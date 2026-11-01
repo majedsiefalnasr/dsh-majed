@@ -3260,6 +3260,14 @@ function createApiProviders(React, remote, t, primitives$1 = require("@deepseek-
 	const at = (value, path) => path.reduce((v, key) => v?.[key], value);
 	const refOf = (entry, profile) => profile?.apiKeyEnv ?? `${entry.provider.toUpperCase().replace(/[^A-Z0-9]+/g, "_")}_API_KEY`;
 	const copy = (value) => JSON.parse(JSON.stringify(value));
+	const subscriptionIDs = new Set([
+		"codex",
+		"claude",
+		"grok",
+		"antigravity",
+		"copilot",
+		"opencode-zen"
+	]);
 	const control = {
 		font: "inherit",
 		color: "inherit",
@@ -3306,16 +3314,15 @@ function createApiProviders(React, remote, t, primitives$1 = require("@deepseek-
 				]);
 				const described = valueOf(settings);
 				const entries = valueOf(directory);
-				const subscriptionIDs = new Set([
-					"codex",
-					"claude",
-					"grok",
-					"antigravity",
-					"copilot",
-					"opencode-zen"
+				const providers = valueOf(registered);
+				const configuredIDs = Object.keys(described.namespaces.find((n) => n.ns === "llm-pi-ai")?.value?.providers ?? {});
+				const occupiedIDs = new Set([
+					...entries.map((entry) => entry.provider),
+					...providers.map((provider) => provider.id),
+					...configuredIDs
 				]);
 				const rows = entries.filter((entry) => !subscriptionIDs.has(entry.provider));
-				for (const provider of valueOf(registered)) if (!subscriptionIDs.has(provider.id) && !rows.some((e) => e.provider === provider.id)) rows.push({
+				for (const provider of providers) if (!subscriptionIDs.has(provider.id) && !rows.some((e) => e.provider === provider.id)) rows.push({
 					provider: provider.id,
 					displayName: provider.name,
 					settingsNs: "",
@@ -3332,7 +3339,8 @@ function createApiProviders(React, remote, t, primitives$1 = require("@deepseek-
 				if (mounted.current && sequence === generation.current) setSnapshot({
 					...described,
 					rows,
-					credentials
+					credentials,
+					occupiedIDs
 				});
 			} catch {
 				if (mounted.current && sequence === generation.current) setMessage("apiFailed");
@@ -3455,7 +3463,7 @@ function createApiProviders(React, remote, t, primitives$1 = require("@deepseek-
 		async function save() {
 			let entry = draft.entry;
 			if (draft.custom) {
-				if (!/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(entry.provider) || snapshot.rows.some((e) => e.provider === entry.provider)) throw new Error("apiInvalid");
+				if (!/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(entry.provider) || subscriptionIDs.has(entry.provider) || snapshot.occupiedIDs.has(entry.provider)) throw new Error("apiInvalid");
 				entry = {
 					...entry,
 					settingsPath: ["providers", entry.provider]

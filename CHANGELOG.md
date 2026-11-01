@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Reject Custom API routes that use any shared subscription ID (including OpenCode Zen) or collide with unfiltered configurable, registered or native-configured provider IDs. Keep the mixed list deduplicated and invalid drafts intact without settings, credential or discovery calls. Controlled EN/AR component regression only; installed/live and whole-flow acceptance remain separate.
+
 - Repair #138 shared Add cancellation/reentry, refresh existing grouped accounts after admission, and use explicit successful-auth revisions instead of roster growth (including same-identity sign-in/import). Keep subscriptions usable when native API remotes are absent or fail, exclude subscription IDs from API rows, suppress grouped authentication presentation and auth-only usage requests, and use the public SegmentedControl contract for Add modes. Controlled assembled real-card regressions only; independent re-review, DOM reconciliation, packaging and authorized installed/live acceptance remain open.
 
 - Compose #138 configured subscription groups, login-less Zen and native API entries in one list. A shared inline Add offers catalog, custom and subscription modes; configured Add account preselects that same subscription workflow. Reuse existing provider authentication/controllers and Manage/account/quota/reset-credit actions, mount only selected authentication, expand account contents on demand, and guard mode changes during authentication. Controlled React/build/full-suite proof passes; whole-section visual matrix, independent review and installed/live acceptance remain separate gates.

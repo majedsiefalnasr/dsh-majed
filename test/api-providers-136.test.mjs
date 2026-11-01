@@ -69,6 +69,32 @@ test('API directory excludes subscription route IDs even when registered as conf
     assert.deepEqual(p.renderer.root.findAll(n => n.type === 'li' && n.props['data-majed-api-provider']).map(n => n.props['data-majed-api-provider']).sort(), ['custom', 'deployment']);
   } finally { await p.dispose(); }
 });
+for (const locale of ['en', 'ar']) {
+  for (const route of ['codex', 'claude', 'grok', 'antigravity', 'copilot', 'opencode-zen', 'builtin', 'registered-only', 'configured-only']) {
+    test(`Custom API rejects reserved or unfiltered existing route ${route} without side effects in ${locale} (#138)`, async () => {
+      const p = await fixture(locale);
+      try {
+        p.ns.user.providers['configured-only'] = { baseURL: 'https://configured.example.test', models: model };
+        p.ns.value.providers['configured-only'] = p.ns.user.providers['configured-only'];
+        await p.emit('settings/document-updated');
+        await p.click('apiAdd'); await p.click('apiCustom');
+        await p.field('apiRoute', route); await p.field('apiName', 'Retained invalid draft');
+        await p.field('apiURL', 'https://invalid.example.test');
+        await p.click('apiModelAdd'); await p.field('apiModelID', 'draft-model');
+        await p.field('apiKeyAction', 'set'); await p.field('apiKey', 'dummy-invalid-draft');
+        const before = structuredClone(p.ns), callCount = p.calls.length;
+        await p.click('apiSave');
+        assert.ok(p.text().includes(p.dict.apiInvalid), 'validation error remains visible');
+        assert.deepEqual(p.calls.slice(callCount), [], 'zero mutations, credential operations, refreshes or discovery/network requests');
+        assert.deepEqual(p.ns, before, 'native settings remain unchanged');
+        for (const [key, value] of [['apiRoute', route], ['apiName', 'Retained invalid draft'], ['apiURL', 'https://invalid.example.test'], ['apiModelID', 'draft-model'], ['apiKey', 'dummy-invalid-draft']]) {
+          assert.equal(p.renderer.root.find(n => n.type === 'input' && n.props['aria-label'] === p.dict[key]).props.value, value, `${key} draft preserved`);
+        }
+        assert.equal(p.buttons('apiAdd').length, 0, 'invalid Add stays open');
+      } finally { await p.dispose(); }
+    });
+  }
+}
 test('shared Add owns subscription selection and mixed configured list (#138)', async () => {
   let selected;
   const subscriptions = { rows: [React.createElement('li', { key: 'subscription', 'data-majed-subscription-row': 'codex' }, 'Codex')], providers: [{ id: 'codex', name: 'Codex' }], renderAuth: (id, done) => { selected = id; return React.createElement('button', { onClick: done }, 'Finish fixture'); } };

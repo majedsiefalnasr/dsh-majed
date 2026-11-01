@@ -1,5 +1,13 @@
 # Current work
 
+## #138 reserved Custom API admission repair — 2026-11-01
+
+Direct Owner-authorized surgical repair on `impl/138-unified-ui`, starts at `43c64b8`, full-ticket baseline `92072f8`. Independently reserve six shared subscription IDs and retain unfiltered configurable/registered/native-configured collision knowledge without duplicate visible rows. Actual component EN/AR rejection matrix asserts zero post-submit remote calls, unchanged settings and preserved invalid draft/key intent. No native Models/auth algorithm/store changes; separate DOM worker files/report untouched and excluded.
+
+Evidence: deliberate RED 14 expected failures / 39 tests; GREEN focused84/84, full Node893/893 + classifier166/166; build/check:build exit0; finished source detector `[]`; whitespace check exit0. Detailed commands/logs and remaining gates in [ticket-138-verification.md](ticket-138-verification.md). Zero unexpected failures in this renewed20min/two-failure budget. No nested agents/Claude/network/installed/profile/secrets/live/push/merge/closure.
+
+Phase: local scoped repair candidate, NOT ticket completion. Commit contains only source/test/generated bundles/changelog/evidence/state; unmerged/unpushed. Next Lead reconcile local commit, independently re-review Standards/Spec against the prior review and full baseline, reconcile refreshed DOM/public primitive evidence and missing full-flow/controller outcome cases, then package safety/byte match and separately approved installation/restart/consolidated live acceptance. No full-flow or visual acceptance inferred.
+
 ## #138 independent-review repair candidate — 2026-11-01
 
 Direct bounded repair from `e7dc0a9` on `impl/138-unified-ui`, prior full-ticket baseline `92072f8`. Six confirmed P2 mechanisms repaired: close lifecycle lock, explicit existing-group refresh revision, persisted-auth success revision (same-identity completion), API-independent subscription management, sole Add authentication/no auth usage polling, public SegmentedControl with associated tabpanel. Overlapping subscription/API route IDs excluded. No algorithms/constants/native Models/global Pool/new RPC changes. Separate DOM worker files untouched/excluded.
