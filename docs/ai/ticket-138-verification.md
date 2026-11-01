@@ -1,5 +1,19 @@
 # #138 partial candidate verification
 
+## Real UI/host bridge attempt at cc3b2b5 — 2026-11-01
+
+Owner-authorized test/docs-only continuation; actual registered section and real `apply` route handlers/controllers, dummy global HTTP and injected Claude credential IO, isolated temporary DSH_HOME. Browser opening explicitly deferred; no browser/screenshots, network/live providers, installed/profile/real credential access, nested agents, source/auth/generated changes or offline DOM worker edits.
+
+Preserved incomplete harness in `test/unified-host-flow-138.draft.mjs` (not matched by `test/*.test.mjs`). It uses existing assembled browser VM/React renderer and host route fixtures without new product hooks/RPC. Admission matrix intends first identity, same identity and second identity for all five providers via OAuth/manual/device. Focus is a renderer callback mock, NOT browser focus proof. This is a draft, not accepted coverage.
+
+Executed evidence:
+
+- First tracer attempt failed unexpectedly because the zero-account Codex button is `login`, not `addAccount`. Corrected test selector only; this consumed unexpected failure 1.
+- Deliberate tracer RED after selector correction: `node --test test/unified-host-flow-138.test.mjs`, exit 1, `real admission required`, `0 !== 1` before callback submission. Log `ui138-host-tracer-red.log`. This proves omission of admission is detected; it is NOT a product regression red.
+- All-provider admission run: same command, exit 1, log `ui138-host-admission.log`. All five cases failed after real controller admission: Codex/Claude/Grok/Antigravity `real status closes Add` (`0 !== 1`); Copilot `one configured group` (`0 !== 1`). This consumed unexpected failure 2. Harness fires synthetic timers then yields only one event-loop turn; file-backed status/render settlement is a plausible cause, NOT established. No product defect claimed or patched. No weakening assertions/retry after cap.
+
+STOP at two unexpected failures. Harness moved to non-suite draft to avoid making ordinary `npm test` fail with unaccepted proof. Cancellation/failure/recovery/late-completion/import matrix remains unimplemented; group refresh/focus assertions unverified. Focused GREEN/full/build/check:build/diffcheck NOT executed in this attempt after stop, even though runtime/generated files are unchanged. No full-flow/visual/packaging/installation acceptance. Next allowed action: Lead reconcile draft/failures and obtain renewed budget before diagnosis; settle real asynchronous RPC/render work deterministically before deciding whether product behavior is defective. Routeguard review and offline DOM prep remain separate pre-existing evidence.
+
 ## Reviewed admission repair at 43c64b8 — 2026-11-01
 
 Direct bounded repair of the independent Spec finding; full-ticket baseline remains `92072f8`. Shared reserved subscription IDs are now checked independently of rendered API rows. Collision knowledge retains the unfiltered configurable directory, registered adapters and resolved native `llm-pi-ai.providers` keys. Visible rows still exclude subscription IDs; no authentication or native Models changes.

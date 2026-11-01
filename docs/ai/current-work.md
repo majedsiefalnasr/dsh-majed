@@ -1,5 +1,13 @@
 # Current work
 
+## #138 UI-to-real-controller proof attempt — stopped 2026-11-01
+
+Direct tests/docs-only continuation at `cc3b2b5`, branch `impl/138-unified-ui`; browser explicitly deferred. Added incomplete `test/unified-host-flow-138.draft.mjs` bridging actual registered section through real host routes/controllers with dummy HTTP/injected Claude credential IO and isolated temporary home. No manual authRevision changes. No source/auth/generated or offline DOM worker edits, nested agents, network/live/installed/profile/real-secret operations.
+
+Budget STOP: two unexpected failures consumed (wrong zero-account Codex login label corrected; all-provider matrix failed Add-close/group-refresh assertions after real persistence). Deliberate missing-admission tracer RED excluded. Async file-backed status/render settlement is a hypothesis, not a diagnosed product defect. Draft kept outside `test/*.test.mjs`; no GREEN/full/buildmatch/diffcheck run after cap. Exact evidence and remaining gaps in [ticket-138-verification.md](ticket-138-verification.md). Cancellation/failure/recovery/late/import coverage not implemented; admission/group/focus matrix not verified. No full-flow or visual claim.
+
+Next allowed action: Lead reconcile scoped draft/evidence commit and renewed-budget disposition, then deterministically await actual RPC/render settlement before deciding product defect versus harness issue. Remaining independent review, deferred browser matrix, package and separately approved installation/live acceptance unchanged. Unmerged/unpushed; no closure.
+
 ## #138 reserved Custom API admission repair — 2026-11-01
 
 Direct Owner-authorized surgical repair on `impl/138-unified-ui`, starts at `43c64b8`, full-ticket baseline `92072f8`. Independently reserve six shared subscription IDs and retain unfiltered configurable/registered/native-configured collision knowledge without duplicate visible rows. Actual component EN/AR rejection matrix asserts zero post-submit remote calls, unchanged settings and preserved invalid draft/key intent. No native Models/auth algorithm/store changes; separate DOM worker files/report untouched and excluded.
