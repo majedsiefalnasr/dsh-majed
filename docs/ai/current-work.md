@@ -1,6 +1,14 @@
 # Current work
 
-## #136 isolated candidate — implementation gates passed; independent review next
+## #136 installed acceptance FAILED — remote availability diagnosis
+
+Owner screenshot after install/restart shows APIproviders unavailable fallback: Native API-provider remotes are unavailable. Browser admission must be verified before use. This proves missing detected services, NOT authorization denial. Acceptance remains OPEN; no CRUD/key/discovery proof. Read-only diagnosis workflow-fac948d325694ca2 confirmed missing root-service injection: src/browser.ts53-57 namespace dependencies omit remote while reading scope.remote, unlike native client4417-4426. Actual Cordis probe enforces access and oldlist fails before RPC; addedroot works. Existing unrestricted fixture bypassed this; probe cleanup called nonexistentctx.dispose after assertions (no persistent process). Fix workflow-ea44afc060b14030 active codex/gpt-6.1-sol isolated branch for rootdependency+realCordis regression, rebuild/fullgates; no public permissionblocker established. Scope exact defect only; no installed/profile/key/remote operations, no push/closure. Budget two failed diagnostics or20min.
+
+## Historical integrated package checkpoint
+
+Independent review completion workflow-7fd7ec4dfa794dbd Standards PASS / Spec PASS: installedrc3 profile/admission static compatibility cleared; running browser principal and cross-page sync still operational gates. Lead merged candidate8ba1710 and reran integrated Node834/834, fresh-build match, range diffcheck exit0. Archive /tmp/majed-t136-final/dsh-majed-0.2.0.tgz SHA2561cbb052859de4f76677de3aef49b5496c269d5b30f349870d5d2fcda634868d9;98 regular safe members byte-identical to checkout. Logs /tmp/majed136-integrated-tests.log and /tmp/majed136-integrated-build.log. Owner explicitly approved installation; archive hash rechecked, all98 installed files byte-verified. Previous package retained /var/folders/vt/w58l5fv17nz9s5ybrbgpkgh80000gn/T/majed-136-install-rungu8h8/previous. No provider/key/profile changes or live calls. Next Owner full restart and consolidated publicSDK admission/crosspage CRUD/conflict acceptance; no push/closure yet.
+
+## Historical isolated candidate checkpoint
 
 Branch `impl/136-api-providers`, base `527d5f5cfcf2b6404ee5babddd617096bab4f7f2`. Owner explicitly approved a twenty-minute finishing extension after the prior two-failure cap. Existing partial edits and integration dirty document preserved. Approved bounded route: existing section, injected public native settings/credentials/llm remotes, actual React fake-remotes seam 2; no new store/backend/dependencies. lean-build/tdd/karpathy loaded. Stories69–76 only. No installed/profile/live operations, nested agents, merge/push/closure or later ticket. Restored OAuth and other provider/auth source unchanged (protected-source diff exit0).
 
