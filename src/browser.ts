@@ -50,7 +50,7 @@ export function applySubscriptions(root: Context): void {
     const GuardedBadge = guarded(React, SubscriptionUsageBadge as any, 'usage badge');
     const listeners = new Set<() => void>();
     let ApiProviders: any;
-    isolate(() => ctx.inject(['remote.settings', 'remote.credentials', 'remote.llm'], (scope: any) => {
+    isolate(() => ctx.inject(['remote', 'remote.settings', 'remote.credentials', 'remote.llm'], (scope: any) => {
       ApiProviders = guarded(React, createApiProviders(React, scope.remote, t), 'API providers');
       listeners.forEach(listener => listener());
       return () => { ApiProviders = undefined; listeners.forEach(listener => listener()); };

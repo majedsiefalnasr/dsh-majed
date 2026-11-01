@@ -5747,6 +5747,7 @@ function applySubscriptions(root) {
 		const listeners = /* @__PURE__ */ new Set();
 		let ApiProviders;
 		isolate(() => ctx.inject([
+			"remote",
 			"remote.settings",
 			"remote.credentials",
 			"remote.llm"
