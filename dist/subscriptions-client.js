@@ -274,7 +274,7 @@ async function callSubscriptionsAuth$1(rpc, endpoint, payload) {
 //#endregion
 //#region locale/en.json
 var subscriptions$1 = {
-	"antigravitySetupRequired": "Antigravity requires an externally configured authorized OAuth client in the DSH host environment. Stored accounts are retained; use the matching authorized client before refreshing existing sessions.",
+	"antigravitySetupRequired": "Antigravity OAuth client configuration is malformed. Correct the configured client pair; stored accounts are retained.",
 	"copilotDeviceHint": "Enter this code on the GitHub verification page.",
 	"copyDeviceCode": "Copy code",
 	"copilotProviderUnavailable": "Copilot is unavailable. Disable the reference component first.",
@@ -859,7 +859,7 @@ function VideoGenerateToolview(props) {
 //#endregion
 //#region locale/ar.json
 var subscriptions = {
-	"antigravitySetupRequired": "يتطلب Antigravity عميل OAuth معتمدًا مُعدًا خارجيًا في بيئة مضيف DSH. تُحفظ الحسابات؛ استخدم هوية العميل المعتمدة المطابقة قبل تحديث الجلسات الحالية.",
+	"antigravitySetupRequired": "إعداد عميل OAuth في Antigravity غير صالح. صحّح بيانات العميل المُعدّة؛ تُحفظ الحسابات الحالية.",
 	"copilotDeviceHint": "أدخل هذا الرمز في صفحة التحقق من GitHub.",
 	"copyDeviceCode": "نسخ الرمز",
 	"copilotProviderUnavailable": "Copilot غير متاح. أوقف المكوّن المرجعي أولًا.",

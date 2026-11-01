@@ -48,6 +48,7 @@ import type {
 } from './common.js'
 import { proxiedFetch } from '../http.js'
 import { sanitizeDiagnostic } from '../diagnostic.js'
+import { ANTIGRAVITY_DEFAULT_CLIENT_ID, ANTIGRAVITY_DEFAULT_CLIENT_SECRET } from './antigravity-oauth-client.js'
 import { AccountTokenManager, DISCOVERY_TIMEOUT_MS, unionAccountCatalogs } from './accounts.js'
 import type { PoolAdapter } from './pool.js'
 import { DEFAULT_RATE_LIMIT_WAIT, DEFAULT_RETRY, subscriptionRetryPolicy } from './rate-limit.js'
@@ -75,7 +76,7 @@ export const ANTIGRAVITY_SCOPES = [
   'https://www.googleapis.com/auth/experimentsandconfigs',
 ] as const
 
-/** OAuth client configuration; provided externally; no bundled identity. */
+/** OAuth client configuration; explicit clients override the bundled desktop identity. */
 export interface AntigravityOAuthConfig {
   clientId: string
   clientSecret?: string
@@ -90,9 +91,9 @@ export interface AntigravityRuntimeConfig {
   onboard?: boolean
 }
 
-export const ANTIGRAVITY_SETUP_REQUIRED = 'Antigravity requires an externally configured authorized OAuth client. Configure the DSH host environment; stored accounts are retained.'
+export const ANTIGRAVITY_SETUP_REQUIRED = 'Antigravity OAuth client configuration is malformed. Correct the configured client pair; stored accounts are retained.'
 
-/** Resolve an external same-source pair; invalid configuration disables only Antigravity. */
+/** Resolve config, environment, then bundled defaults; never combine client sources. */
 export function resolveAntigravityOAuthConfig(config?: Partial<AntigravityOAuthConfig>): AntigravityOAuthConfig | undefined {
   const pair = (id: unknown, secret: unknown): AntigravityOAuthConfig | undefined => {
     if (typeof id !== 'string' || !/^[A-Za-z0-9._-]+$/.test(id.trim())) return undefined
@@ -100,7 +101,10 @@ export function resolveAntigravityOAuthConfig(config?: Partial<AntigravityOAuthC
     return { clientId: id.trim(), ...(typeof secret === 'string' ? { clientSecret: secret.trim() } : {}) }
   }
   if (config && (config.clientId !== undefined || config.clientSecret !== undefined)) return pair(config.clientId, config.clientSecret)
-  return pair(process.env.ANTIGRAVITY_CLIENT_ID, process.env.ANTIGRAVITY_CLIENT_SECRET)
+  if (process.env.ANTIGRAVITY_CLIENT_ID !== undefined || process.env.ANTIGRAVITY_CLIENT_SECRET !== undefined) {
+    return pair(process.env.ANTIGRAVITY_CLIENT_ID, process.env.ANTIGRAVITY_CLIENT_SECRET)
+  }
+  return { clientId: ANTIGRAVITY_DEFAULT_CLIENT_ID, clientSecret: ANTIGRAVITY_DEFAULT_CLIENT_SECRET }
 }
 
 /** Normalize the configured API origin and reject paths/credentials. */

@@ -748,8 +748,10 @@ test('Antigravity OAuth selects defaults or one complete override source without
     delete process.env.ANTIGRAVITY_CLIENT_ID
     delete process.env.ANTIGRAVITY_CLIENT_SECRET
     const defaults = resolveAntigravityOAuthConfig()
-    assert.ok(defaults === undefined)
-    assert.deepEqual(resolveAntigravityOAuthConfig({ clientId: '  ', clientSecret: ' ' }), defaults)
+    // Only booleans reach assertion diagnostics; never serialize the bundled pair.
+    assert.ok(typeof defaults?.clientId === 'string' && defaults.clientId.length > 0)
+    assert.ok(typeof defaults?.clientSecret === 'string' && defaults.clientSecret.length > 0)
+    assert.ok(resolveAntigravityOAuthConfig({ clientId: '  ', clientSecret: ' ' }) === undefined)
     assert.deepEqual(resolveAntigravityOAuthConfig(oauth), oauth)
     assert.deepEqual(resolveAntigravityOAuthConfig({ clientId: 'pkce-client' }), { clientId: 'pkce-client' })
     process.env.ANTIGRAVITY_CLIENT_ID = ' env-client '

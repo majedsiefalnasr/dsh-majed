@@ -4,7 +4,7 @@
     "description": "Bidirectional (RTL/LTR) text support for Arabic, Persian and Hebrew, GenUI RTL mirroring, and extra Settings > General options such as an app-UI font size."
   },
   "subscriptions": {
-    "antigravitySetupRequired": "Antigravity requires an externally configured authorized OAuth client in the DSH host environment. Stored accounts are retained; use the matching authorized client before refreshing existing sessions.",
+    "antigravitySetupRequired": "Antigravity OAuth client configuration is malformed. Correct the configured client pair; stored accounts are retained.",
     "copilotDeviceHint": "Enter this code on the GitHub verification page.",
     "copyDeviceCode": "Copy code",
     "copilotProviderUnavailable": "Copilot is unavailable. Disable the reference component first.",

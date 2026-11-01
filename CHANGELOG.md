@@ -4,7 +4,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
-- Require external authorized OAuth client configuration for Antigravity; remove bundled client credentials. Missing or malformed configuration produces an English/Arabic setup-required state, retains stored accounts, blocks authentication/network/provider-pool participation, and leaves the other four providers available. Explicit logout remains available. Controlled dummy-only tests; no installed/live compatibility claim.
+- Restore the exact reference-faithful bundled Antigravity OAuth identity for zero-config Google login, on the Owner's assertion of redistribution permission (not independently verified documentary authorization). Explicit config and environment retain precedence and same-source pairing; malformed overrides retain provider-scoped guards and stored accounts. This transparently reintroduces the known scanner flag; any official GitHub push-protection exception remains a separate Owner action. Controlled dummy-only tests, not installed/live verification.
 
 - Correct #135 stalled Antigravity SSE and OAuth/internal HTTP error bodies: caller/idle cancellation settles without awaiting transport cancellation and releases owned readers. Preserve HTTP/OAuth classification and retry metadata while sanitizing diagnostics; add real-Response cancellation and late-login persistence regressions. Controlled tests only; independent review and installed/live acceptance remain separate.
 
