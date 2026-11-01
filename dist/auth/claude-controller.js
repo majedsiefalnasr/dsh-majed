@@ -8,6 +8,7 @@ export class ClaudeAuthController {
     readImported;
     identify;
     claim = 0;
+    authRevision = 0;
     finalizing = 0;
     lastError;
     disposed = false;
@@ -22,7 +23,7 @@ export class ClaudeAuthController {
     }
     async status() {
         const pending = this.flows.pending('claude');
-        return { busy: this.flows.isBusy('claude') || this.finalizing > 0,
+        return { authRevision: this.authRevision, busy: this.flows.isBusy('claude') || this.finalizing > 0,
             pendingAuth: pending ? { authorizeUrl: pending.authorizeUrl } : undefined,
             accounts: (await listAccounts('claude')).map(({ key, session }, index) => ({ key, isDefault: index === 0,
                 account: session.emailAddress ?? key, plan: session.subscriptionType, expiresAt: session.expiresAt })), detail: this.lastError };
@@ -50,6 +51,7 @@ export class ClaudeAuthController {
                     return { authorizeUrl: '' };
                 const account = accountKeyOf('claude', session);
                 await saveAccountSession('claude', account, session);
+                this.authRevision++;
                 this.lastError = undefined;
                 this.changed(account);
                 return { authorizeUrl: '' };
@@ -80,6 +82,7 @@ export class ClaudeAuthController {
                 return;
             const account = accountKeyOf('claude', session);
             await saveAccountSession('claude', account, session);
+            this.authRevision++;
             this.lastError = undefined;
             this.changed(account);
         }

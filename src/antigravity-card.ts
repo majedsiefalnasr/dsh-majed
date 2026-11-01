@@ -11,9 +11,9 @@ export function createAntigravityCard(React: any, primitives: any, rpc: any, t: 
   const Button = primitives.Button ?? 'button';
   const Input = primitives.Input ?? 'input';
   const DEFAULT_NAME = 'Google Antigravity';
-  return function AntigravityCard({ presentation, onAdd, onComplete, onFlowState, onAccountsChange }: any = {}) {
+  return function AntigravityCard({ presentation, onAdd, onComplete, onFlowState, onAccountsChange, revision }: any = {}) {
     const [expanded, setExpanded] = React.useState(false);
-    const initialAccounts = React.useRef(null as number | null);
+    const initialAuthRevision = React.useRef(null as number | null);
     const [manager, setManager] = React.useState(false);
     const [status, setStatus] = React.useState(null);
     const [error, setError] = React.useState('');
@@ -45,8 +45,9 @@ export function createAntigravityCard(React: any, primitives: any, rpc: any, t: 
       void refreshStatus().catch((failure: Error) => { if (alive.current) setError(failure.message); });
       return () => { alive.current = false; };
     }, []);
+    React.useEffect(() => { if (revision !== undefined) void refreshStatus().catch(() => {}); }, [revision]);
     React.useEffect(() => {
-      if (!status?.busy) return;
+      if (presentation === 'group' || !status?.busy) return;
       const timer = setInterval(() => { void refreshStatus().catch((failure: Error) => { if (alive.current) setError(failure.message); }); }, 2000);
       return () => clearInterval(timer);
     }, [status?.busy]);
@@ -76,7 +77,7 @@ export function createAntigravityCard(React: any, primitives: any, rpc: any, t: 
       accountKeys.current = keys;
       for (const key of usageRequests.current.keys()) if (!keys.has(key)) usageRequests.current.delete(key);
       setUsage((previous: object) => Object.fromEntries(Object.entries(previous).filter(([key]) => keys.has(key))));
-      for (const key of added) void refreshUsage(key);
+      if (presentation !== 'auth') for (const key of added) void refreshUsage(key);
     }, [accountsSignature]);
     const button = (label: string, onClick: () => void, disabled = false, props: any = {}) => h(Button, { type: 'button', disabled: pending || disabled, onClick, ...props }, label);
     const date = (time: number) => new Date(time).toLocaleString();
@@ -91,11 +92,14 @@ export function createAntigravityCard(React: any, primitives: any, rpc: any, t: 
     };
     React.useEffect(() => {
       if (!status) return;
-      const count = status.accounts?.length ?? 0;
-      if (initialAccounts.current === null) initialAccounts.current = count;
-      else if (presentation === 'auth' && !status.busy && count > initialAccounts.current) onComplete?.();
+      const current = status.authRevision ?? 0;
+      if (initialAuthRevision.current === null) initialAuthRevision.current = current;
+      else if (presentation === 'auth' && current > initialAuthRevision.current) {
+        initialAuthRevision.current = current;
+        onComplete?.();
+      }
     }, [status]);
-    const busy = status?.busy;
+    const busy = presentation !== 'group' && status?.busy;
     React.useEffect(() => {
       if (presentation !== 'auth') return;
       onFlowState?.({ busy: pending || !!busy, cancel: async () => {

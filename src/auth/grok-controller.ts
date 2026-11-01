@@ -6,6 +6,7 @@ import { DISCOVERY_TIMEOUT_MS, withTimeout } from '../providers/common.js';
 
 export class GrokAuthController {
   private claim = 0;
+  private authRevision = 0;
   private active?: AbortController;
   private lastError?: string;
   private disposed = false;
@@ -13,7 +14,7 @@ export class GrokAuthController {
     private describe: (error: unknown) => string = error => error instanceof Error ? error.message : String(error)) {}
   async status() {
     const pending = this.flows.pending('grok');
-    return { busy: this.flows.isBusy('grok') || this.active !== undefined,
+    return { authRevision: this.authRevision, busy: this.flows.isBusy('grok') || this.active !== undefined,
       pendingAuth: pending ? { authorizeUrl: pending.authorizeUrl } : undefined,
       accounts: (await listAccounts('grok')).map(({ key, session }, index) => ({ key, isDefault: index === 0,
         account: session.account,
@@ -45,6 +46,7 @@ export class GrokAuthController {
       if (!session) throw new Error('grok token exchange timed out');
       const account = accountKeyOf('grok', session);
       await saveAccountSession('grok', account, session);
+      this.authRevision++;
       this.lastError = undefined;
       this.changed(account);
     } catch (error) {

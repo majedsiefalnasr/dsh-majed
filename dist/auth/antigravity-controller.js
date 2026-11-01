@@ -8,6 +8,7 @@ export class AntigravityAuthController {
     changed;
     describe;
     claim = 0;
+    authRevision = 0;
     active;
     detail;
     disposed = false;
@@ -20,7 +21,7 @@ export class AntigravityAuthController {
     }
     async status() {
         const pending = this.flows.pending('antigravity');
-        return { setupRequired: this.oauth === undefined, busy: this.active !== undefined, detail: this.oauth ? this.detail : ANTIGRAVITY_SETUP_REQUIRED, pendingAuth: pending ? { authorizeUrl: pending.authorizeUrl } : undefined,
+        return { authRevision: this.authRevision, setupRequired: this.oauth === undefined, busy: this.active !== undefined, detail: this.oauth ? this.detail : ANTIGRAVITY_SETUP_REQUIRED, pendingAuth: pending ? { authorizeUrl: pending.authorizeUrl } : undefined,
             accounts: (await listAccounts('antigravity')).map(({ key, session }, index) => ({ key, isDefault: index === 0, account: session.account ?? key, plan: session.plan, expiresAt: session.expiresAt })) };
     }
     async login() {
@@ -62,6 +63,7 @@ export class AntigravityAuthController {
                 throw new Error('Antigravity token exchange timed out');
             const account = accountKeyOf('antigravity', session);
             await saveAccountSession('antigravity', account, session);
+            this.authRevision++;
             if (claim === this.claim && !this.disposed)
                 this.changed(account);
         }

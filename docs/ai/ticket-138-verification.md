@@ -1,5 +1,20 @@
 # #138 partial candidate verification
 
+## Independent-review repairs at e7dc0a9 — 2026-11-01
+
+Bounded direct workspace repair; no nested agents, network, installed/profile/secrets, live providers, push/merge/closure. Baseline for prior full ticket remains `92072f8`; this repair starts at `e7dc0a9`. Separate DOM worker outputs are untouched and excluded from this commit.
+
+- Completed cancellation/success closes clear the ephemeral auth lock. Failed/pending cancellation keeps the mounted flow. Deliberate regression RED `completed cancellation releases Add`, then GREEN.
+- Parent membership refresh increments an explicit revision passed to existing keyed groups; group status reloads without remounting or dropping expansion. Only Add presents authorization and polls its busy flow. Auth-only cards do not request account usage; grouped cards retain existing usage/Manage/reset-credit content.
+- All five controllers expose monotonic `authRevision` only after successful session persistence, including same-identity Claude import. No OAuth algorithm/constants or stores changed; no new RPC. Cards complete from this outcome, not account-count growth. Five actual-card REDs `same roster completes from explicit successful operation`, then GREEN.
+- Shared subscription list/Add survives absent SDK and initially failing API remotes. Subscription route IDs (including loginless Zen) are excluded from API rows. Public `SegmentedControl` receives controlled value/options/disabled/onChange and matching tabpanel IDs; test fakes implement that public contract, not native pixel/keyboard proof.
+- Assembled Claude host RPC proves same-identity import increments successful admission revision while cancellation does not.
+- Actual assembled section tests exercise each of five provider cards with absent and failing API, successful and failed cancel, reentry, same-identity success, new-account membership reload and no duplicate usage/callback UI. Actual-card tests cover late successful status after unmount without completing another flow. These are fake-RPC real UI flows, not live authentication.
+
+Latest gates: focused **85/85**, full Node **875/875** plus classifier **166/166**, build, fresh-build comparison and whitespace check exit 0. Logs `ui138-repair-{red,green,build,focused,full,checkbuild,diffcheck}.log`, `ui138-auth-{red,green,late}.log`, `ui138-realflows.log`. Final detector on all seven finished UI targets exit 0, `ui138-repair-detector.json` is `[]`. One unexpected test-fixture failure used a stale Claude button TestInstance after rerender (`Unable to find node on an unmounted component.`); corrected by querying current node, no product workaround. Two fs observation refusals required rereads, no denied access/retry bypass.
+
+Remaining gates: independent Standards/Spec re-review; reconcile separate workflow0b83 whole-DOM/public-primitive EN/AR/theme/viewport evidence against this new build (especially segmented keyboard/focus and missing/failed API modes); broader import/manual/device-specific outcome/failure coverage including actual controller-to-status integration; safe package/byte match; separately approved install/restart and consolidated live acceptance. No ticket-complete claim. Existing provider/auth suites pass but do not replace those missing whole-flow cases. Design sidecar remains stale and intentionally untouched.
+
 ## Scope and revision
 
 Direct workspace-local continuation of `impl/138-unified-ui`, baseline `92072f805f44bd26a9addf2f13d7ce5caebf75b5`. Preserved all original uncommitted candidate changes. No nested delegation, network, installed/profile access, live provider operation, push, merge or closure. The renewed budget starts at zero unexpected failures; this slice consumed zero. A deliberate behavioral red is excluded.

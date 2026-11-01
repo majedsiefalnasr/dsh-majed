@@ -46,7 +46,7 @@ async function fixture(locale, { omitCredentialMetadata = false, includeAccountP
       async discoverModels(...args) { calls.push(['discover', ...args]); return ok([{ id: 'discovered', name: 'Found', contextWindow: 4096, maxTokens: 512, inputModalities: ['text', 'image'] }]); },
     },
   };
-  const Card = exports.createApiProviders(React, remote, key => dict[key]);
+  const Card = exports.createApiProviders(React, remote, key => dict[key], { SegmentedControl: ({ options, value, onChange, disabled }) => React.createElement('div', { role: 'tablist' }, ...options.map(option => React.createElement('button', { role: 'tab', disabled: disabled || option.disabled, 'aria-selected': option.value === value, onClick: () => onChange(option.value) }, option.label))) });
   let renderer, focusCount = 0;
   await act(async () => { renderer = create(React.createElement(Card, { subscriptions }), { createNodeMock: node => node.type === 'button' ? { focus() { focusCount++; } } : null }); });
   const textNode = node => typeof node === 'string' ? node : (node.children ?? []).map(textNode).join('');
@@ -61,6 +61,14 @@ async function fixture(locale, { omitCredentialMetadata = false, includeAccountP
     async dispose() { await act(async () => renderer.unmount()); assert.equal(listeners.size, 0); },
   };
 }
+test('API directory excludes subscription route IDs even when registered as configurable (#138)', async () => {
+  const p = await fixture('en');
+  try {
+    for (const provider of ['codex', 'claude', 'grok', 'antigravity', 'copilot', 'opencode-zen']) p.entries.push({ provider, displayName: provider, settingsNs: p.ns.ns, settingsPath: [] });
+    await p.emit('llm/adapters-updated');
+    assert.deepEqual(p.renderer.root.findAll(n => n.type === 'li' && n.props['data-majed-api-provider']).map(n => n.props['data-majed-api-provider']).sort(), ['custom', 'deployment']);
+  } finally { await p.dispose(); }
+});
 test('shared Add owns subscription selection and mixed configured list (#138)', async () => {
   let selected;
   const subscriptions = { rows: [React.createElement('li', { key: 'subscription', 'data-majed-subscription-row': 'codex' }, 'Codex')], providers: [{ id: 'codex', name: 'Codex' }], renderAuth: (id, done) => { selected = id; return React.createElement('button', { onClick: done }, 'Finish fixture'); } };
@@ -90,6 +98,9 @@ test('subscription authorization locks modes and awaits cancellation before clos
     assert.equal(cancel, true); assert.equal(p.buttons('apiAdd').length, 0);
     await act(async () => resolveCancel(true));
     assert.equal(p.buttons('apiAdd').length, 1);
+    assert.equal(p.buttons('apiAdd')[0].props.disabled, false, 'completed cancellation releases Add');
+    await p.click('apiAdd');
+    assert.equal(p.buttons('apiCatalog')[0].props.disabled, false, 'reentry releases modes');
   } finally { await p.dispose(); }
 });
 test('safe API mode drafts survive a visit to the other mode (#138)', async () => {

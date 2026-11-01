@@ -6,6 +6,7 @@ export class GrokAuthController {
     changed;
     describe;
     claim = 0;
+    authRevision = 0;
     active;
     lastError;
     disposed = false;
@@ -16,7 +17,7 @@ export class GrokAuthController {
     }
     async status() {
         const pending = this.flows.pending('grok');
-        return { busy: this.flows.isBusy('grok') || this.active !== undefined,
+        return { authRevision: this.authRevision, busy: this.flows.isBusy('grok') || this.active !== undefined,
             pendingAuth: pending ? { authorizeUrl: pending.authorizeUrl } : undefined,
             accounts: (await listAccounts('grok')).map(({ key, session }, index) => ({ key, isDefault: index === 0,
                 account: session.account,
@@ -59,6 +60,7 @@ export class GrokAuthController {
                 throw new Error('grok token exchange timed out');
             const account = accountKeyOf('grok', session);
             await saveAccountSession('grok', account, session);
+            this.authRevision++;
             this.lastError = undefined;
             this.changed(account);
         }

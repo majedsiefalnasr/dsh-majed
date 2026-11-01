@@ -2682,9 +2682,9 @@ function createCodexCard(React, primitives$1, rpc, t) {
 	const h = React.createElement;
 	const Button = primitives$1.Button ?? "button";
 	const Input = primitives$1.Input ?? "input";
-	return function CodexCard({ presentation, onAdd, onComplete, onFlowState, onAccountsChange } = {}) {
+	return function CodexCard({ presentation, onAdd, onComplete, onFlowState, onAccountsChange, revision } = {}) {
 		const [expanded, setExpanded] = React.useState(false);
-		const initialAccounts = React.useRef(null);
+		const initialAuthRevision = React.useRef(null);
 		const [manager, setManager] = React.useState(false);
 		const [status, setStatus] = React.useState(null);
 		const [error, setError] = React.useState("");
@@ -2733,7 +2733,10 @@ function createCodexCard(React, primitives$1, rpc, t) {
 			};
 		}, []);
 		React.useEffect(() => {
-			if (!status?.busy) return;
+			if (revision !== void 0) refreshStatus().catch(() => {});
+		}, [revision]);
+		React.useEffect(() => {
+			if (presentation === "group" || !status?.busy) return;
 			const timer = setInterval(() => {
 				refreshStatus().catch((error$1) => {
 					if (alive.current) setError(error$1.message);
@@ -2777,7 +2780,7 @@ function createCodexCard(React, primitives$1, rpc, t) {
 			accountKeys.current = keys;
 			for (const key of usageRequests.current.keys()) if (!keys.has(key)) usageRequests.current.delete(key);
 			setUsage((previous) => Object.fromEntries(Object.entries(previous).filter(([key]) => keys.has(key))));
-			for (const key of added) refreshUsage(key);
+			if (presentation !== "auth") for (const key of added) refreshUsage(key);
 		}, [accountsSignature]);
 		const button = (label, onClick, disabled = false, props = {}) => h(Button, {
 			type: "button",
@@ -2801,11 +2804,14 @@ function createCodexCard(React, primitives$1, rpc, t) {
 		};
 		React.useEffect(() => {
 			if (!status) return;
-			const count = status.accounts?.length ?? 0;
-			if (initialAccounts.current === null) initialAccounts.current = count;
-			else if (presentation === "auth" && !status.busy && count > initialAccounts.current) onComplete?.();
+			const current = status.authRevision ?? 0;
+			if (initialAuthRevision.current === null) initialAuthRevision.current = current;
+			else if (presentation === "auth" && current > initialAuthRevision.current) {
+				initialAuthRevision.current = current;
+				onComplete?.();
+			}
 		}, [status]);
-		const busy = status?.busy;
+		const busy = presentation !== "group" && status?.busy;
 		React.useEffect(() => {
 			if (presentation !== "auth") return;
 			onFlowState?.({
@@ -3249,7 +3255,7 @@ function ProxySettings({ rpc, t }) {
 
 //#endregion
 //#region src/api-providers.ts
-function createApiProviders(React, remote, t) {
+function createApiProviders(React, remote, t, primitives$1 = require("@deepseek-ai/dsh-client-ui-primitives")) {
 	const h = React.createElement;
 	const at = (value, path) => path.reduce((v, key) => v?.[key], value);
 	const refOf = (entry, profile) => profile?.apiKeyEnv ?? `${entry.provider.toUpperCase().replace(/[^A-Z0-9]+/g, "_")}_API_KEY`;
@@ -3291,6 +3297,7 @@ function createApiProviders(React, remote, t) {
 		};
 		async function load() {
 			const sequence = ++generation.current;
+			if (!remote) return;
 			try {
 				const [settings, directory, registered] = await Promise.all([
 					remote.settings.describe(),
@@ -3298,8 +3305,17 @@ function createApiProviders(React, remote, t) {
 					remote.llm.listProviders()
 				]);
 				const described = valueOf(settings);
-				const rows = [...valueOf(directory)];
-				for (const provider of valueOf(registered)) if (!rows.some((e) => e.provider === provider.id)) rows.push({
+				const entries = valueOf(directory);
+				const subscriptionIDs = new Set([
+					"codex",
+					"claude",
+					"grok",
+					"antigravity",
+					"copilot",
+					"opencode-zen"
+				]);
+				const rows = entries.filter((entry) => !subscriptionIDs.has(entry.provider));
+				for (const provider of valueOf(registered)) if (!subscriptionIDs.has(provider.id) && !rows.some((e) => e.provider === provider.id)) rows.push({
 					provider: provider.id,
 					displayName: provider.name,
 					settingsNs: "",
@@ -3331,7 +3347,7 @@ function createApiProviders(React, remote, t) {
 			const refresh = () => {
 				load();
 			};
-			const disposers = [
+			const disposers = !remote ? [] : [
 				"settings/document-updated",
 				"credentials/reference-updated",
 				"credentials/record-updated",
@@ -3566,6 +3582,7 @@ function createApiProviders(React, remote, t) {
 			setAddOpen(true);
 		}, [subscriptions$2?.request]);
 		const close = () => {
+			setAuthFlow(null);
 			restoreAddFocus.current = addOpen;
 			visitedDrafts.current = {};
 			setDraft(null);
@@ -3631,7 +3648,7 @@ function createApiProviders(React, remote, t) {
         @media(max-width:520px){.majed-api-model{grid-template-columns:minmax(0,1fr)}.majed-api-model button{justify-self:start}.majed-api-row{padding:12px}.majed-api-actions{margin-inline-start:0}}
       `), message ? h("p", { role: message === "apiSaved" ? "status" : "alert" }, t(message)) : null, h("div", { className: "majed-api-actions" }, button("apiRefresh", () => {
 			load();
-		})), !snapshot ? h("p", null, t("apiLoading")) : h(React.Fragment, null, h("ul", { className: "majed-api-rows" }, ...subscriptions$2?.rows ?? [], ...snapshot.rows.filter(configured).map((entry) => {
+		})), h(React.Fragment, null, !snapshot ? h("p", null, t(remote ? message ? "apiFailed" : "apiLoading" : "apiUnavailable")) : null, h("ul", { className: "majed-api-rows" }, ...subscriptions$2?.rows ?? [], ...(snapshot?.rows ?? []).filter(configured).map((entry) => {
 			const ns = nsOf(entry), profile = at(ns.value, entry.settingsPath);
 			const metadata = (profile?.apiKeyEnv ? [profile.apiKeyEnv] : [refOf(entry, profile), ...entry.nativeAuth?.env ?? []]).map((ref) => snapshot.credentials[ref]);
 			const credentialStatus = entry.provider === "deepseek-account" ? "account-unknown" : metadata.some((value) => value?.configured === true) ? "configured" : metadata.every((value) => value?.configured === false) ? "missing" : "unknown";
@@ -3664,22 +3681,27 @@ function createApiProviders(React, remote, t) {
 			setAddMode("catalog");
 			setDraft(null);
 			if (addable[0]) edit(addable[0]);
-		}, !snapshot.writable && !subscriptions$2) : null, addOpen ? h(React.Fragment, null, h("div", {
-			role: "tablist",
-			"aria-label": t("apiAdd"),
-			className: "majed-api-tabs"
-		}, ...[
-			"catalog",
-			"custom",
-			...subscriptions$2 ? ["subscription"] : []
-		].map((mode) => h("button", {
-			type: "button",
-			role: "tab",
-			"aria-selected": addMode === mode,
-			style: control,
-			disabled: busy || !!authFlow?.busy || mode === "custom" && !snapshot.namespaces.some((n) => n.ns === "llm-pi-ai"),
-			onClick: () => switchMode(mode)
-		}, t(mode === "catalog" ? "apiCatalog" : mode === "custom" ? "apiCustom" : "apiSubscription")))), addMode === "catalog" ? select("apiCatalog", draft?.entry.provider ?? "", (v) => {
+		}, !snapshot?.writable && !subscriptions$2) : null, addOpen ? h(React.Fragment, null, h(primitives$1.SegmentedControl, {
+			id: "majed-provider-add-mode",
+			value: addMode,
+			label: t("apiAdd"),
+			className: "majed-api-tabs",
+			disabled: busy || !!authFlow?.busy,
+			onChange: switchMode,
+			options: [
+				"catalog",
+				"custom",
+				...subscriptions$2 ? ["subscription"] : []
+			].map((mode) => ({
+				value: mode,
+				label: t(mode === "catalog" ? "apiCatalog" : mode === "custom" ? "apiCustom" : "apiSubscription"),
+				disabled: mode !== "subscription" && (!snapshot?.writable || mode === "custom" && !snapshot.namespaces.some((n) => n.ns === "llm-pi-ai"))
+			}))
+		}), h("div", {
+			role: "tabpanel",
+			id: `majed-provider-add-mode-${addMode}-panel`,
+			"aria-labelledby": `majed-provider-add-mode-${addMode}`
+		}, addMode === "catalog" ? select("apiCatalog", draft?.entry.provider ?? "", (v) => {
 			const entry = addable.find((e) => e.provider === v);
 			if (entry) edit(entry);
 		}, [h("option", {
@@ -3701,7 +3723,7 @@ function createApiProviders(React, remote, t) {
 			run(async () => {
 				if (!authFlow?.cancel || await authFlow.cancel()) close();
 			});
-		})) : draft ? editor() : button("apiCancel", close)) : null)));
+		})) : draft ? editor() : button("apiCancel", close))) : null)));
 	};
 }
 
@@ -3714,9 +3736,9 @@ function createCopilotCard(React, primitives$1, rpc, t) {
 	const Button = primitives$1.Button ?? "button";
 	primitives$1.Input;
 	const DEFAULT_NAME = "GitHub Copilot";
-	return function CopilotCard({ presentation, onAdd, onComplete, onFlowState, onAccountsChange } = {}) {
+	return function CopilotCard({ presentation, onAdd, onComplete, onFlowState, onAccountsChange, revision } = {}) {
 		const [expanded, setExpanded] = React.useState(false);
-		const initialAccounts = React.useRef(null);
+		const initialAuthRevision = React.useRef(null);
 		const [manager, setManager] = React.useState(false);
 		const [status, setStatus] = React.useState(null);
 		const [error, setError] = React.useState("");
@@ -3764,7 +3786,10 @@ function createCopilotCard(React, primitives$1, rpc, t) {
 			};
 		}, []);
 		React.useEffect(() => {
-			if (!status?.busy) return;
+			if (revision !== void 0) refreshStatus().catch(() => {});
+		}, [revision]);
+		React.useEffect(() => {
+			if (presentation === "group" || !status?.busy) return;
 			const timer = setInterval(() => {
 				refreshStatus().catch((failure) => {
 					if (alive.current) setError(failure.message);
@@ -3808,7 +3833,7 @@ function createCopilotCard(React, primitives$1, rpc, t) {
 			accountKeys.current = keys;
 			for (const key of usageRequests.current.keys()) if (!keys.has(key)) usageRequests.current.delete(key);
 			setUsage((previous) => Object.fromEntries(Object.entries(previous).filter(([key]) => keys.has(key))));
-			for (const key of added) refreshUsage(key);
+			if (presentation !== "auth") for (const key of added) refreshUsage(key);
 		}, [accountsSignature]);
 		const button = (label, onClick, disabled = false, props = {}) => h(Button, {
 			type: "button",
@@ -3832,11 +3857,14 @@ function createCopilotCard(React, primitives$1, rpc, t) {
 		};
 		React.useEffect(() => {
 			if (!status) return;
-			const count = status.accounts?.length ?? 0;
-			if (initialAccounts.current === null) initialAccounts.current = count;
-			else if (presentation === "auth" && !status.busy && count > initialAccounts.current) onComplete?.();
+			const current = status.authRevision ?? 0;
+			if (initialAuthRevision.current === null) initialAuthRevision.current = current;
+			else if (presentation === "auth" && current > initialAuthRevision.current) {
+				initialAuthRevision.current = current;
+				onComplete?.();
+			}
 		}, [status]);
-		const busy = status?.busy;
+		const busy = presentation !== "group" && status?.busy;
 		React.useEffect(() => {
 			if (presentation !== "auth") return;
 			onFlowState?.({
@@ -4003,9 +4031,9 @@ function createClaudeCard(React, primitives$1, rpc, t) {
 	const Button = primitives$1.Button ?? "button";
 	const Input = primitives$1.Input ?? "input";
 	const DEFAULT_NAME = "Claude (Subscription)";
-	return function ClaudeCard({ presentation, onAdd, onComplete, onFlowState, onAccountsChange } = {}) {
+	return function ClaudeCard({ presentation, onAdd, onComplete, onFlowState, onAccountsChange, revision } = {}) {
 		const [expanded, setExpanded] = React.useState(false);
-		const initialAccounts = React.useRef(null);
+		const initialAuthRevision = React.useRef(null);
 		const [manager, setManager] = React.useState(false);
 		const [status, setStatus] = React.useState(null);
 		const [error, setError] = React.useState("");
@@ -4053,7 +4081,10 @@ function createClaudeCard(React, primitives$1, rpc, t) {
 			};
 		}, []);
 		React.useEffect(() => {
-			if (!status?.busy) return;
+			if (revision !== void 0) refreshStatus().catch(() => {});
+		}, [revision]);
+		React.useEffect(() => {
+			if (presentation === "group" || !status?.busy) return;
 			const timer = setInterval(() => {
 				refreshStatus().catch((failure) => {
 					if (alive.current) setError(failure.message);
@@ -4097,7 +4128,7 @@ function createClaudeCard(React, primitives$1, rpc, t) {
 			accountKeys.current = keys;
 			for (const key of usageRequests.current.keys()) if (!keys.has(key)) usageRequests.current.delete(key);
 			setUsage((previous) => Object.fromEntries(Object.entries(previous).filter(([key]) => keys.has(key))));
-			for (const key of added) refreshUsage(key);
+			if (presentation !== "auth") for (const key of added) refreshUsage(key);
 		}, [accountsSignature]);
 		const button = (label, onClick, disabled = false, props = {}) => h(Button, {
 			type: "button",
@@ -4121,11 +4152,14 @@ function createClaudeCard(React, primitives$1, rpc, t) {
 		};
 		React.useEffect(() => {
 			if (!status) return;
-			const count = status.accounts?.length ?? 0;
-			if (initialAccounts.current === null) initialAccounts.current = count;
-			else if (presentation === "auth" && !status.busy && count > initialAccounts.current) onComplete?.();
+			const current = status.authRevision ?? 0;
+			if (initialAuthRevision.current === null) initialAuthRevision.current = current;
+			else if (presentation === "auth" && current > initialAuthRevision.current) {
+				initialAuthRevision.current = current;
+				onComplete?.();
+			}
 		}, [status]);
-		const busy = status?.busy;
+		const busy = presentation !== "group" && status?.busy;
 		React.useEffect(() => {
 			if (presentation !== "auth") return;
 			onFlowState?.({
@@ -4308,9 +4342,9 @@ function createAntigravityCard(React, primitives$1, rpc, t) {
 	const Button = primitives$1.Button ?? "button";
 	const Input = primitives$1.Input ?? "input";
 	const DEFAULT_NAME = "Google Antigravity";
-	return function AntigravityCard({ presentation, onAdd, onComplete, onFlowState, onAccountsChange } = {}) {
+	return function AntigravityCard({ presentation, onAdd, onComplete, onFlowState, onAccountsChange, revision } = {}) {
 		const [expanded, setExpanded] = React.useState(false);
-		const initialAccounts = React.useRef(null);
+		const initialAuthRevision = React.useRef(null);
 		const [manager, setManager] = React.useState(false);
 		const [status, setStatus] = React.useState(null);
 		const [error, setError] = React.useState("");
@@ -4358,7 +4392,10 @@ function createAntigravityCard(React, primitives$1, rpc, t) {
 			};
 		}, []);
 		React.useEffect(() => {
-			if (!status?.busy) return;
+			if (revision !== void 0) refreshStatus().catch(() => {});
+		}, [revision]);
+		React.useEffect(() => {
+			if (presentation === "group" || !status?.busy) return;
 			const timer = setInterval(() => {
 				refreshStatus().catch((failure) => {
 					if (alive.current) setError(failure.message);
@@ -4403,7 +4440,7 @@ function createAntigravityCard(React, primitives$1, rpc, t) {
 			accountKeys.current = keys;
 			for (const key of usageRequests.current.keys()) if (!keys.has(key)) usageRequests.current.delete(key);
 			setUsage((previous) => Object.fromEntries(Object.entries(previous).filter(([key]) => keys.has(key))));
-			for (const key of added) refreshUsage(key);
+			if (presentation !== "auth") for (const key of added) refreshUsage(key);
 		}, [accountsSignature]);
 		const button = (label, onClick, disabled = false, props = {}) => h(Button, {
 			type: "button",
@@ -4427,11 +4464,14 @@ function createAntigravityCard(React, primitives$1, rpc, t) {
 		};
 		React.useEffect(() => {
 			if (!status) return;
-			const count = status.accounts?.length ?? 0;
-			if (initialAccounts.current === null) initialAccounts.current = count;
-			else if (presentation === "auth" && !status.busy && count > initialAccounts.current) onComplete?.();
+			const current = status.authRevision ?? 0;
+			if (initialAuthRevision.current === null) initialAuthRevision.current = current;
+			else if (presentation === "auth" && current > initialAuthRevision.current) {
+				initialAuthRevision.current = current;
+				onComplete?.();
+			}
 		}, [status]);
-		const busy = status?.busy;
+		const busy = presentation !== "group" && status?.busy;
 		React.useEffect(() => {
 			if (presentation !== "auth") return;
 			onFlowState?.({
@@ -4657,9 +4697,9 @@ function createGrokCard(React, primitives$1, rpc, t) {
 	const Button = primitives$1.Button ?? "button";
 	const Input = primitives$1.Input ?? "input";
 	const DEFAULT_NAME = "Grok (Subscription)";
-	return function GrokCard({ presentation, onAdd, onComplete, onFlowState, onAccountsChange } = {}) {
+	return function GrokCard({ presentation, onAdd, onComplete, onFlowState, onAccountsChange, revision } = {}) {
 		const [expanded, setExpanded] = React.useState(false);
-		const initialAccounts = React.useRef(null);
+		const initialAuthRevision = React.useRef(null);
 		const [manager, setManager] = React.useState(false);
 		const [status, setStatus] = React.useState(null);
 		const [error, setError] = React.useState("");
@@ -4707,7 +4747,10 @@ function createGrokCard(React, primitives$1, rpc, t) {
 			};
 		}, []);
 		React.useEffect(() => {
-			if (!status?.busy) return;
+			if (revision !== void 0) refreshStatus().catch(() => {});
+		}, [revision]);
+		React.useEffect(() => {
+			if (presentation === "group" || !status?.busy) return;
 			const timer = setInterval(() => {
 				refreshStatus().catch((failure) => {
 					if (alive.current) setError(failure.message);
@@ -4751,7 +4794,7 @@ function createGrokCard(React, primitives$1, rpc, t) {
 			accountKeys.current = keys;
 			for (const key of usageRequests.current.keys()) if (!keys.has(key)) usageRequests.current.delete(key);
 			setUsage((previous) => Object.fromEntries(Object.entries(previous).filter(([key]) => keys.has(key))));
-			for (const key of added) refreshUsage(key);
+			if (presentation !== "auth") for (const key of added) refreshUsage(key);
 		}, [accountsSignature]);
 		const button = (label, onClick, disabled = false, props = {}) => h(Button, {
 			type: "button",
@@ -4775,11 +4818,14 @@ function createGrokCard(React, primitives$1, rpc, t) {
 		};
 		React.useEffect(() => {
 			if (!status) return;
-			const count = status.accounts?.length ?? 0;
-			if (initialAccounts.current === null) initialAccounts.current = count;
-			else if (presentation === "auth" && !status.busy && count > initialAccounts.current) onComplete?.();
+			const current = status.authRevision ?? 0;
+			if (initialAuthRevision.current === null) initialAuthRevision.current = current;
+			else if (presentation === "auth" && current > initialAuthRevision.current) {
+				initialAuthRevision.current = current;
+				onComplete?.();
+			}
 		}, [status]);
-		const busy = status?.busy;
+		const busy = presentation !== "group" && status?.busy;
 		React.useEffect(() => {
 			if (presentation !== "auth") return;
 			onFlowState?.({
@@ -6087,13 +6133,14 @@ function applySubscriptions(root) {
 		const GuardedBadge = guarded(React, SubscriptionUsageBadge, "usage badge");
 		const listeners = /* @__PURE__ */ new Set();
 		let ApiProviders;
+		const SubscriptionProviders = createApiProviders(React, null, t, primitives$1);
 		isolate(() => ctx.inject([
 			"remote",
 			"remote.settings",
 			"remote.credentials",
 			"remote.llm"
 		], (scope) => {
-			ApiProviders = guarded(React, createApiProviders(React, scope.remote, t), "API providers");
+			ApiProviders = guarded(React, createApiProviders(React, scope.remote, t, primitives$1), "API providers");
 			listeners.forEach((listener) => listener());
 			return () => {
 				ApiProviders = void 0;
@@ -6110,6 +6157,7 @@ function applySubscriptions(root) {
 		function UnifiedProviders() {
 			const [status, setStatus] = React.useState(null);
 			const [request, setRequest] = React.useState(null);
+			const [revision, setRevision] = React.useState(0);
 			const [error, setError] = React.useState(false);
 			const alive = React.useRef(true);
 			const refresh = async () => {
@@ -6118,6 +6166,7 @@ function applySubscriptions(root) {
 					if (!answer?.ok) throw new Error();
 					if (alive.current) {
 						setStatus(answer.value);
+						setRevision((value) => value + 1);
 						setError(false);
 					}
 				} catch {
@@ -6146,6 +6195,7 @@ function applySubscriptions(root) {
 				"data-majed-subscription-row": id
 			}, h(providerCards[id], {
 				presentation: "group",
+				revision,
 				onAccountsChange: refresh,
 				onAdd: () => setRequest({ provider: id })
 			})));
@@ -6153,7 +6203,7 @@ function applySubscriptions(root) {
 				key: "zen",
 				"data-majed-subscription-row": "zen"
 			}, h(ZenCard)));
-			return h(React.Fragment, null, error ? h("p", { role: "alert" }, t("unreachable")) : null, h(ApiProviders, { subscriptions: {
+			return h(React.Fragment, null, error ? h("p", { role: "alert" }, t("unreachable")) : null, h(ApiProviders ?? SubscriptionProviders, { subscriptions: {
 				rows,
 				providers,
 				request,
@@ -6203,7 +6253,7 @@ function applySubscriptions(root) {
 			}), h(GuardedSetting, { t }))), h("section", { style: {
 				paddingBlock: "var(--dsw-spacing-4)",
 				borderBlockEnd: "1px solid var(--dsw-alias-border-l2)"
-			} }, h("h3", { style: { font: "var(--dsw-font-s-strong-14)" } }, t("providers")), ApiProviders ? h(UnifiedProviders) : h(React.Fragment, null, h("p", null, t("apiUnavailable")), h(ZenCard))));
+			} }, h("h3", { style: { font: "var(--dsw-font-s-strong-14)" } }, t("providers")), h(UnifiedProviders)));
 		}
 		const models = () => ctx.get("modelDirectories");
 		const surfaceWanted = () => !disposed && present && !referenceEnabled;

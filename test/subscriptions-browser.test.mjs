@@ -9,15 +9,16 @@ import { readFile } from 'node:fs/promises';
 const code = await readFile(new URL('../dist/subscriptions-client.js', import.meta.url), 'utf8');
 function browser(locale = 'en', initialAnswer, options = {}) {
   let api, timer, reconnect, dictionary, registrations = 0;
+  const timers = new Set();
   // Live registrations keyed by slot entry id (the Settings section plus the #131 composer surfaces).
   const live = new Map();
   let referenceAnswer = () => Promise.reject(new Error('transport failure for /api/subscriptions-auth.proxyGet: HTTP 404'));
   let answer = initialAnswer ?? (() => Promise.resolve({ ok: true, value: { component: 'subscriptions' } }));
   const cleanups = []; const commandService = options.commandService;
   const React = options.React ?? { Component: class {}, forwardRef: fn => fn, createElement: (tag, props, ...children) => ({ tag, props, children }), useSyncExternalStore: (_, read) => read() };
-  vm.runInNewContext(code + '\nresult(majedSubscriptionsFactory);', { result: factory => { api = factory(id => id === 'react' ? React : id === 'react/jsx-runtime' ? jsxRuntime : { IconSettingsOutlineMedium: 'svg' }); },
-    window: { localStorage: { getItem: () => null }, addEventListener() {}, removeEventListener() {} },
-    setInterval: fn => { timer = fn; return 1; }, clearInterval() {}, Error });
+  vm.runInNewContext(code + '\nresult(majedSubscriptionsFactory);', { result: factory => { api = factory(id => id === 'react' ? React : id === 'react/jsx-runtime' ? jsxRuntime : { IconSettingsOutlineMedium: 'svg', SegmentedControl: ({ options, value, onChange, disabled }) => React.createElement('div', { role: 'tablist' }, ...options.map(option => React.createElement('button', { role: 'tab', disabled: disabled || option.disabled, 'aria-selected': option.value === value, onClick: () => onChange(option.value) }, option.label))) }); },
+    window: { open() {}, localStorage: { getItem: () => null }, addEventListener() {}, removeEventListener() {} },
+    setInterval: fn => { timer = fn; timers.add(fn); return fn; }, clearInterval: fn => timers.delete(fn), Error });
   const connection = { rpc: { call: (...args) => args[1] === 'subscriptions-auth.proxyGet' ? referenceAnswer(...args) : answer(...args) }, state: { subscribe: fn => { reconnect = fn; return () => {}; }, getSnapshot: () => 'connected' } };
   const ctx = { effect: fn => cleanups.push(fn()),
     locale: { register: (_, dictionaries) => { dictionary = dictionaries[locale]; return () => {}; }, bind: () => key => dictionary[key] },
@@ -37,7 +38,7 @@ function browser(locale = 'en', initialAnswer, options = {}) {
     return fn(ctx);
   };
   api.applySubscriptions(ctx);
-  return { setReferenceAnswer(fn) { referenceAnswer = fn; }, get registrations() { return registrations; }, setAnswer(fn) { answer = fn; }, tick: () => timer(), reconnect: () => reconnect(),
+  return { setReferenceAnswer(fn) { referenceAnswer = fn; }, get registrations() { return registrations; }, setAnswer(fn) { answer = fn; }, tickAuth: () => { for (const fn of [...timers]) fn(); }, tick: () => timer(), reconnect: () => reconnect(),
     async settle() { await Promise.resolve(); await Promise.resolve(); },
     get section() { return live.get('majed-subscriptions'); }, live,
     get surfaces() { return [...live.keys()].filter(id => id !== 'majed-subscriptions').sort(); }, cleanup() { cleanups.reverse().forEach(fn => fn?.()); },
@@ -85,7 +86,7 @@ function text(node) { return typeof node === 'string' ? node : node?.children?.f
 test('present component registers accounts and native-remotes availability, then withdraws on absence', async () => {
   const page = browser(); await page.settle();
   assert.equal(page.section.options.id, 'majed-subscriptions');
-  assert.match(text(page.section.component()), /API providers.*Native API-provider remotes are unavailable/);
+  assert.match(text(page.section.component()), /API providers/);
   page.setAnswer(() => Promise.reject(new Error('transport failure for /api/majed-subscriptions.status: HTTP 404')));
   page.tick(); await page.settle(); assert.equal(page.section, undefined); page.cleanup();
 });
@@ -444,4 +445,51 @@ test('/fast contribution is removed on dispose and Arabic copy resolves', async 
   assert.notEqual(service.commands.get('fast').description(), 'commandFast');
   page.cleanup();
   assert.equal(service.commands.has('fast'), false);
+});
+
+for (const provider of ['codex', 'claude', 'grok', 'antigravity', 'copilot']) for (const apiState of ['absent', 'failed']) test(`assembled ${provider} success/cancel/failure/reentry with ${apiState} API`, async () => {
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  const dict = JSON.parse(await readFile(new URL('../locale/en.json', import.meta.url), 'utf8')).subscriptions;
+  let state = { accounts: [{ key: 'same', account: 'Existing identity' }], busy: false, authRevision: 0 };
+  let usage = 0, cancelFails = false;
+  const remote = apiState === 'absent' ? undefined : { $on: () => () => {}, settings: { describe: async () => { throw Error('fixture API unavailable'); } }, llm: { listConfigurableProviders: async () => ({ ok: true, value: [] }), listProviders: async () => ({ ok: true, value: [] }) } };
+  const page = browser('en', async (_channel, method) => {
+    if (method.endsWith('.status')) return { ok: true, value: { component: 'subscriptions', providers: { [provider]: structuredClone(state) } } };
+    if (method.endsWith('.login')) { state.busy = true; state.pendingAuth = { authorizeUrl: 'https://fixture.invalid', userCode: 'DUMMY' }; return { ok: true, value: state.pendingAuth }; }
+    if (method.endsWith('.cancel')) { if (cancelFails) return { ok: false, error: { message: 'Fixture cancellation failed' } }; state.busy = false; delete state.pendingAuth; }
+    if (method.endsWith('.usage')) usage++;
+    return { ok: true, value: {} };
+  }, { React: ActualReact, remote });
+  await page.settle(); let renderer;
+  const buttons = key => renderer.root.findAll(n => n.type === 'button' && n.children.join('') === dict[key]);
+  const click = async key => { const b = buttons(key)[0]; assert.ok(b, key); assert.equal(b.props.disabled, false, key); await act(async () => b.props.onClick()); };
+  const start = async () => {
+    const auth = renderer.root.findAll(n => n.props[`data-majed-${provider}-card`] === true).at(-1);
+    const login = auth.findAllByType('button').find(n => [dict.addAccount, dict.addAccountOAuth, dict.login].includes(n.children.join('')));
+    assert.ok(login, 'provider login remains reachable');
+    await act(async () => login.props.onClick());
+  };
+  try {
+    await act(async () => { renderer = create(ActualReact.createElement(page.section.component)); });
+    assert.equal(renderer.root.findAll(n => n.type === 'li' && n.props['data-majed-subscription-row'] === provider).length, 1);
+    const initialUsage = usage;
+    await click('addAccount'); await start();
+    assert.equal(usage, initialUsage, 'Add owns no duplicate usage requests');
+    const group = () => renderer.root.find(n => n.type === 'li' && n.props['data-majed-subscription-row'] === provider);
+    assert.equal(group().findAllByType('input').length, 0, 'group has no callback');
+    cancelFails = true; await click('apiCancel');
+    assert.equal(buttons('apiAdd').length, 0, 'failed cancellation retains flow');
+    cancelFails = false; await click('apiCancel');
+    await click('apiAdd'); await click('apiSubscription');
+    const select = renderer.root.findAllByType('select').find(n => n.props['aria-label'] === dict.apiSubscription);
+    await act(async () => select.props.onChange({ target: { value: provider } }));
+    await start();
+    state.busy = false; delete state.pendingAuth; state.authRevision++;
+    await act(async () => page.tickAuth());
+    assert.equal(buttons('apiAdd').length, 1, 'same identity success closes Add');
+    await click('addAccount'); await start();
+    state.accounts.push({ key: 'new', account: 'New identity' }); state.busy = false; state.authRevision++;
+    await act(async () => page.tickAuth());
+    assert.ok(group().findAllByType('button').some(n => n.children.join('') === `2 ${dict.connected}`), 'existing group reloads admitted membership');
+  } finally { if (renderer) await act(async () => renderer.unmount()); page.cleanup(); }
 });

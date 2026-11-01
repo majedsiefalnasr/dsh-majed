@@ -1,6 +1,6 @@
 // Native public-remotes contract adaptation; see PROVENANCE.md (#136).
 // Only ephemeral render snapshots/drafts live here. DSH remains the sole durable store.
-export function createApiProviders(React: any, remote: any, t: (key: string) => string) {
+export function createApiProviders(React: any, remote: any, t: (key: string) => string, primitives = require('@deepseek-ai/dsh-client-ui-primitives')) {
   const h = React.createElement;
   const at = (value: any, path: string[]) => path.reduce((v, key) => v?.[key], value);
   const refOf = (entry: any, profile: any) => profile?.apiKeyEnv ?? `${entry.provider.toUpperCase().replace(/[^A-Z0-9]+/g, '_')}_API_KEY`;
@@ -33,12 +33,14 @@ export function createApiProviders(React: any, remote: any, t: (key: string) => 
     };
     async function load() {
       const sequence = ++generation.current;
+      if (!remote) return;
       try {
         const [settings, directory, registered] = await Promise.all([remote.settings.describe(), remote.llm.listConfigurableProviders(), remote.llm.listProviders()]);
         const described = valueOf(settings);
         const entries = valueOf(directory);
-        const rows = [...entries];
-        for (const provider of valueOf(registered)) if (!rows.some((e: any) => e.provider === provider.id)) rows.push({ provider: provider.id, displayName: provider.name, settingsNs: '', settingsPath: [] });
+        const subscriptionIDs = new Set(['codex', 'claude', 'grok', 'antigravity', 'copilot', 'opencode-zen']);
+        const rows = entries.filter((entry: any) => !subscriptionIDs.has(entry.provider));
+        for (const provider of valueOf(registered)) if (!subscriptionIDs.has(provider.id) && !rows.some((e: any) => e.provider === provider.id)) rows.push({ provider: provider.id, displayName: provider.name, settingsNs: '', settingsPath: [] });
         rows.sort((a: any, b: any) => rank(a.provider) - rank(b.provider));
         const refs = [...new Set(rows.flatMap((e: any) => {
           if (e.provider === 'deepseek-account') return [];
@@ -56,7 +58,7 @@ export function createApiProviders(React: any, remote: any, t: (key: string) => 
       mounted.current = true;
       void load();
       const refresh = () => { void load(); };
-      const disposers = ['settings/document-updated', 'credentials/reference-updated', 'credentials/record-updated', 'llm/adapters-updated'].map(event => remote.$on(event, refresh));
+      const disposers = !remote ? [] : ['settings/document-updated', 'credentials/reference-updated', 'credentials/record-updated', 'llm/adapters-updated'].map(event => remote.$on(event, refresh));
       return () => { mounted.current = false; generation.current++; disposers.forEach(off => off()); };
     }, []);
     const nsOf = (e: any) => snapshot.namespaces.find((n: any) => n.ns === e.settingsNs);
@@ -163,7 +165,7 @@ export function createApiProviders(React: any, remote: any, t: (key: string) => 
       if (!subscriptions?.request || authFlow?.busy) return;
       setSubscription(subscriptions.request.provider); setAddMode('subscription'); setDraft(null); setAddOpen(true);
     }, [subscriptions?.request]);
-    const close = () => { restoreAddFocus.current = addOpen; visitedDrafts.current = {}; setDraft(null); setAddOpen(false); };
+    const close = () => { setAuthFlow(null); restoreAddFocus.current = addOpen; visitedDrafts.current = {}; setDraft(null); setAddOpen(false); };
     const editor = () => h('div', { role: 'group', 'aria-label': t('apiEditor'), className: 'majed-api-editor' },
       draft.custom ? field('apiRoute', draft.entry.provider, v => change('entry', { ...draft.entry, provider: v })) : h('bdi', { className: 'majed-api-muted' }, draft.entry.provider),
       field('apiName', draft.profile.displayName ?? '', v => profileChange('displayName', v)),
@@ -199,8 +201,8 @@ export function createApiProviders(React: any, remote: any, t: (key: string) => 
       `),
       message ? h('p', { role: message === 'apiSaved' ? 'status' : 'alert' }, t(message)) : null,
       h('div', { className: 'majed-api-actions' }, button('apiRefresh', () => { void load(); })),
-      !snapshot ? h('p', null, t('apiLoading')) : h(React.Fragment, null,
-        h('ul', { className: 'majed-api-rows' }, ...(subscriptions?.rows ?? []), ...snapshot.rows.filter(configured).map((entry: any) => {
+      h(React.Fragment, null, !snapshot ? h('p', null, t(remote ? (message ? 'apiFailed' : 'apiLoading') : 'apiUnavailable')) : null,
+        h('ul', { className: 'majed-api-rows' }, ...(subscriptions?.rows ?? []), ...(snapshot?.rows ?? []).filter(configured).map((entry: any) => {
           const ns = nsOf(entry), profile = at(ns.value, entry.settingsPath);
           const refs = profile?.apiKeyEnv ? [profile.apiKeyEnv] : [refOf(entry, profile), ...(entry.nativeAuth?.env ?? [])];
           const metadata = refs.map((ref: string) => snapshot.credentials[ref]);
@@ -213,11 +215,12 @@ export function createApiProviders(React: any, remote: any, t: (key: string) => 
               h('span', { className: 'majed-api-actions' }, entry.provider === 'deepseek-account' ? null : button('apiEdit', () => { setAddOpen(false); edit(entry); }, !snapshot.writable), removable(entry, ns) ? button('apiDelete', () => { void run(() => remove(entry)); }, !snapshot.writable) : null)),
             !addOpen && draft?.entry.provider === entry.provider ? editor() : null);
         })),
-        h('div', { className: 'majed-api-add' }, !addOpen ? button('apiAdd', () => { setAddOpen(true); setAddMode('catalog'); setDraft(null); if (addable[0]) edit(addable[0]); }, !snapshot.writable && !subscriptions) : null,
+        h('div', { className: 'majed-api-add' }, !addOpen ? button('apiAdd', () => { setAddOpen(true); setAddMode('catalog'); setDraft(null); if (addable[0]) edit(addable[0]); }, !snapshot?.writable && !subscriptions) : null,
           addOpen ? h(React.Fragment, null,
-            h('div', { role: 'tablist', 'aria-label': t('apiAdd'), className: 'majed-api-tabs' },
-              ...['catalog', 'custom', ...(subscriptions ? ['subscription'] : [])].map(mode => h('button', { type: 'button', role: 'tab', 'aria-selected': addMode === mode, style: control, disabled: busy || !!authFlow?.busy || (mode === 'custom' && !snapshot.namespaces.some((n: any) => n.ns === 'llm-pi-ai')), onClick: () => switchMode(mode) }, t(mode === 'catalog' ? 'apiCatalog' : mode === 'custom' ? 'apiCustom' : 'apiSubscription')))),
+            h(primitives.SegmentedControl, { id: 'majed-provider-add-mode', value: addMode, label: t('apiAdd'), className: 'majed-api-tabs', disabled: busy || !!authFlow?.busy, onChange: switchMode,
+              options: ['catalog', 'custom', ...(subscriptions ? ['subscription'] : [])].map(mode => ({ value: mode, label: t(mode === 'catalog' ? 'apiCatalog' : mode === 'custom' ? 'apiCustom' : 'apiSubscription'), disabled: mode !== 'subscription' && (!snapshot?.writable || (mode === 'custom' && !snapshot.namespaces.some((n: any) => n.ns === 'llm-pi-ai'))) })) }),
+            h('div', { role: 'tabpanel', id: `majed-provider-add-mode-${addMode}-panel`, 'aria-labelledby': `majed-provider-add-mode-${addMode}` },
             addMode === 'catalog' ? select('apiCatalog', draft?.entry.provider ?? '', v => { const entry = addable.find((e: any) => e.provider === v); if (entry) edit(entry); }, [h('option', { key: '', value: '', disabled: true }, t('apiChoose')), ...addable.map((e: any) => h('option', { key: e.provider, value: e.provider }, e.displayName))]) : null,
-            addMode === 'subscription' ? h(React.Fragment, null, select('apiSubscription', subscription || subscriptions.providers[0]?.id || '', v => { if (!authFlow?.busy) { setAuthFlow(null); setSubscription(v); } }, subscriptions.providers.map((p: any) => h('option', { key: p.id, value: p.id }, p.name))), subscriptions.renderAuth(subscription || subscriptions.providers[0]?.id, close, setAuthFlow), button('apiCancel', () => { void run(async () => { if (!authFlow?.cancel || await authFlow.cancel()) close(); }); })) : draft ? editor() : button('apiCancel', close)) : null)));
+            addMode === 'subscription' ? h(React.Fragment, null, select('apiSubscription', subscription || subscriptions.providers[0]?.id || '', v => { if (!authFlow?.busy) { setAuthFlow(null); setSubscription(v); } }, subscriptions.providers.map((p: any) => h('option', { key: p.id, value: p.id }, p.name))), subscriptions.renderAuth(subscription || subscriptions.providers[0]?.id, close, setAuthFlow), button('apiCancel', () => { void run(async () => { if (!authFlow?.cancel || await authFlow.cancel()) close(); }); })) : draft ? editor() : button('apiCancel', close))) : null)));
   };
 }
