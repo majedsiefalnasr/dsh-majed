@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Repair the missing composer usage badge when status includes login-less OpenCode Zen before account-bearing providers. Limit the usage roster to supported account providers with account arrays; keep Codex, Claude, Grok, Copilot and Antigravity usage and popup accounts intact. Actual-component fake-RPC regression only; installed/live acceptance remains separate.
+
 - Add #137 OpenCode Zen in-process anonymous free-model adapter and login-less English/Arabic status card. Reuse owned Chat/Responses translators, canonical reference client headers, bounded catalog/error bodies, static/in-memory fallback and generic errors. Cancelled discovery remains retryable; last-known paid/deprecated metadata survives metadata outages. Controlled assembled host and registered-card interaction tests pass; final independent review, package and Owner installed/live acceptance remain separate gates.
 
 - Repair #136 API-provider presentation with native-style configured-only rows, inset editors, a separate catalog/custom Add flow and labeled model ID/name rows that preserve existing capabilities and metadata. Keep revision/conflict, write-only key and partial-retry behavior. Add an actual-component synthetic DOM fixture; browser visual verification remains pending because no BrowserSkill browser was connected. No installed-state changes.

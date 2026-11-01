@@ -5175,7 +5175,7 @@ function expandedDisplays(displays, current) {
 * direct routes fall back to.
 */
 function accountsOf(status) {
-	if (status === void 0 || status.accounts.length === 0) return [];
+	if (status == null || !Array.isArray(status.accounts) || status.accounts.length === 0) return [];
 	const fallback = status.accounts.find((a) => a.isDefault) ?? status.accounts[0];
 	return status.accounts.map((a) => a === fallback ? {
 		...a,
@@ -5225,10 +5225,13 @@ function SubscriptionUsageBadge({ rpc, currentModel, t }) {
 			const statusResp = await callSubscriptionsAuth(rpc, "status", {});
 			if (!mountedRef.current) return;
 			const roster = [];
-			for (const provider of Object.keys(statusResp.providers)) for (const account of accountsOf(statusResp.providers[provider])) roster.push({
-				provider,
-				account
-			});
+			for (const provider of Object.keys(statusResp.providers)) {
+				if (!Object.hasOwn(PROVIDER_NAMES, provider)) continue;
+				for (const account of accountsOf(statusResp.providers[provider])) roster.push({
+					provider,
+					account
+				});
+			}
 			const keyOf = (provider, account) => `${provider}:${account.key}`;
 			const lastKnown = lastKnownRef.current;
 			const live = new Set(roster.map(({ provider, account }) => keyOf(provider, account)));

@@ -184,6 +184,56 @@ for (const locale of ['en', 'ar']) {
     await act(async () => page.unmount());
   }));
 }
+test('usage badge survives the authentic loginless Zen snapshot before Codex accounts', () => withWindow(async () => {
+  installHost();
+  // subscriptions.status spreads zen.snapshot() and adds registrationError; Zen has no accounts.
+  const mixed = { ok: true, value: { providers: {
+    'opencode-zen': { reachable: null, modelCount: 5, source: 'static', registrationError: false },
+    ...status.value.providers,
+  } } };
+  const rpc = rpcDouble({ status: mixed });
+  const page = await mount(React.createElement(SubscriptionUsageBadge, { rpc, t: translator('en'), currentModel: async () => ({ provider: 'codex', model: 'gpt-test' }) }));
+  try {
+    await tick(); await tick();
+    assert.equal(page.root.findAllByProps({ className: 'majed-subscription-usage-pill' }).length, 1, 'Codex badge remains visible after loginless Zen');
+    assert.match(textOf(page.root.findByProps({ className: 'majed-subscription-usage-pill' })), /Codex 5h 13% · Wk 25%/);
+    assert.deepEqual(rpc.calls.filter(c => c.method.endsWith('.usage')).map(c => c.payload.provider), ['codex', 'codex']);
+    await act(async () => page.root.findByProps({ className: 'majed-subscription-usage-pill' }).props.onClick()); await tick();
+    const panel = textOf(page.root.findByProps({ role: 'dialog' }));
+    assert.ok(panel.includes('one@example.test') && panel.includes('two@example.test'));
+    assert.ok(!panel.includes('Zen'));
+  } finally { await act(async () => page.unmount()); }
+}));
+
+test('usage roster preserves all account providers and skips empty, unknown and loginless entries', () => withWindow(async () => {
+  installHost();
+  const providers = {
+    unknown: { accounts: [{ key: 'ignored', isDefault: true }] },
+    loginless: { reachable: true },
+    'opencode-zen': { reachable: true, modelCount: 2, source: 'live', registrationError: false },
+  };
+  const supported = ['codex', 'claude', 'grok', 'copilot', 'antigravity'];
+  for (const provider of supported) providers[provider] = { busy: false, accounts: [{ key: provider, isDefault: true }] };
+  const rpc = rpcDouble({ status: { ok: true, value: { providers } }, usage: () => usage.a });
+  const page = await mount(React.createElement(SubscriptionUsageBadge, { rpc, t: translator('en'), currentModel: async () => ({ provider: 'codex', model: 'm' }) }));
+  try {
+    await tick(); await tick();
+    assert.deepEqual(rpc.calls.filter(c => c.method.endsWith('.usage')).map(c => c.payload.provider), supported);
+    await act(async () => page.root.findByProps({ className: 'majed-subscription-usage-pill' }).props.onClick()); await tick();
+    assert.equal(page.root.findByProps({ role: 'dialog' }).findAllByType('section').length, 5);
+    // Next status contains legitimate empty rosters and malformed/loginless known entries.
+    for (const provider of supported) providers[provider] = { busy: false, accounts: [] };
+    providers.claude = { busy: false };
+    providers.grok = null;
+    providers.copilot = { accounts: {} };
+    rpc.calls.length = 0;
+    await act(async () => page.root.findByProps({ className: 'majed-subscription-usage-pill' }).props.onClick());
+    await act(async () => page.root.findByProps({ className: 'majed-subscription-usage-pill' }).props.onClick()); await tick();
+    assert.equal(rpc.calls.filter(c => c.method.endsWith('.usage')).length, 0);
+    assert.equal(page.root.findAllByProps({ className: 'majed-subscription-usage-pill' }).length, 0);
+  } finally { await act(async () => page.unmount()); }
+}));
+
 test('usage badge hidden mode renders only the invisible seat and polls nothing; showing again loads', () => withWindow(async () => {
   installHost();
   setUsageBadgeMode('hidden');

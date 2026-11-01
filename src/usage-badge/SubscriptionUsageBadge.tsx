@@ -229,7 +229,7 @@ export function expandedDisplays(
  * direct routes fall back to.
  */
 function accountsOf(status: ProviderStatus | undefined): AccountStatus[] {
-  if (status === undefined || status.accounts.length === 0) return []
+  if (status == null || !Array.isArray(status.accounts) || status.accounts.length === 0) return []
   const fallback = status.accounts.find(a => a.isDefault) ?? status.accounts[0]!
   return status.accounts
     .map(a => (a === fallback ? { ...a, isDefault: true } : a))
@@ -302,6 +302,7 @@ export function SubscriptionUsageBadge({ rpc, currentModel, t }: SubscriptionUsa
       // around as polls settle at different times.
       const roster: { provider: SubscriptionProvider; account: AccountStatus }[] = []
       for (const provider of Object.keys(statusResp.providers) as SubscriptionProvider[]) {
+        if (!Object.hasOwn(PROVIDER_NAMES, provider)) continue
         for (const account of accountsOf(statusResp.providers[provider])) roster.push({ provider, account })
       }
       const keyOf = (provider: SubscriptionProvider, account: AccountStatus): string => `${provider}:${account.key}`
