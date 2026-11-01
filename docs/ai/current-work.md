@@ -1,5 +1,13 @@
 # Current work
 
+## Missing badge repair — isolated worker candidate, 2026-11-01
+
+Owner explicitly authorized bounded functional repair after confirming mixed loginless Zen/account-provider mechanism. New isolated `../dsh-majed-badge-repair`, branch `fix/usage-badge-account-roster`, baseline `0c8bab1`; original checkout dirty state document untouched. Surgical-patch/Karpathy/TDD loaded; actual rendered badge + fake RPC is the approved seam. Roster now admits only supported account providers with arrays, skipping unknown/loginless/missing/null/non-array entries without fake Zen accounts. All five supported providers and popup account/windows preserved; no redesign/new dependencies/OAuth edits.
+
+Final authentic mixed initial Zen+Codex baseline RED exit1 (missing pill 0 !== 1), patched focused13/13 and full classifier166/166 Node853/853; build, fresh-build comparison and diffcheck exit0. Details [usage-badge-repair-verification.md](usage-badge-repair-verification.md); logs in worktree parent `badge-*-final.log`. One unexpected VM-fixture translator omission corrected via existing explicit translator prop; deliberate reds excluded. Local scoped worker commit contains source/generated browser output/tests/changelog/state/evidence, unmerged/unpushed. No nested agents/Claude/browser/network/live/installed/profile/credential/push/merge/closure actions.
+
+Next allowed action: Lead reconcile candidate, independent Standards/Spec review against0c8bab1 and Owner contract, package safety/byte verification, then separately approved installation and consolidated Owner acceptance. Independent review/package/installed-live acceptance NOT completed; no ticket closure claim. Historical #137 closure remains unchanged.
+
 ## #137 Owner closure disposition — 2026-11-01
 
 Owner confirmed restart and separately authorized discovery plus one short free inference. Screenshot establishes reachable catalog/eight models; Owner-reported inference returned `Failure reason: OpenCode Zen is rate limited. Please try again later.` No successful live answer or automatic retry. Owner explicitly accepted the rate-limit constraint instead of waiting for successful live inference and authorized closure. Controlled EN/AR and fake-reference coexistence proof are not independent installed/live coexistence observations. Closure is docs/tracker-only, with explicit feature-branch push and fetched equality/main preservation verification. Functional ticket137 is accepted with this stated substitution; final UIUX proposal remains next pending Owner discussion, no implementation authorized. Detailed disposition in ticket-137-verification.md. No further installed/provider operations.
