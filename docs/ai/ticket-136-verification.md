@@ -32,6 +32,35 @@ The corrected fixture registers methods on actual Cordis namespace Service insta
 
 Attributable planned red: temporarily omit only `remote` from the fixture's forwarded injection list, leaving namespace services and production bundle unchanged. Node exits 1 with no calls and the unavailable directory; restoring the exact forwarded list passes. No deliberately incorrect bundle remains. Logs `/tmp/majed136-root-extension-red.log` and `/tmp/majed136-root-extension-green.log`. The earlier fixture errors do not demonstrate a deeper production defect. Full repair gate results are recorded in current work.
 
+## Synthetic browser visual verification extension (2026-11-01)
+
+Owner approved a further twenty-minute visual-only extension at candidate `44c8dd49b81264bcae05396e1792a3071b50b276`, branch `fix/136-native-ui`. Clean starting tree confirmed. No product edits were made. BrowserSkill was checked once and returned `no browser is currently connected`; no repeated connection probe. The explicitly approved Playwright tool route then rendered the actual React component successfully in an isolated browser, not installed DSH. BrowserSkill, browser-harness, playwright-cli, verify-and-stop and Impeccable context/audit guidance were loaded; this was verification, not a redesign.
+
+Existing package/build configuration was inspected. No dependencies were installed. Successful bundle command (run from this worktree with `npm_config_cache=/tmp/npm-cache-majed`):
+
+```js
+// node --input-type=module; existing rolldown dependency from tsdown
+import { rolldown } from 'rolldown';
+const bundle = await rolldown({
+  input: 'scripts/api-providers-dom-136.tsx', platform: 'browser',
+  define: { 'process.env.NODE_ENV': JSON.stringify('development') },
+});
+await bundle.write({ file: '/tmp/majed136-dom-visual.js', format: 'iife', name: 'Majed136Fixture' });
+await bundle.close();
+```
+
+Bundling succeeded with only the upstream top-level `define` deprecation warning. `node scripts/serve-api-providers-dom-136.mjs /tmp/majed136-dom-visual.js` served synthetic data only at `http://127.0.0.1:52678`. This was a temporary fixture transport, not a replacement DSH server. Fake remotes contain one configured long-name provider and a separate unconfigured catalog entry; no real accounts, keys, profiles, remote services or provider requests were used.
+
+Observed matrix: EN/LTR and AR/RTL × light and dark × viewport widths 360, 768 and 1440 CSS pixels, height 1000. Each combination rendered configured list, inset edit form, catalog Add and Custom API tab: 48 full-page captures. Screenshot paths follow `/tmp/majed136-{en|ar}-{light|dark}-{360|768|1440}-{list|editor|catalog|custom}.png`. All 48 states had `document.documentElement.scrollWidth === innerWidth`; each retained exactly one configured row rather than exposing the unconfigured catalog as a row. Catalog/custom tab switching, labels, Apply/Cancel, model ID/name rows and long provider name wrapping were observed. EN and AR narrow dark model add/remove changed textbox counts 4 → 6 → 4; model text inputs remained LTR in both languages.
+
+Computed style proof: configured card width 312px at 360 and 720px at wider sizes; card padding 12px narrow / 12px 14px wider; radius 12px. Controls were 40px high, 8px radius, 8px 12px padding. Light foreground/fill/stroke resolved to rgb(34,34,34)/rgb(250,250,250)/rgb(221,221,221); dark to rgb(238,238,238)/rgb(36,36,36)/rgb(72,72,72). Focusing Display name then pressing Tab reached localized Base URL with a computed solid 2px rgb(54,124,255) focus outline in all twelve combinations. This verifies this keyboard transition, not exhaustive keyboard accessibility or a WCAG contrast certification.
+
+Directly inspected captures: `/tmp/majed136-en-light-360-editor.png`, `/tmp/majed136-ar-dark-360-editor.png`, `/tmp/majed136-en-dark-768-custom.png`, `/tmp/majed136-ar-light-1440-catalog.png`. They show readable spaced labels, inset divider, stacked narrow model fields, horizontal wider model layout, mirrored Arabic alignment and visible focus. Nonblocking visual limitation: the English missing-key status can wrap inside a word beside the deliberately long provider name (for example configure/d). No product patch was made during this evidence-only extension. Other captures were generated and geometry-checked, not individually visually reviewed.
+
+Native authority comparison is source-based only: `/tmp/majed136-installed-source-aUugEO/dsh-client-ui-settings-models/lib/client.js:58` defines the native 720px section, 12px/8px gaps, semantic card tokens, 12px 14px row inset and native radii. The fixture is consistent with those broad primitives, not pixel-identical: native CSS has .5px card borders and 36px buttons, versus this component's 1px/40px. No incumbent screenshot files were present in the extracted source directory, so no pixel or side-by-side native screenshot parity is claimed. Theme values are synthetic stand-ins, not installed theme resolution. Browser console's initial failed resource was the fixture's unserved favicon, not a React render failure.
+
+Cleanup completed: Playwright page closed; managed fixture job `bash-ea59c386428447b7` cancelled and collected with final status killed. No BrowserSkill session was created. Temporary bundle/screenshots remain only under `/tmp`, outside the commit. No installed changes, replacement app server, real traffic, merge, push or ticket closure. Previous automated gates remain applicable to unchanged product revision; this extension adds actual synthetic DOM proof, not installed acceptance. Independent Lead Standards/Spec review remains separate.
+
 ## Residual gates — not live acceptance
 
 Public SDK loadability, `remote.*` injection and principal/admission in the actual installed browser remain unverified. A harmless approved browser-admission check is a separate post-review action. Fake remotes do not establish installed parity, paired-remote access, actual discovery networking or provider inference. Model JSON validation intentionally delegates the owning namespace's full schema to native settings mutation; native validation errors become a generic localized failure rather than echoed provider diagnostics. Native saves and credential writes are not atomic; a key-only operation does not invent a settings revision transaction. In-flight transport cancellation is not claimed; unmount suppresses render updates and removes listeners, but cannot roll back a write already sent.

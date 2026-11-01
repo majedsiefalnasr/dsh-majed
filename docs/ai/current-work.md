@@ -1,6 +1,12 @@
 # Current work
 
-## #136 native UI repair candidate — visual gate pending
+## #136 native UI repair candidate — synthetic visual evidence collected
+
+Owner-approved visual-only twenty-minute extension on clean `fix/136-native-ui` candidate `44c8dd49b81264bcae05396e1792a3071b50b276`: actual component bundled successfully with existing rolldown/tsdown dependency, no install/esbuild. BrowserSkill checked once (still no connected browser); explicitly permitted isolated Playwright route worked. EN/AR × light/dark × 360/768/1440 widths × list/editor/catalog/custom captured (48 states), all geometry checks without horizontal overflow; localized keyboard focus and narrow model add/remove exercised. Four representative captures directly inspected. Detailed commands, computed styles, screenshot naming and limits in [verification](ticket-136-verification.md#synthetic-browser-visual-verification-extension-2026-11-01). Product source unchanged; automated gates below reused, not rerun as visual proof.
+
+Residual: long English missing-key text can break inside a word beside extreme provider name; no broad redesign or product patch. Native comparison source-based only (no screenshot artifact found in extracted native source); synthetic tokens do not prove installed theme/admission or pixel parity. Managed loopback fixture job `bash-ea59c386428447b7` stopped/collected; Playwright page closed. Temporary bundle/screenshots only in `/tmp`, no installed/profile/real remote/provider operations. Extension consumed one failed connection diagnostic, no failed bundle/browser validation; stop now with evidence-only scoped commit. Next allowed action: separate independent Lead Standards/Spec review, reconcile visual limitation/native screenshot gap, then package/operational gates as separately approved; no Owner trial requested, merge/push/closure not authorized.
+
+## Prior #136 native UI repair checkpoint (superseded visual gate)
 
 Direct Owner continuation supersedes the stale installed-unavailable diagnosis below: Owner confirms root-injection fix 49b720c/merge 9498483 made the installed directory visible, but rejects the whole-catalog unstyled presentation. Worktree `/Users/majedsiefalnasr/Documents/Work/DeepSeek Harness/dsh-majed-136-native-ui`, branch `fix/136-native-ui`, baseline `9498483d5cade177b12474e1690ef5e15ee9cbe2`. Prior workflow87469294 report remains unknown; actual starting diff was only the preserved partial presentation test (3 insertions/1 deletion), no implementation. No inferred previous success/failure.
 
