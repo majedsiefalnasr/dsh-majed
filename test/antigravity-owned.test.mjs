@@ -61,7 +61,27 @@ test('Antigravity assembled Google login, quotas, Manage, chat and logout use ow
   } finally { mounted.dispose(); globalThis.fetch=previous; }
 });
 
-test('unconfigured and malformed Antigravity retain expired sessions without HTTP or blocking other providers', async () => {
+test('zero-config Antigravity is available without HTTP or exposing its bundled identity', async () => {
+  process.env.DSH_HOME = await mkdtemp('/tmp/majed-oauth-default-');
+  const id = process.env.ANTIGRAVITY_CLIENT_ID, secret = process.env.ANTIGRAVITY_CLIENT_SECRET;
+  delete process.env.ANTIGRAVITY_CLIENT_ID; delete process.env.ANTIGRAVITY_CLIENT_SECRET;
+  const previous = globalThis.fetch; let requests = 0;
+  globalThis.fetch = async () => { requests++; throw new Error('HTTP forbidden'); };
+  let mounted;
+  try {
+    mounted = host({});
+    const status = (await mounted.call('status')).value.providers.antigravity;
+    assert.ok(status.setupRequired === false);
+    assert.ok(['antigravity','codex','claude','grok','copilot'].every(provider => mounted.adapters[provider]));
+    assert.equal(requests, 0);
+  } finally {
+    mounted?.dispose(); globalThis.fetch = previous;
+    if (id === undefined) delete process.env.ANTIGRAVITY_CLIENT_ID; else process.env.ANTIGRAVITY_CLIENT_ID = id;
+    if (secret === undefined) delete process.env.ANTIGRAVITY_CLIENT_SECRET; else process.env.ANTIGRAVITY_CLIENT_SECRET = secret;
+  }
+});
+
+test('malformed Antigravity overrides retain expired sessions without HTTP or blocking other providers', async () => {
   process.env.DSH_HOME = await mkdtemp('/tmp/majed-oauth-setup-');
   const {saveAccountSession, getAccountSession} = await import('../dist/auth/store.js');
   const session = {accessToken:'dummy-access',refreshToken:'dummy-refresh',expiresAt:1,projectId:'dummy-project',account:'dummy-account'};
@@ -69,7 +89,7 @@ test('unconfigured and malformed Antigravity retain expired sessions without HTT
   const previous=globalThis.fetch; let requests=0;
   globalThis.fetch=async()=>{requests++; throw new Error('HTTP forbidden');};
   try {
-    for (const config of [{}, {clientSecret:'dummy-unpaired'}, {clientId:42}, {clientId:'bad id'}]) {
+    for (const config of [{clientSecret:'dummy-unpaired'}, {clientId:42}, {clientId:'bad id'}]) {
       const mounted=host(config);
       try {
         assert.ok(['codex','claude','grok','copilot'].every(provider=>mounted.adapters[provider]));

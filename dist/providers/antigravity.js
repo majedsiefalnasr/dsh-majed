@@ -10,6 +10,7 @@ import { parseAntigravityResponse, streamAntigravity, toAntigravityRequest, } fr
 import { httpLlmError, withAbortSignal, idleWatchdog, mapFetchFailure, mergeReasoning, ModelCatalogCache, discoverOrRetryAuth, isMissingOrInvalidCredential, oauthEndpointError, OAuthEndpointError, discoverAcrossAccounts, isDiscoveryAborted, } from './common.js';
 import { proxiedFetch } from '../http.js';
 import { sanitizeDiagnostic } from '../diagnostic.js';
+import { ANTIGRAVITY_DEFAULT_CLIENT_ID, ANTIGRAVITY_DEFAULT_CLIENT_SECRET } from './antigravity-oauth-client.js';
 import { DISCOVERY_TIMEOUT_MS, unionAccountCatalogs } from './accounts.js';
 import { DEFAULT_RATE_LIMIT_WAIT, DEFAULT_RETRY, subscriptionRetryPolicy } from './rate-limit.js';
 export const ANTIGRAVITY_AUTHORIZE_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
@@ -32,8 +33,8 @@ export const ANTIGRAVITY_SCOPES = [
     'https://www.googleapis.com/auth/cclog',
     'https://www.googleapis.com/auth/experimentsandconfigs',
 ];
-export const ANTIGRAVITY_SETUP_REQUIRED = 'Antigravity requires an externally configured authorized OAuth client. Configure the DSH host environment; stored accounts are retained.';
-/** Resolve an external same-source pair; invalid configuration disables only Antigravity. */
+export const ANTIGRAVITY_SETUP_REQUIRED = 'Antigravity OAuth client configuration is malformed. Correct the configured client pair; stored accounts are retained.';
+/** Resolve config, environment, then bundled defaults; never combine client sources. */
 export function resolveAntigravityOAuthConfig(config) {
     const pair = (id, secret) => {
         if (typeof id !== 'string' || !/^[A-Za-z0-9._-]+$/.test(id.trim()))
@@ -44,7 +45,10 @@ export function resolveAntigravityOAuthConfig(config) {
     };
     if (config && (config.clientId !== undefined || config.clientSecret !== undefined))
         return pair(config.clientId, config.clientSecret);
-    return pair(process.env.ANTIGRAVITY_CLIENT_ID, process.env.ANTIGRAVITY_CLIENT_SECRET);
+    if (process.env.ANTIGRAVITY_CLIENT_ID !== undefined || process.env.ANTIGRAVITY_CLIENT_SECRET !== undefined) {
+        return pair(process.env.ANTIGRAVITY_CLIENT_ID, process.env.ANTIGRAVITY_CLIENT_SECRET);
+    }
+    return { clientId: ANTIGRAVITY_DEFAULT_CLIENT_ID, clientSecret: ANTIGRAVITY_DEFAULT_CLIENT_SECRET };
 }
 /** Normalize the configured API origin and reject paths/credentials. */
 export function antigravityBaseURL(value) {

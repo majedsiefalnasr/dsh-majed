@@ -4,7 +4,7 @@
     "description": "دعم النصوص ثنائية الاتجاه (RTL/LTR) للعربية والفارسية والعبرية، وعكس مكوّنات GenUI، وخيارات إضافية في الإعدادات ▸ عام مثل حجم خط واجهة التطبيق."
   },
   "subscriptions": {
-    "antigravitySetupRequired": "يتطلب Antigravity عميل OAuth معتمدًا مُعدًا خارجيًا في بيئة مضيف DSH. تُحفظ الحسابات؛ استخدم هوية العميل المعتمدة المطابقة قبل تحديث الجلسات الحالية.",
+    "antigravitySetupRequired": "إعداد عميل OAuth في Antigravity غير صالح. صحّح بيانات العميل المُعدّة؛ تُحفظ الحسابات الحالية.",
     "copilotDeviceHint": "أدخل هذا الرمز في صفحة التحقق من GitHub.",
     "copyDeviceCode": "نسخ الرمز",
     "copilotProviderUnavailable": "Copilot غير متاح. أوقف المكوّن المرجعي أولًا.",

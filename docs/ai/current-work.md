@@ -2,7 +2,17 @@
 
 Updated 2026-11-01 (Africa/Cairo).
 
-## Authoritative checkpoint — approved clean publication
+## Authoritative checkpoint — Owner-authorized bundled OAuth restoration candidate
+
+Owner explicitly approved transparent restoration and asserts redistribution permission; documentary license/Google authorization is not independently verified. This supersedes external-only behavior below, not the historical publication record. Bounded surgical-patch contract: restore exact locally reviewed default identity, preserve config/environment precedence and same-source pairing, cancellation and all providers; retain compatible malformed-override guards; dummy-only regression proof; source/generated/docs scoped local commit. No installed state, nested agents, provider calls, credential validation, history rewriting, merge, push, issue/security-setting/allowlist changes. Official push-protection exception remains separate Owner action. Investigation cap two failed diagnostics or twenty minutes; no failed validation attempts consumed.
+
+Isolated worktree `../dsh-majed-oauth-restored`, branch `fix/restore-authorized-oauth`, baseline `7b6ba6beaebd647755d4ecc8b0dfbcd27dd1ba99`. Original `../dsh-majed-oauth-clean` dirty document preserved. Exact source module byte equality with reviewed `0b8160bcc795bee99e8fac98194eb724af5a4c77` verified in memory, boolean-only output. No values or hashes of values emitted. No obfuscation/encoding/splitting/remote loading/bypass. Known Google OAuth scanner flag intentionally restored in source/generated output: NOT secret-scan clean, NOT publication clearance.
+
+Verification: offline locked `npm ci --ignore-scripts --offline`, `npm run build`, full `npm test` (classifier166/166; Node821/821; failures/cancellations/skips0), `npm run check:build`, working whitespace check all exit0, using `npm_config_cache=/tmp/npm-cache-majed`. Logs `/tmp/majed-oauth-restored-{dependencies,build,tests,check-build,diffcheck}.log`. Tests prove default presence/resolution and assembled zero-config availability without HTTP using boolean-only assertions; override tests use dummy values, malformed overrides retain sessions and leave other providers available. Existing cancellation/login/chat suites retained. Controlled proof only; no installed/live login claim. Details: [OAuth restoration evidence](oauth-external-config.md).
+
+Current phase: candidate pending independent Lead Standards/Spec review. Local commit only, unmerged/unpushed; commit identifier is supplied in handoff (not self-embedded). Exact next allowed action: independent Lead review, not publication or installed changes. Separate Owner action required for any official GitHub exception if blocked.
+
+## Historical checkpoint — approved clean publication
 
 Owner approved externalOAuth behavior change and reconstruction of UNPUBLISHED history, followed by normal explicit publication. Independent Standards PASS / Spec PASS supplied for reviewed candidate d40309c03805a3ac4b0d3d31b71db4e7b9799ec7 (workflow-c5ff1cc466f5423a). No new runtime changes authorized or made.
 
