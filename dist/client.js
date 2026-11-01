@@ -298,6 +298,15 @@ async function callSubscriptionsAuth$1(rpc, endpoint, payload) {
 //#endregion
 //#region locale/en.json
 var subscriptions$1 = {
+	"zenRefresh": "Refresh status",
+	"zenNoLogin": "Free models · no login required",
+	"zenUnavailable": "OpenCode Zen is unavailable.",
+	"zenReachable": "Gateway reachable (catalog only; inference not verified)",
+	"zenUnreachable": "Gateway unreachable; fallback models may not be available.",
+	"zenModelCount": "Available models",
+	"zenSource_gateway": "Gateway catalog",
+	"zenSource_static": "Static fallback",
+	"zenSource_cache": "Cached fallback",
 	"apiUnavailable": "Native API-provider remotes are unavailable. Browser admission must be verified before use.",
 	"apiRefresh": "Refresh API providers",
 	"apiLoading": "Loading native providers…",
@@ -919,6 +928,15 @@ function VideoGenerateToolview(props) {
 //#endregion
 //#region locale/ar.json
 var subscriptions = {
+	"zenRefresh": "تحديث الحالة",
+	"zenNoLogin": "نماذج مجانية · لا يلزم تسجيل الدخول",
+	"zenUnavailable": "خدمة OpenCode Zen غير متاحة.",
+	"zenReachable": "البوابة متاحة (قائمة النماذج فقط؛ لم يُتحقق من التوليد)",
+	"zenUnreachable": "يتعذر الوصول للبوابة؛ قد لا تتاح النماذج الاحتياطية.",
+	"zenModelCount": "النماذج المتاحة",
+	"zenSource_gateway": "قائمة البوابة",
+	"zenSource_static": "قائمة احتياطية ثابتة",
+	"zenSource_cache": "قائمة احتياطية مخزنة",
 	"apiUnavailable": "واجهات موفري API الأصلية غير متاحة. يجب التحقق من صلاحية المتصفح قبل الاستخدام.",
 	"apiRefresh": "تحديث موفري API",
 	"apiLoading": "جارٍ تحميل الموفرين الأصليين…",
@@ -4397,6 +4415,55 @@ function createAntigravityCard(React, primitives$1, rpc, t) {
 }
 
 //#endregion
+//#region src/zen-card.ts
+/** Login-less lane; independent presentation using the existing owned card styles and RPC. */
+function createZenCard(React, primitives$1, rpc, t) {
+	const h = React.createElement;
+	return function ZenCard() {
+		const [status, setStatus] = React.useState(null);
+		const [failed, setFailed] = React.useState(false);
+		const [pending, setPending] = React.useState(false);
+		const alive = React.useRef(true);
+		const refresh = async () => {
+			setPending(true);
+			try {
+				const value = await callSubscriptionsAuth$1(rpc, "zenStatus", {});
+				if (alive.current) {
+					setStatus(value);
+					setFailed(false);
+				}
+			} catch {
+				if (alive.current) setFailed(true);
+			} finally {
+				if (alive.current) setPending(false);
+			}
+		};
+		React.useEffect(() => {
+			alive.current = true;
+			refresh();
+			return () => {
+				alive.current = false;
+			};
+		}, []);
+		return h("div", {
+			style: {
+				...styles$3.section,
+				textAlign: "start"
+			},
+			"data-majed-zen-card": true
+		}, h("div", { style: styles$3.card }, h("div", { style: styles$3.cardHeader }, h("span", { style: styles$3.name }, "OpenCode Zen"), h(primitives$1.Button ?? "button", {
+			type: "button",
+			disabled: pending,
+			onClick: () => void refresh(),
+			style: { marginInlineStart: "auto" }
+		}, t("zenRefresh"))), h("p", { style: styles$3.statusLine }, t("zenNoLogin")), h("p", {
+			role: "status",
+			style: styles$3.statusLine
+		}, failed || status?.registrationError ? t("zenUnavailable") : !status ? t("checking") : status.reachable ? t("zenReachable") : t("zenUnreachable")), status ? h("p", { style: styles$3.statusLine }, `${t("zenModelCount")}: ${status.modelCount} · ${t("zenSource_" + status.source)}`) : null));
+	};
+}
+
+//#endregion
 //#region src/grok-card.ts
 /**
 * Grok Settings card (ticket #133). Scoped presentation port of the Grok part of V1ki v0.9.12 b802311
@@ -5794,6 +5861,7 @@ function applySubscriptions(root) {
 		const CopilotCard = guarded(React, createCopilotCard(React, primitives$1, connection.rpc, t), "Copilot card");
 		const ClaudeCard = guarded(React, createClaudeCard(React, primitives$1, connection.rpc, t), "Claude card");
 		const AntigravityCard = guarded(React, createAntigravityCard(React, primitives$1, connection.rpc, t), "Antigravity card");
+		const ZenCard = guarded(React, createZenCard(React, primitives$1, connection.rpc, t), "Zen card");
 		const GrokCard = guarded(React, createGrokCard(React, primitives$1, connection.rpc, t), "Grok card");
 		const GuardedSetting = guarded(React, UsageBadgeDisplaySetting, "usage display setting");
 		const GuardedSpeed = guarded(React, SpeedSelect, "Speed control");
@@ -5837,7 +5905,7 @@ function applySubscriptions(root) {
 			}, h("h3", { style: { font: "var(--dsw-font-s-strong-14)" } }, h(IconSettingsOutlineMedium, { "aria-hidden": true }), t(part)), part === "accounts" ? h("div", null, h("p", { style: {
 				marginBlock: "0 var(--dsw-spacing-3)",
 				color: "var(--dsw-alias-label-tertiary)"
-			} }, t("intro")), h(GuardedSetting, { t }), h(CodexCard), h(ClaudeCard), h(GrokCard), h(AntigravityCard), h(CopilotCard)) : ApiProviders ? h(ApiProviders) : h("p", { role: "status" }, t("apiUnavailable")))));
+			} }, t("intro")), h(GuardedSetting, { t }), h(CodexCard), h(ClaudeCard), h(GrokCard), h(AntigravityCard), h(CopilotCard), h(ZenCard)) : ApiProviders ? h(ApiProviders) : h("p", { role: "status" }, t("apiUnavailable")))));
 		}
 		const models = () => ctx.get("modelDirectories");
 		const surfaceWanted = () => !disposed && present && !referenceEnabled;

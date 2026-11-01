@@ -1,3 +1,4 @@
+import { ZenAdapter } from './providers/zen.js';
 import { AntigravityAuthController } from './auth/antigravity-controller.js';
 import { AntigravityAdapter, ANTIGRAVITY_SETUP_REQUIRED, ANTIGRAVITY_PREEMPT_MS, refreshAntigravity, isAntigravityPermanentRefreshError, fetchAntigravityUsage, resolveAntigravityOAuthConfig, type AntigravityOAuthConfig, type AntigravityRuntimeConfig } from './providers/antigravity.js';
 import type { AntigravitySession } from './auth/store.js';
@@ -172,6 +173,10 @@ const CLAUDE_ENDPOINTS = new Set(['status', 'login', 'manual', 'cancel', 'logout
 export interface ApplyOptions { claudeCredsIo?: ClaudeCredsIo; claudeProfile?: ClaudeProfileLookup }
 
 export function apply(ctx: Context, config: Config = {}, options: ApplyOptions = {}): void {
+  const zen = new ZenAdapter();
+  let zenRegistrationError = false;
+  try { ctx.llm.registerAdapter(['opencode-zen'], zen); } catch { zenRegistrationError = true; }
+  ctx.effect(() => () => zen.dispose(), 'dsh-majed: zen disposal');
   const claudeCredsIo = options.claudeCredsIo ?? SYSTEM_CLAUDE_CREDS_IO;
   const claudeIdentity = { profile: options.claudeProfile ?? fetchClaudeProfile };
   const preferences = new ProviderSettingsStore();
@@ -488,7 +493,7 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
 
   ctx.inject(['connection'], ctx => {
     const connection = ctx.get('connection') as unknown as { fetch: { register(route: object): () => unknown } };
-    const endpoints = ['image', 'video', 'status', 'login', 'manual', 'cancel', 'logout', 'setDefault', 'usage', 'prepareReset', 'consumeReset', 'providerSettings', 'setProviderSettings', 'modelDefaults', 'setModelDefault', 'proxyGet', 'proxySet', 'proxyTest', 'speed', 'setSpeed'];
+    const endpoints = ['zenStatus', 'image', 'video', 'status', 'login', 'manual', 'cancel', 'logout', 'setDefault', 'usage', 'prepareReset', 'consumeReset', 'providerSettings', 'setProviderSettings', 'modelDefaults', 'setModelDefault', 'proxyGet', 'proxySet', 'proxyTest', 'speed', 'setSpeed'];
     for (const endpoint of endpoints) {
       const NS = 'majed-subscriptions.';
       const method = `${NS}${endpoint}`;
@@ -510,6 +515,7 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
             if (provider !== 'codex' && !CLAUDE_ENDPOINTS.has(endpoint)) throw new Error('Only Codex is available');
             let value: unknown = { ok: true };
             switch (endpoint) {
+              case 'zenStatus': value = { ...await zen.status(request.signal), registrationError: zenRegistrationError }; break;
               case 'image': {
                 const ref = payload as unknown as Parameters<AttachmentStore['readImage']>[0];
                 if (!ref || typeof ref.attachmentId !== 'string' || !/^sha256:[a-f0-9]{64}$/.test(ref.attachmentId)) throw new Error('Invalid image reference');
@@ -555,7 +561,7 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
                 const grokState = await grokAuth.status();
                 value = { ok: true, component: 'subscriptions', version: '0.2.0', registrationError: collision === undefined ? undefined : await collisionText(),
                   antigravityRegistrationError: antigravityCollision, claudeRegistrationError: claudeCollision, copilotRegistrationError: copilotCollision, grokRegistrationError: grokCollision,
-                  providers: { antigravity: { ...await antigravityAuth.status(), visibleModels: preferences.get('antigravity').visibleModels, displayName: preferences.get('antigravity').displayName, accounts: (await antigravityAuth.status()).accounts.map(account => ({ ...account, alias: ownAlias('antigravity', account.key) })) }, grok: { ...grokState, displayName: preferences.get('grok').displayName, accounts: grokState.accounts.map(account => ({ ...account, alias: ownAlias('grok', account.key) })) }, copilot: { ...await copilotAuth.status(), accounts: (await copilotAuth.status()).accounts.map(account => ({ ...account, alias: ownAlias('copilot', account.key) })), displayName: preferences.get('copilot').displayName }, codex: { ...state, displayName: preferences.get('codex').displayName,
+                  providers: { 'opencode-zen': { ...zen.snapshot(), registrationError: zenRegistrationError }, antigravity: { ...await antigravityAuth.status(), visibleModels: preferences.get('antigravity').visibleModels, displayName: preferences.get('antigravity').displayName, accounts: (await antigravityAuth.status()).accounts.map(account => ({ ...account, alias: ownAlias('antigravity', account.key) })) }, grok: { ...grokState, displayName: preferences.get('grok').displayName, accounts: grokState.accounts.map(account => ({ ...account, alias: ownAlias('grok', account.key) })) }, copilot: { ...await copilotAuth.status(), accounts: (await copilotAuth.status()).accounts.map(account => ({ ...account, alias: ownAlias('copilot', account.key) })), displayName: preferences.get('copilot').displayName }, codex: { ...state, displayName: preferences.get('codex').displayName,
                     accounts: state.accounts.map(account => ({ ...account, alias: ownAlias('codex', account.key) })), clientVersion: config.codexClientVersion ? { version: config.codexClientVersion, source: 'config' }
                     : version.current() ?? { version: CODEX_CLIENT_VERSION, source: 'fallback' } },
                   ...claudeState === undefined ? {} : { claude: { ...claudeState, displayName: preferences.get('claude').displayName,

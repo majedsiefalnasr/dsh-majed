@@ -4,6 +4,15 @@
     "description": "Bidirectional (RTL/LTR) text support for Arabic, Persian and Hebrew, GenUI RTL mirroring, and extra Settings > General options such as an app-UI font size."
   },
   "subscriptions": {
+    "zenRefresh": "Refresh status",
+    "zenNoLogin": "Free models · no login required",
+    "zenUnavailable": "OpenCode Zen is unavailable.",
+    "zenReachable": "Gateway reachable (catalog only; inference not verified)",
+    "zenUnreachable": "Gateway unreachable; fallback models may not be available.",
+    "zenModelCount": "Available models",
+    "zenSource_gateway": "Gateway catalog",
+    "zenSource_static": "Static fallback",
+    "zenSource_cache": "Cached fallback",
     "apiUnavailable": "Native API-provider remotes are unavailable. Browser admission must be verified before use.",
     "apiRefresh": "Refresh API providers",
     "apiLoading": "Loading native providers…",
