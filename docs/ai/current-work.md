@@ -1,6 +1,10 @@
 # Current work
 
-## #136 installed acceptance FAILED — remote availability diagnosis
+## #136 root-injection repair reviewed and packaged; reinstall approval pending
+
+Owner-approved extension completed in49b720ca73f29016c6a0f135983e9ccf0f0178f3; real Cordis namespace fixtures corrected, root injection added. Independent workflow-d5ea35d1ff1d4b02 Standards PASS / Spec PASS, focused28/28 and noemit passed; reviewer attribution probe limitations retained in report. Merged9498483 (state-only conflict preserved integration checkpoint; candidate evidence in ticket136verification). Lead integrated full Node835/835, fresh-build match and range diffcheck passed. Archive /tmp/majed-t136-root-final/dsh-majed-0.2.0.tgz SHA25639b74c0b9ccf2f1b5ad7192685e4186bd739560996c777fad5a5a1fc41435593;98 safe regular files byte-match checkout. Next separate Owner reinstall approval then affected API-directory/admission check and remaining original acceptance. Owner approved reinstall; archive hash rechecked and98 installed files byte-verified. Previous package /var/folders/vt/w58l5fv17nz9s5ybrbgpkgh80000gn/T/majed-136-root-install-72hofr09/previous retained. No provider/key/profile changes. Client-only repair: Owner page reload then directory availability check; remaining CRUD/conflict acceptance still required. No push/closure.
+
+## Historical failed installed trial
 
 Owner screenshot after install/restart shows APIproviders unavailable fallback: Native API-provider remotes are unavailable. Browser admission must be verified before use. This proves missing detected services, NOT authorization denial. Acceptance remains OPEN; no CRUD/key/discovery proof. Read-only diagnosis workflow-fac948d325694ca2 confirmed missing root-service injection: src/browser.ts53-57 namespace dependencies omit remote while reading scope.remote, unlike native client4417-4426. Actual Cordis probe enforces access and oldlist fails before RPC; addedroot works. Existing unrestricted fixture bypassed this; probe cleanup called nonexistentctx.dispose after assertions (no persistent process). Fix workflow-ea44afc060b14030 active codex/gpt-6.1-sol isolated branch for rootdependency+realCordis regression, rebuild/fullgates; no public permissionblocker established. Scope exact defect only; no installed/profile/key/remote operations, no push/closure. Budget two failed diagnostics or20min.
 
