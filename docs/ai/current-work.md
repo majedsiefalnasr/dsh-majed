@@ -2,7 +2,7 @@
 
 ## Usage badge repair reviewed and integrated — 2026-11-01
 
-Independent workflow-c35a3b10881f4b93 Standards PASS / Spec PASS, focused13/13; Lead full/freshbuild/diffcheck exit0 at eede04a. State-only merge conflict resolved preserving both histories below. Next integrated verification and byte-verified archive; separate Owner install approval required. No installed changes or live provider requests.
+Independent workflow-c35a3b10881f4b93 Standards PASS / Spec PASS, focused13/13; Lead full/freshbuild/diffcheck exit0 at eede04a. State-only merge conflict resolved preserving both histories below. Integrated dd80e36 fullsuite/fresh-build/diffcheck and pack exit0 (logs /tmp/badge-integrated-full.log, /tmp/badge-integrated-build.log). Archive `/tmp/majed-badge-final/dsh-majed-0.2.0.tgz` SHA256c2804a1eb6c4a0a10290e003e434a48efcc5e6981f7958dec7022605c5b8c336;99 safe regular byte-matched files verified. Owner explicitly approved reversible install. Archive hash rechecked;99 installed files byte-verified. Backup `/var/folders/vt/w58l5fv17nz9s5ybrbgpkgh80000gn/T/majed-badge-install-yzy0psyy/previous`; original also retained `/Users/majedsiefalnasr/.dsh/profiles/desktop/node_modules/dsh-majed.pre-badge-majed-badge-install-yzy0psyy`. No settings/account changes or provider requests. Owner confirmed badge appeared after reload and explicitly authorized publication. Popup opening was not separately confirmed; do not infer it from badge visibility. Next publish accepted repair explicitly to feat/subscriptions and verify fetched equality/main unchanged. Unpushed repair; no unrelated UIUX work. No installed changes or live provider requests.
 
 ## Missing composer usage badge — diagnosis only, 2026-11-01
 
