@@ -4,6 +4,7 @@ import { VideoGenerateToolview, createVideoLoader } from './VideoGenerateToolvie
 import en from '../locale/en.json';
 import ar from '../locale/ar.json';
 import { createCodexCard } from './codex-card.js';
+import { createApiProviders } from './api-providers.js';
 import { createCopilotCard } from './copilot-card.js';
 import { createClaudeCard } from './claude-card.js';
 import { createAntigravityCard } from './antigravity-card.js';
@@ -47,21 +48,27 @@ export function applySubscriptions(root: Context): void {
     const GuardedSetting = guarded(React, UsageBadgeDisplaySetting as any, 'usage display setting');
     const GuardedSpeed = guarded(React, SpeedSelect as any, 'Speed control');
     const GuardedBadge = guarded(React, SubscriptionUsageBadge as any, 'usage badge');
+    const listeners = new Set<() => void>();
+    let ApiProviders: any;
+    isolate(() => ctx.inject(['remote.settings', 'remote.credentials', 'remote.llm'], (scope: any) => {
+      ApiProviders = guarded(React, createApiProviders(React, scope.remote, t), 'API providers');
+      listeners.forEach(listener => listener());
+      return () => { ApiProviders = undefined; listeners.forEach(listener => listener()); };
+    }));
     let present = false;
     let failing = false;
     let referenceEnabled = false;
     let disposed = false;
     let sequence = 0;
     let withdraw: Dispose | undefined;
-    const listeners = new Set<() => void>();
     function Section() {
-      React.useSyncExternalStore((fn: () => void) => { listeners.add(fn); return () => listeners.delete(fn); }, () => `${failing}:${referenceEnabled}`);
+      React.useSyncExternalStore((fn: () => void) => { listeners.add(fn); return () => listeners.delete(fn); }, () => `${failing}:${referenceEnabled}:${!!ApiProviders}`);
       return h('div', { style: { textAlign: 'start', color: 'var(--dsw-alias-label-primary)', font: 'var(--dsw-font-s-14)' } },
         referenceEnabled ? h('p', { role: 'status' }, t('coexistence')) : null,
         failing ? h('p', { role: 'alert' }, t('unreachable')) : null,
         ...['accounts', 'providers'].map((part) => h('section', { key: part, style: { paddingBlock: 'var(--dsw-spacing-4)', borderBlockEnd: '1px solid var(--dsw-alias-border-l2)' } },
           h('h3', { style: { font: 'var(--dsw-font-s-strong-14)' } }, h(IconSettingsOutlineMedium, { 'aria-hidden': true }), t(part)),
-          part === 'accounts' ? h('div', null, h('p', { style: { marginBlock: '0 var(--dsw-spacing-3)', color: 'var(--dsw-alias-label-tertiary)' } }, t('intro')), h(GuardedSetting, { t }), h(CodexCard), h(ClaudeCard), h(GrokCard), h(AntigravityCard), h(CopilotCard)) : h('p', { style: { color: 'var(--dsw-alias-label-tertiary)' } }, t(`${part}Empty`)))));
+          part === 'accounts' ? h('div', null, h('p', { style: { marginBlock: '0 var(--dsw-spacing-3)', color: 'var(--dsw-alias-label-tertiary)' } }, t('intro')), h(GuardedSetting, { t }), h(CodexCard), h(ClaudeCard), h(GrokCard), h(AntigravityCard), h(CopilotCard)) : ApiProviders ? h(ApiProviders) : h('p', { role: 'status' }, t('apiUnavailable')))));
     }
     // Composer surfaces (ticket #131): the usage badge, the Speed control and /fast exist only while the component
     // answers and the reference plugin is not serving the same provider ids. Each registration is isolated so a

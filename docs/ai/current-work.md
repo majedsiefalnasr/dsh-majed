@@ -1,5 +1,15 @@
 # Current work
 
+## #136 isolated candidate — implementation gates passed; independent review next
+
+Branch `impl/136-api-providers`, base `527d5f5cfcf2b6404ee5babddd617096bab4f7f2`. Owner explicitly approved a twenty-minute finishing extension after the prior two-failure cap. Existing partial edits and integration dirty document preserved. Approved bounded route: existing section, injected public native settings/credentials/llm remotes, actual React fake-remotes seam 2; no new store/backend/dependencies. lean-build/tdd/karpathy loaded. Stories69–76 only. No installed/profile/live operations, nested agents, merge/push/closure or later ticket. Restored OAuth and other provider/auth source unchanged (protected-source diff exit0).
+
+Implemented directory/settings/key-presence join, catalog/custom Chat/Responses/Anthropic protocols, write-only key set/unset, display-name/base-URL/model edit/discovery, revision-aware settings edits/deletes, built-in/deployment protection, pushed refresh, EN/AR and partial-key retry. Native source authority is read-only extracted rc.3. Corrected obsolete assembled-browser placeholder assertion without deleting lifecycle coverage; added actual React assembled native-directory proof. New deliberate red/green proves empty optional display names use native fallback instead of invalid empty strings. Credential transport rejection after committed settings is truthfully reported as partial. Native services remain separate, not an invented atomic transaction.
+
+Verification: continuation focused39/39, `npm run build`, full `npm test` (classifier166/166; reference TypeScript compile; Node834/834; zero failures/cancellations/skips), `npm run check:build` (fresh output matches), working whitespace check all exit0. Logs `/tmp/majed136-extension-{red,focused,build,tests,check-build,diffcheck}.log`. No new non-deliberate test failure in extension; planned regression red excluded. Prior VM-cross-realm diagnostic and obsolete-placeholder failure remain historical budget evidence. Existing renderer warnings remain. No OAuth values or credential literals/diffs printed.
+
+Provenance, changelog and [verification/consolidated Owner checklist](ticket-136-verification.md) completed. Local scoped candidate commit supplied in handoff; unmerged/unpushed. Exact next allowed action: independent Lead Standards/Spec review against base and #136, then package verification and separately approved harmless browser SDK/principal-admission check before installed acceptance. Actual browser admission, installed cross-page sync, discovery/network and live/provider behavior are NOT proven. One consolidated Owner acceptance session only after those prerequisites and separate operational permissions. Historical checkpoints below do not supersede this candidate state.
+
 Updated 2026-11-01 (Africa/Cairo).
 
 ## Authoritative checkpoint — #136 public-remotes feasibility gate

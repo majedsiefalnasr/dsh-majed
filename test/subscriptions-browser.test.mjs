@@ -25,6 +25,7 @@ function browser(locale = 'en', initialAnswer, options = {}) {
   const models = { directoryFor: () => ({ load: async () => ({ current: { provider: 'codex', model: 'fast-model' } }) }) };
   ctx.get = name => name === 'modelDirectories' ? models : connection;
   ctx.inject = (names, fn) => {
+    if (names.includes('remote.settings')) { if (!options.remote) return; return fn({ remote: options.remote }); }
     if (names.includes('commandUi')) { if (!commandService) return; const scope = { get: () => commandService, effect: (run) => cleanups.push(run()) }; return fn(scope); }
     return fn(ctx);
   };
@@ -74,12 +75,32 @@ test('actual public and alias video outlets recover after reference withdrawal a
   } finally { page.cleanup(); }
 });
 function text(node) { return typeof node === 'string' ? node : node?.children?.flat(Infinity).map(text).join(' ') ?? ''; }
-test('present component registers one section with both empty parts, then withdraws on absence', async () => {
+test('present component registers accounts and native-remotes availability, then withdraws on absence', async () => {
   const page = browser(); await page.settle();
   assert.equal(page.section.options.id, 'majed-subscriptions');
-  assert.match(text(page.section.component()), /Subscription accounts.*API providers.*No API providers yet/);
+  assert.match(text(page.section.component()), /Subscription accounts.*API providers.*Native API-provider remotes are unavailable/);
   page.setAnswer(() => Promise.reject(new Error('transport failure for /api/majed-subscriptions.status: HTTP 404')));
   page.tick(); await page.settle(); assert.equal(page.section, undefined); page.cleanup();
+});
+test('assembled section renders injected native provider directory with actual React', async () => {
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  const ok = value => ({ ok: true, value });
+  const remote = {
+    $on: () => () => {},
+    settings: { describe: async () => ok({ writable: false, namespaces: [] }) },
+    credentials: { describe: async () => ok({}) },
+    llm: {
+      listConfigurableProviders: async () => ok([]),
+      listProviders: async () => ok([{ id: 'fixture-native', name: 'Native fixture directory' }]),
+    },
+  };
+  const page = browser('en', undefined, { React: ActualReact, remote }); await page.settle();
+  let renderer;
+  try {
+    await act(async () => { renderer = create(ActualReact.createElement(page.section.component)); });
+    assert.match(JSON.stringify(renderer.toJSON()), /Native fixture directory/);
+    assert.doesNotMatch(JSON.stringify(renderer.toJSON()), /No API providers yet|Browser admission must be verified/);
+  } finally { if (renderer) await act(async () => renderer.unmount()); page.cleanup(); }
 });
 test('unreachable known component displays a clear message; reconnect recovers', async () => {
   const page = browser(); await page.settle();

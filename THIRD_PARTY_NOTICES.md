@@ -1,5 +1,7 @@
 # Third-party notices
 
+#136's native API-provider UI and tests are independently authored against public DSH `0.2.1-rc.3` contracts, not copied third-party implementation. The precise native package/source references and local adaptations are recorded in `src/PROVENANCE.md`; existing notices below remain unchanged.
+
 #135 additionally ports Google Antigravity OAuth/provider and Gemini-shaped request/schema/thinking/stream translation, with its reference behavior and visible-model quota-filter tests, from V1ki/dsh-plugin-subscriptions v0.9.12 at `b8023110864494acefc6f5963c2a197d85dda20c` under MIT. The retained V1ki copyright and license in `src/PROVENANCE.md` apply; that record identifies owned lifecycle/composition and English/Arabic adaptations.
 
 `dsh-majed` is released under the MIT License (see `LICENSE`). It includes the following third-party material.

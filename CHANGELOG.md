@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Add #136 API providers to Subscriptions using DSH's public settings, credentials and llm remotes: native catalog/registered directory, custom Chat/Responses/Anthropic endpoints, write-only key presence/set/unset, display name/base URL, model discovery/editing, protected deletion and revision conflict messages in English/Arabic. Settings remain the only durable store; partial settings/key failures are reported without claiming atomicity. Controlled React proof only; browser admission, independent review and consolidated installed/live acceptance remain separate.
+
 - Restore the exact reference-faithful bundled Antigravity OAuth identity for zero-config Google login, on the Owner's assertion of redistribution permission (not independently verified documentary authorization). Explicit config and environment retain precedence and same-source pairing; malformed overrides retain provider-scoped guards and stored accounts. This transparently reintroduces the known scanner flag; any official GitHub push-protection exception remains a separate Owner action. Controlled dummy-only tests, not installed/live verification.
 
 - Correct #135 stalled Antigravity SSE and OAuth/internal HTTP error bodies: caller/idle cancellation settles without awaiting transport cancellation and releases owned readers. Preserve HTTP/OAuth classification and retry metadata while sanitizing diagnostics; add real-Response cancellation and late-login persistence regressions. Controlled tests only; independent review and installed/live acceptance remain separate.

@@ -298,6 +298,36 @@ async function callSubscriptionsAuth$1(rpc, endpoint, payload) {
 //#endregion
 //#region locale/en.json
 var subscriptions$1 = {
+	"apiUnavailable": "Native API-provider remotes are unavailable. Browser admission must be verified before use.",
+	"apiRefresh": "Refresh API providers",
+	"apiLoading": "Loading native providers…",
+	"apiFailed": "The native operation failed. Your draft is retained; refresh or retry. No remote diagnostic is displayed because it may contain sensitive data.",
+	"apiConflict": "Settings changed underneath this editor. Your draft was not overwritten or applied. Cancel, refresh and reopen to reconcile your changes.",
+	"apiPartial": "Provider settings were saved, but the key operation failed. Your key intent is retained; retry saves only the outstanding key operation.",
+	"apiInvalid": "Check the route, HTTP(S) URL and model JSON. Custom endpoints need a base URL and at least one model.",
+	"apiSaved": "Saved to native DSH settings.",
+	"apiKeySet": "Key configured",
+	"apiKeyMissing": "No key configured",
+	"apiAdd": "Add provider",
+	"apiEdit": "Edit provider",
+	"apiDelete": "Delete added provider",
+	"apiCustom": "Add custom endpoint",
+	"apiEditor": "API provider editor",
+	"apiRoute": "Provider route (lowercase words separated by hyphens)",
+	"apiName": "Display name",
+	"apiURL": "Base URL",
+	"apiProtocol": "Protocol",
+	"apiKeyAction": "Key action",
+	"apiKey_keep": "Keep current key",
+	"apiKey_set": "Set or replace key",
+	"apiKey_unset": "Remove stored key",
+	"apiKey": "New key (write only)",
+	"apiKeyLimit": "Stored keys are never read back. Settings and key writes are separate native operations, not a transaction. Removing a stored key may reveal an environment fallback. Deleting a provider does not delete shared credentials.",
+	"apiFetch": "Fetch available models",
+	"apiModels": "Models (JSON)",
+	"apiModelsHint": "Edit model id, name, contextWindow, maxTokens, input (text/image) and reasoningEfforts (false or a native level-to-effort object). Fetch updates this draft only; Save applies it.",
+	"apiSave": "Save provider",
+	"apiCancel": "Cancel provider edit",
 	"antigravitySetupRequired": "Antigravity OAuth client configuration is malformed. Correct the configured client pair; stored accounts are retained.",
 	"copilotDeviceHint": "Enter this code on the GitHub verification page.",
 	"copyDeviceCode": "Copy code",
@@ -883,6 +913,36 @@ function VideoGenerateToolview(props) {
 //#endregion
 //#region locale/ar.json
 var subscriptions = {
+	"apiUnavailable": "واجهات موفري API الأصلية غير متاحة. يجب التحقق من صلاحية المتصفح قبل الاستخدام.",
+	"apiRefresh": "تحديث موفري API",
+	"apiLoading": "جارٍ تحميل الموفرين الأصليين…",
+	"apiFailed": "فشلت العملية الأصلية. حُفظت المسودة؛ حدّث أو أعد المحاولة. لا تُعرض تفاصيل الخطأ لأنها قد تحتوي على بيانات حساسة.",
+	"apiConflict": "تغيّرت الإعدادات أثناء التحرير. لم تُستبدل مسودتك ولم تُطبّق. ألغِ التحرير وحدّث ثم افتح المحرر لمراجعة تغييراتك.",
+	"apiPartial": "حُفظت إعدادات الموفر لكن عملية المفتاح فشلت. حُفظ طلب المفتاح؛ إعادة المحاولة تنفّذ عملية المفتاح المتبقية فقط.",
+	"apiInvalid": "تحقق من المعرّف ورابط HTTP(S) وبيانات النماذج. الموفر المخصص يحتاج إلى رابط ونموذج واحد على الأقل.",
+	"apiSaved": "حُفظ في إعدادات DSH الأصلية.",
+	"apiKeySet": "المفتاح مُعدّ",
+	"apiKeyMissing": "لا يوجد مفتاح مُعدّ",
+	"apiAdd": "إضافة موفر",
+	"apiEdit": "تحرير الموفر",
+	"apiDelete": "حذف الموفر المضاف",
+	"apiCustom": "إضافة نقطة اتصال مخصصة",
+	"apiEditor": "محرر موفر API",
+	"apiRoute": "معرّف الموفر (كلمات لاتينية صغيرة تفصلها شرطات)",
+	"apiName": "اسم العرض",
+	"apiURL": "الرابط الأساسي",
+	"apiProtocol": "البروتوكول",
+	"apiKeyAction": "إجراء المفتاح",
+	"apiKey_keep": "الاحتفاظ بالمفتاح الحالي",
+	"apiKey_set": "تعيين المفتاح أو استبداله",
+	"apiKey_unset": "إزالة المفتاح المخزّن",
+	"apiKey": "مفتاح جديد (للكتابة فقط)",
+	"apiKeyLimit": "لا تُقرأ المفاتيح المخزّنة مطلقًا. كتابة الإعدادات والمفتاح عمليتان أصليتان منفصلتان وليستا معاملة ذرية. إزالة المفتاح قد تكشف مفتاح البيئة البديل. حذف الموفر لا يحذف بيانات الاعتماد المشتركة.",
+	"apiFetch": "جلب النماذج المتاحة",
+	"apiModels": "النماذج (JSON)",
+	"apiModelsHint": "حرر id وname وcontextWindow وmaxTokens وinput (text/image) وreasoningEfforts (false أو كائن المستويات الأصلي). الجلب يحدّث المسودة فقط؛ الحفظ يطبّقها.",
+	"apiSave": "حفظ الموفر",
+	"apiCancel": "إلغاء تحرير الموفر",
 	"antigravitySetupRequired": "إعداد عميل OAuth في Antigravity غير صالح. صحّح بيانات العميل المُعدّة؛ تُحفظ الحسابات الحالية.",
 	"copilotDeviceHint": "أدخل هذا الرمز في صفحة التحقق من GitHub.",
 	"copyDeviceCode": "نسخ الرمز",
@@ -3144,6 +3204,356 @@ function createCodexCard(React, primitives$1, rpc, t) {
 }
 
 //#endregion
+//#region src/api-providers.ts
+function createApiProviders(React, remote, t) {
+	const h = React.createElement;
+	const at = (value, path) => path.reduce((v, key) => v?.[key], value);
+	const refOf = (entry, profile) => profile?.apiKeyEnv ?? `${entry.provider.toUpperCase().replace(/[^A-Z0-9]+/g, "_")}_API_KEY`;
+	const copy = (value) => JSON.parse(JSON.stringify(value));
+	const control = {
+		font: "inherit",
+		color: "inherit",
+		background: "var(--dsw-alias-settings-card-fill)",
+		border: "1px solid var(--dsw-alias-border-l2)",
+		borderRadius: "var(--dsw-radius-md)",
+		padding: "var(--dsw-spacing-2)"
+	};
+	return function ApiProviders() {
+		const [snapshot, setSnapshot] = React.useState(null);
+		const [draft, setDraft] = React.useState(null);
+		const [message, setMessage] = React.useState("");
+		const [busy, setBusy] = React.useState(false);
+		const generation = React.useRef(0);
+		const mounted = React.useRef(true);
+		const valueOf = (result) => {
+			if (!result.ok) throw new Error(result.error?.code === "settings/conflict" ? "apiConflict" : "apiFailed");
+			return result.value;
+		};
+		async function load() {
+			const sequence = ++generation.current;
+			try {
+				const [settings, directory, registered] = await Promise.all([
+					remote.settings.describe(),
+					remote.llm.listConfigurableProviders(),
+					remote.llm.listProviders()
+				]);
+				const described = valueOf(settings);
+				const rows = [...valueOf(directory)];
+				for (const provider of valueOf(registered)) if (!rows.some((e) => e.provider === provider.id)) rows.push({
+					provider: provider.id,
+					displayName: provider.name,
+					settingsNs: "",
+					settingsPath: []
+				});
+				rows.sort((a, b) => rank(a.provider) - rank(b.provider));
+				const refs = [...new Set(rows.flatMap((e) => {
+					if (e.provider === "deepseek-account") return [];
+					const profile = at(described.namespaces.find((n) => n.ns === e.settingsNs)?.value, e.settingsPath);
+					return profile?.apiKeyEnv ? [profile.apiKeyEnv] : [refOf(e, profile), ...e.nativeAuth?.env ?? []];
+				}))];
+				const credentials = {};
+				for (let i = 0; i < refs.length; i += 64) Object.assign(credentials, valueOf(await remote.credentials.describe(refs.slice(i, i + 64))));
+				if (mounted.current && sequence === generation.current) setSnapshot({
+					...described,
+					rows,
+					credentials
+				});
+			} catch {
+				if (mounted.current && sequence === generation.current) setMessage("apiFailed");
+			}
+		}
+		function rank(id) {
+			return id === "deepseek-account" ? 0 : id === "deepseek-official" ? 1 : 2;
+		}
+		React.useEffect(() => {
+			mounted.current = true;
+			load();
+			const refresh = () => {
+				load();
+			};
+			const disposers = [
+				"settings/document-updated",
+				"credentials/reference-updated",
+				"credentials/record-updated",
+				"llm/adapters-updated"
+			].map((event) => remote.$on(event, refresh));
+			return () => {
+				mounted.current = false;
+				generation.current++;
+				disposers.forEach((off) => off());
+			};
+		}, []);
+		const nsOf = (e) => snapshot.namespaces.find((n) => n.ns === e.settingsNs);
+		const removable = (e, ns) => e.declared === true && e.settingsPath.length > 0 && at(ns?.user, e.settingsPath) !== void 0 && at(ns?.base, e.settingsPath) === void 0;
+		function edit(entry) {
+			const ns = nsOf(entry);
+			if (!ns) return;
+			const profile = at(ns.value, entry.settingsPath) ?? {};
+			setMessage("");
+			setDraft({
+				entry,
+				revision: ns.revision,
+				user: copy(at(ns.user, entry.settingsPath) ?? {}),
+				profile: copy(profile),
+				key: "",
+				keyAction: "keep",
+				models: JSON.stringify(profile.models ?? [], null, 2),
+				isNew: at(ns.value, entry.settingsPath) === void 0,
+				custom: false
+			});
+		}
+		function custom() {
+			const ns = snapshot.namespaces.find((n) => n.ns === "llm-pi-ai");
+			setMessage("");
+			setDraft({
+				entry: {
+					provider: "",
+					settingsNs: "llm-pi-ai",
+					settingsPath: [],
+					declared: true
+				},
+				revision: ns.revision,
+				user: {},
+				profile: {
+					api: "openai-completions",
+					baseURL: "",
+					displayName: ""
+				},
+				key: "",
+				keyAction: "keep",
+				models: "[]",
+				isNew: true,
+				custom: true
+			});
+		}
+		const change = (field$1, value) => setDraft((d) => ({
+			...d,
+			[field$1]: value
+		}));
+		const profileChange = (field$1, value) => setDraft((d) => ({
+			...d,
+			profile: {
+				...d.profile,
+				[field$1]: value
+			}
+		}));
+		async function run(action) {
+			if (busy) return;
+			setBusy(true);
+			setMessage("");
+			try {
+				await action();
+			} catch (error) {
+				if (mounted.current) setMessage(error instanceof Error && [
+					"apiConflict",
+					"apiInvalid",
+					"apiPartial"
+				].includes(error.message) ? error.message : "apiFailed");
+			} finally {
+				if (mounted.current) setBusy(false);
+			}
+		}
+		function parsedModels() {
+			let models;
+			try {
+				models = JSON.parse(draft.models);
+			} catch {
+				throw new Error("apiInvalid");
+			}
+			if (!Array.isArray(models) || models.some((m) => !m || typeof m.id !== "string" || !m.id.trim() || m.name !== void 0 && typeof m.name !== "string" || ["contextWindow", "maxTokens"].some((k) => m[k] !== void 0 && (!Number.isInteger(m[k]) || m[k] < 1)) || m.input !== void 0 && (!Array.isArray(m.input) || m.input.some((v) => !["text", "image"].includes(v))) || m.reasoningEfforts !== void 0 && m.reasoningEfforts !== false && (typeof m.reasoningEfforts !== "object" || m.reasoningEfforts === null || Array.isArray(m.reasoningEfforts)))) throw new Error("apiInvalid");
+			if (new Set(models.map((m) => m.id)).size !== models.length) throw new Error("apiInvalid");
+			return models;
+		}
+		async function save() {
+			let entry = draft.entry;
+			if (draft.custom) {
+				if (!/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(entry.provider) || snapshot.rows.some((e) => e.provider === entry.provider)) throw new Error("apiInvalid");
+				entry = {
+					...entry,
+					settingsPath: ["providers", entry.provider]
+				};
+			}
+			if (draft.profile.baseURL) try {
+				const url = new URL(draft.profile.baseURL);
+				if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) throw new Error();
+			} catch {
+				throw new Error("apiInvalid");
+			}
+			const models = parsedModels();
+			if (draft.custom && (!draft.profile.baseURL || models.length === 0)) throw new Error("apiInvalid");
+			const next = { ...draft.user };
+			for (const field$1 of ["displayName", "baseURL"]) if (draft.profile[field$1]?.trim()) next[field$1] = draft.profile[field$1].trim();
+			else delete next[field$1];
+			next.models = models;
+			if (draft.custom) next.api = draft.profile.api;
+			const ref = refOf(entry, draft.profile);
+			if (draft.keyAction !== "keep" && snapshot.credentials[ref]?.writable === false) throw new Error("apiFailed");
+			if (draft.keyAction === "set") {
+				if (!draft.key.trim() || /[\r\n]/.test(draft.key)) throw new Error("apiInvalid");
+				next.apiKeyEnv = ref;
+			}
+			const ops = [];
+			for (const field$1 of ["displayName", "baseURL"]) if (field$1 in draft.user && !(field$1 in next)) ops.push({
+				op: "unset",
+				path: [...entry.settingsPath, field$1]
+			});
+			for (const field$1 of Object.keys(next)) if (JSON.stringify(next[field$1]) !== JSON.stringify(draft.user[field$1])) ops.push({
+				op: "set",
+				path: [...entry.settingsPath, field$1],
+				value: next[field$1]
+			});
+			if (draft.isNew && ops.length === 0) ops.push({
+				op: "set",
+				path: entry.settingsPath,
+				value: {}
+			});
+			let committed = false;
+			if (ops.length) {
+				const view = valueOf(await remote.settings.mutate(entry.settingsNs, ops, draft.revision));
+				committed = true;
+				if (mounted.current) setDraft((d) => ({
+					...d,
+					entry,
+					revision: view.revision,
+					user: copy(next),
+					isNew: false,
+					custom: false
+				}));
+			}
+			if (draft.keyAction !== "keep") try {
+				if (!(draft.keyAction === "set" ? await remote.credentials.set(ref, draft.key.trim()) : await remote.credentials.unset(ref)).ok) throw new Error("apiFailed");
+			} catch {
+				throw new Error(committed ? "apiPartial" : "apiFailed");
+			}
+			if (mounted.current) {
+				setDraft(null);
+				setMessage("apiSaved");
+			}
+			await load();
+		}
+		async function discover() {
+			const request = {
+				provider: draft.entry.provider,
+				baseURL: draft.profile.baseURL,
+				api: draft.profile.api
+			};
+			if (draft.keyAction === "set" && draft.key.trim()) request.apiKey = draft.key.trim();
+			const models = valueOf(await remote.llm.discoverModels(draft.entry.settingsNs, request)).map(({ inputModalities,...model }) => ({
+				...model,
+				...inputModalities === void 0 ? {} : { input: inputModalities }
+			}));
+			if (mounted.current) change("models", JSON.stringify(models, null, 2));
+		}
+		async function remove(entry) {
+			const ns = nsOf(entry);
+			if (!removable(entry, ns)) throw new Error("apiInvalid");
+			valueOf(await remote.settings.mutate(ns.ns, [{
+				op: "unset",
+				path: entry.settingsPath
+			}], ns.revision));
+			setMessage("apiSaved");
+			await load();
+		}
+		const button = (key, onClick, disabled = false) => h("button", {
+			type: "button",
+			style: control,
+			onClick,
+			disabled: busy || disabled
+		}, t(key));
+		const field = (key, value, onChange, type = "text") => h("label", { style: {
+			display: "grid",
+			gap: "var(--dsw-spacing-1)"
+		} }, t(key), h("input", {
+			"aria-label": t(key),
+			type,
+			value,
+			autoComplete: "off",
+			style: control,
+			disabled: busy,
+			onChange: (e) => onChange(e.target.value),
+			dir: type === "password" ? void 0 : "auto"
+		}));
+		return h("div", {
+			"data-majed-api-providers": true,
+			style: {
+				display: "grid",
+				gap: "var(--dsw-spacing-3)",
+				textAlign: "start"
+			}
+		}, message ? h("p", { role: message === "apiSaved" ? "status" : "alert" }, t(message)) : null, button("apiRefresh", () => {
+			load();
+		}), !snapshot ? h("p", null, t("apiLoading")) : h(React.Fragment, null, ...snapshot.rows.map((entry) => {
+			const ns = nsOf(entry), profile = at(ns?.value, entry.settingsPath);
+			const ref = refOf(entry, profile);
+			const configured = snapshot.credentials[ref]?.configured || (entry.nativeAuth?.env ?? []).some((r) => snapshot.credentials[r]?.configured);
+			return h("article", {
+				key: entry.provider,
+				"data-majed-api-provider": entry.provider,
+				style: {
+					border: "1px solid var(--dsw-alias-border-l2)",
+					borderRadius: "var(--dsw-radius-xl)",
+					padding: "var(--dsw-spacing-3)"
+				}
+			}, h("strong", null, profile?.displayName ?? entry.displayName), h("bdi", null, ` (${entry.provider}) `), h("span", null, t(configured ? "apiKeySet" : "apiKeyMissing")), button(profile === void 0 ? "apiAdd" : "apiEdit", () => edit(entry), !snapshot.writable || !ns), removable(entry, ns) ? button("apiDelete", () => {
+				run(() => remove(entry));
+			}, !snapshot.writable) : null);
+		}), button("apiCustom", custom, !snapshot.writable || !snapshot.namespaces.some((n) => n.ns === "llm-pi-ai"))), draft ? h("div", {
+			role: "group",
+			"aria-label": t("apiEditor"),
+			style: {
+				display: "grid",
+				gap: "var(--dsw-spacing-3)"
+			}
+		}, draft.custom ? field("apiRoute", draft.entry.provider, (v) => change("entry", {
+			...draft.entry,
+			provider: v
+		})) : h("bdi", null, draft.entry.provider), field("apiName", draft.profile.displayName ?? "", (v) => profileChange("displayName", v)), field("apiURL", draft.profile.baseURL ?? "", (v) => profileChange("baseURL", v)), draft.custom ? h("label", null, t("apiProtocol"), h("select", {
+			"aria-label": t("apiProtocol"),
+			value: draft.profile.api,
+			disabled: busy,
+			style: control,
+			onChange: (e) => profileChange("api", e.target.value)
+		}, ...[
+			"openai-completions",
+			"openai-responses",
+			"anthropic-messages"
+		].map((v) => h("option", {
+			key: v,
+			value: v
+		}, v)))) : null, h("label", null, t("apiKeyAction"), h("select", {
+			"aria-label": t("apiKeyAction"),
+			value: draft.keyAction,
+			disabled: busy,
+			style: control,
+			onChange: (e) => change("keyAction", e.target.value)
+		}, ...[
+			"keep",
+			"set",
+			"unset"
+		].map((v) => h("option", {
+			key: v,
+			value: v
+		}, t(`apiKey_${v}`))))), draft.keyAction === "set" ? field("apiKey", draft.key, (v) => change("key", v), "password") : null, h("p", null, t("apiKeyLimit")), button("apiFetch", () => {
+			run(discover);
+		}), h("label", null, t("apiModels"), h("textarea", {
+			"aria-label": t("apiModels"),
+			value: draft.models,
+			rows: 12,
+			dir: "ltr",
+			disabled: busy,
+			style: {
+				...control,
+				width: "100%",
+				boxSizing: "border-box"
+			},
+			onChange: (e) => change("models", e.target.value)
+		})), h("p", null, t("apiModelsHint")), button("apiSave", () => {
+			run(save);
+		}), button("apiCancel", () => setDraft(null))) : null);
+	};
+}
+
+//#endregion
 //#region src/copilot-card.ts
 /** GitHub Copilot Settings card, adapted from pinned reference SubscriptionsSection device login and shared
 * account presentation. Only sanitized status crosses RPC; see PROVENANCE.md (#134). */
@@ -5334,18 +5744,31 @@ function applySubscriptions(root) {
 		const GuardedSetting = guarded(React, UsageBadgeDisplaySetting, "usage display setting");
 		const GuardedSpeed = guarded(React, SpeedSelect, "Speed control");
 		const GuardedBadge = guarded(React, SubscriptionUsageBadge, "usage badge");
+		const listeners = /* @__PURE__ */ new Set();
+		let ApiProviders;
+		isolate(() => ctx.inject([
+			"remote.settings",
+			"remote.credentials",
+			"remote.llm"
+		], (scope) => {
+			ApiProviders = guarded(React, createApiProviders(React, scope.remote, t), "API providers");
+			listeners.forEach((listener) => listener());
+			return () => {
+				ApiProviders = void 0;
+				listeners.forEach((listener) => listener());
+			};
+		}));
 		let present = false;
 		let failing = false;
 		let referenceEnabled = false;
 		let disposed = false;
 		let sequence = 0;
 		let withdraw;
-		const listeners = /* @__PURE__ */ new Set();
 		function Section() {
 			React.useSyncExternalStore((fn) => {
 				listeners.add(fn);
 				return () => listeners.delete(fn);
-			}, () => `${failing}:${referenceEnabled}`);
+			}, () => `${failing}:${referenceEnabled}:${!!ApiProviders}`);
 			return h("div", { style: {
 				textAlign: "start",
 				color: "var(--dsw-alias-label-primary)",
@@ -5359,7 +5782,7 @@ function applySubscriptions(root) {
 			}, h("h3", { style: { font: "var(--dsw-font-s-strong-14)" } }, h(IconSettingsOutlineMedium, { "aria-hidden": true }), t(part)), part === "accounts" ? h("div", null, h("p", { style: {
 				marginBlock: "0 var(--dsw-spacing-3)",
 				color: "var(--dsw-alias-label-tertiary)"
-			} }, t("intro")), h(GuardedSetting, { t }), h(CodexCard), h(ClaudeCard), h(GrokCard), h(AntigravityCard), h(CopilotCard)) : h("p", { style: { color: "var(--dsw-alias-label-tertiary)" } }, t(`${part}Empty`)))));
+			} }, t("intro")), h(GuardedSetting, { t }), h(CodexCard), h(ClaudeCard), h(GrokCard), h(AntigravityCard), h(CopilotCard)) : ApiProviders ? h(ApiProviders) : h("p", { role: "status" }, t("apiUnavailable")))));
 		}
 		const models = () => ctx.get("modelDirectories");
 		const surfaceWanted = () => !disposed && present && !referenceEnabled;
