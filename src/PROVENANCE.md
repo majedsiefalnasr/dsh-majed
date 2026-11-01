@@ -1,5 +1,15 @@
 # Subscriptions provenance
 
+## #135 Antigravity owned port
+
+Source: https://github.com/V1ki/dsh-plugin-subscriptions v0.9.12, commit `b8023110864494acefc6f5963c2a197d85dda20c`, MIT (retained notice below). Ported `src/providers/antigravity.ts` and `src/translate/antigravity{,-schema,-thinking}.ts`. The formerly ported OAuth client constant module and generated counterpart have been removed: upstream provenance is not an exemption from credential handling policy. OAuth client configuration is now external-only, with same-source pairing and provider-scoped setup-required behavior implemented locally. Reference tests `test/antigravity.spec.ts` and `test/usage-window-filter.spec.ts` are adapted for owned paths and EN/AR rather than Chinese. Shared provider id `antigravity` is the deliberate ADR-0002 exception.
+
+Local adaptations: owned existing controller/card/Manage/account preferences and host registration seams; Majed RPC, storage, effect and data identifiers; user agent names our fork. Signal propagation covers token/project/onboarding/profile calls and bodies; owned reader cancellation releases its lock, interrupted sleeps remove listeners, refresh and usage have an overall deadline, and retry/stream exits cancel unused bodies. Capability lookup receives the selected account and signal. No reference runtime companion, credential import, installed state access or live-provider evidence. The card reuses owned account presentation rather than copying unrelated reference section code; this is an explicit port adaptation, with EN/AR fixture proof, not a claim of pixel equality.
+
+### #135 scoped review corrections
+
+Deliberate local translator adaptation: `streamAntigravity` passes its owner signal to the existing SSE parser. The parser's optional signal races each read with the proven owned `withAbortSignal`, cancels without awaiting an ignored/rejected transport cancellation and releases its lock. Calls without a signal retain existing framing, activity and cleanup behavior; normal translated chunks are unchanged. Provider JSON and OAuth/internal HTTP error bodies reuse the same owned reader pattern as the existing video tool, then delegate status/OAuth/rate-limit classification to the existing shared helpers and sanitize diagnostics. Controller stale-claim behavior is unchanged and now has explicit late-completion persistence proof. These are owned safety corrections, not upstream parity claims.
+
 ## #133 overall video deadline correction
 
 Locally reuse the owned `deadlineSignal` and `withAbortSignal` helpers before video submission, composing caller cancellation across submission headers/body, poll headers/body, polling sleep and download headers/reader. Always release the budget; cancel late/unconsumed response bodies without awaiting a potentially stalled cancellation. Offline injected-transport tests reproduce the original unbounded submission and verify bounded settlement and cleanup. No upstream behavior or live-provider proof is claimed.

@@ -4,6 +4,7 @@
     "description": "Bidirectional (RTL/LTR) text support for Arabic, Persian and Hebrew, GenUI RTL mirroring, and extra Settings > General options such as an app-UI font size."
   },
   "subscriptions": {
+    "antigravitySetupRequired": "Antigravity requires an externally configured authorized OAuth client in the DSH host environment. Stored accounts are retained; use the matching authorized client before refreshing existing sessions.",
     "copilotDeviceHint": "Enter this code on the GitHub verification page.",
     "copyDeviceCode": "Copy code",
     "copilotProviderUnavailable": "Copilot is unavailable. Disable the reference component first.",
@@ -186,6 +187,9 @@
     "claudePromptCacheTtlDefault": "Follow config ({ttl})",
     "claudePromptCacheTtl5m": "5 minutes",
     "claudePromptCacheTtl1h": "1 hour",
+    "usageEmpty": "No usage quotas reported.",
+    "usageNoVisibleModels": "No quotas for the shown models.",
+    "antigravityProviderUnavailable": "Antigravity registration is unavailable.",
     "grokProviderUnavailable": "Grok registration is unavailable.",
     "image": "Image",
     "viewImage": "View image",

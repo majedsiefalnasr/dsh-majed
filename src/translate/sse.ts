@@ -6,6 +6,8 @@
  * spec-strict framing the harness's own adapters use.
  */
 
+import { withAbortSignal } from '../providers/common.js'
+
 /** One parsed SSE event. */
 export interface SseEvent {
   /** Joined `data:` lines of the event. */
@@ -23,15 +25,19 @@ export interface SseEvent {
 export async function* parseSse(
   stream: ReadableStream<Uint8Array>,
   onActivity?: () => void,
+  signal?: AbortSignal,
 ): AsyncGenerator<SseEvent> {
   const reader = stream.getReader()
+  const cancel = () => { void reader.cancel(signal?.reason).catch(() => {}) }
+  signal?.addEventListener('abort', cancel, { once: true })
   const decoder = new TextDecoder()
   let pending = ''
   let dataLines: string[] = []
   let eventName: string | undefined
   try {
     while (true) {
-      const { done, value } = await reader.read()
+      const { done, value } = await withAbortSignal(() => reader.read(), signal)
+      signal?.throwIfAborted()
       if (done) return
       onActivity?.()
       pending += decoder.decode(value, { stream: true })
@@ -59,7 +65,10 @@ export async function* parseSse(
   } finally {
     // A terminal SSE frame can precede HTTP EOF; returning or decoding failure
     // must close the remaining body rather than leave the connection reading.
-    try { await reader.cancel() } catch { /* preserve the original stream outcome */ }
+    signal?.removeEventListener('abort', cancel)
+    // Signal-aware owners must not await an uncooperative transport's cancel.
+    if (signal !== undefined) cancel()
+    else try { await reader.cancel() } catch { /* preserve the original stream outcome */ }
     reader.releaseLock()
   }
 }

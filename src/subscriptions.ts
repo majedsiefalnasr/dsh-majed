@@ -1,3 +1,6 @@
+import { AntigravityAuthController } from './auth/antigravity-controller.js';
+import { AntigravityAdapter, ANTIGRAVITY_SETUP_REQUIRED, ANTIGRAVITY_PREEMPT_MS, refreshAntigravity, isAntigravityPermanentRefreshError, fetchAntigravityUsage, resolveAntigravityOAuthConfig, type AntigravityOAuthConfig, type AntigravityRuntimeConfig } from './providers/antigravity.js';
+import type { AntigravitySession } from './auth/store.js';
 import { DeviceFlowManager } from './auth/device-flow.js';
 import { CopilotAuthController } from './auth/copilot-controller.js';
 import { CopilotAdapter, COPILOT_PREEMPT_MS, refreshCopilot, isCopilotPermanentRefreshError } from './providers/copilot.js';
@@ -57,7 +60,7 @@ export const POOL_USAGE_TIMEOUT_MS = DISCOVERY_TIMEOUT_MS;
  * every five minutes, so a token rotated by the `claude` CLI is picked up before the next turn needs it.
  */
 export const CLAUDE_KEYCHAIN_SYNC_MS = 5 * 60_000;
-export interface Config { codexClientVersion?: string; claudePromptCacheTtl?: PromptCacheTtl; models?: { codex?: ModelEntry[]; claude?: ModelEntry[]; grok?: ModelEntry[]; copilot?: ModelEntry[] };
+export interface Config { antigravity?: Partial<AntigravityOAuthConfig> & AntigravityRuntimeConfig; codexClientVersion?: string; claudePromptCacheTtl?: PromptCacheTtl; models?: { codex?: ModelEntry[]; claude?: ModelEntry[]; grok?: ModelEntry[]; copilot?: ModelEntry[]; antigravity?: ModelEntry[] };
   pool?: { enabled?: boolean; strategy?: 'priority' | 'quota_aware'; switchMargin?: number; autoAccounts?: boolean; autoFamilies?: boolean; families?: Record<string, PoolMemberRef[]>; tiers?: Record<string, PoolMemberRef[]> };
 }
 // Same-named schemastery schema, as in the reference (index.ts `Config`). Only the Codex slice is owned here;
@@ -76,10 +79,11 @@ const poolMemberSchema: z<PoolMemberRef> = z.object({
   model: z.string().required(),
 });
 export const Config: z<Config> = z.object({
+  antigravity: z.object({ clientId: z.string(), clientSecret: z.string(), baseURL: z.string(), userAgent: z.string(), onboard: z.boolean() }),
   codexClientVersion: z.string(),
   // Reference `claudePromptCacheTtl`: the plugin-wide default cache lifetime; the Settings choice overrides it per save.
   claudePromptCacheTtl: z.union(['5m', '1h']).default(DEFAULT_PROMPT_CACHE_TTL),
-  models: z.object({ codex: z.array(modelEntrySchema), claude: z.array(modelEntrySchema), grok: z.array(modelEntrySchema), copilot: z.array(modelEntrySchema) }),
+  models: z.object({ codex: z.array(modelEntrySchema), claude: z.array(modelEntrySchema), grok: z.array(modelEntrySchema), copilot: z.array(modelEntrySchema), antigravity: z.array(modelEntrySchema) }),
   pool: z.object({
     enabled: z.boolean().default(true),
     strategy: z.union(['priority', 'quota_aware']).default('quota_aware'),
@@ -142,14 +146,14 @@ function browserSafeError(error: unknown, label: string): string {
   return safeDiagnostic(error);
 }
 /** The provider a route serves: Codex unless the payload names Claude. Any other value is rejected. */
-function readRouteProvider(value: unknown): 'codex' | 'claude' | 'grok' | 'copilot' {
+function readRouteProvider(value: unknown): 'codex' | 'claude' | 'grok' | 'copilot' | 'antigravity' {
   if (value === undefined || value === 'codex') return 'codex';
-  if (value === 'claude' || value === 'grok' || value === 'copilot') return value;
-  throw new Error('payload.provider must be one of codex, claude, grok, copilot');
+  if (value === 'claude' || value === 'grok' || value === 'copilot' || value === 'antigravity') return value;
+  throw new Error('payload.provider must be one of codex, claude, grok, copilot, antigravity');
 }
 
 /** Reference `readLoginMethod`: `method` selects the Claude login route and is valid for Claude only. */
-function readLoginMethod(payload: Record<string, unknown>, provider: 'codex' | 'claude' | 'grok' | 'copilot'): ClaudeLoginMethod | undefined {
+function readLoginMethod(payload: Record<string, unknown>, provider: 'codex' | 'claude' | 'grok' | 'copilot' | 'antigravity'): ClaudeLoginMethod | undefined {
   const method = payload.method;
   if (method === undefined) return undefined;
   if (provider !== 'claude') throw new Error('payload.method is only valid for claude');
@@ -187,7 +191,7 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
   let disposed = false;
   const ownAlias = (provider: ProviderId, key: string) => { const settings = preferences.get(provider).accounts; return settings && Object.hasOwn(settings, key) ? settings[key]?.alias : undefined; };
   /** The registration handle serving one provider; Codex and Claude register separately (ADR-0002). */
-  const handleFor = (provider: ProviderId) => provider === 'grok' ? grokHandle : provider === 'copilot' ? copilotHandle : provider === 'claude' ? claudeHandle : handle;
+  const handleFor = (provider: ProviderId) => provider === 'antigravity' ? antigravityHandle : provider === 'grok' ? grokHandle : provider === 'copilot' ? copilotHandle : provider === 'claude' ? claudeHandle : handle;
   // Composer Speed (ticket #131; reference src/index.ts speedBySession/selectedSpeed). Explicit choices are
   // per session and reset on restart. A subagent without an explicit choice uses its saved model default, and
   // every request still gates Fast on the model's discovered capability.
@@ -253,9 +257,33 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
     defaultEffortOf: model => defaultEffortOf('grok', model), resolveAttachments: () => ctx.get('attachments') as never,
     catalogStore: catalogStore('grok'), accountCatalogStore: account => accountCatalogStore('grok', account),
     onCatalogChanged: () => { if (!disposed) { pool?.invalidate(); grokHandle?.replace(['grok']); } }, onWarn: message => ctx.logger.warn(`dsh-majed: ${message}`) });
+  const antigravityLifecycle = new AbortController();
+  const antigravityOAuth = resolveAntigravityOAuthConfig(config.antigravity);
+  let antigravityHandle: ReturnType<Context['llm']['registerAdapter']> | undefined;
+  let antigravityCollision = false;
+  const antigravityChanged = (account?: string) => { if (!disposed) { antigravityAdapter.clearAccountCatalog(account); health.clear('antigravity', account); usage.invalidate('antigravity', account); pool?.invalidate(); antigravityHandle?.replace(['antigravity']); } };
+  const antigravityTokens = new AccountTokenManager<AntigravitySession>({ provider: 'antigravity', displayName: 'Google Antigravity',
+    makeOptions: () => ({ preemptMs: ANTIGRAVITY_PREEMPT_MS, refresh: async session => {
+      const next = await withTimeout(signal => refreshAntigravity(session, antigravityOAuth!, undefined, signal), DISCOVERY_TIMEOUT_MS, antigravityLifecycle.signal);
+      antigravityLifecycle.signal.throwIfAborted();
+      if (!next) throw new Error('Antigravity refresh timed out');
+      return next;
+    }, isPermanent: isAntigravityPermanentRefreshError }), onAccountRemoved: antigravityChanged });
+  // Guard before TokenManager can refresh or classify/delete a stored session.
+  const antigravitySession = antigravityTokens.session.bind(antigravityTokens);
+  antigravityTokens.session = async (...args) => {
+    if (!antigravityOAuth) throw new Error(ANTIGRAVITY_SETUP_REQUIRED);
+    return antigravitySession(...args);
+  };
+  const antigravityAuth = new AntigravityAuthController(flows, antigravityOAuth, config.antigravity ?? {}, antigravityChanged, error => browserSafeError(error, 'antigravity login'));
+  const antigravityAdapter = new AntigravityAdapter({ tokens: antigravityTokens, setupRequired: !antigravityOAuth, models: config.models?.antigravity ?? [{ id: 'gemini-3-flash', name: 'Gemini 3 Flash' }], runtime: config.antigravity,
+    discovery: !config.models?.antigravity?.length, streamIdleTimeoutMs: 300_000, pool: () => pool,
+    catalogStore: catalogStore('antigravity'), accountCatalogStore: account => accountCatalogStore('antigravity', account),
+    defaultEffortOf: model => defaultEffortOf('antigravity', model), resolveAttachments: () => ctx.get('attachments') as never,
+    onCatalogChanged: () => { if (!disposed) { pool?.invalidate(); antigravityHandle?.replace(['antigravity']); } }, onWarn: message => ctx.logger.warn(`dsh-majed: ${message}`) });
   const usage = new PoolUsageTracker((provider, account) => provider === 'codex'
     ? () => readUsage(account, AbortSignal.timeout(20_000))
-    : provider === 'claude' ? async () => fetchClaudeUsage(await claudeTokens.session(account), proxiedFetch, AbortSignal.timeout(20_000), () => claudeVersion.resolve()) : provider === 'grok' ? async () => fetchGrokUsage(await grokTokens.session(account), proxiedFetch, AbortSignal.timeout(20_000)) : undefined);
+    : provider === 'antigravity' ? async () => { const result = await withTimeout(async signal => fetchAntigravityUsage(await antigravityTokens.session(account), config.antigravity, proxiedFetch, signal), DISCOVERY_TIMEOUT_MS, antigravityLifecycle.signal); if (!result) throw new Error('Antigravity usage timed out'); return result; } : provider === 'claude' ? async () => fetchClaudeUsage(await claudeTokens.session(account), proxiedFetch, AbortSignal.timeout(20_000), () => claudeVersion.resolve()) : provider === 'grok' ? async () => fetchGrokUsage(await grokTokens.session(account), proxiedFetch, AbortSignal.timeout(20_000)) : undefined);
   const auth = new CodexAuthController(flows, changed, error => browserSafeError(error, 'codex login'));
   const claudeAuth = new ClaudeAuthController(flows, claudeChanged, error => browserSafeError(error, 'claude login'), () => readClaudeCodeCredentials(claudeCredsIo), session => recordClaudeEmail(session, claudeIdentity, claudeLifecycle.signal));
   const resets = new ResetRedemption(readUsage,
@@ -323,9 +351,10 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
   const presentedClaude = new AccountPreferencesAdapter({ provider: 'claude', adapter: claudeAdapter, settings: preferences,
     accounts: async () => (await claudeTokens.list()).map(({ key, session }) => ({ key, label: session.emailAddress ?? key })), pool: () => pool });
   const presentedGrok = new AccountPreferencesAdapter({ provider: 'grok', adapter: grokAdapter, settings: preferences, accounts: async () => (await grokTokens.list()).map(({ key, session }) => ({ key, label: session.account ?? key })), pool: () => pool });
-  pool = new PoolAdapter({ adapters: { grok: presentedGrok.poolMember(), copilot: presentedCopilot.poolMember(), codex: presented.poolMember(), claude: presentedClaude.poolMember() }, health, usage, strategy: config.pool?.strategy ?? 'quota_aware', switchMargin: config.pool?.switchMargin ?? 2,
-    defaultAccount: provider => provider === 'grok' ? grokTokens.defaultAccount() : provider === 'copilot' ? copilotTokens.defaultAccount() : provider === 'claude' ? claudeTokens.defaultAccount() : tokens.defaultAccount(),
-    resolveAccount: (provider, account) => provider === 'grok' ? grokTokens.resolveAccount(account) : provider === 'copilot' ? copilotTokens.resolveAccount(account) : provider === 'claude' ? claudeTokens.resolveAccount(account) : tokens.resolveAccount(account),
+  const presentedAntigravity = new AccountPreferencesAdapter({ provider: 'antigravity', adapter: antigravityAdapter, settings: preferences, accounts: async () => (await antigravityTokens.list()).map(({ key, session }) => ({ key, label: session.account ?? key })), pool: () => pool });
+  pool = new PoolAdapter({ adapters: { ...(antigravityOAuth ? { antigravity: presentedAntigravity.poolMember() } : {}), grok: presentedGrok.poolMember(), copilot: presentedCopilot.poolMember(), codex: presented.poolMember(), claude: presentedClaude.poolMember() }, health, usage, strategy: config.pool?.strategy ?? 'quota_aware', switchMargin: config.pool?.switchMargin ?? 2,
+    defaultAccount: provider => provider === 'antigravity' ? antigravityTokens.defaultAccount() : provider === 'grok' ? grokTokens.defaultAccount() : provider === 'copilot' ? copilotTokens.defaultAccount() : provider === 'claude' ? claudeTokens.defaultAccount() : tokens.defaultAccount(),
+    resolveAccount: (provider, account) => provider === 'antigravity' ? antigravityTokens.resolveAccount(account) : provider === 'grok' ? grokTokens.resolveAccount(account) : provider === 'copilot' ? copilotTokens.resolveAccount(account) : provider === 'claude' ? claudeTokens.resolveAccount(account) : tokens.resolveAccount(account),
     families: async () => {
       if (config.pool?.enabled === false) return new Map();
       const families = new Map<string, PoolDefinition>();
@@ -333,8 +362,9 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
         // Discover each account separately and bound each read: a hang or failure sits that account out
         // instead of failing the whole assembly (reference index.ts `families`). Codex and Claude alike.
         const sources: Parameters<typeof buildAccountPools>[0] = {};
-        await Promise.all(([['codex', tokens, adapter], ['claude', claudeTokens, claudeAdapter], ['grok', grokTokens, grokAdapter], ['copilot', copilotTokens, copilotAdapter]] as const).map(async ([provider, accountTokens, raw]) => {
+        await Promise.all(([['antigravity', antigravityTokens, antigravityAdapter], ['codex', tokens, adapter], ['claude', claudeTokens, claudeAdapter], ['grok', grokTokens, grokAdapter], ['copilot', copilotTokens, copilotAdapter]] as const).map(async ([provider, accountTokens, raw]) => {
           try {
+            if (provider === 'antigravity' && !antigravityOAuth) return;
             const accounts = (await accountTokens.list()).map(entry => entry.key);
             const catalogs = (await Promise.all(accounts.map(async account => {
               const models = await withTimeout(signal => raw.listOwnModels(provider, account, signal, true), POOL_USAGE_TIMEOUT_MS)
@@ -365,7 +395,8 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
   catch (error) { claudeCollisionError = error; claudeCollision = 'Claude registration is unavailable'; }
   try { grokHandle = ctx.llm.registerAdapter(['grok'], presentedGrok); } catch { grokCollision = 'Grok registration is unavailable'; }
   try { copilotHandle = ctx.llm.registerAdapter(['copilot'], presentedCopilot); } catch { copilotCollision = true; }
-  ctx.effect(() => () => { disposed = true; grokAuth.dispose(); copilotAuth.dispose(); copilotAdapter.clearReplayState(); claudeLifecycle.abort(); auth.dispose(); claudeAuth.dispose(); void disposeProxyTransport(); }, 'dsh-majed: subscriptions auth disposal');
+  try { antigravityHandle = ctx.llm.registerAdapter(['antigravity'], presentedAntigravity); } catch { antigravityCollision = true; }
+  ctx.effect(() => () => { disposed = true; antigravityAuth.dispose(); antigravityLifecycle.abort(); grokAuth.dispose(); copilotAuth.dispose(); copilotAdapter.clearReplayState(); claudeLifecycle.abort(); auth.dispose(); claudeAuth.dispose(); void disposeProxyTransport(); }, 'dsh-majed: subscriptions auth disposal');
   // Keep keychain-bound Claude accounts synced with Claude Code's own store (reference `claude background sync timer`).
   // One interval, bounded: each tick reads the account list and refreshes only bound sessions, errors are swallowed
   // (TokenManager already reports permanent failures), and dispose clears the timer.
@@ -395,6 +426,9 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
     if ((await claudeTokens.list()).length && !signal.aborted) await claudeAdapter.listOwnModels('claude', undefined, signal);
   }, () => ctx.logger.warn('dsh-majed: Claude catalog refresh failed')), 'dsh-majed: claude catalog refresh');
 
+  if (antigravityHandle && antigravityOAuth) ctx.effect(() => startCatalogRefresh(async signal => {
+    if ((await antigravityTokens.list()).length && !signal.aborted) await antigravityAdapter.listOwnModels('antigravity', undefined, signal);
+  }, () => ctx.logger.warn('dsh-majed: Antigravity catalog refresh failed')), 'dsh-majed: antigravity catalog refresh');
   if (grokHandle) ctx.effect(() => startCatalogRefresh(async signal => {
     if ((await grokTokens.list()).length && !signal.aborted) await grokAdapter.listOwnModels('grok', undefined, signal);
   }, () => ctx.logger.warn('dsh-majed: Grok catalog refresh failed')), 'dsh-majed: grok catalog refresh');
@@ -520,8 +554,8 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
                 const claudeAccounts = await claudeTokens.list().catch(() => []);
                 const grokState = await grokAuth.status();
                 value = { ok: true, component: 'subscriptions', version: '0.2.0', registrationError: collision === undefined ? undefined : await collisionText(),
-                  claudeRegistrationError: claudeCollision, copilotRegistrationError: copilotCollision, grokRegistrationError: grokCollision,
-                  providers: { grok: { ...grokState, displayName: preferences.get('grok').displayName, accounts: grokState.accounts.map(account => ({ ...account, alias: ownAlias('grok', account.key) })) }, copilot: { ...await copilotAuth.status(), accounts: (await copilotAuth.status()).accounts.map(account => ({ ...account, alias: ownAlias('copilot', account.key) })), displayName: preferences.get('copilot').displayName }, codex: { ...state, displayName: preferences.get('codex').displayName,
+                  antigravityRegistrationError: antigravityCollision, claudeRegistrationError: claudeCollision, copilotRegistrationError: copilotCollision, grokRegistrationError: grokCollision,
+                  providers: { antigravity: { ...await antigravityAuth.status(), visibleModels: preferences.get('antigravity').visibleModels, displayName: preferences.get('antigravity').displayName, accounts: (await antigravityAuth.status()).accounts.map(account => ({ ...account, alias: ownAlias('antigravity', account.key) })) }, grok: { ...grokState, displayName: preferences.get('grok').displayName, accounts: grokState.accounts.map(account => ({ ...account, alias: ownAlias('grok', account.key) })) }, copilot: { ...await copilotAuth.status(), accounts: (await copilotAuth.status()).accounts.map(account => ({ ...account, alias: ownAlias('copilot', account.key) })), displayName: preferences.get('copilot').displayName }, codex: { ...state, displayName: preferences.get('codex').displayName,
                     accounts: state.accounts.map(account => ({ ...account, alias: ownAlias('codex', account.key) })), clientVersion: config.codexClientVersion ? { version: config.codexClientVersion, source: 'config' }
                     : version.current() ?? { version: CODEX_CLIENT_VERSION, source: 'fallback' } },
                   ...claudeState === undefined ? {} : { claude: { ...claudeState, displayName: preferences.get('claude').displayName,
@@ -562,6 +596,18 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
                 // One overall budget for the whole read (sequential bounded steps would add up to several budgets).
                 const budget = deadlineSignal(DISCOVERY_TIMEOUT_MS, request.signal); releases.push(budget.release); const deadline = budget.signal;
                 await loadModelDefaults();
+                if (provider === 'antigravity') {
+                  if (force) { antigravityAdapter.clearAccountCatalog(); pool.invalidate(); antigravityHandle?.replace(['antigravity']); }
+                  const accounts = await readAccountCatalogsFor(antigravityAdapter, antigravityTokens, !force, deadline, 'antigravity');
+                  const listed = await withTimeout(signal => antigravityAdapter.listOwnModels('antigravity', undefined, signal, !force), DISCOVERY_TIMEOUT_MS, deadline);
+                  const tiers = await withTimeout(() => pool.modelsForProvider('antigravity'), DISCOVERY_TIMEOUT_MS, deadline);
+                  const tierIds = new Set((tiers ?? []).map(tier => tier.id));
+                  const models = await Promise.all([...(listed ?? []), ...(tiers ?? []).filter(tier => !(listed ?? []).some(model => model.id === tier.id))].map(async model => {
+                    const info = await withTimeout(signal => antigravityAdapter.resolveModel('antigravity', model.id, signal), DISCOVERY_TIMEOUT_MS, deadline);
+                    return { ...model, contextWindow: info?.context?.contextWindow, efforts: tierIds.has(model.id) ? [] : info?.reasoning?.efforts ?? [], configured: defaultEffortOf('antigravity', model.id) };
+                  }));
+                  value = { provider: 'antigravity', settings: preferences.get('antigravity'), accounts, models, tools: PROVIDER_TOOLS.antigravity }; break;
+                }
                 if (provider === 'copilot') {
                   if (force) { copilotAdapter.clearAccountCatalog(); pool.invalidate(); copilotHandle?.replace(['copilot']); }
                   const accounts = await readAccountCatalogsFor(copilotAdapter, copilotTokens, !force, deadline, 'copilot');
@@ -628,11 +674,11 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
                 // Reference `modelDefaults.catalog`: re-read from the live model info (the picker's own source), so the
                 // offered efforts match the picker exactly and the configured default merges in through the adapter.
                 const budget = deadlineSignal(DISCOVERY_TIMEOUT_MS, request.signal); releases.push(budget.release); const deadline = budget.signal;
-                if (readForce(payload)) { version.invalidate(); claudeVersion.invalidate(); adapter.clearAccountCatalog(); claudeAdapter.clearAccountCatalog(); copilotAdapter.clearAccountCatalog(); grokAdapter.clearAccountCatalog(); grokHandle?.replace(['grok']); pool.invalidate(); handle?.replace(['codex']); claudeHandle?.replace(['claude']); copilotHandle?.replace(['copilot']); }
+                if (readForce(payload)) { antigravityAdapter.clearAccountCatalog(); antigravityHandle?.replace(['antigravity']); version.invalidate(); claudeVersion.invalidate(); adapter.clearAccountCatalog(); claudeAdapter.clearAccountCatalog(); copilotAdapter.clearAccountCatalog(); grokAdapter.clearAccountCatalog(); grokHandle?.replace(['grok']); pool.invalidate(); handle?.replace(['codex']); claudeHandle?.replace(['claude']); copilotHandle?.replace(['copilot']); }
                 await loadModelDefaults();
                 const catalog: { provider: string; models: { id: string; name: string; efforts: { id: string; name: string }[]; configured?: string }[] }[] = [];
                 // Both routes read the live picker source (`ctx.llm`) and merge the saved default per model.
-                for (const route of ['codex', 'claude', 'grok', 'copilot'] as const) {
+                for (const route of ['codex', 'claude', 'grok', 'copilot', 'antigravity'] as const) {
                   if (!(await ctx.llm.listProviders()).some(entry => entry.id === route)) continue;
                   const listed = await withTimeout(() => ctx.llm.listModels(route), DISCOVERY_TIMEOUT_MS, deadline).catch(() => undefined);
                   if (listed === undefined) continue;
@@ -655,7 +701,7 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
               case 'setModelDefault': {
                 const model = string('model');
                 const effort = payload.effort === undefined ? undefined : string('effort');
-                const info = provider === 'copilot' ? await withTimeout(() => copilotAdapter.resolveModel('copilot', model), DISCOVERY_TIMEOUT_MS, request.signal) : provider === 'grok' ? await withTimeout(() => grokAdapter.resolveModel('grok', model), DISCOVERY_TIMEOUT_MS, request.signal) : provider === 'claude'
+                const info = provider === 'antigravity' ? await withTimeout(() => antigravityAdapter.resolveModel('antigravity', model), DISCOVERY_TIMEOUT_MS, request.signal) : provider === 'copilot' ? await withTimeout(() => copilotAdapter.resolveModel('copilot', model), DISCOVERY_TIMEOUT_MS, request.signal) : provider === 'grok' ? await withTimeout(() => grokAdapter.resolveModel('grok', model), DISCOVERY_TIMEOUT_MS, request.signal) : provider === 'claude'
                   ? await withTimeout(() => claudeAdapter.resolveModel('claude', model), DISCOVERY_TIMEOUT_MS, request.signal).catch(() => undefined)
                   : await withTimeout(signal => adapter.resolveModel('codex', model, signal), DISCOVERY_TIMEOUT_MS, request.signal).catch(() => undefined);
                 if (effort && info?.reasoning?.efforts.length && !info.reasoning.efforts.some(entry => entry.id === effort)) throw new Error(`model ${model} does not advertise a "${effort}" reasoning effort`);
@@ -664,6 +710,7 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
               case 'login': {
                 // Claude route: the browser sends `method` ('oauth' or 'keychain'); absent means import-first.
                 const method = readLoginMethod(payload, provider);
+                 if (provider === 'antigravity') { if (antigravityCollision) throw new Error('Antigravity registration unavailable'); value = await antigravityAuth.login(); break; }
                  if (provider === 'copilot') { if (copilotCollision) throw new Error('Copilot is already registered. Disable the reference component first.'); value = await copilotAuth.login(); break; }
                 if (provider === 'grok') { if (grokCollision) throw new Error(grokCollision); value = await grokAuth.login(); break; }
                 if (provider === 'claude') {
@@ -673,11 +720,12 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
                 if (collision) throw new Error('Codex is already registered. Disable the reference component first.');
                 value = await auth.login(); break;
               }
-              case 'manual': if (provider === 'copilot') throw new Error('Enter the device code on the verification page'); else if (provider === 'grok') grokAuth.manual(string('input')); else if (provider === 'claude') claudeAuth.manual(string('input')); else auth.manual(string('input')); break;
-              case 'cancel': if (provider === 'copilot') copilotAuth.cancel(); else if (provider === 'grok') grokAuth.cancel(); else if (provider === 'claude') claudeAuth.cancel(); else auth.cancel(); break;
-              case 'logout': if (provider === 'copilot') await copilotAuth.logout(string('account')); else if (provider === 'grok') await grokAuth.logout(string('account')); else if (provider === 'claude') await claudeAuth.logout(string('account')); else await auth.logout(string('account')); break;
-              case 'setDefault': if (provider === 'copilot') await copilotAuth.setDefault(string('account')); else if (provider === 'grok') await grokAuth.setDefault(string('account')); else if (provider === 'claude') await claudeAuth.setDefault(string('account')); else await auth.setDefault(string('account')); break;
+              case 'manual': if (provider === 'antigravity') antigravityAuth.manual(string('input')); else if (provider === 'copilot') throw new Error('Enter the device code on the verification page'); else if (provider === 'grok') grokAuth.manual(string('input')); else if (provider === 'claude') claudeAuth.manual(string('input')); else auth.manual(string('input')); break;
+              case 'cancel': if (provider === 'antigravity') antigravityAuth.cancel(); else if (provider === 'copilot') copilotAuth.cancel(); else if (provider === 'grok') grokAuth.cancel(); else if (provider === 'claude') claudeAuth.cancel(); else auth.cancel(); break;
+              case 'logout': if (provider === 'antigravity') await antigravityAuth.logout(string('account')); else if (provider === 'copilot') await copilotAuth.logout(string('account')); else if (provider === 'grok') await grokAuth.logout(string('account')); else if (provider === 'claude') await claudeAuth.logout(string('account')); else await auth.logout(string('account')); break;
+              case 'setDefault': if (provider === 'antigravity') await antigravityAuth.setDefault(string('account')); else if (provider === 'copilot') await copilotAuth.setDefault(string('account')); else if (provider === 'grok') await grokAuth.setDefault(string('account')); else if (provider === 'claude') await claudeAuth.setDefault(string('account')); else await auth.setDefault(string('account')); break;
               case 'usage': {
+                 if (provider === 'antigravity') { if (antigravityCollision) throw new Error('Antigravity registration unavailable'); value = await usage.snapshotFor('antigravity', string('account'), readForce(payload)); break; }
                  if (provider === 'copilot') { value = await usage.snapshotFor('copilot', string('account'), readForce(payload)); break; }
                 if (provider === 'grok') { if (grokCollision) throw new Error(grokCollision); const account = string('account'); const force = readForce(payload); value = await usage.snapshotFor('grok', account, force); break; }
                 if (provider === 'claude') {

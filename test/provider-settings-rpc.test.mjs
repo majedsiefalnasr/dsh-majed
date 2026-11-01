@@ -31,7 +31,7 @@ test('provider settings RPC edits picker visibility, names and tool policy witho
   try {
     await new Promise(resolve => setTimeout(resolve, 50));
     assert.ok(routes.has('/api/majed-subscriptions.providerSettings'), 'the component mounted');
-    assert.deepEqual(llm.listProviders(), [{ id: 'codex', name: 'ChatGPT (Codex)' }, { id: 'claude', name: 'Claude (Subscription)' }, { id: 'grok', name: 'Grok (Subscription)' }, { id: 'copilot', name: 'GitHub Copilot' }]);
+    assert.deepEqual(llm.listProviders(), [{ id: 'codex', name: 'ChatGPT (Codex)' }, { id: 'claude', name: 'Claude (Subscription)' }, { id: 'grok', name: 'Grok (Subscription)' }, { id: 'copilot', name: 'GitHub Copilot' }, { id: 'antigravity', name: 'Google Antigravity' }]);
     await saveAccountSession('codex', 'account', { accessToken: 'token', refreshToken: 'refresh', expiresAt: Date.now() + 3600_000, accountId: 'account' });
     const call = async (endpoint, payload) => {
       const method = `majed-subscriptions.${endpoint}`;

@@ -5,21 +5,25 @@
  * An unterminated tail at EOF is truncation and is dropped, matching the
  * spec-strict framing the harness's own adapters use.
  */
+import { withAbortSignal } from '../providers/common.js';
 /**
  * Decode an SSE byte stream into events.
  * @param stream - raw response bytes; reads may split anywhere, including mid-UTF-8 sequence.
  * @param onActivity - called on every received chunk and comment line; drives the idle watchdog.
  * @returns events in arrival order.
  */
-export async function* parseSse(stream, onActivity) {
+export async function* parseSse(stream, onActivity, signal) {
     const reader = stream.getReader();
+    const cancel = () => { void reader.cancel(signal?.reason).catch(() => { }); };
+    signal?.addEventListener('abort', cancel, { once: true });
     const decoder = new TextDecoder();
     let pending = '';
     let dataLines = [];
     let eventName;
     try {
         while (true) {
-            const { done, value } = await reader.read();
+            const { done, value } = await withAbortSignal(() => reader.read(), signal);
+            signal?.throwIfAborted();
             if (done)
                 return;
             onActivity?.();
@@ -53,10 +57,15 @@ export async function* parseSse(stream, onActivity) {
     finally {
         // A terminal SSE frame can precede HTTP EOF; returning or decoding failure
         // must close the remaining body rather than leave the connection reading.
-        try {
-            await reader.cancel();
-        }
-        catch { /* preserve the original stream outcome */ }
+        signal?.removeEventListener('abort', cancel);
+        // Signal-aware owners must not await an uncooperative transport's cancel.
+        if (signal !== undefined)
+            cancel();
+        else
+            try {
+                await reader.cancel();
+            }
+            catch { /* preserve the original stream outcome */ }
         reader.releaseLock();
     }
 }

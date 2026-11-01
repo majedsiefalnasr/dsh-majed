@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Require external authorized OAuth client configuration for Antigravity; remove bundled client credentials. Missing or malformed configuration produces an English/Arabic setup-required state, retains stored accounts, blocks authentication/network/provider-pool participation, and leaves the other four providers available. Explicit logout remains available. Controlled dummy-only tests; no installed/live compatibility claim.
+
+- Correct #135 stalled Antigravity SSE and OAuth/internal HTTP error bodies: caller/idle cancellation settles without awaiting transport cancellation and releases owned readers. Preserve HTTP/OAuth classification and retry metadata while sanitizing diagnostics; add real-Response cancellation and late-login persistence regressions. Controlled tests only; independent review and installed/live acceptance remain separate.
+
+- Add #135 Google Antigravity: Google PKCE login/manual callback/cancel, private owned multi-account lifecycle, live catalog and chat translation, per-model quota windows filtered by shown models, shared Manage/defaults/pools and English/Arabic card. Port the pinned MIT reference with cancellation/body cleanup adaptations. Controlled tests only; independent review, installation and consolidated Owner live acceptance remain separate gates. Host changes require a full restart after separately approved installation.
+
 - Bound #134 Copilot editor-version fetch and body with a ten-second shared deadline and fallback/retry recovery; caller cancellation and stream-idle deadlines stop waiting without cancelling other consumers. Bound token exchange and complete login (including profile bodies), and abort completion on cancel/dispose before persistence. Regenerate the whitespace correction from source. Controlled candidate only; no installed/live acceptance claim.
 
 - Complete #134 controlled regression evidence for actual two-account Manage in English/Arabic, account-specific incompatible catalog/streaming protocols and abort, and device-login deadlines, lifecycle, late-completion suppression and error secrecy. This completion pass changes no runtime behavior; independent review and installed/live acceptance remain separate gates.
