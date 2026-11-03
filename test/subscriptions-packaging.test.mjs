@@ -2,6 +2,20 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
+import vm from 'node:vm';
+
+test('browser factory registers the public package identity before activation', async () => {
+  const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url)));
+  for (const entry of ['client.js', pkg.exports['./client']]) {
+    const registrations = [];
+    vm.runInNewContext(await readFile(new URL('../' + entry, import.meta.url), 'utf8'), {
+      window: { __ModuleLoader__: { load(module) { registrations.push(module); } } },
+    });
+    assert.equal(registrations.length, 1, entry);
+    assert.equal(registrations[0].id, pkg.name, entry);
+    assert.equal(typeof registrations[0].factory, 'function');
+  }
+});
 const env = { ...process.env, npm_config_cache: '/tmp/npm-cache-majed' };
 test('packed package declares disabled component and resolves every component artifact', async () => {
   const [pack] = JSON.parse(execFileSync('npm', ['pack', '--dry-run', '--json'], { env, encoding: 'utf8' }));

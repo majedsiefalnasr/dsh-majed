@@ -20,7 +20,7 @@
  *  5. Account menu grouping: sidebar footer buttons (Remote access, ...) move into the account menu.
  */
 window.__ModuleLoader__.load({
-  id: 'dsh-majed',
+  id: 'dsh-waycraft',
   factory(require) {
     const React = require('react');
     const h = React.createElement;
