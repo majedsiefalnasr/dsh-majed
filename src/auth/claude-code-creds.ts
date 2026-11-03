@@ -6,78 +6,99 @@
  * macOS Keychain and `~/.claude/.credentials.json`; they run only from an explicit user import and from the refresh
  * of an account imported that way (its `keychainBound` flag).
  */
-import { execFileSync } from 'node:child_process'
-import { chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { homedir } from 'node:os'
-import { dirname, join } from 'node:path'
-import type { ClaudeSession } from './store.js'
+import { execFileSync } from 'node:child_process';
+import {
+  chmodSync,
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
+import { homedir } from 'node:os';
+import { dirname, join } from 'node:path';
+import type { ClaudeSession } from './store.js';
 
-const PRIMARY_SERVICE = 'Claude Code-credentials'
+const PRIMARY_SERVICE = 'Claude Code-credentials';
 
 /** The OS touch points of the credential store: the macOS Keychain item and the credentials file. */
 export interface ClaudeCredsIo {
-  readonly platform: string
+  readonly platform: string;
   /** Current Keychain item payload, or undefined when absent or unreadable. */
-  readKeychainRaw(): string | undefined
+  readKeychainRaw(): string | undefined;
   /** Keychain account name of the item (for the update), or undefined when unknown. */
-  getKeychainAccountName(): string | undefined
+  getKeychainAccountName(): string | undefined;
   /** Replace the Keychain item payload; false when the update fails. */
-  writeKeychainRaw(account: string, raw: string): boolean
+  writeKeychainRaw(account: string, raw: string): boolean;
   /** Path of Claude Code's `.credentials.json`. */
-  credentialsFilePath(): string
-  readFileRaw(path: string): string | undefined
+  credentialsFilePath(): string;
+  readFileRaw(path: string): string | undefined;
   /** Write the credentials file owner-only; false when the write fails. */
-  writeFileRaw(path: string, raw: string): boolean
+  writeFileRaw(path: string, raw: string): boolean;
 }
 
 interface RawCreds {
-  accessToken?: string
-  refreshToken?: string
-  expiresAt?: number
-  scopes?: string[] | string
-  subscriptionType?: string
-  emailAddress?: string
+  accessToken?: string;
+  refreshToken?: string;
+  expiresAt?: number;
+  scopes?: string[] | string;
+  subscriptionType?: string;
+  emailAddress?: string;
 }
 
 interface CredentialBlob {
-  claudeAiOauth?: RawCreds
-  accessToken?: string
-  refreshToken?: string
-  expiresAt?: number
-  scopes?: string[] | string
-  subscriptionType?: string
-  emailAddress?: string
+  claudeAiOauth?: RawCreds;
+  accessToken?: string;
+  refreshToken?: string;
+  expiresAt?: number;
+  scopes?: string[] | string;
+  subscriptionType?: string;
+  emailAddress?: string;
 }
 
-const DEFAULT_SCOPES = 'user:profile user:inference user:sessions:claude_code user:mcp_servers'
+const DEFAULT_SCOPES =
+  'user:profile user:inference user:sessions:claude_code user:mcp_servers';
 
 function toSession(data: RawCreds): ClaudeSession | undefined {
   // Empty-string tokens (seen from a corrupted Keychain item left by a Claude Code logout) pass the typeof gate
   // but are useless and would poison the auth store, so they are rejected here.
-  if (typeof data.accessToken !== 'string' || data.accessToken.length === 0
-    || typeof data.refreshToken !== 'string' || data.refreshToken.length === 0
-    || typeof data.expiresAt !== 'number' || !Number.isFinite(data.expiresAt)) {
-    return undefined
+  if (
+    typeof data.accessToken !== 'string' ||
+    data.accessToken.length === 0 ||
+    typeof data.refreshToken !== 'string' ||
+    data.refreshToken.length === 0 ||
+    typeof data.expiresAt !== 'number' ||
+    !Number.isFinite(data.expiresAt)
+  ) {
+    return undefined;
   }
-  const scopes = Array.isArray(data.scopes) ? data.scopes.join(' ') : typeof data.scopes === 'string' ? data.scopes : DEFAULT_SCOPES
+  const scopes = Array.isArray(data.scopes)
+    ? data.scopes.join(' ')
+    : typeof data.scopes === 'string'
+      ? data.scopes
+      : DEFAULT_SCOPES;
   return {
     accessToken: data.accessToken,
     refreshToken: data.refreshToken,
     expiresAt: Math.trunc(data.expiresAt),
     scopes,
-    ...typeof data.emailAddress === 'string' ? { emailAddress: data.emailAddress } : {},
-    ...typeof data.subscriptionType === 'string' ? { subscriptionType: data.subscriptionType } : {},
-  }
+    ...(typeof data.emailAddress === 'string'
+      ? { emailAddress: data.emailAddress }
+      : {}),
+    ...(typeof data.subscriptionType === 'string'
+      ? { subscriptionType: data.subscriptionType }
+      : {}),
+  };
 }
 
 function parseBlob(raw: string): ClaudeSession | undefined {
-  let parsed: CredentialBlob
+  let parsed: CredentialBlob;
   try {
-    parsed = JSON.parse(raw)
+    parsed = JSON.parse(raw);
   } catch {
-    return undefined
+    return undefined;
   }
-  return toSession(parsed.claudeAiOauth ?? parsed)
+  return toSession(parsed.claudeAiOauth ?? parsed);
 }
 
 /** The production IO: `/usr/bin/security` for the Keychain, `$CLAUDE_CONFIG_DIR` (or `~/.claude`) for the file. */
@@ -85,95 +106,124 @@ export const SYSTEM_CLAUDE_CREDS_IO: ClaudeCredsIo = {
   platform: process.platform,
   readKeychainRaw() {
     try {
-      return execFileSync('/usr/bin/security', ['find-generic-password', '-s', PRIMARY_SERVICE, '-w'], {
-        timeout: 3000,
-        encoding: 'utf8',
-        stdio: ['pipe', 'pipe', 'pipe'],
-      }).trim()
+      return execFileSync(
+        '/usr/bin/security',
+        ['find-generic-password', '-s', PRIMARY_SERVICE, '-w'],
+        {
+          timeout: 3000,
+          encoding: 'utf8',
+          stdio: ['pipe', 'pipe', 'pipe'],
+        },
+      ).trim();
     } catch {
-      return undefined
+      return undefined;
     }
   },
   getKeychainAccountName() {
     try {
-      const output = execFileSync('/usr/bin/security', ['find-generic-password', '-s', PRIMARY_SERVICE], {
-        timeout: 2000,
-        encoding: 'utf8',
-        stdio: ['pipe', 'pipe', 'pipe'],
-      })
-      return /"acct"<blob>="([^"]*)"/.exec(output)?.[1]
+      const output = execFileSync(
+        '/usr/bin/security',
+        ['find-generic-password', '-s', PRIMARY_SERVICE],
+        {
+          timeout: 2000,
+          encoding: 'utf8',
+          stdio: ['pipe', 'pipe', 'pipe'],
+        },
+      );
+      return /"acct"<blob>="([^"]*)"/.exec(output)?.[1];
     } catch {
-      return undefined
+      return undefined;
     }
   },
   writeKeychainRaw(account, raw) {
     try {
-      execFileSync('/usr/bin/security', ['add-generic-password', '-s', PRIMARY_SERVICE, '-a', account, '-w', raw, '-U'], {
-        timeout: 2000,
-        stdio: 'ignore',
-      })
-      return true
+      execFileSync(
+        '/usr/bin/security',
+        [
+          'add-generic-password',
+          '-s',
+          PRIMARY_SERVICE,
+          '-a',
+          account,
+          '-w',
+          raw,
+          '-U',
+        ],
+        {
+          timeout: 2000,
+          stdio: 'ignore',
+        },
+      );
+      return true;
     } catch {
-      return false
+      return false;
     }
   },
   credentialsFilePath() {
-    return join(process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude'), '.credentials.json')
+    return join(
+      process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude'),
+      '.credentials.json',
+    );
   },
   readFileRaw(path) {
     try {
-      return readFileSync(path, 'utf8')
+      return readFileSync(path, 'utf8');
     } catch {
-      return undefined
+      return undefined;
     }
   },
   writeFileRaw(path, raw) {
     try {
       // Hardening over the reference: never write through a symlink planted at the credentials path. The
       // check-then-write is still not atomic (accepted residual risk, see docs/ai/ticket-132-verification.md).
-      if (existsSync(path) && lstatSync(path).isSymbolicLink()) return false
-      const dir = dirname(path)
-      if (!existsSync(dir)) mkdirSync(dir, { recursive: true, mode: 0o700 })
-      writeFileSync(path, raw, { encoding: 'utf8', mode: 0o600 })
-      chmodSync(path, 0o600)
-      return true
+      if (existsSync(path) && lstatSync(path).isSymbolicLink()) return false;
+      const dir = dirname(path);
+      if (!existsSync(dir)) mkdirSync(dir, { recursive: true, mode: 0o700 });
+      writeFileSync(path, raw, { encoding: 'utf8', mode: 0o600 });
+      chmodSync(path, 0o600);
+      return true;
     } catch {
-      return false
+      return false;
     }
   },
-}
+};
 
 /**
  * Read the current Claude Code session from its source of truth: the macOS Keychain first, then the credentials
  * file. Returns undefined when neither holds a complete login.
  */
-export function readClaudeCodeCredentials(io: ClaudeCredsIo = SYSTEM_CLAUDE_CREDS_IO): ClaudeSession | undefined {
+export function readClaudeCodeCredentials(
+  io: ClaudeCredsIo = SYSTEM_CLAUDE_CREDS_IO,
+): ClaudeSession | undefined {
   if (io.platform === 'darwin') {
-    const raw = io.readKeychainRaw()
-    const session = raw !== undefined ? parseBlob(raw) : undefined
-    if (session) return session
+    const raw = io.readKeychainRaw();
+    const session = raw !== undefined ? parseBlob(raw) : undefined;
+    if (session) return session;
   }
-  const raw = io.readFileRaw(io.credentialsFilePath())
-  return raw !== undefined ? parseBlob(raw) : undefined
+  const raw = io.readFileRaw(io.credentialsFilePath());
+  return raw !== undefined ? parseBlob(raw) : undefined;
 }
 
 function blobMatches(raw: string, expectedAccessToken: string): boolean {
-  return parseBlob(raw)?.accessToken === expectedAccessToken
+  return parseBlob(raw)?.accessToken === expectedAccessToken;
 }
 
 /** Merge fresh tokens into an existing raw blob, preserving unrelated fields. */
-function mergeIntoBlob(existingRaw: string, next: ClaudeSession): string | undefined {
-  let parsed: CredentialBlob
+function mergeIntoBlob(
+  existingRaw: string,
+  next: ClaudeSession,
+): string | undefined {
+  let parsed: CredentialBlob;
   try {
-    parsed = JSON.parse(existingRaw)
+    parsed = JSON.parse(existingRaw);
   } catch {
-    return undefined
+    return undefined;
   }
-  const target = (parsed.claudeAiOauth ?? parsed) as RawCreds
-  target.accessToken = next.accessToken
-  target.refreshToken = next.refreshToken
-  target.expiresAt = next.expiresAt
-  return JSON.stringify(parsed)
+  const target = (parsed.claudeAiOauth ?? parsed) as RawCreds;
+  target.accessToken = next.accessToken;
+  target.refreshToken = next.refreshToken;
+  target.expiresAt = next.expiresAt;
+  return JSON.stringify(parsed);
 }
 
 /**
@@ -192,34 +242,44 @@ export function writeBackClaudeCodeCredentials(
   io: ClaudeCredsIo = SYSTEM_CLAUDE_CREDS_IO,
 ): boolean {
   if (io.platform === 'darwin') {
-    const raw = io.readKeychainRaw()
-    if (raw === undefined || !blobMatches(raw, expectedPriorAccessToken)) return false
-    const updated = mergeIntoBlob(raw, next)
-    if (updated === undefined) return false
-    return io.writeKeychainRaw(io.getKeychainAccountName() ?? PRIMARY_SERVICE, updated)
+    const raw = io.readKeychainRaw();
+    if (raw === undefined || !blobMatches(raw, expectedPriorAccessToken))
+      return false;
+    const updated = mergeIntoBlob(raw, next);
+    if (updated === undefined) return false;
+    return io.writeKeychainRaw(
+      io.getKeychainAccountName() ?? PRIMARY_SERVICE,
+      updated,
+    );
   }
-  const path = io.credentialsFilePath()
-  const raw = io.readFileRaw(path)
-  if (raw === undefined || !blobMatches(raw, expectedPriorAccessToken)) return false
-  const updated = mergeIntoBlob(raw, next)
-  return updated !== undefined && io.writeFileRaw(path, updated)
+  const path = io.credentialsFilePath();
+  const raw = io.readFileRaw(path);
+  if (raw === undefined || !blobMatches(raw, expectedPriorAccessToken))
+    return false;
+  const updated = mergeIntoBlob(raw, next);
+  return updated !== undefined && io.writeFileRaw(path, updated);
 }
 
 /** Resolves the account profile (its email) for an access token; the production one is `fetchClaudeProfile`. */
-export type ClaudeProfileLookup = (accessToken: string, signal: AbortSignal) => Promise<{ emailAddress?: string } | undefined>
+export type ClaudeProfileLookup = (
+  accessToken: string,
+  signal: AbortSignal,
+) => Promise<{ emailAddress?: string } | undefined>;
 
 /** Upper bound of one profile lookup; a slow or hung lookup counts as "email unknown". */
-export const CLAUDE_PROFILE_LOOKUP_TIMEOUT_MS = 5_000
+export const CLAUDE_PROFILE_LOOKUP_TIMEOUT_MS = 5_000;
 
 /** Seams of the identity lookup. Without `profile` no lookup happens (every email that is not in a blob stays unknown). */
 export interface ClaudeIdentityOptions {
-  profile?: ClaudeProfileLookup
-  profileTimeoutMs?: number
+  profile?: ClaudeProfileLookup;
+  profileTimeoutMs?: number;
 }
 
 /** Same normalization as the Codex store (`trim().toLowerCase()`); undefined for a missing or blank email. */
 export function normalizeEmail(value: unknown): string | undefined {
-  return typeof value === 'string' && value.trim().length > 0 ? value.trim().toLowerCase() : undefined
+  return typeof value === 'string' && value.trim().length > 0
+    ? value.trim().toLowerCase()
+    : undefined;
 }
 
 /**
@@ -227,21 +287,39 @@ export function normalizeEmail(value: unknown): string | undefined {
  * lifecycle signal; a failure, a timeout, an abort or a profile without an email all yield undefined ("unknown").
  * The caller re-checks the lifecycle signal, so an abort here is never mistaken for a verdict about the account.
  */
-async function lookupEmail(accessToken: string, options: ClaudeIdentityOptions, signal?: AbortSignal): Promise<string | undefined> {
-  const lookup = options.profile
-  if (lookup === undefined || signal?.aborted === true) return undefined
-  const bounded = new AbortController()
-  const stop = () => bounded.abort()
-  signal?.addEventListener('abort', stop, { once: true })
-  const timer = setTimeout(stop, options.profileTimeoutMs ?? CLAUDE_PROFILE_LOOKUP_TIMEOUT_MS)
+async function lookupEmail(
+  accessToken: string,
+  options: ClaudeIdentityOptions,
+  signal?: AbortSignal,
+): Promise<string | undefined> {
+  const lookup = options.profile;
+  if (lookup === undefined || signal?.aborted === true) return undefined;
+  const bounded = new AbortController();
+  const stop = () => bounded.abort();
+  signal?.addEventListener('abort', stop, { once: true });
+  const timer = setTimeout(
+    stop,
+    options.profileTimeoutMs ?? CLAUDE_PROFILE_LOOKUP_TIMEOUT_MS,
+  );
   // A lookup that ignores its signal must not hold the refresh hostage either.
-  const stopped = new Promise<undefined>(resolve => { bounded.signal.addEventListener('abort', () => resolve(undefined), { once: true }) })
+  const stopped = new Promise<undefined>((resolve) => {
+    bounded.signal.addEventListener('abort', () => resolve(undefined), {
+      once: true,
+    });
+  });
   try {
-    const profile = await Promise.race([(async () => lookup(accessToken, bounded.signal))().catch(() => undefined), stopped])
-    return normalizeEmail(profile?.emailAddress) === undefined ? undefined : profile!.emailAddress!.trim()
+    const profile = await Promise.race([
+      (async () => lookup(accessToken, bounded.signal))().catch(
+        () => undefined,
+      ),
+      stopped,
+    ]);
+    return normalizeEmail(profile?.emailAddress) === undefined
+      ? undefined
+      : profile!.emailAddress!.trim();
   } finally {
-    clearTimeout(timer)
-    signal?.removeEventListener('abort', stop)
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', stop);
   }
 }
 
@@ -251,19 +329,23 @@ async function lookupEmail(accessToken: string, options: ClaudeIdentityOptions, 
  * session then carries the email and later comparisons need no network. When the lookup fails, times out or is
  * aborted the session is returned unchanged, without an email (a later refresh tries again).
  */
-export async function recordClaudeEmail(session: ClaudeSession, options: ClaudeIdentityOptions = {}, signal?: AbortSignal): Promise<ClaudeSession> {
-  if (normalizeEmail(session.emailAddress) !== undefined) return session
-  const email = await lookupEmail(session.accessToken, options, signal)
-  return email === undefined ? session : { ...session, emailAddress: email }
+export async function recordClaudeEmail(
+  session: ClaudeSession,
+  options: ClaudeIdentityOptions = {},
+  signal?: AbortSignal,
+): Promise<ClaudeSession> {
+  if (normalizeEmail(session.emailAddress) !== undefined) return session;
+  const email = await lookupEmail(session.accessToken, options, signal);
+  return email === undefined ? session : { ...session, emailAddress: email };
 }
 
 interface Identity {
   /** Whether Claude Code's store holds the SAME account as the stored session. */
-  same: boolean
+  same: boolean;
   /** The stored session, carrying the email when this check learned it. */
-  stored: ClaudeSession
+  stored: ClaudeSession;
   /** The email to record when the source is adopted: the stored account's, else the one learned for the source. */
-  email?: string
+  email?: string;
 }
 
 /**
@@ -277,24 +359,42 @@ interface Identity {
  * is "no email known on either side after the lookups" together with an identical refresh token (the store holds the
  * very refresh token this account already owns).
  */
-async function resolveIdentity(stored: ClaudeSession, source: ClaudeSession, options: ClaudeIdentityOptions, signal?: AbortSignal): Promise<Identity> {
-  let storedEmail = normalizeEmail(stored.emailAddress)
-  let sourceEmail = normalizeEmail(source.emailAddress)
-  let known = stored
-  let sourceRaw = source.emailAddress?.trim()
+async function resolveIdentity(
+  stored: ClaudeSession,
+  source: ClaudeSession,
+  options: ClaudeIdentityOptions,
+  signal?: AbortSignal,
+): Promise<Identity> {
+  let storedEmail = normalizeEmail(stored.emailAddress);
+  let sourceEmail = normalizeEmail(source.emailAddress);
+  let known = stored;
+  let sourceRaw = source.emailAddress?.trim();
   if (storedEmail === undefined || sourceEmail === undefined) {
     const [fromStored, fromSource] = await Promise.all([
-      storedEmail === undefined ? lookupEmail(stored.accessToken, options, signal) : undefined,
-      sourceEmail === undefined ? lookupEmail(source.accessToken, options, signal) : undefined,
-    ])
-    if (fromStored !== undefined) { known = { ...stored, emailAddress: fromStored }; storedEmail = normalizeEmail(fromStored) }
-    if (fromSource !== undefined) { sourceRaw = fromSource; sourceEmail = normalizeEmail(fromSource) }
+      storedEmail === undefined
+        ? lookupEmail(stored.accessToken, options, signal)
+        : undefined,
+      sourceEmail === undefined
+        ? lookupEmail(source.accessToken, options, signal)
+        : undefined,
+    ]);
+    if (fromStored !== undefined) {
+      known = { ...stored, emailAddress: fromStored };
+      storedEmail = normalizeEmail(fromStored);
+    }
+    if (fromSource !== undefined) {
+      sourceRaw = fromSource;
+      sourceEmail = normalizeEmail(fromSource);
+    }
   }
-  const same = storedEmail !== undefined && sourceEmail !== undefined
-    ? storedEmail === sourceEmail
-    : storedEmail === undefined && sourceEmail === undefined && stored.refreshToken === source.refreshToken
-  const email = known.emailAddress ?? sourceRaw
-  return { same, stored: known, ...email === undefined ? {} : { email } }
+  const same =
+    storedEmail !== undefined && sourceEmail !== undefined
+      ? storedEmail === sourceEmail
+      : storedEmail === undefined &&
+        sourceEmail === undefined &&
+        stored.refreshToken === source.refreshToken;
+  const email = known.emailAddress ?? sourceRaw;
+  return { same, stored: known, ...(email === undefined ? {} : { email }) };
 }
 
 /**
@@ -324,29 +424,44 @@ export async function refreshClaudeSynced(
   signal?: AbortSignal,
   identity: ClaudeIdentityOptions = {},
 ): Promise<ClaudeSession> {
-  signal?.throwIfAborted()
-  const fromSource = readClaudeCodeCredentials(io)
-  let base: ClaudeSession = session
+  signal?.throwIfAborted();
+  const fromSource = readClaudeCodeCredentials(io);
+  let base: ClaudeSession = session;
   // True when the store holds a login that is not this account (or not provably so): never written back.
-  let foreign = false
-  if (fromSource !== undefined && fromSource.accessToken !== session.accessToken) {
-    const verdict = await resolveIdentity(session, fromSource, identity, signal)
-    signal?.throwIfAborted()
+  let foreign = false;
+  if (
+    fromSource !== undefined &&
+    fromSource.accessToken !== session.accessToken
+  ) {
+    const verdict = await resolveIdentity(
+      session,
+      fromSource,
+      identity,
+      signal,
+    );
+    signal?.throwIfAborted();
     if (verdict.same) {
       base = {
         ...fromSource,
-        ...verdict.email === undefined ? {} : { emailAddress: verdict.email },
-        ...fromSource.subscriptionType === undefined && session.subscriptionType !== undefined ? { subscriptionType: session.subscriptionType } : {},
+        ...(verdict.email === undefined ? {} : { emailAddress: verdict.email }),
+        ...(fromSource.subscriptionType === undefined &&
+        session.subscriptionType !== undefined
+          ? { subscriptionType: session.subscriptionType }
+          : {}),
         keychainBound: true,
-      }
+      };
     } else {
-      base = verdict.stored
-      foreign = true
+      base = verdict.stored;
+      foreign = true;
     }
   }
-  if (base.expiresAt > Date.now() + 60_000) return { ...base, keychainBound: true }
-  const next: ClaudeSession = { ...await doRefresh(base), keychainBound: true }
-  signal?.throwIfAborted()
-  if (!foreign) writeBackClaudeCodeCredentials(next, base.accessToken, io)
-  return next
+  if (base.expiresAt > Date.now() + 60_000)
+    return { ...base, keychainBound: true };
+  const next: ClaudeSession = {
+    ...(await doRefresh(base)),
+    keychainBound: true,
+  };
+  signal?.throwIfAborted();
+  if (!foreign) writeBackClaudeCodeCredentials(next, base.accessToken, io);
+  return next;
 }

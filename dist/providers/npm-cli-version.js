@@ -34,13 +34,17 @@ export class NpmCliVersionCache {
         this.timeoutMs = options.timeoutMs ?? 5000;
     }
     /** A manual catalog refresh also checks for a newly released CLI. */
-    invalidate() { this.expiresAt = 0; }
+    invalidate() {
+        this.expiresAt = 0;
+    }
     resolve() {
         if (this.pending !== undefined)
             return this.pending;
         if (this.presented !== undefined && this.now() < this.expiresAt)
             return Promise.resolve(this.presented.version);
-        this.pending = this.refresh().finally(() => { this.pending = undefined; });
+        this.pending = this.refresh().finally(() => {
+            this.pending = undefined;
+        });
         return this.pending;
     }
     /**
@@ -82,7 +86,10 @@ export class NpmCliVersionCache {
                 }, this.timeoutMs);
             });
             // Also bounded when an injected transport ignores cancellation.
-            this.presented = { version: await Promise.race([lookup(), timeout]), source: 'npm' };
+            this.presented = {
+                version: await Promise.race([lookup(), timeout]),
+                source: 'npm',
+            };
             this.expiresAt = this.now() + 6 * 60 * 60_000;
         }
         catch {
@@ -112,8 +119,12 @@ export function presentedVersion(cache, waitMs = STATUS_VERSION_WAIT_MS) {
         let timer;
         await Promise.race([
             cache.resolve(),
-            new Promise(resolve => { timer = setTimeout(resolve, waitMs); }),
-        ]).finally(() => { clearTimeout(timer); });
+            new Promise((resolve) => {
+                timer = setTimeout(resolve, waitMs);
+            }),
+        ]).finally(() => {
+            clearTimeout(timer);
+        });
         return cache.current();
     };
 }

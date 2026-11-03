@@ -16,7 +16,9 @@ export function startCatalogRefresh(refresh, onError = () => { }) {
         }
         finally {
             if (!controller.signal.aborted) {
-                timer = setTimeout(() => { void run(); }, CATALOG_REFRESH_INTERVAL_MS);
+                timer = setTimeout(() => {
+                    void run();
+                }, CATALOG_REFRESH_INTERVAL_MS);
                 timer.unref();
             }
         }

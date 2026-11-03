@@ -13,12 +13,12 @@
  * fresh exchange, so the standard preempt/401-retry machinery applies
  * unchanged.
  */
-import { EMPTY_RESPONSE_CODE, errorChain, LlmAdapter, LlmError, ReasoningEffortId } from '@deepseek-ai/dsh-llm';
+import { EMPTY_RESPONSE_CODE, errorChain, LlmAdapter, LlmError, ReasoningEffortId, } from '@deepseek-ai/dsh-llm';
 import { resolveImages } from '../translate/resolved.js';
 import { streamChatCompletions, toChatMessages, toChatTools, } from '../translate/chat-completions.js';
-import { streamResponses, toResponsesInput, toResponsesTools } from '../translate/responses.js';
+import { streamResponses, toResponsesInput, toResponsesTools, } from '../translate/responses.js';
 import { httpLlmError, withAbortSignal, deadlineSignal, idleWatchdog, mapFetchFailure, mergeReasoning, ModelCatalogCache, discoverAcrossAccounts, discoverOrRetryAuth, isDiscoveryAborted, isMissingOrInvalidCredential, oauthEndpointError, OAuthEndpointError, } from './common.js';
-import { DISCOVERY_TIMEOUT_MS, unionAccountCatalogs } from './accounts.js';
+import { DISCOVERY_TIMEOUT_MS, unionAccountCatalogs, } from './accounts.js';
 import { proxiedFetch } from '../http.js';
 import { DEFAULT_RATE_LIMIT_WAIT, DEFAULT_RETRY, subscriptionRetryPolicy, } from './rate-limit.js';
 /**
@@ -61,21 +61,25 @@ let vscodeVersionInflight;
  * @returns a `major.minor.patch` version string.
  */
 export async function latestVsCodeVersion(fetchFn = proxiedFetch, forceRefresh = false) {
-    if (!forceRefresh && vscodeVersionCache !== undefined
-        && Date.now() - vscodeVersionCache.at < VSCODE_VERSION_TTL_MS) {
+    if (!forceRefresh &&
+        vscodeVersionCache !== undefined &&
+        Date.now() - vscodeVersionCache.at < VSCODE_VERSION_TTL_MS) {
         return vscodeVersionCache.version;
     }
     vscodeVersionInflight ??= (async () => {
         const deadline = deadlineSignal(DISCOVERY_TIMEOUT_MS);
         try {
             const releases = await withAbortSignal(async () => {
-                const response = await fetchFn(VSCODE_RELEASES_URL, { headers: { accept: 'application/json' }, signal: deadline.signal });
+                const response = await fetchFn(VSCODE_RELEASES_URL, {
+                    headers: { accept: 'application/json' },
+                    signal: deadline.signal,
+                });
                 if (!response.ok)
                     throw new Error(`HTTP ${String(response.status)}`);
                 return response.json();
             }, deadline.signal);
             const version = Array.isArray(releases)
-                ? releases.find(entry => typeof entry === 'string' && /^\d+\.\d+\.\d+$/.test(entry))
+                ? releases.find((entry) => typeof entry === 'string' && /^\d+\.\d+\.\d+$/.test(entry))
                 : undefined;
             if (version === undefined)
                 throw new Error('no version string in the feed');
@@ -90,7 +94,9 @@ export async function latestVsCodeVersion(fetchFn = proxiedFetch, forceRefresh =
         finally {
             deadline.release();
         }
-    })().finally(() => { vscodeVersionInflight = undefined; });
+    })().finally(() => {
+        vscodeVersionInflight = undefined;
+    });
     return vscodeVersionInflight;
 }
 /**
@@ -120,7 +126,7 @@ export function copilotHeaders(hasVision = false, vscodeVersion = FALLBACK_VSCOD
         'copilot-integration-id': 'vscode-chat',
         'openai-intent': 'conversation-edits',
         'x-github-api-version': '2026-06-01',
-        ...hasVision ? { 'copilot-vision-request': 'true' } : {},
+        ...(hasVision ? { 'copilot-vision-request': 'true' } : {}),
     };
 }
 /**
@@ -143,15 +149,15 @@ export async function exchangeCopilotToken(githubToken, fetchFn = proxiedFetch, 
 async function exchangeCopilotTokenWithinDeadline(githubToken, fetchFn, signal) {
     const response = await fetchFn(COPILOT_TOKEN_URL, {
         headers: {
-            'authorization': `Bearer ${githubToken}`,
-            'accept': 'application/json',
+            authorization: `Bearer ${githubToken}`,
+            accept: 'application/json',
             ...copilotHeaders(false, await withAbortSignal(() => latestVsCodeVersion(fetchFn), signal)),
         },
         signal,
     });
     if (!response.ok)
         throw await oauthEndpointError(response, 'copilot');
-    const wire = await response.json();
+    const wire = (await response.json());
     if (typeof wire.token !== 'string' || wire.token.length === 0) {
         throw new Error('copilot token endpoint returned no token');
     }
@@ -186,15 +192,15 @@ async function completeCopilotLoginWithinDeadline(githubToken, fetchFn, signal) 
     try {
         const response = await fetchFn(GITHUB_USER_URL, {
             headers: {
-                'authorization': `Bearer ${githubToken}`,
-                'accept': 'application/json',
+                authorization: `Bearer ${githubToken}`,
+                accept: 'application/json',
                 // api.github.com only demands a user agent; no editor disguise needed.
                 'user-agent': 'GitHubCopilotChat/0.35.0',
             },
             signal,
         });
         if (response.ok) {
-            const profile = await response.json();
+            const profile = (await response.json());
             if (typeof profile.login === 'string' && profile.login.length > 0)
                 account = profile.login;
         }
@@ -206,7 +212,7 @@ async function completeCopilotLoginWithinDeadline(githubToken, fetchFn, signal) 
         accessToken: pair.accessToken,
         refreshToken: githubToken,
         expiresAt: pair.expiresAt,
-        ...account === undefined ? {} : { account },
+        ...(account === undefined ? {} : { account }),
     };
 }
 /**
@@ -222,7 +228,7 @@ export async function refreshCopilot(session, fetchFn = proxiedFetch) {
         accessToken: pair.accessToken,
         refreshToken: session.refreshToken,
         expiresAt: pair.expiresAt,
-        ...session.account === undefined ? {} : { account: session.account },
+        ...(session.account === undefined ? {} : { account: session.account }),
     };
 }
 /**
@@ -231,11 +237,14 @@ export async function refreshCopilot(session, fetchFn = proxiedFetch) {
  * @returns true when re-login is the only fix (GitHub token revoked or the subscription lost).
  */
 export function isCopilotPermanentRefreshError(error) {
-    return error instanceof OAuthEndpointError && (error.status === 401 || error.status === 403);
+    return (error instanceof OAuthEndpointError &&
+        (error.status === 401 || error.status === 403));
 }
 /** Display name for one Copilot wire reasoning-effort value. */
 function copilotEffortName(effort) {
-    return effort === 'xhigh' ? 'Extra High' : effort.charAt(0).toUpperCase() + effort.slice(1);
+    return effort === 'xhigh'
+        ? 'Extra High'
+        : effort.charAt(0).toUpperCase() + effort.slice(1);
 }
 /**
  * Map a catalog entry's `supports.reasoning_effort` array into selectable
@@ -253,7 +262,10 @@ function copilotReasoning(entry) {
         if (typeof value !== 'string' || value.length === 0 || seen.has(value))
             continue;
         seen.add(value);
-        efforts.push({ id: ReasoningEffortId(value), name: copilotEffortName(value) });
+        efforts.push({
+            id: ReasoningEffortId(value),
+            name: copilotEffortName(value),
+        });
     }
     return efforts.length > 0 ? { efforts } : undefined;
 }
@@ -277,23 +289,26 @@ function copilotReasoning(entry) {
 export async function fetchCopilotModels(session, fetchFn = proxiedFetch, signal) {
     const response = await fetchFn(COPILOT_MODELS_URL, {
         headers: {
-            'authorization': `Bearer ${session.accessToken}`,
-            'accept': 'application/json',
+            authorization: `Bearer ${session.accessToken}`,
+            accept: 'application/json',
             ...copilotHeaders(false, await latestVsCodeVersion(fetchFn)),
         },
-        ...signal === undefined ? {} : { signal },
+        ...(signal === undefined ? {} : { signal }),
     });
     if (!response.ok)
         throw await oauthEndpointError(response, 'copilot models');
-    const payload = await response.json();
+    const payload = (await response.json());
     if (!Array.isArray(payload.data))
         throw new Error('copilot models endpoint returned no data array');
     const seen = new Set();
     const discovered = [];
     for (const entry of payload.data) {
-        if (typeof entry.id !== 'string' || entry.id.length === 0 || seen.has(entry.id))
+        if (typeof entry.id !== 'string' ||
+            entry.id.length === 0 ||
+            seen.has(entry.id))
             continue;
-        if (entry.model_picker_enabled !== true || entry.policy?.state === 'disabled')
+        if (entry.model_picker_enabled !== true ||
+            entry.policy?.state === 'disabled')
             continue;
         let wire;
         let responsesSupported = false;
@@ -310,15 +325,19 @@ export async function fetchCopilotModels(session, fetchFn = proxiedFetch, signal
         const reasoning = copilotReasoning(entry);
         discovered.push({
             id: entry.id,
-            name: typeof entry.name === 'string' && entry.name.length > 0 ? entry.name : entry.id,
-            ...typeof entry.capabilities?.limits?.max_context_window_tokens === 'number'
-                && entry.capabilities.limits.max_context_window_tokens > 0
+            name: typeof entry.name === 'string' && entry.name.length > 0
+                ? entry.name
+                : entry.id,
+            ...(typeof entry.capabilities?.limits?.max_context_window_tokens ===
+                'number' && entry.capabilities.limits.max_context_window_tokens > 0
                 ? { contextWindow: entry.capabilities.limits.max_context_window_tokens }
-                : {},
-            inputModalities: entry.capabilities?.supports?.vision === true ? ['text', 'image'] : ['text'],
-            ...reasoning === undefined ? {} : { reasoning },
-            ...wire === undefined ? {} : { copilotWire: wire },
-            ...responsesSupported ? { copilotResponses: true } : {},
+                : {}),
+            inputModalities: entry.capabilities?.supports?.vision === true
+                ? ['text', 'image']
+                : ['text'],
+            ...(reasoning === undefined ? {} : { reasoning }),
+            ...(wire === undefined ? {} : { copilotWire: wire }),
+            ...(responsesSupported ? { copilotResponses: true } : {}),
         });
     }
     // An empty catalog from a 200 response is treated as a discovery failure so
@@ -360,7 +379,8 @@ export function copilotRequestWire(entry, options) {
         return wire;
     if (options.tools === undefined || options.tools.length === 0)
         return wire;
-    if (options.reasoningEffort === undefined || options.reasoningEffort === 'none')
+    if (options.reasoningEffort === undefined ||
+        options.reasoningEffort === 'none')
         return wire;
     return 'responses';
 }
@@ -377,16 +397,18 @@ export function copilotChatRequestBody(options, messages) {
     return {
         model: options.model,
         messages,
-        ...options.tools !== undefined && options.tools.length > 0
+        ...(options.tools !== undefined && options.tools.length > 0
             ? { tools: toChatTools(options.tools), tool_choice: 'auto' }
-            : {},
-        ...options.maxTokens !== undefined ? { max_completion_tokens: options.maxTokens } : {},
+            : {}),
+        ...(options.maxTokens !== undefined
+            ? { max_completion_tokens: options.maxTokens }
+            : {}),
         // The harness only passes an effort the resolved model advertised (the
         // catalog's reasoning_effort array), and copilotRequestWire keeps the
         // tools+effort combination off this wire for models that reject it.
-        ...options.reasoningEffort !== undefined
+        ...(options.reasoningEffort !== undefined
             ? { reasoning_effort: String(options.reasoningEffort) }
-            : {},
+            : {}),
         // The upstream is stream-only; usage arrives on the terminal chunk.
         stream: true,
         stream_options: { include_usage: true },
@@ -402,17 +424,24 @@ export function copilotChatRequestBody(options, messages) {
 export function copilotResponsesRequestBody(options, resolved) {
     return {
         model: options.model,
-        ...resolved.instructions !== undefined ? { instructions: resolved.instructions } : {},
+        ...(resolved.instructions !== undefined
+            ? { instructions: resolved.instructions }
+            : {}),
         input: resolved.input,
-        ...options.tools !== undefined && options.tools.length > 0
-            ? { tools: toResponsesTools(options.tools, { strict: false }), tool_choice: 'auto' }
-            : {},
-        ...options.maxTokens !== undefined ? { max_output_tokens: options.maxTokens } : {},
+        ...(options.tools !== undefined && options.tools.length > 0
+            ? {
+                tools: toResponsesTools(options.tools, { strict: false }),
+                tool_choice: 'auto',
+            }
+            : {}),
+        ...(options.maxTokens !== undefined
+            ? { max_output_tokens: options.maxTokens }
+            : {}),
         // The Responses wire spells the effort nested; only advertised efforts
         // ever reach this branch (see copilotChatRequestBody).
-        ...options.reasoningEffort !== undefined
+        ...(options.reasoningEffort !== undefined
             ? { reasoning: { effort: String(options.reasoningEffort) } }
-            : {},
+            : {}),
         // [2026-08-23]-[a reasoning model continuing a tool chain must replay its
         // encrypted reasoning on the next request, and the blobs only arrive when
         // asked for; for non-reasoning models the include is a no-op]
@@ -430,15 +459,18 @@ export function copilotResponsesRequestBody(options, resolved) {
  * invalid input item.
  */
 function completedReasoningItem(item) {
-    if (typeof item.encrypted_content !== 'string' || item.encrypted_content.length === 0)
+    if (typeof item.encrypted_content !== 'string' ||
+        item.encrypted_content.length === 0)
         return undefined;
     if (typeof item.id !== 'string' || item.id.length === 0)
         return undefined;
     return {
         type: 'reasoning',
         id: item.id,
-        ...Array.isArray(item.summary) ? { summary: item.summary } : {},
-        ...typeof item.status === 'string' && item.status.length > 0 ? { status: item.status } : {},
+        ...(Array.isArray(item.summary) ? { summary: item.summary } : {}),
+        ...(typeof item.status === 'string' && item.status.length > 0
+            ? { status: item.status }
+            : {}),
         encrypted_content: item.encrypted_content,
     };
 }
@@ -501,7 +533,9 @@ export class CopilotResponsesItemNormalizer {
                 : `copilot-item-${String(this.adds)}`;
             this.lastKey = key;
             const item = event.item;
-            if (item?.type === 'function_call' && typeof item.call_id === 'string' && item.call_id.length > 0) {
+            if (item?.type === 'function_call' &&
+                typeof item.call_id === 'string' &&
+                item.call_id.length > 0) {
                 this.capturedCallIds.push(item.call_id);
             }
             return item === undefined
@@ -524,7 +558,8 @@ export class CopilotResponsesItemNormalizer {
         if (event.type === 'response.completed') {
             // Both sides present is the only replayable response; clear either way —
             // one SSE stream may carry multiple responses.
-            if (this.capturedCallIds.length > 0 && this.capturedReasoning.length > 0) {
+            if (this.capturedCallIds.length > 0 &&
+                this.capturedReasoning.length > 0) {
                 this.onCaptured?.(this.capturedCallIds, this.capturedReasoning);
             }
             this.capturedCallIds = [];
@@ -588,7 +623,9 @@ export class CopilotAdapter extends LlmAdapter {
             this.accountCatalogs.get(account)?.invalidate();
             this.accountCatalogs.delete(account);
         }
-        if (account === undefined || this.catalogOwner === account || this.catalogOwner === undefined) {
+        if (account === undefined ||
+            this.catalogOwner === account ||
+            this.catalogOwner === undefined) {
             this.catalogOwner = undefined;
             this.catalog.invalidate();
         }
@@ -621,7 +658,7 @@ export class CopilotAdapter extends LlmAdapter {
         return subscriptionRetryPolicy(DEFAULT_RETRY, this.options.rateLimit ?? DEFAULT_RATE_LIMIT_WAIT, `copilot: provider "${provider}" retryPolicy`);
     }
     staticModels(provider) {
-        return this.options.models.map(model => ({
+        return this.options.models.map((model) => ({
             provider,
             id: model.id,
             name: model.name ?? model.id,
@@ -634,19 +671,22 @@ export class CopilotAdapter extends LlmAdapter {
         if (pool === undefined)
             return own;
         const extra = await pool.modelsForProvider(provider);
-        const seen = new Set(own.map(model => model.id));
+        const seen = new Set(own.map((model) => model.id));
         // Account pools reuse the catalog row; only configured tiers are extra.
-        return [...own, ...extra.filter(model => !seen.has(model.id))];
+        return [...own, ...extra.filter((model) => !seen.has(model.id))];
     }
     /** The provider's own catalog: union of every account, or one account when named. */
     async listOwnModels(provider, account, signal, preferCached = false) {
         if (account === undefined) {
-            const accounts = (await this.options.tokens.list()).map(entry => entry.key);
+            const accounts = (await this.options.tokens.list()).map((entry) => entry.key);
             if (accounts.length === 0)
                 return [];
-            return unionAccountCatalogs(accounts, (key, accountSignal) => this.listOwnModels(provider, key, accountSignal, preferCached), { timeoutMs: DISCOVERY_TIMEOUT_MS, ...signal === undefined ? {} : { signal } });
+            return unionAccountCatalogs(accounts, (key, accountSignal) => this.listOwnModels(provider, key, accountSignal, preferCached), {
+                timeoutMs: DISCOVERY_TIMEOUT_MS,
+                ...(signal === undefined ? {} : { signal }),
+            });
         }
-        if (!await this.options.tokens.hasSession(account)) {
+        if (!(await this.options.tokens.hasSession(account))) {
             return [];
         }
         if (!this.options.discovery)
@@ -656,13 +696,17 @@ export class CopilotAdapter extends LlmAdapter {
             // The fetcher runs only on a cache miss, and resolves the session
             // through the refresh-aware path so an expired access token renews here
             // instead of failing discovery into the static fallback.
-            const discovered = await catalog.get(() => discoverOrRetryAuth(force => this.options.tokens.session(account, force), catalog, () => this.fetchCatalog(account, signal)), preferCached);
-            return discovered.map(model => ({
+            const discovered = await catalog.get(() => discoverOrRetryAuth((force) => this.options.tokens.session(account, force), catalog, () => this.fetchCatalog(account, signal)), preferCached);
+            return discovered.map((model) => ({
                 provider,
                 id: model.id,
                 name: model.name,
-                ...model.description === undefined ? {} : { description: model.description },
-                ...model.inputModalities === undefined ? {} : { inputModalities: model.inputModalities },
+                ...(model.description === undefined
+                    ? {}
+                    : { description: model.description }),
+                ...(model.inputModalities === undefined
+                    ? {}
+                    : { inputModalities: model.inputModalities }),
             }));
         }
         catch (error) {
@@ -686,13 +730,15 @@ export class CopilotAdapter extends LlmAdapter {
         signal?.throwIfAborted();
         if (!this.options.discovery)
             return undefined;
-        const accounts = account === undefined ? (await this.options.tokens.list()).map(entry => entry.key) : [account];
+        const accounts = account === undefined
+            ? (await this.options.tokens.list()).map((entry) => entry.key)
+            : [account];
         return discoverAcrossAccounts(accounts, async (account) => {
             signal?.throwIfAborted();
             const catalog = await this.catalogFor(account);
             const models = await catalog.resolve(() => this.fetchCatalog(account, signal));
             signal?.throwIfAborted();
-            return models?.find(entry => entry.id === model);
+            return models?.find((entry) => entry.id === model);
         });
     }
     /**
@@ -703,10 +749,14 @@ export class CopilotAdapter extends LlmAdapter {
      * `models[].wire` now routes the request even without discovery]
      */
     configuredWireEntry(model) {
-        const configured = this.options.models.find(entry => entry.id === model);
+        const configured = this.options.models.find((entry) => entry.id === model);
         return configured?.wire === undefined
             ? undefined
-            : { id: configured.id, name: configured.name ?? configured.id, copilotWire: configured.wire };
+            : {
+                id: configured.id,
+                name: configured.name ?? configured.id,
+                copilotWire: configured.wire,
+            };
     }
     /**
      * The replay scope isolating one ACCOUNT × CONVERSATION × MODEL. The
@@ -815,7 +865,8 @@ export class CopilotAdapter extends LlmAdapter {
     }
     async resolveModel(provider, model, signal) {
         const pool = this.options.pool?.();
-        if (pool !== undefined && await pool.owns(provider, model)) {
+        if (pool !== undefined &&
+            (await pool.owns(provider, model))) {
             return pool.resolveModel(provider, model);
         }
         return this.resolveOwnModel(provider, model, undefined, signal);
@@ -824,7 +875,7 @@ export class CopilotAdapter extends LlmAdapter {
     async resolveOwnModel(provider, model, account, signal) {
         const discovered = await withAbortSignal(() => this.discovered(model, account, signal), signal);
         signal?.throwIfAborted();
-        const configured = this.options.models.find(entry => entry.id === model);
+        const configured = this.options.models.find((entry) => entry.id === model);
         // Efforts come from the discovered catalog's reasoning_effort array; a
         // model that did not advertise one exposes none, so the harness rejects
         // an explicit effort before provider I/O instead of the API 400ing
@@ -836,16 +887,24 @@ export class CopilotAdapter extends LlmAdapter {
             provider,
             id: model,
             name: discovered?.name ?? configured?.name ?? model,
-            ...discovered?.description === undefined ? {} : { description: discovered.description },
-            inputModalities: discovered?.inputModalities ?? configured?.inputModalities ?? ['text'],
-            context: { contextWindow: discovered?.contextWindow ?? configured?.contextWindow ?? COPILOT_CONTEXT_WINDOW },
+            ...(discovered?.description === undefined
+                ? {}
+                : { description: discovered.description }),
+            inputModalities: discovered?.inputModalities ??
+                configured?.inputModalities ?? ['text'],
+            context: {
+                contextWindow: discovered?.contextWindow ??
+                    configured?.contextWindow ??
+                    COPILOT_CONTEXT_WINDOW,
+            },
             defaultMaxTokens: configured?.maxTokens ?? COPILOT_DEFAULT_MAX_TOKENS,
-            ...reasoning === undefined ? {} : { reasoning },
+            ...(reasoning === undefined ? {} : { reasoning }),
         };
     }
     async *stream(options) {
         const pool = this.options.pool?.();
-        if (pool !== undefined && await pool.owns(options.provider, options.model)) {
+        if (pool !== undefined &&
+            (await pool.owns(options.provider, options.model))) {
             yield* pool.stream(options);
             return;
         }
@@ -863,7 +922,8 @@ export class CopilotAdapter extends LlmAdapter {
             // dual-protocol models reroute there once the request combines function
             // tools with a reasoning effort (gpt-5.4 400s on the chat wire then).
             // A configured `wire` outranks the catalog (see configuredWireEntry).
-            const wire = copilotRequestWire(this.configuredWireEntry(options.model) ?? await withAbortSignal(async () => this.discovered(options.model, account ?? await this.options.tokens.defaultAccount(), watchdog.signal), watchdog.signal), options);
+            const wire = copilotRequestWire(this.configuredWireEntry(options.model) ??
+                (await withAbortSignal(async () => this.discovered(options.model, account ?? (await this.options.tokens.defaultAccount()), watchdog.signal), watchdog.signal)), options);
             let session = await this.options.tokens.session(account);
             // Replay scope: account identity × conversation × model (see
             // replayScope); a Copilot-token refresh preserves the GitHub token, so
@@ -884,19 +944,23 @@ export class CopilotAdapter extends LlmAdapter {
                     // Copilot has no provider-specific reset reader yet. The shared
                     // mapper still honors its generic retry-after header and warns with
                     // rate-limit-shaped headers/body when GitHub sends another signal.
-                    ...this.options.onWarn === undefined ? {} : { onWarn: this.options.onWarn },
+                    ...(this.options.onWarn === undefined
+                        ? {}
+                        : { onWarn: this.options.onWarn }),
                 });
             }
             if (response.body === null) {
                 throw new LlmError('copilot API returned no response body', EMPTY_RESPONSE_CODE);
             }
-            const pulse = () => { watchdog.pulse(); };
+            const pulse = () => {
+                watchdog.pulse();
+            };
             if (wire === 'responses') {
                 // The normalizer doubles as the capture point for completed reasoning.
                 const normalizer = new CopilotResponsesItemNormalizer((callIds, items) => {
                     this.captureReasoning(scope, callIds, items);
                 });
-                yield* streamResponses(response.body, pulse, event => normalizer.push(event));
+                yield* streamResponses(response.body, pulse, (event) => normalizer.push(event));
             }
             else {
                 yield* streamChatCompletions(response.body, pulse);
@@ -911,16 +975,16 @@ export class CopilotAdapter extends LlmAdapter {
     }
     async request(options, session, signal, wire, replayScopeKey) {
         const messages = await resolveImages(options.messages, this.options.resolveAttachments?.(), signal);
-        const hasVision = messages.some(message => message.content.some(block => block.type === 'image'));
+        const hasVision = messages.some((message) => message.content.some((block) => block.type === 'image'));
         // Captured completed reasoning replays ahead of its tool call.
         const body = wire === 'responses'
-            ? copilotResponsesRequestBody(options, toResponsesInput(messages, options.system, callId => this.replayFor(replayScopeKey, callId)))
+            ? copilotResponsesRequestBody(options, toResponsesInput(messages, options.system, (callId) => this.replayFor(replayScopeKey, callId)))
             : copilotChatRequestBody(options, toChatMessages(messages, options.system));
         return proxiedFetch(wire === 'responses' ? COPILOT_RESPONSES_URL : COPILOT_API_URL, {
             method: 'POST',
             headers: {
-                'authorization': `Bearer ${session.accessToken}`,
-                'accept': 'text/event-stream',
+                authorization: `Bearer ${session.accessToken}`,
+                accept: 'text/event-stream',
                 'content-type': 'application/json',
                 ...copilotHeaders(hasVision, await withAbortSignal(() => latestVsCodeVersion(this.options.fetchFn ?? proxiedFetch), signal)),
             },

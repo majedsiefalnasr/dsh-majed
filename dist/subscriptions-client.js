@@ -2301,7 +2301,8 @@ function ProviderAccountManager({ provider, name, rpc, t, onClose }) {
 										},
 										children: [
 											t("accountsModels"),
-											" · ",
+											" ·",
+											" ",
 											preferences.poolModels === void 0 ? t("accountsModelsAll") : t("accountsModelsCount", { count: preferences.poolModels.length })
 										]
 									}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
@@ -2873,7 +2874,8 @@ function createCodexCard(React, primitives$1, rpc, t) {
 		}, [status?.busy]);
 		const refreshUsage = (account, force = false) => {
 			if (usageRequests.current.has(account)) return usageRequests.current.get(account);
-			const request = (async () => {
+			let request;
+			request = (async () => {
 				try {
 					const snapshot = await call("usage", {
 						account,
@@ -4023,7 +4025,8 @@ function createCopilotCard(React, primitives$1, rpc, t) {
 		}, [status?.busy]);
 		const refreshUsage = (account, force = false) => {
 			if (usageRequests.current.has(account)) return usageRequests.current.get(account);
-			const request = (async () => {
+			let request;
+			request = (async () => {
 				try {
 					const snapshot = await call("usage", {
 						account,
@@ -4312,7 +4315,8 @@ function createClaudeCard(React, primitives$1, rpc, t) {
 		}, [status?.busy]);
 		const refreshUsage = (account, force = false) => {
 			if (usageRequests.current.has(account)) return usageRequests.current.get(account);
-			const request = (async () => {
+			let request;
+			request = (async () => {
 				try {
 					const snapshot = await call("usage", {
 						account,
@@ -4618,7 +4622,8 @@ function createAntigravityCard(React, primitives$1, rpc, t) {
 		const refreshUsage = (account, force = false) => {
 			if (status?.setupRequired) return Promise.resolve();
 			if (usageRequests.current.has(account)) return usageRequests.current.get(account);
-			const request = (async () => {
+			let request;
+			request = (async () => {
 				try {
 					const snapshot = await call("usage", {
 						account,
@@ -5020,7 +5025,8 @@ function createGrokCard(React, primitives$1, rpc, t) {
 		}, [status?.busy]);
 		const refreshUsage = (account, force = false) => {
 			if (usageRequests.current.has(account)) return usageRequests.current.get(account);
-			const request = (async () => {
+			let request;
+			request = (async () => {
 				try {
 					const snapshot = await call("usage", {
 						account,
@@ -6129,10 +6135,10 @@ function AccountMeta({ account, translate }) {
 	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
 		style: styles$1.providerMeta,
 		title: account.account,
-		children: [account.isDefault && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+		children: [account.isDefault && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
 			style: styles$1.defaultStar,
 			"aria-label": translate("defaultAccount"),
-			children: "★ "
+			children: ["★", " "]
 		}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
 			style: {
 				display: "flex",

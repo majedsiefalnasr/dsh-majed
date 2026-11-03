@@ -67,7 +67,12 @@ export function durationMs(text) {
     // Sticky: every component must abut the previous one, so trailing or
     // interleaved junk ("6m0s later") fails the length check below.
     const pattern = /(\d+(?:\.\d+)?)(ms|h|m|s)/y;
-    const units = { h: 3_600_000, m: 60_000, s: 1_000, ms: 1 };
+    const units = {
+        h: 3_600_000,
+        m: 60_000,
+        s: 1_000,
+        ms: 1,
+    };
     let total = 0;
     let matched = false;
     // A failed sticky exec resets `lastIndex` to zero, so the reached offset is
@@ -191,7 +196,8 @@ export function resetFromFields(value, keys, now, depth = MAX_BODY_DEPTH) {
         return undefined;
     let earliest;
     const consider = (candidate) => {
-        if (candidate !== undefined && (earliest === undefined || candidate < earliest))
+        if (candidate !== undefined &&
+            (earliest === undefined || candidate < earliest))
             earliest = candidate;
     };
     if (Array.isArray(value)) {

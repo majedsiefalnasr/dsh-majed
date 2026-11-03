@@ -28,7 +28,10 @@ export function withToolResultImages(messages) {
         if (message.role === 'tool') {
             const parts = message.content.filter((part) => part.type === 'image' && 'dataBase64' in part);
             if (parts.length > 0) {
-                images.push({ type: 'text', text: `Images from tool result ${String(message.toolCallId)}:` }, ...parts);
+                images.push({
+                    type: 'text',
+                    text: `Images from tool result ${String(message.toolCallId)}:`,
+                }, ...parts);
             }
         }
         for (const block of message.content) {
@@ -36,7 +39,10 @@ export function withToolResultImages(messages) {
                 continue;
             const parts = block.content.filter((part) => part.type === 'image' && 'dataBase64' in part);
             if (parts.length > 0) {
-                images.push({ type: 'text', text: `Images from tool result ${String(block.toolCallId)}:` }, ...parts);
+                images.push({
+                    type: 'text',
+                    text: `Images from tool result ${String(block.toolCallId)}:`,
+                }, ...parts);
             }
         }
     }
@@ -56,8 +62,8 @@ export const IMAGE_OFFLOAD_REQUIRED = 'IMAGE_OFFLOAD_REQUIRED';
  */
 export function hostSupportsImageOffload() {
     const exports = llm;
-    return exports['IMAGE_OFFLOAD_REQUIRED_CODE'] === IMAGE_OFFLOAD_REQUIRED
-        && typeof exports['offloadedImageText'] === 'function';
+    return (exports['IMAGE_OFFLOAD_REQUIRED_CODE'] === IMAGE_OFFLOAD_REQUIRED &&
+        typeof exports['offloadedImageText'] === 'function');
 }
 /**
  * How many of the oldest images still sent inline must be offloaded before
@@ -99,7 +105,7 @@ export function imageRequestTarget(ref, limit) {
     const longEdge = Math.max(ref.width, ref.height);
     if (!(longEdge > limit.maxEdge))
         return undefined;
-    const short = (edge) => Math.max(1, Math.floor(edge * limit.maxEdge / longEdge));
+    const short = (edge) => Math.max(1, Math.floor((edge * limit.maxEdge) / longEdge));
     const width = ref.width >= ref.height ? limit.maxEdge : short(ref.width);
     const height = ref.width >= ref.height ? short(ref.height) : limit.maxEdge;
     return { width, height, maxPixels: width * height, maxBytes: limit.maxBytes };
@@ -117,17 +123,18 @@ export function imageRequestTarget(ref, limit) {
  * @returns the same messages with image blocks resolved for the translators.
  */
 export async function resolveImages(messages, attachments, signal, limit) {
-    const hasImage = (block) => block.type === 'image'
-        || (block.type === 'tool-result' && block.content.some(hasImage));
-    if (!messages.some(message => message.content.some(hasImage))) {
+    const hasImage = (block) => block.type === 'image' ||
+        (block.type === 'tool-result' && block.content.some(hasImage));
+    if (!messages.some((message) => message.content.some(hasImage))) {
         return messages;
     }
     const hasRetainedImage = (block) => block.type === 'image'
         ? !('offloaded' in block && block.offloaded === true)
         : block.type === 'tool-result' && block.content.some(hasRetainedImage);
-    if (attachments === undefined && messages.some(message => message.content.some(hasRetainedImage))) {
-        throw new LlmError('dsh-plugin-subscriptions: the request carries an image but no attachments service is mounted; '
-            + 'image input requires the harness attachment store', 'UNSUPPORTED');
+    if (attachments === undefined &&
+        messages.some((message) => message.content.some(hasRetainedImage))) {
+        throw new LlmError('dsh-plugin-subscriptions: the request carries an image but no attachments service is mounted; ' +
+            'image input requires the harness attachment store', 'UNSUPPORTED');
     }
     const readForRequest = async (ref) => {
         if (attachments === undefined)
@@ -136,7 +143,11 @@ export async function resolveImages(messages, attachments, signal, limit) {
         if (target !== undefined) {
             try {
                 const version = await attachments.readImageRequest(ref, target, signal);
-                return { data: version.data, mediaType: version.mediaType, ref: version.attachment };
+                return {
+                    data: version.data,
+                    mediaType: version.mediaType,
+                    ref: version.attachment,
+                };
             }
             catch (error) {
                 // A host that cannot derive request images keeps sending the stored bytes, as before.
@@ -145,11 +156,20 @@ export async function resolveImages(messages, attachments, signal, limit) {
             }
         }
         const stored = await attachments.readImage(ref, signal);
-        return { data: stored.data, mediaType: stored.ref.mediaType, ref: stored.ref };
+        return {
+            data: stored.data,
+            mediaType: stored.ref.mediaType,
+            ref: stored.ref,
+        };
     };
     const resolveBlock = async (block) => {
         if (block.type === 'tool-result') {
-            return [{ ...block, content: (await Promise.all(block.content.map(resolveBlock))).flat() }];
+            return [
+                {
+                    ...block,
+                    content: (await Promise.all(block.content.map(resolveBlock))).flat(),
+                },
+            ];
         }
         if (block.type !== 'image')
             return [block];
@@ -157,21 +177,34 @@ export async function resolveImages(messages, attachments, signal, limit) {
             // New hosts own the omission decision. Never restore omitted bytes,
             // including when the original attachment is no longer readable.
             const format = llm.offloadedImageText;
-            return [{ type: 'text', text: format?.(block.attachment)
-                        ?? `[image omitted to fit request image limits; ${block.attachment.attachmentId}]` }];
+            return [
+                {
+                    type: 'text',
+                    text: format?.(block.attachment) ??
+                        `[image omitted to fit request image limits; ${block.attachment.attachmentId}]`,
+                },
+            ];
         }
-        const { data, mediaType: sentType, ref } = await readForRequest(block.attachment);
+        const { data, mediaType: sentType, ref, } = await readForRequest(block.attachment);
         const { attachmentId, mediaType, bytes, width, height, name } = ref;
-        return [{
+        return [
+            {
                 type: 'image',
                 mediaType: sentType,
                 dataBase64: Buffer.from(data).toString('base64'),
-            }, {
+            },
+            {
                 type: 'text',
                 text: `Image reference (for image_generate.referenceImages): ${JSON.stringify({
-                    attachmentId, mediaType, bytes, width, height, ...name === undefined ? {} : { name },
+                    attachmentId,
+                    mediaType,
+                    bytes,
+                    width,
+                    height,
+                    ...(name === undefined ? {} : { name }),
                 })}`,
-            }];
+            },
+        ];
     };
     return Promise.all(messages.map(async (message) => ({
         ...message,

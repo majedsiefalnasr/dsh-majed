@@ -3,12 +3,12 @@
  * auth.x.ai with the Grok CLI client id, and streaming against the xAI
  * Responses-style endpoint.
  */
-import { attributionHeaders, EMPTY_RESPONSE_CODE, errorChain, LlmAdapter, LlmError, ReasoningEffortId } from '@deepseek-ai/dsh-llm';
+import { attributionHeaders, EMPTY_RESPONSE_CODE, errorChain, LlmAdapter, LlmError, ReasoningEffortId, } from '@deepseek-ai/dsh-llm';
 import { decodeJwtPayload } from '../auth/jwt.js';
 import { resolveImages } from '../translate/resolved.js';
-import { streamResponses, toResponsesInput, toResponsesTools } from '../translate/responses.js';
+import { streamResponses, toResponsesInput, toResponsesTools, } from '../translate/responses.js';
 import { httpLlmError, idleWatchdog, mapFetchFailure, mergeReasoning, ModelCatalogCache, discoverAcrossAccounts, discoverOrRetryAuth, isDiscoveryAborted, isMissingOrInvalidCredential, oauthEndpointError, OAuthEndpointError, } from './common.js';
-import { DISCOVERY_TIMEOUT_MS, unionAccountCatalogs } from './accounts.js';
+import { DISCOVERY_TIMEOUT_MS, unionAccountCatalogs, } from './accounts.js';
 import { proxiedFetch } from '../http.js';
 import { DEFAULT_RATE_LIMIT_WAIT, DEFAULT_RETRY, jsonBody, resetFromFields, subscriptionRetryPolicy, } from './rate-limit.js';
 export const GROK_CLIENT_ID = 'b1a00492-073a-47ea-816f-4c329264a828';
@@ -21,7 +21,12 @@ const GROK_DEFAULT_MAX_TOKENS = 32_000;
 /** Refresh when the access token has less than this much life left. */
 export const GROK_PREEMPT_MS = 2 * 60_000;
 /** Body fields xAI uses to name a delay or reset. */
-const GROK_RESET_FIELDS = ['retry_after', 'retry_after_seconds', 'resets_at', 'reset_at'];
+const GROK_RESET_FIELDS = [
+    'retry_after',
+    'retry_after_seconds',
+    'resets_at',
+    'reset_at',
+];
 /**
  * Reads the reset instant of the xAI window that rejected a request.
  *
@@ -42,8 +47,8 @@ function assertXaiEndpoint(url, field) {
     catch {
         throw new Error(`grok OIDC discovery returned an invalid ${field}`);
     }
-    if (parsed.protocol !== 'https:'
-        || (parsed.hostname !== 'x.ai' && !parsed.hostname.endsWith('.x.ai'))) {
+    if (parsed.protocol !== 'https:' ||
+        (parsed.hostname !== 'x.ai' && !parsed.hostname.endsWith('.x.ai'))) {
         throw new Error(`grok OIDC discovery returned a non-x.ai ${field}: ${url}`);
     }
     return url;
@@ -60,8 +65,9 @@ export async function grokDiscovery(signal) {
     const response = await proxiedFetch(GROK_DISCOVERY_URL, { signal });
     if (!response.ok)
         throw await oauthEndpointError(response, 'grok OIDC discovery');
-    const document = await response.json();
-    if (typeof document.authorization_endpoint !== 'string' || typeof document.token_endpoint !== 'string') {
+    const document = (await response.json());
+    if (typeof document.authorization_endpoint !== 'string' ||
+        typeof document.token_endpoint !== 'string') {
         throw new Error('grok OIDC discovery document is missing endpoints');
     }
     signal?.throwIfAborted();
@@ -129,12 +135,16 @@ export function grokTierName(accessToken) {
 /** Pick a display account from an id token's claims. */
 function grokAccount(idToken) {
     const payload = idToken === undefined ? undefined : decodeJwtPayload(idToken);
-    const claim = payload?.email ?? payload?.preferred_username ?? payload?.name ?? payload?.sub;
+    const claim = payload?.email ??
+        payload?.preferred_username ??
+        payload?.name ??
+        payload?.sub;
     return typeof claim === 'string' && claim.length > 0 ? claim : undefined;
 }
 /** Build a session from a token response. */
 function grokSession(tokens, tokenEndpoint, fallbackRefreshToken) {
-    if (typeof tokens.access_token !== 'string' || tokens.access_token.length === 0) {
+    if (typeof tokens.access_token !== 'string' ||
+        tokens.access_token.length === 0) {
         throw new Error('grok token endpoint returned no access token');
     }
     const refreshToken = tokens.refresh_token ?? fallbackRefreshToken;
@@ -149,8 +159,8 @@ function grokSession(tokens, tokenEndpoint, fallbackRefreshToken) {
         refreshToken,
         expiresAt: Date.now() + tokens.expires_in * 1000,
         tokenEndpoint,
-        ...typeof tokens.scope === 'string' ? { scopes: tokens.scope } : {},
-        ...account === undefined ? {} : { account },
+        ...(typeof tokens.scope === 'string' ? { scopes: tokens.scope } : {}),
+        ...(account === undefined ? {} : { account }),
     };
 }
 /**
@@ -180,12 +190,12 @@ export async function exchangeGrokCode(code, verifier, redirectUri, challenge, s
         }).toString(),
     });
     if (response.status === 403) {
-        throw new OAuthEndpointError('grok token endpoint refused the exchange (HTTP 403): your X plan does not include '
-            + 'the API OAuth entitlement; an X Premium or xAI subscription with API access is required', 403);
+        throw new OAuthEndpointError('grok token endpoint refused the exchange (HTTP 403): your X plan does not include ' +
+            'the API OAuth entitlement; an X Premium or xAI subscription with API access is required', 403);
     }
     if (!response.ok)
         throw await oauthEndpointError(response, 'grok');
-    return grokSession(await response.json(), discovery.tokenEndpoint);
+    return grokSession((await response.json()), discovery.tokenEndpoint);
 }
 /**
  * Refresh a grok session (form-encoded grant).
@@ -204,11 +214,13 @@ export async function refreshGrok(session) {
     });
     if (!response.ok)
         throw await oauthEndpointError(response, 'grok');
-    const next = grokSession(await response.json(), session.tokenEndpoint, session.refreshToken);
+    const next = grokSession((await response.json()), session.tokenEndpoint, session.refreshToken);
     return {
         ...next,
-        ...session.account === undefined ? {} : { account: session.account },
-        ...next.scopes === undefined && session.scopes !== undefined ? { scopes: session.scopes } : {},
+        ...(session.account === undefined ? {} : { account: session.account }),
+        ...(next.scopes === undefined && session.scopes !== undefined
+            ? { scopes: session.scopes }
+            : {}),
     };
 }
 /**
@@ -217,7 +229,7 @@ export async function refreshGrok(session) {
  * @returns true when re-login is the only fix.
  */
 export function isGrokPermanentRefreshError(error) {
-    return error instanceof OAuthEndpointError && error.oauthCode === 'invalid_grant';
+    return (error instanceof OAuthEndpointError && error.oauthCode === 'invalid_grant');
 }
 /**
  * The Grok Build CLI chat proxy's billing endpoint (the source of the CLI's
@@ -245,48 +257,59 @@ function grokResetsAt(value) {
 export async function fetchGrokUsage(session, fetchFn = proxiedFetch, signal) {
     const response = await fetchFn(GROK_BILLING_URL, {
         headers: {
-            'authorization': `Bearer ${session.accessToken}`,
+            authorization: `Bearer ${session.accessToken}`,
             // The proxy only honors bearer tokens presented as the Grok CLI.
             'x-xai-token-auth': 'xai-grok-cli',
-            'accept': 'application/json',
+            accept: 'application/json',
             ...attributionHeaders(),
         },
-        ...signal === undefined ? {} : { signal },
+        ...(signal === undefined ? {} : { signal }),
     });
     if (!response.ok)
         throw await oauthEndpointError(response, 'grok billing');
-    const payload = await response.json();
-    const config = typeof payload.config === 'object' && payload.config !== null ? payload.config : {};
+    const payload = (await response.json());
+    const config = typeof payload.config === 'object' && payload.config !== null
+        ? payload.config
+        : {};
     const windows = [];
-    if (config.currentPeriod || (typeof config.creditUsagePercent === 'number' && Number.isFinite(config.creditUsagePercent))) {
+    if (config.currentPeriod ||
+        (typeof config.creditUsagePercent === 'number' &&
+            Number.isFinite(config.creditUsagePercent))) {
         const kind = config.currentPeriod?.type === 'USAGE_PERIOD_TYPE_WEEKLY'
             ? 'weekly'
             : 'other';
         const resetsAt = grokResetsAt(config.currentPeriod?.end);
-        const usedPercent = typeof config.creditUsagePercent === 'number' && Number.isFinite(config.creditUsagePercent)
+        const usedPercent = typeof config.creditUsagePercent === 'number' &&
+            Number.isFinite(config.creditUsagePercent)
             ? config.creditUsagePercent
             : 0;
-        windows.push({ kind, usedPercent, ...resetsAt === undefined ? {} : { resetsAt } });
+        windows.push({
+            kind,
+            usedPercent,
+            ...(resetsAt === undefined ? {} : { resetsAt }),
+        });
     }
-    else if (typeof config.monthlyLimit?.val === 'number' && config.monthlyLimit.val > 0) {
+    else if (typeof config.monthlyLimit?.val === 'number' &&
+        config.monthlyLimit.val > 0) {
         const used = typeof config.used?.val === 'number' ? config.used.val : 0;
         const resetsAt = grokResetsAt(config.billingPeriodEnd);
         windows.push({
             kind: 'other',
             usedPercent: (used / config.monthlyLimit.val) * 100,
-            ...resetsAt === undefined ? {} : { resetsAt },
+            ...(resetsAt === undefined ? {} : { resetsAt }),
         });
     }
     // The upstream billing response rarely carries `subscriptionTier` (the CLI
     // enriches it locally from its settings cache), so the access token's
     // `tier` claim is the working fallback.
-    const plan = typeof payload.subscriptionTier === 'string' && payload.subscriptionTier.length > 0
+    const plan = typeof payload.subscriptionTier === 'string' &&
+        payload.subscriptionTier.length > 0
         ? payload.subscriptionTier
         : grokTierName(session.accessToken);
     return {
         supported: true,
         windows,
-        ...plan === undefined ? {} : { plan },
+        ...(plan === undefined ? {} : { plan }),
     };
 }
 export const GROK_MODELS_URL = 'https://api.x.ai/v1/models';
@@ -310,24 +333,26 @@ function grokCliReasoning(entry) {
     if (entry.supports_reasoning_effort !== true)
         return undefined;
     const efforts = (entry.reasoning_efforts ?? [])
-        .filter(level => typeof level.value === 'string' && level.value.length > 0)
-        .map(level => ({
+        .filter((level) => typeof level.value === 'string' && level.value.length > 0)
+        .map((level) => ({
         id: ReasoningEffortId(level.value),
-        name: typeof level.label === 'string' && level.label.length > 0 ? level.label : level.value,
-        ...typeof level.description === 'string' && level.description.length > 0
+        name: typeof level.label === 'string' && level.label.length > 0
+            ? level.label
+            : level.value,
+        ...(typeof level.description === 'string' && level.description.length > 0
             ? { description: level.description }
-            : {},
+            : {}),
     }));
     if (efforts.length === 0)
         return undefined;
     // The per-entry `default` flags are unreliable (the live catalog marks
     // several levels default at once), so the top-level `reasoning_effort`
     // field is the trusted default.
-    const defaultEffort = typeof entry.reasoning_effort === 'string'
-        && efforts.some(effort => effort.id === ReasoningEffortId(entry.reasoning_effort))
+    const defaultEffort = typeof entry.reasoning_effort === 'string' &&
+        efforts.some((effort) => effort.id === ReasoningEffortId(entry.reasoning_effort))
         ? ReasoningEffortId(entry.reasoning_effort)
         : undefined;
-    return { efforts, ...defaultEffort === undefined ? {} : { defaultEffort } };
+    return { efforts, ...(defaultEffort === undefined ? {} : { defaultEffort }) };
 }
 /**
  * Fetch the CLI catalog and index its per-model metadata by model id.
@@ -339,17 +364,17 @@ function grokCliReasoning(entry) {
 export async function fetchGrokCliCatalog(session, fetchFn = proxiedFetch, signal) {
     const response = await fetchFn(GROK_CLI_MODELS_URL, {
         headers: {
-            'authorization': `Bearer ${session.accessToken}`,
+            authorization: `Bearer ${session.accessToken}`,
             // The proxy only honors bearer tokens presented as the Grok CLI.
             'x-xai-token-auth': 'xai-grok-cli',
-            'accept': 'application/json',
+            accept: 'application/json',
             ...attributionHeaders(),
         },
-        ...signal === undefined ? {} : { signal },
+        ...(signal === undefined ? {} : { signal }),
     });
     if (!response.ok)
         throw await oauthEndpointError(response, 'grok CLI catalog');
-    const payload = await response.json();
+    const payload = (await response.json());
     if (!Array.isArray(payload.data))
         throw new Error('grok CLI catalog returned no data array');
     const catalog = new Map();
@@ -358,14 +383,16 @@ export async function fetchGrokCliCatalog(session, fetchFn = proxiedFetch, signa
             continue;
         const reasoning = grokCliReasoning(entry);
         catalog.set(entry.id, {
-            ...typeof entry.name === 'string' && entry.name.length > 0 ? { name: entry.name } : {},
-            ...typeof entry.description === 'string' && entry.description.length > 0
+            ...(typeof entry.name === 'string' && entry.name.length > 0
+                ? { name: entry.name }
+                : {}),
+            ...(typeof entry.description === 'string' && entry.description.length > 0
                 ? { description: entry.description }
-                : {},
-            ...typeof entry.context_window === 'number' && entry.context_window > 0
+                : {}),
+            ...(typeof entry.context_window === 'number' && entry.context_window > 0
                 ? { contextWindow: entry.context_window }
-                : {},
-            ...reasoning === undefined ? {} : { reasoning },
+                : {}),
+            ...(reasoning === undefined ? {} : { reasoning }),
         });
     }
     return catalog;
@@ -389,8 +416,12 @@ function grokPriorMeta(prior) {
         return {};
     return {
         ...(prior.name.length > 0 ? { name: prior.name } : {}),
-        ...(prior.description === undefined ? {} : { description: prior.description }),
-        ...(prior.contextWindow === undefined ? {} : { contextWindow: prior.contextWindow }),
+        ...(prior.description === undefined
+            ? {}
+            : { description: prior.description }),
+        ...(prior.contextWindow === undefined
+            ? {}
+            : { contextWindow: prior.contextWindow }),
         ...(prior.reasoning === undefined ? {} : { reasoning: prior.reasoning }),
     };
 }
@@ -413,15 +444,15 @@ function grokPriorMeta(prior) {
 export async function fetchGrokModels(session, fetchFn = proxiedFetch, onWarn, previous, signal) {
     const previousById = previous === undefined || previous.length === 0
         ? undefined
-        : new Map(previous.map(model => [model.id, model]));
+        : new Map(previous.map((model) => [model.id, model]));
     const [response, cliCatalog] = await Promise.all([
         fetchFn(GROK_MODELS_URL, {
             headers: {
-                'authorization': `Bearer ${session.accessToken}`,
-                'accept': 'application/json',
+                authorization: `Bearer ${session.accessToken}`,
+                accept: 'application/json',
                 ...attributionHeaders(),
             },
-            ...signal === undefined ? {} : { signal },
+            ...(signal === undefined ? {} : { signal }),
         }),
         fetchGrokCliCatalog(session, fetchFn, signal).catch((error) => {
             if (isDiscoveryAborted(error, signal))
@@ -434,13 +465,15 @@ export async function fetchGrokModels(session, fetchFn = proxiedFetch, onWarn, p
     ]);
     if (!response.ok)
         throw await oauthEndpointError(response, 'grok models');
-    const payload = await response.json();
+    const payload = (await response.json());
     if (!Array.isArray(payload.data))
         throw new Error('grok models endpoint returned no data array');
     const seen = new Set();
     const discovered = [];
     for (const entry of payload.data) {
-        if (typeof entry.id !== 'string' || entry.id.length === 0 || seen.has(entry.id))
+        if (typeof entry.id !== 'string' ||
+            entry.id.length === 0 ||
+            seen.has(entry.id))
             continue;
         if (!isChatModel(entry.id))
             continue;
@@ -469,23 +502,33 @@ export async function fetchGrokModels(session, fetchFn = proxiedFetch, onWarn, p
 export function grokRequestBody(options, resolved) {
     return {
         model: options.model,
-        ...resolved.instructions === undefined ? {} : { instructions: resolved.instructions },
+        ...(resolved.instructions === undefined
+            ? {}
+            : { instructions: resolved.instructions }),
         input: resolved.input,
-        ...options.tools !== undefined && options.tools.length > 0
-            ? { tools: toResponsesTools(options.tools), tool_choice: 'auto', parallel_tool_calls: true }
-            : {},
-        ...options.maxTokens !== undefined ? { max_output_tokens: options.maxTokens } : {},
+        ...(options.tools !== undefined && options.tools.length > 0
+            ? {
+                tools: toResponsesTools(options.tools),
+                tool_choice: 'auto',
+                parallel_tool_calls: true,
+            }
+            : {}),
+        ...(options.maxTokens !== undefined
+            ? { max_output_tokens: options.maxTokens }
+            : {}),
         // The harness only passes an effort the resolved model advertised (the
         // CLI catalog's), so this never reaches a model that rejects it.
-        ...options.reasoningEffort !== undefined
+        ...(options.reasoningEffort !== undefined
             ? { reasoning: { effort: String(options.reasoningEffort) } }
-            : {},
+            : {}),
         // Cache-affinity hint (mirrors codex): xAI caches prompts per server,
         // and `prompt_cache_key` is the Responses-API signal that routes repeat
         // requests back to the cache-holding shard — without it every turn's
         // cache hit is shard-routing luck. The session id is the stable key
         // xAI's own docs recommend.
-        ...options.sessionId !== undefined ? { prompt_cache_key: String(options.sessionId) } : {},
+        ...(options.sessionId !== undefined
+            ? { prompt_cache_key: String(options.sessionId) }
+            : {}),
         store: false,
         stream: true,
     };
@@ -507,7 +550,8 @@ export class GrokAdapter extends LlmAdapter {
     }
     /** Discovery fetcher: resolves the session through the refresh-aware path. */
     async fetchCatalog(account, signal) {
-        const lastKnown = account === undefined || account === await this.options.tokens.defaultAccount()
+        const lastKnown = account === undefined ||
+            account === (await this.options.tokens.defaultAccount())
             ? this.catalog.lastKnown()
             : this.accountCatalogs.get(account)?.lastKnown();
         return fetchGrokModels(await this.options.tokens.session(account), this.options.fetchFn, this.options.onWarn, lastKnown, signal);
@@ -529,7 +573,9 @@ export class GrokAdapter extends LlmAdapter {
             this.accountCatalogs.get(account)?.invalidate();
             this.accountCatalogs.delete(account);
         }
-        if (account === undefined || this.catalogOwner === account || this.catalogOwner === undefined) {
+        if (account === undefined ||
+            this.catalogOwner === account ||
+            this.catalogOwner === undefined) {
             this.catalogOwner = undefined;
             this.catalog.invalidate();
         }
@@ -556,11 +602,13 @@ export class GrokAdapter extends LlmAdapter {
         return cache;
     }
     listed(provider, discovered) {
-        return discovered.map(model => ({
+        return discovered.map((model) => ({
             provider,
             id: model.id,
             name: model.name,
-            ...model.description === undefined ? {} : { description: model.description },
+            ...(model.description === undefined
+                ? {}
+                : { description: model.description }),
             inputModalities: grokModalities(model.id),
         }));
     }
@@ -571,7 +619,7 @@ export class GrokAdapter extends LlmAdapter {
         return subscriptionRetryPolicy(DEFAULT_RETRY, this.options.rateLimit ?? DEFAULT_RATE_LIMIT_WAIT, `grok: provider "${provider}" retryPolicy`);
     }
     staticModels(provider) {
-        return this.options.models.map(model => ({
+        return this.options.models.map((model) => ({
             provider,
             id: model.id,
             name: model.name ?? model.id,
@@ -584,19 +632,22 @@ export class GrokAdapter extends LlmAdapter {
         if (pool === undefined)
             return own;
         const extra = await pool.modelsForProvider(provider);
-        const seen = new Set(own.map(model => model.id));
+        const seen = new Set(own.map((model) => model.id));
         // Account pools reuse the catalog row; only configured tiers are extra.
-        return [...own, ...extra.filter(model => !seen.has(model.id))];
+        return [...own, ...extra.filter((model) => !seen.has(model.id))];
     }
     /** The provider's own catalog: union of every account, or one account when named. */
     async listOwnModels(provider, account, signal, preferCached = false) {
         if (account === undefined) {
-            const accounts = (await this.options.tokens.list()).map(entry => entry.key);
+            const accounts = (await this.options.tokens.list()).map((entry) => entry.key);
             if (accounts.length === 0)
                 return [];
-            return unionAccountCatalogs(accounts, (key, accountSignal) => this.listOwnModels(provider, key, accountSignal, preferCached), { timeoutMs: DISCOVERY_TIMEOUT_MS, ...signal === undefined ? {} : { signal } });
+            return unionAccountCatalogs(accounts, (key, accountSignal) => this.listOwnModels(provider, key, accountSignal, preferCached), {
+                timeoutMs: DISCOVERY_TIMEOUT_MS,
+                ...(signal === undefined ? {} : { signal }),
+            });
         }
-        if (!await this.options.tokens.hasSession(account)) {
+        if (!(await this.options.tokens.hasSession(account))) {
             return [];
         }
         if (!this.options.discovery)
@@ -606,7 +657,7 @@ export class GrokAdapter extends LlmAdapter {
             // The fetcher runs only on a cache miss, and resolves the session
             // through the refresh-aware path so an expired access token renews here
             // instead of failing discovery into the static fallback.
-            return this.listed(provider, await catalog.get(() => discoverOrRetryAuth(force => this.options.tokens.session(account, force), catalog, () => this.fetchCatalog(account, signal)), preferCached));
+            return this.listed(provider, await catalog.get(() => discoverOrRetryAuth((force) => this.options.tokens.session(account, force), catalog, () => this.fetchCatalog(account, signal)), preferCached));
         }
         catch (error) {
             if (isDiscoveryAborted(error, signal))
@@ -630,16 +681,17 @@ export class GrokAdapter extends LlmAdapter {
     async discovered(model) {
         if (!this.options.discovery)
             return undefined;
-        const accounts = (await this.options.tokens.list()).map(entry => entry.key);
+        const accounts = (await this.options.tokens.list()).map((entry) => entry.key);
         return discoverAcrossAccounts(accounts, async (account) => {
             const catalog = await this.catalogFor(account);
             const models = await catalog.resolve(() => this.fetchCatalog(account));
-            return models?.find(entry => entry.id === model);
+            return models?.find((entry) => entry.id === model);
         });
     }
     async resolveModel(provider, model) {
         const pool = this.options.pool?.();
-        if (pool !== undefined && await pool.owns(provider, model)) {
+        if (pool !== undefined &&
+            (await pool.owns(provider, model))) {
             return pool.resolveModel(provider, model);
         }
         return this.resolveOwnModel(provider, model);
@@ -647,7 +699,7 @@ export class GrokAdapter extends LlmAdapter {
     /** Capability resolution of the provider's own models (the pool resolves members here). */
     async resolveOwnModel(provider, model) {
         const discovered = await this.discovered(model);
-        const configured = this.options.models.find(entry => entry.id === model);
+        const configured = this.options.models.find((entry) => entry.id === model);
         // Efforts come from the discovered CLI catalog; models it does not
         // cover expose none, so the harness rejects explicit efforts before
         // provider I/O instead of the API 400ing. A configured default effort
@@ -658,16 +710,23 @@ export class GrokAdapter extends LlmAdapter {
             provider,
             id: model,
             name: discovered?.name ?? configured?.name ?? model,
-            ...discovered?.description === undefined ? {} : { description: discovered.description },
+            ...(discovered?.description === undefined
+                ? {}
+                : { description: discovered.description }),
             inputModalities: configured?.inputModalities ?? grokModalities(model),
-            context: { contextWindow: discovered?.contextWindow ?? configured?.contextWindow ?? GROK_CONTEXT_WINDOW },
+            context: {
+                contextWindow: discovered?.contextWindow ??
+                    configured?.contextWindow ??
+                    GROK_CONTEXT_WINDOW,
+            },
             defaultMaxTokens: configured?.maxTokens ?? GROK_DEFAULT_MAX_TOKENS,
-            ...reasoning === undefined ? {} : { reasoning },
+            ...(reasoning === undefined ? {} : { reasoning }),
         };
     }
     async *stream(options) {
         const pool = this.options.pool?.();
-        if (pool !== undefined && await pool.owns(options.provider, options.model)) {
+        if (pool !== undefined &&
+            (await pool.owns(options.provider, options.model))) {
             yield* pool.stream(options);
             return;
         }
@@ -690,13 +749,17 @@ export class GrokAdapter extends LlmAdapter {
             if (!response.ok) {
                 throw await httpLlmError(response, 'grok API', {
                     rateLimitReset: grokRateLimitReset,
-                    ...this.options.onWarn === undefined ? {} : { onWarn: this.options.onWarn },
+                    ...(this.options.onWarn === undefined
+                        ? {}
+                        : { onWarn: this.options.onWarn }),
                 });
             }
             if (response.body === null) {
                 throw new LlmError('grok API returned no response body', EMPTY_RESPONSE_CODE);
             }
-            yield* streamResponses(response.body, () => { watchdog.pulse(); });
+            yield* streamResponses(response.body, () => {
+                watchdog.pulse();
+            });
         }
         catch (error) {
             throw mapFetchFailure('grok API', error, watchdog, options.signal);
@@ -711,8 +774,8 @@ export class GrokAdapter extends LlmAdapter {
         return proxiedFetch(GROK_API_URL, {
             method: 'POST',
             headers: {
-                'authorization': `Bearer ${session.accessToken}`,
-                'accept': 'text/event-stream',
+                authorization: `Bearer ${session.accessToken}`,
+                accept: 'text/event-stream',
                 'content-type': 'application/json',
                 ...attributionHeaders(),
             },

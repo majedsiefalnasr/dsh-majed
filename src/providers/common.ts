@@ -6,7 +6,7 @@
  * promise (`inflight`), so a rotating refresh token is never spent twice.
  */
 
-import { createHash, randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto';
 import {
   CONTEXT_WINDOW_EXCEEDED_CODE,
   isContextWindowExceededError,
@@ -14,28 +14,33 @@ import {
   LlmError,
   QUOTA_EXCEEDED_CODE,
   ReasoningEffortId,
-} from '@deepseek-ai/dsh-llm'
-import { durationMs, rateLimitDiagnostics, retryAfterInstant, waitFromReset } from './rate-limit.js'
-import type { RateLimitResetReader } from './rate-limit.js'
+} from '@deepseek-ai/dsh-llm';
+import {
+  durationMs,
+  rateLimitDiagnostics,
+  retryAfterInstant,
+  waitFromReset,
+} from './rate-limit.js';
+import type { RateLimitResetReader } from './rate-limit.js';
 
 /** One configured model catalog entry. */
 export interface ModelEntry {
   /** Wire model id; must be non-empty. */
-  id: string
+  id: string;
   /** Selector label; defaults to the id. */
-  name?: string
+  name?: string;
   /** Known combined request/response context capacity. */
-  contextWindow?: number
+  contextWindow?: number;
   /** Per-request output cap for this model. */
-  maxTokens?: number
+  maxTokens?: number;
   /** Accepted request modalities; when set, wins over the provider default. */
-  inputModalities?: ('text' | 'image')[]
+  inputModalities?: ('text' | 'image')[];
   /**
    * Force this model's upstream protocol. Only the copilot adapter consumes
    * the semantics; the union is inlined here to avoid a circular import of
    * the copilot module's `CopilotWire`.
    */
-  wire?: 'chat-completions' | 'responses'
+  wire?: 'chat-completions' | 'responses';
 }
 
 /**
@@ -44,39 +49,71 @@ export interface ModelEntry {
  * @param label - diagnostic prefix naming the provider.
  * @returns the validated entries.
  */
-export function validateModels(models: readonly ModelEntry[], label: string): ModelEntry[] {
-  const seen = new Set<string>()
+export function validateModels(
+  models: readonly ModelEntry[],
+  label: string,
+): ModelEntry[] {
+  const seen = new Set<string>();
   return models.map((model) => {
-    if (model.id.length === 0) throw new Error(`${label}: catalog model ids must be non-empty`)
+    if (model.id.length === 0)
+      throw new Error(`${label}: catalog model ids must be non-empty`);
     if (model.name !== undefined && model.name.length === 0) {
-      throw new Error(`${label}: catalog model "${model.id}" has an empty name`)
+      throw new Error(
+        `${label}: catalog model "${model.id}" has an empty name`,
+      );
     }
-    if (model.contextWindow !== undefined
-      && (!Number.isInteger(model.contextWindow) || model.contextWindow <= 0)) {
-      throw new Error(`${label}: catalog model "${model.id}" contextWindow must be a positive integer`)
+    if (
+      model.contextWindow !== undefined &&
+      (!Number.isInteger(model.contextWindow) || model.contextWindow <= 0)
+    ) {
+      throw new Error(
+        `${label}: catalog model "${model.id}" contextWindow must be a positive integer`,
+      );
     }
-    if (model.maxTokens !== undefined && (!Number.isInteger(model.maxTokens) || model.maxTokens <= 0)) {
-      throw new Error(`${label}: catalog model "${model.id}" maxTokens must be a positive integer`)
+    if (
+      model.maxTokens !== undefined &&
+      (!Number.isInteger(model.maxTokens) || model.maxTokens <= 0)
+    ) {
+      throw new Error(
+        `${label}: catalog model "${model.id}" maxTokens must be a positive integer`,
+      );
     }
-    if (model.inputModalities !== undefined
-      && (model.inputModalities.length === 0
-        || model.inputModalities.some(modality => modality !== 'text' && modality !== 'image'))) {
-      throw new Error(`${label}: catalog model "${model.id}" inputModalities must be a non-empty list of "text"/"image"`)
+    if (
+      model.inputModalities !== undefined &&
+      (model.inputModalities.length === 0 ||
+        model.inputModalities.some(
+          (modality) => modality !== 'text' && modality !== 'image',
+        ))
+    ) {
+      throw new Error(
+        `${label}: catalog model "${model.id}" inputModalities must be a non-empty list of "text"/"image"`,
+      );
     }
-    if (model.wire !== undefined && model.wire !== 'chat-completions' && model.wire !== 'responses') {
-      throw new Error(`${label}: catalog model "${model.id}" wire must be "chat-completions" or "responses"`)
+    if (
+      model.wire !== undefined &&
+      model.wire !== 'chat-completions' &&
+      model.wire !== 'responses'
+    ) {
+      throw new Error(
+        `${label}: catalog model "${model.id}" wire must be "chat-completions" or "responses"`,
+      );
     }
-    if (seen.has(model.id)) throw new Error(`${label}: duplicate catalog model "${model.id}"`)
-    seen.add(model.id)
+    if (seen.has(model.id))
+      throw new Error(`${label}: duplicate catalog model "${model.id}"`);
+    seen.add(model.id);
     return {
       id: model.id,
-      ...model.name === undefined ? {} : { name: model.name },
-      ...model.contextWindow === undefined ? {} : { contextWindow: model.contextWindow },
-      ...model.maxTokens === undefined ? {} : { maxTokens: model.maxTokens },
-      ...model.inputModalities === undefined ? {} : { inputModalities: [...model.inputModalities] },
-      ...model.wire === undefined ? {} : { wire: model.wire },
-    }
-  })
+      ...(model.name === undefined ? {} : { name: model.name }),
+      ...(model.contextWindow === undefined
+        ? {}
+        : { contextWindow: model.contextWindow }),
+      ...(model.maxTokens === undefined ? {} : { maxTokens: model.maxTokens }),
+      ...(model.inputModalities === undefined
+        ? {}
+        : { inputModalities: [...model.inputModalities] }),
+      ...(model.wire === undefined ? {} : { wire: model.wire }),
+    };
+  });
 }
 
 /** Optional per-call hooks {@link httpLlmError} uses to read a rate-limit window. */
@@ -87,9 +124,9 @@ export interface HttpLlmErrorOptions {
    * `retry-after` header, because a provider's own field names the window while
    * `retry-after` often names a short backoff.
    */
-  rateLimitReset?: RateLimitResetReader
+  rateLimitReset?: RateLimitResetReader;
   /** Diagnostic sink for a 429 that disclosed no reset instant this code recognizes. */
-  onWarn?: (message: string) => void
+  onWarn?: (message: string) => void;
 }
 
 /**
@@ -112,26 +149,28 @@ export async function httpLlmError(
   label: string,
   options: HttpLlmErrorOptions = {},
 ): Promise<LlmError> {
-  let body = ''
+  let body = '';
   try {
-    body = await response.text()
+    body = await response.text();
   } catch {
     // Only swallow error-body reading: the HTTP status still identifies the failure.
   }
   // Truncated for display only; the readers below need the whole body to parse it.
-  const shown = body.slice(0, 500)
-  const message = shown.length > 0
-    ? `${label} error (HTTP ${String(response.status)}): ${shown}`
-    : `${label} error (HTTP ${String(response.status)})`
-  let code: string
-  if (response.status === 401 || response.status === 403) code = 'AUTH'
-  else if (response.status === 429) code = 'RATE_LIMIT'
-  else if (isQuotaExceededError(shown)) code = QUOTA_EXCEEDED_CODE
-  else if (response.status === 400 && isContextWindowExceededError(shown)) code = CONTEXT_WINDOW_EXCEEDED_CODE
-  else if (response.status === 408 || response.status === 504) code = 'TIMEOUT'
-  else if (response.status >= 500) code = 'SERVER'
-  else code = `HTTP_${String(response.status)}`
-  const now = Date.now()
+  const shown = body.slice(0, 500);
+  const message =
+    shown.length > 0
+      ? `${label} error (HTTP ${String(response.status)}): ${shown}`
+      : `${label} error (HTTP ${String(response.status)})`;
+  let code: string;
+  if (response.status === 401 || response.status === 403) code = 'AUTH';
+  else if (response.status === 429) code = 'RATE_LIMIT';
+  else if (isQuotaExceededError(shown)) code = QUOTA_EXCEEDED_CODE;
+  else if (response.status === 400 && isContextWindowExceededError(shown))
+    code = CONTEXT_WINDOW_EXCEEDED_CODE;
+  else if (response.status === 408 || response.status === 504) code = 'TIMEOUT';
+  else if (response.status >= 500) code = 'SERVER';
+  else code = `HTTP_${String(response.status)}`;
+  const now = Date.now();
   // The provider's reader runs on a 429 and nowhere else. Providers attach
   // their rate-limit headers to every response, so reading them on a transient
   // 500 would report the current window's rollover — hours out — as the delay
@@ -144,17 +183,21 @@ export async function httpLlmError(
   // against `retry-after`: a rejected window often carries both, and the
   // generic header then names a short backoff that would burn the retry budget
   // re-hitting the same closed window.
-  const rateLimited = response.status === 429
+  const rateLimited = response.status === 429;
   const reset = rateLimited
-    ? options.rateLimitReset?.(response, body, now) ?? googleQuotaReset(body, now) ?? retryAfterInstant(response, now)
-    : retryAfterInstant(response, now)
+    ? (options.rateLimitReset?.(response, body, now) ??
+      googleQuotaReset(body, now) ??
+      retryAfterInstant(response, now))
+    : retryAfterInstant(response, now);
   if (reset === undefined && rateLimited) {
-    options.onWarn?.(`${label}: ${rateLimitDiagnostics(response, body)}`)
+    options.onWarn?.(`${label}: ${rateLimitDiagnostics(response, body)}`);
   }
   return new LlmError(message, code, {
     status: response.status,
-    ...reset === undefined ? {} : { providerRetryAfterMs: waitFromReset(reset, now) },
-  })
+    ...(reset === undefined
+      ? {}
+      : { providerRetryAfterMs: waitFromReset(reset, now) }),
+  });
 }
 
 /**
@@ -171,15 +214,15 @@ export async function httpLlmError(
  * @returns the reset instant, or undefined when the body does not name one.
  */
 function googleQuotaReset(body: string, now: number): number | undefined {
-  const delay = /"quotaResetDelay"\s*:\s*"([^"]+)"/.exec(body)
+  const delay = /"quotaResetDelay"\s*:\s*"([^"]+)"/.exec(body);
   if (delay !== null) {
-    const ms = durationMs(delay[1])
-    if (ms !== undefined && ms > 0) return now + ms
+    const ms = durationMs(delay[1]);
+    if (ms !== undefined && ms > 0) return now + ms;
   }
-  const stamp = /"quotaResetTimeStamp"\s*:\s*"([^"]+)"/.exec(body)
-  if (stamp === null) return undefined
-  const instant = Date.parse(stamp[1])
-  return Number.isFinite(instant) && instant > now ? instant : undefined
+  const stamp = /"quotaResetTimeStamp"\s*:\s*"([^"]+)"/.exec(body);
+  if (stamp === null) return undefined;
+  const instant = Date.parse(stamp[1]);
+  return Number.isFinite(instant) && instant > now ? instant : undefined;
 }
 
 /**
@@ -188,22 +231,22 @@ function googleQuotaReset(body: string, now: number): number | undefined {
  * @returns the delay in ms, or undefined when absent/unusable.
  */
 function parseRetryAfterMs(response: Response): number | undefined {
-  const retryAfter = response.headers.get('retry-after')
-  if (retryAfter === null) return undefined
-  const seconds = Number(retryAfter)
-  return Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : undefined
+  const retryAfter = response.headers.get('retry-after');
+  if (retryAfter === null) return undefined;
+  const seconds = Number(retryAfter);
+  return Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : undefined;
 }
 
 /** An idle watchdog: aborts its signal when no SSE activity arrives within the timeout. */
 export interface IdleWatchdog {
   /** Signal to pass to fetch and body reads; aborts on caller cancel or idle expiry. */
-  readonly signal: AbortSignal
+  readonly signal: AbortSignal;
   /** Reset the idle timer (call on every received SSE event). */
-  pulse(): void
+  pulse(): void;
   /** Stop the timer and detach from the caller signal. */
-  stop(): void
+  stop(): void;
   /** Whether the last abort came from idle expiry rather than caller cancellation. */
-  timedOut(): boolean
+  timedOut(): boolean;
 }
 
 /**
@@ -212,31 +255,36 @@ export interface IdleWatchdog {
  * @param timeoutMs - maximum idle interval while a stream read is outstanding.
  * @returns the watchdog; always {@link IdleWatchdog.stop} it when the stream ends.
  */
-export function idleWatchdog(caller: AbortSignal | undefined, timeoutMs: number): IdleWatchdog {
-  const controller = new AbortController()
-  let expired = false
-  let timer: ReturnType<typeof setTimeout> | undefined
+export function idleWatchdog(
+  caller: AbortSignal | undefined,
+  timeoutMs: number,
+): IdleWatchdog {
+  const controller = new AbortController();
+  let expired = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
   const arm = (): void => {
-    if (timer !== undefined) clearTimeout(timer)
+    if (timer !== undefined) clearTimeout(timer);
     timer = setTimeout(() => {
-      expired = true
-      controller.abort(new Error(`stream idle timeout after ${String(timeoutMs)}ms`))
-    }, timeoutMs)
-    timer.unref()
-  }
-  const onCallerAbort = (): void => controller.abort(caller?.reason)
-  if (caller?.aborted === true) controller.abort(caller.reason)
-  else caller?.addEventListener('abort', onCallerAbort, { once: true })
-  arm()
+      expired = true;
+      controller.abort(
+        new Error(`stream idle timeout after ${String(timeoutMs)}ms`),
+      );
+    }, timeoutMs);
+    timer.unref();
+  };
+  const onCallerAbort = (): void => controller.abort(caller?.reason);
+  if (caller?.aborted === true) controller.abort(caller.reason);
+  else caller?.addEventListener('abort', onCallerAbort, { once: true });
+  arm();
   return {
     signal: controller.signal,
     pulse: arm,
     stop() {
-      if (timer !== undefined) clearTimeout(timer)
-      caller?.removeEventListener('abort', onCallerAbort)
+      if (timer !== undefined) clearTimeout(timer);
+      caller?.removeEventListener('abort', onCallerAbort);
     },
     timedOut: () => expired,
-  }
+  };
 }
 
 /**
@@ -255,18 +303,24 @@ export function mapFetchFailure(
   watchdog: IdleWatchdog,
   caller: AbortSignal | undefined,
 ): LlmError {
-  if (watchdog.timedOut()) return new LlmError(`${label} stream idle timeout`, 'TIMEOUT', { cause: error })
-  if (caller?.aborted === true) return new LlmError(`${label} request aborted by caller`, 'ABORTED', { cause: error })
-  if (error instanceof LlmError) return error
-  return new LlmError(`${label} request failed`, 'TRANSPORT', { cause: error })
+  if (watchdog.timedOut())
+    return new LlmError(`${label} stream idle timeout`, 'TIMEOUT', {
+      cause: error,
+    });
+  if (caller?.aborted === true)
+    return new LlmError(`${label} request aborted by caller`, 'ABORTED', {
+      cause: error,
+    });
+  if (error instanceof LlmError) return error;
+  return new LlmError(`${label} request failed`, 'TRANSPORT', { cause: error });
 }
 
 /** OAuth token-endpoint failure carrying the provider's `error` code when it sent one. */
 export class OAuthEndpointError extends Error {
   /** HTTP status of the token endpoint response. */
-  readonly status: number
+  readonly status: number;
   /** The provider's OAuth `error` code (e.g. `invalid_grant`), when present. */
-  readonly oauthCode: string | undefined
+  readonly oauthCode: string | undefined;
   /**
    * The endpoint's `retry-after`, in ms, when it sent one. Usage/models
    * endpoints reuse this error type and can rate-limit progressively (each
@@ -274,14 +328,19 @@ export class OAuthEndpointError extends Error {
    * fixed schedule instead of honoring this can keep an account locked out
    * indefinitely.
    */
-  readonly retryAfterMs: number | undefined
+  readonly retryAfterMs: number | undefined;
 
-  constructor(message: string, status: number, oauthCode?: string, retryAfterMs?: number) {
-    super(message)
-    this.name = 'OAuthEndpointError'
-    this.status = status
-    this.oauthCode = oauthCode
-    this.retryAfterMs = retryAfterMs
+  constructor(
+    message: string,
+    status: number,
+    oauthCode?: string,
+    retryAfterMs?: number,
+  ) {
+    super(message);
+    this.name = 'OAuthEndpointError';
+    this.status = status;
+    this.oauthCode = oauthCode;
+    this.retryAfterMs = retryAfterMs;
   }
 }
 
@@ -296,51 +355,65 @@ export class OAuthEndpointError extends Error {
  * @param label - diagnostic prefix naming the provider.
  * @returns the error to throw.
  */
-export async function oauthEndpointError(response: Response, label: string): Promise<OAuthEndpointError> {
-  let oauthCode: string | undefined
-  let detail = ''
+export async function oauthEndpointError(
+  response: Response,
+  label: string,
+): Promise<OAuthEndpointError> {
+  let oauthCode: string | undefined;
+  let detail = '';
   try {
-    const parsed = await response.json() as { error?: unknown; error_description?: unknown }
+    const parsed = (await response.json()) as {
+      error?: unknown;
+      error_description?: unknown;
+    };
     if (typeof parsed.error === 'string') {
-      oauthCode = parsed.error
+      oauthCode = parsed.error;
     } else if (typeof parsed.error === 'object' && parsed.error !== null) {
-      const nested = parsed.error as { code?: unknown; message?: unknown }
-      if (typeof nested.code === 'string' && nested.code.length > 0) oauthCode = nested.code
-      if (typeof nested.message === 'string') detail = nested.message
+      const nested = parsed.error as { code?: unknown; message?: unknown };
+      if (typeof nested.code === 'string' && nested.code.length > 0)
+        oauthCode = nested.code;
+      if (typeof nested.message === 'string') detail = nested.message;
     }
-    if (typeof parsed.error_description === 'string') detail = parsed.error_description
-    if (detail.length === 0) detail = oauthCode ?? ''
+    if (typeof parsed.error_description === 'string')
+      detail = parsed.error_description;
+    if (detail.length === 0) detail = oauthCode ?? '';
   } catch {
     // Only swallow error-body parsing: the HTTP status still identifies the failure.
   }
-  const message = detail.length > 0
-    ? `${label} token endpoint error (HTTP ${String(response.status)}): ${detail}`
-    : `${label} token endpoint error (HTTP ${String(response.status)})`
-  return new OAuthEndpointError(message, response.status, oauthCode, parseRetryAfterMs(response))
+  const message =
+    detail.length > 0
+      ? `${label} token endpoint error (HTTP ${String(response.status)}): ${detail}`
+      : `${label} token endpoint error (HTTP ${String(response.status)})`;
+  return new OAuthEndpointError(
+    message,
+    response.status,
+    oauthCode,
+    parseRetryAfterMs(response),
+  );
 }
 
 /** A session fresh enough to serve a request without a refresh. */
 interface TimedSession {
-  accessToken: string
-  refreshToken: string
-  expiresAt: number
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number;
 }
 
 /** Provider hooks the token manager needs. */
 export interface TokenManagerOptions<S extends TimedSession> {
   /** Human-readable provider name for error messages. */
-  displayName: string
+  displayName: string;
   /** Refresh this long before `expiresAt`. */
-  preemptMs: number
-  load(): Promise<S | undefined>
-  save(session: S): Promise<void>
-  remove(): Promise<void>
+  preemptMs: number;
+  load(): Promise<S | undefined>;
+  save(session: S): Promise<void>;
+  remove(): Promise<void>;
   /** Perform the provider's refresh-token grant. */
-  refresh(session: S): Promise<S>
+  refresh(session: S): Promise<S>;
   /** Whether a refresh failure is permanent (re-login required). */
-  isPermanent(error: unknown): boolean
+  isPermanent(error: unknown): boolean;
   /** Called after a permanent refresh failure deleted the stored session. */
-  onRemoved?(): void
+  onRemoved?(): void;
 }
 
 /**
@@ -351,12 +424,12 @@ export interface TokenManagerOptions<S extends TimedSession> {
  * with a re-login hint; transient failures fall back to a still-valid token.
  */
 export class TokenManager<S extends TimedSession> {
-  private inflight: Promise<S> | undefined
+  private inflight: Promise<S> | undefined;
   /** The session whose refresh token the in-flight refresh is spending. */
-  private attempted: S | undefined
+  private attempted: S | undefined;
 
   constructor(private readonly options: TokenManagerOptions<S>) {
-    this.options = options
+    this.options = options;
   }
 
   /**
@@ -365,7 +438,7 @@ export class TokenManager<S extends TimedSession> {
    * @returns the stored session, or `undefined` when logged out.
    */
   peek(): Promise<S | undefined> {
-    return this.options.load()
+    return this.options.load();
   }
 
   /**
@@ -373,7 +446,7 @@ export class TokenManager<S extends TimedSession> {
    * @returns true when logged in.
    */
   async hasSession(): Promise<boolean> {
-    return (await this.options.load()) !== undefined
+    return (await this.options.load()) !== undefined;
   }
 
   /**
@@ -384,100 +457,142 @@ export class TokenManager<S extends TimedSession> {
    *   when the refresh grant is permanently rejected.
    */
   async session(forceRefresh = false): Promise<S> {
-    const session = await this.options.load()
+    const session = await this.options.load();
     if (session === undefined) {
       throw new LlmError(
-        `dsh-plugin-subscriptions: not logged in to ${this.options.displayName}; `
-        + 'log in via Settings → Subscriptions in the dsh web app',
+        `dsh-plugin-subscriptions: not logged in to ${this.options.displayName}; ` +
+          'log in via Settings → Subscriptions in the dsh web app',
         'MISSING_CREDENTIAL',
-      )
+      );
     }
-    if (!forceRefresh && session.expiresAt - Date.now() > this.options.preemptMs) {
-      return session
+    if (
+      !forceRefresh &&
+      session.expiresAt - Date.now() > this.options.preemptMs
+    ) {
+      return session;
     }
     this.inflight ??= this.doRefresh(session).finally(() => {
-      this.inflight = undefined
-    })
+      this.inflight = undefined;
+    });
     try {
-      return await this.inflight
+      return await this.inflight;
     } catch (error) {
       if (this.options.isPermanent(error)) {
         // A re-login may have landed while this refresh was failing: its
         // session carries a different refresh token, and deleting it would
         // log out an account that just signed in. Serve it instead.
-        const attempted = this.attempted
-        const stored = await this.options.load()
-        if (stored !== undefined && attempted !== undefined && stored.refreshToken !== attempted.refreshToken) {
-          return stored
+        const attempted = this.attempted;
+        const stored = await this.options.load();
+        if (
+          stored !== undefined &&
+          attempted !== undefined &&
+          stored.refreshToken !== attempted.refreshToken
+        ) {
+          return stored;
         }
-        await this.options.remove()
-        this.options.onRemoved?.()
+        await this.options.remove();
+        this.options.onRemoved?.();
         throw new LlmError(
           `${this.options.displayName} login expired or was revoked; log in again via Settings → Subscriptions`,
           'INVALID_CREDENTIAL',
           { cause: error },
-        )
+        );
       }
       if (!forceRefresh && session.expiresAt > Date.now()) {
         // Transient refresh failure with a still-valid token: use it.
-        return session
+        return session;
       }
       throw error instanceof LlmError
         ? error
-        : new LlmError(`${this.options.displayName} token refresh failed`, 'AUTH', { cause: error })
+        : new LlmError(
+            `${this.options.displayName} token refresh failed`,
+            'AUTH',
+            { cause: error },
+          );
     }
   }
 
   private async doRefresh(session: S): Promise<S> {
     // A concurrent caller may have refreshed while this one waited: re-read
     // the store and skip the round trip when the stored session is fresh.
-    const current = await this.options.load()
-    if (current !== undefined
-      && current.accessToken !== session.accessToken
-      && current.expiresAt - Date.now() > this.options.preemptMs) {
-      return current
+    const current = await this.options.load();
+    if (
+      current !== undefined &&
+      current.accessToken !== session.accessToken &&
+      current.expiresAt - Date.now() > this.options.preemptMs
+    ) {
+      return current;
     }
-    const attempted = current ?? session
-    this.attempted = attempted
-    const next = await this.options.refresh(attempted)
-    await this.options.save(next)
-    return next
+    const attempted = current ?? session;
+    this.attempted = attempted;
+    const next = await this.options.refresh(attempted);
+    await this.options.save(next);
+    return next;
   }
 }
 
 /** Fetch signature adapters accept for discovery calls (injectable for tests). */
-export type FetchFn = typeof fetch
+export type FetchFn = typeof fetch;
 
 /** Bound on one account catalog fetch or usage poll — a hang must not block the picker. */
-export const DISCOVERY_TIMEOUT_MS = 10_000
+export const DISCOVERY_TIMEOUT_MS = 10_000;
 
 /** Cancel one caller's wait without cancelling catalog work shared with other callers. */
-export async function withAbortSignal<T>(work: () => Promise<T>, signal?: AbortSignal): Promise<T> {
-  signal?.throwIfAborted()
-  if (signal === undefined) return work()
+export async function withAbortSignal<T>(
+  work: () => Promise<T>,
+  signal?: AbortSignal,
+): Promise<T> {
+  signal?.throwIfAborted();
+  if (signal === undefined) return work();
   return new Promise<T>((resolve, reject) => {
-    const cleanup = () => signal.removeEventListener('abort', abort)
-    const abort = () => { cleanup(); reject(signal.reason) }
-    signal.addEventListener('abort', abort, { once: true })
-    Promise.resolve().then(() => { signal.throwIfAborted(); return work() }).then(
-      value => { cleanup(); resolve(value) },
-      error => { cleanup(); reject(error) },
-    )
-  })
+    const cleanup = () => signal.removeEventListener('abort', abort);
+    const abort = () => {
+      cleanup();
+      reject(signal.reason);
+    };
+    signal.addEventListener('abort', abort, { once: true });
+    Promise.resolve()
+      .then(() => {
+        signal.throwIfAborted();
+        return work();
+      })
+      .then(
+        (value) => {
+          cleanup();
+          resolve(value);
+        },
+        (error) => {
+          cleanup();
+          reject(error);
+        },
+      );
+  });
 }
 
 /**
  * One overall deadline for a multi-step read: aborts after `timeoutMs` or when `parent` aborts. Explicit
  * controller + timer (see {@link withTimeout}); call `release()` when the read is finished to drop the timer.
  */
-export function deadlineSignal(timeoutMs: number, parent?: AbortSignal): { signal: AbortSignal; release(): void } {
-  const controller = new AbortController()
-  const onParent = () => controller.abort(parent?.reason)
-  const timer = setTimeout(() => controller.abort(new DOMException('The operation timed out.', 'TimeoutError')), timeoutMs)
-  const release = () => { clearTimeout(timer); parent?.removeEventListener('abort', onParent) }
-  if (parent?.aborted === true) controller.abort(parent.reason)
-  else parent?.addEventListener('abort', onParent, { once: true })
-  return { signal: controller.signal, release }
+export function deadlineSignal(
+  timeoutMs: number,
+  parent?: AbortSignal,
+): { signal: AbortSignal; release(): void } {
+  const controller = new AbortController();
+  const onParent = () => controller.abort(parent?.reason);
+  const timer = setTimeout(
+    () =>
+      controller.abort(
+        new DOMException('The operation timed out.', 'TimeoutError'),
+      ),
+    timeoutMs,
+  );
+  const release = () => {
+    clearTimeout(timer);
+    parent?.removeEventListener('abort', onParent);
+  };
+  if (parent?.aborted === true) controller.abort(parent.reason);
+  else parent?.addEventListener('abort', onParent, { once: true });
+  return { signal: controller.signal, release };
 }
 
 /**
@@ -492,113 +607,135 @@ export function withTimeout<T>(
 ): Promise<T | undefined> {
   // An explicit controller + timer instead of AbortSignal.timeout/any: Node holds composite signals
   // weakly, so a hung `work` that keeps no reference to its signal could lose the timeout event.
-  const controller = new AbortController()
-  let timer: ReturnType<typeof setTimeout> | undefined
-  const onParent = () => controller.abort(parent?.reason)
+  const controller = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const onParent = () => controller.abort(parent?.reason);
   const cleanup = () => {
-    if (timer !== undefined) clearTimeout(timer)
-    parent?.removeEventListener('abort', onParent)
-  }
-  const aborted = new Promise<undefined>(resolve => {
-    controller.signal.addEventListener('abort', () => { cleanup(); resolve(undefined) }, { once: true })
-    if (parent?.aborted === true) controller.abort(parent.reason)
+    if (timer !== undefined) clearTimeout(timer);
+    parent?.removeEventListener('abort', onParent);
+  };
+  const aborted = new Promise<undefined>((resolve) => {
+    controller.signal.addEventListener(
+      'abort',
+      () => {
+        cleanup();
+        resolve(undefined);
+      },
+      { once: true },
+    );
+    if (parent?.aborted === true) controller.abort(parent.reason);
     else {
-      parent?.addEventListener('abort', onParent, { once: true })
-      timer = setTimeout(() => controller.abort(new DOMException('The operation timed out.', 'TimeoutError')), timeoutMs)
+      parent?.addEventListener('abort', onParent, { once: true });
+      timer = setTimeout(
+        () =>
+          controller.abort(
+            new DOMException('The operation timed out.', 'TimeoutError'),
+          ),
+        timeoutMs,
+      );
     }
-  })
-  const signal = controller.signal
+  });
+  const signal = controller.signal;
   return Promise.race([
     work(signal).then(
-      value => { cleanup(); return signal.aborted ? undefined : value },
+      (value) => {
+        cleanup();
+        return signal.aborted ? undefined : value;
+      },
       (error: unknown) => {
-        cleanup()
-        if (signal.aborted) return undefined
-        throw error
+        cleanup();
+        if (signal.aborted) return undefined;
+        throw error;
       },
     ),
     aborted,
-  ])
+  ]);
 }
 
 /** One rate-limit window reported by a provider's usage endpoint. */
 export interface UsageWindow {
   /** Window kind: `session` for the short rolling window, `weekly` for the 7-day one. */
-  kind: 'session' | 'weekly' | 'other'
+  kind: 'session' | 'weekly' | 'other';
   /** Model scope for model-specific windows (e.g. `Opus`), when the provider names one. */
-  scope?: string
+  scope?: string;
   /** Percent of the window already consumed (0–100). */
-  usedPercent: number
+  usedPercent: number;
   /** Epoch milliseconds at which the window resets, when the provider discloses it. */
-  resetsAt?: number
+  resetsAt?: number;
 }
 
 /** One banked Codex reset credit, returned by the private ChatGPT backend API. */
 export interface ResetCredit {
-  id?: string
-  grantedAt?: number
-  expiresAt?: number
+  id?: string;
+  grantedAt?: number;
+  expiresAt?: number;
 }
 
 /** Subscription usage of one provider, as served by the `usage` RPC endpoint. */
 export interface ProviderUsage {
   /** False when the provider has no usage endpoint (grok); windows are absent then. */
-  supported: boolean
+  supported: boolean;
   /** Usage windows in display order. */
-  windows?: UsageWindow[]
+  windows?: UsageWindow[];
   /** Plan name the usage endpoint reported, when present. */
-  plan?: string
+  plan?: string;
   /** Available banked Codex full resets, when the backend discloses them. */
-  resetCredits?: ResetCredit[]
+  resetCredits?: ResetCredit[];
   /** Optional reset lookup failure; ordinary usage remains usable. */
-  resetCreditsError?: string
+  resetCreditsError?: string;
 }
 
 /** One model discovered from a provider's live model-list endpoint. */
 export interface DiscoveredModel {
   /** Account-specific server-advertised ceiling for local context overrides. */
-  maxContextWindow?: number
+  maxContextWindow?: number;
   /** Wire model id. */
-  id: string
+  id: string;
   /** Human-readable display name. */
-  name: string
-  description?: string
+  name: string;
+  description?: string;
   /** Advertised combined context capacity in tokens. */
-  contextWindow?: number
+  contextWindow?: number;
   /** Server-advertised per-request output token ceiling, when disclosed. */
-  maxOutputTokens?: number
+  maxOutputTokens?: number;
   /** Provider sort hint; lower sorts earlier. */
-  priority?: number
+  priority?: number;
   /** Advertised reasoning efforts, when the provider discloses them. */
   reasoning?: {
-    efforts: { id: ReasoningEffortId; name: string; description?: string }[]
-    defaultEffort?: ReasoningEffortId
-  }
+    efforts: { id: ReasoningEffortId; name: string; description?: string }[];
+    defaultEffort?: ReasoningEffortId;
+  };
   /** Accepted request modalities the endpoint advertised (e.g. Copilot's vision support flag). */
-  inputModalities?: ('text' | 'image')[]
+  inputModalities?: ('text' | 'image')[];
   /** Claude-specific: which extended-thinking wire shape this model accepts. */
-  thinkingType?: 'enabled' | 'adaptive'
+  thinkingType?: 'enabled' | 'adaptive';
   /** Codex-specific: the catalog advertises a fast (priority) service tier. */
-  fastTier?: boolean
+  fastTier?: boolean;
   /** Copilot-specific: which upstream protocol the model's endpoints speak. */
-  copilotWire?: 'chat-completions' | 'responses'
+  copilotWire?: 'chat-completions' | 'responses';
   /**
    * Copilot-specific: the catalog also lists `/responses` for this model
    * (dual-protocol entries, e.g. gpt-5.4), so a chat-wire request may reroute
    * there when it combines function tools with a reasoning effort.
    */
-  copilotResponses?: boolean
+  copilotResponses?: boolean;
 }
 
 /** Display name for a wire reasoning-effort identifier. */
 export function effortDisplayName(effort: string): string {
-  return effort === 'xhigh' ? 'Extra High' : effort.charAt(0).toUpperCase() + effort.slice(1)
+  return effort === 'xhigh'
+    ? 'Extra High'
+    : effort.charAt(0).toUpperCase() + effort.slice(1);
 }
 
 /** The reasoning-block shape every caller passes to {@link mergeReasoning}. */
 export interface ReasoningBlock {
-  efforts: readonly { id: ReasoningEffortId; name: string; description?: string }[]
-  defaultEffort?: ReasoningEffortId
+  efforts: readonly {
+    id: ReasoningEffortId;
+    name: string;
+    description?: string;
+  }[];
+  defaultEffort?: ReasoningEffortId;
 }
 
 /**
@@ -628,30 +765,36 @@ export function mergeReasoning(
   base: ReasoningBlock | undefined,
   options?: { extendable?: boolean },
 ): DiscoveredModel['reasoning'] | undefined {
-  const detached = base === undefined
-    ? undefined
-    : {
-      efforts: [...base.efforts],
-      ...(base.defaultEffort === undefined ? {} : { defaultEffort: base.defaultEffort }),
-    }
-  if (configuredDefault === undefined) return detached
-  const effort = ReasoningEffortId(configuredDefault)
+  const detached =
+    base === undefined
+      ? undefined
+      : {
+          efforts: [...base.efforts],
+          ...(base.defaultEffort === undefined
+            ? {}
+            : { defaultEffort: base.defaultEffort }),
+        };
+  if (configuredDefault === undefined) return detached;
+  const effort = ReasoningEffortId(configuredDefault);
   if (base === undefined) {
     // No capability information at all (catalog unavailable, or a model the
     // catalog does not cover). Inventing a reasoning block here would claim a
     // capability nobody advertised; only a fallback-based provider may.
     return options?.extendable === true
-      ? { efforts: [{ id: effort, name: effortDisplayName(effort) }], defaultEffort: effort }
-      : undefined
+      ? {
+          efforts: [{ id: effort, name: effortDisplayName(effort) }],
+          defaultEffort: effort,
+        }
+      : undefined;
   }
-  if (base.efforts.some(entry => entry.id === effort)) {
-    return { efforts: [...base.efforts], defaultEffort: effort }
+  if (base.efforts.some((entry) => entry.id === effort)) {
+    return { efforts: [...base.efforts], defaultEffort: effort };
   }
-  if (options?.extendable !== true) return detached
+  if (options?.extendable !== true) return detached;
   return {
     efforts: [...base.efforts, { id: effort, name: effortDisplayName(effort) }],
     defaultEffort: effort,
-  }
+  };
 }
 
 /**
@@ -665,33 +808,33 @@ export async function discoverAcrossAccounts(
 ): Promise<DiscoveredModel | undefined> {
   for (const account of accounts) {
     try {
-      const found = await lookup(account)
-      if (found !== undefined) return found
+      const found = await lookup(account);
+      if (found !== undefined) return found;
     } catch {
       // sit out
     }
   }
-  return undefined
+  return undefined;
 }
 
 /** Skip scheduled refreshes when the last successful catalog is this recent. */
-export const DISCOVERY_TTL_MS = 5 * 60_000
+export const DISCOVERY_TTL_MS = 5 * 60_000;
 
 /** A durable snapshot of one provider's discovered catalog. */
 export interface CatalogSnapshot {
   /** Epoch milliseconds of the successful fetch that produced it. */
-  at: number
-  models: DiscoveredModel[]
+  at: number;
+  models: DiscoveredModel[];
 }
 
 /** The durable half of a {@link ModelCatalogCache} (the models.json store). */
 export interface CatalogPersistence {
   /** The last persisted snapshot, or undefined when absent or unusable. */
-  load(): Promise<CatalogSnapshot | undefined>
+  load(): Promise<CatalogSnapshot | undefined>;
   /** Persist a fresh snapshot (write-through after every successful fetch). */
-  save(snapshot: CatalogSnapshot): Promise<void>
+  save(snapshot: CatalogSnapshot): Promise<void>;
   /** Drop the persisted snapshot (a 401 proved the credential changed). */
-  clear(): Promise<void>
+  clear(): Promise<void>;
 }
 
 /**
@@ -707,14 +850,14 @@ export interface CatalogPersistence {
  * that still fails after a forced token refresh must call {@link invalidate}.
  */
 export class ModelCatalogCache {
-  private entry: CatalogSnapshot | undefined
-  private inflight: Promise<DiscoveredModel[]> | undefined
+  private entry: CatalogSnapshot | undefined;
+  private inflight: Promise<DiscoveredModel[]> | undefined;
   /** Settles once the persisted snapshot (when any) has been considered. */
-  private seeded: Promise<void> | undefined
+  private seeded: Promise<void> | undefined;
   /** Set by {@link invalidate} so an in-flight disk read cannot resurrect dropped state. */
-  private seedDisabled = false
+  private seedDisabled = false;
   /** Bumped by {@link invalidate} so a loser in-flight fetch cannot write back. */
-  private generation = 0
+  private generation = 0;
 
   constructor(
     private readonly persistence?: CatalogPersistence,
@@ -727,8 +870,9 @@ export class ModelCatalogCache {
    * @returns the cached models, or `undefined` when absent or stale.
    */
   cached(): readonly DiscoveredModel[] | undefined {
-    if (this.entry === undefined || Date.now() - this.entry.at >= this.ttlMs) return undefined
-    return this.entry.models
+    if (this.entry === undefined || Date.now() - this.entry.at >= this.ttlMs)
+      return undefined;
+    return this.entry.models;
   }
 
   /**
@@ -737,43 +881,51 @@ export class ModelCatalogCache {
    * @returns the last-known models, or `undefined` when nothing has been stored.
    */
   lastKnown(): readonly DiscoveredModel[] | undefined {
-    return this.entry?.models
+    return this.entry?.models;
   }
 
   /** Load the persisted snapshot once; a fetch or invalidate that landed first wins. */
   private ensureSeeded(): Promise<void> {
-    if (this.persistence === undefined) return Promise.resolve()
+    if (this.persistence === undefined) return Promise.resolve();
     this.seeded ??= this.persistence.load().then(
       (snapshot) => {
-        if (snapshot !== undefined && this.entry === undefined && !this.seedDisabled) {
-          this.entry = snapshot
+        if (
+          snapshot !== undefined &&
+          this.entry === undefined &&
+          !this.seedDisabled
+        ) {
+          this.entry = snapshot;
         }
       },
       () => undefined,
-    )
-    return this.seeded
+    );
+    return this.seeded;
   }
 
   /** Run (or join) the single in-flight fetch, updating memory and disk on success. */
-  private refresh(fetcher: () => Promise<DiscoveredModel[]>): Promise<DiscoveredModel[]> {
-    if (this.inflight !== undefined) return this.inflight
-    const gen = this.generation
+  private refresh(
+    fetcher: () => Promise<DiscoveredModel[]>,
+  ): Promise<DiscoveredModel[]> {
+    if (this.inflight !== undefined) return this.inflight;
+    const gen = this.generation;
     const pending = fetcher()
       .then((models) => {
-        if (this.generation !== gen) return models
-        const changed = this.entry === undefined || JSON.stringify(this.entry.models) !== JSON.stringify(models)
-        const snapshot: CatalogSnapshot = { at: Date.now(), models }
-        this.entry = snapshot
+        if (this.generation !== gen) return models;
+        const changed =
+          this.entry === undefined ||
+          JSON.stringify(this.entry.models) !== JSON.stringify(models);
+        const snapshot: CatalogSnapshot = { at: Date.now(), models };
+        this.entry = snapshot;
         // Write-through is fire-and-forget: a failed save only costs durability.
-        void this.persistence?.save(snapshot).catch(() => undefined)
-        if (changed) this.onChanged?.()
-        return models
+        void this.persistence?.save(snapshot).catch(() => undefined);
+        if (changed) this.onChanged?.();
+        return models;
       })
       .finally(() => {
-        if (this.generation === gen) this.inflight = undefined
-      })
-    this.inflight = pending
-    return pending
+        if (this.generation === gen) this.inflight = undefined;
+      });
+    this.inflight = pending;
+    return pending;
   }
 
   /**
@@ -783,16 +935,19 @@ export class ModelCatalogCache {
    * @returns the discovered models.
    * @throws the fetcher's failure (the `listModels` caller warns and falls back).
    */
-  async get(fetcher: () => Promise<DiscoveredModel[]>, preferCached = false): Promise<readonly DiscoveredModel[]> {
-    await this.ensureSeeded()
-    const fresh = this.cached()
-    if (fresh !== undefined) return fresh
+  async get(
+    fetcher: () => Promise<DiscoveredModel[]>,
+    preferCached = false,
+  ): Promise<readonly DiscoveredModel[]> {
+    await this.ensureSeeded();
+    const fresh = this.cached();
+    if (fresh !== undefined) return fresh;
     if (preferCached && this.entry !== undefined) {
       // Menu reads do not increase network frequency. Scheduled and explicit
       // refreshes call get without preferCached and still honor the five-minute TTL.
-      return this.entry.models
+      return this.entry.models;
     }
-    return this.refresh(fetcher)
+    return this.refresh(fetcher);
   }
 
   /**
@@ -804,43 +959,52 @@ export class ModelCatalogCache {
    * @returns the models, or `undefined` when nothing is known (the caller
    *   falls back to its static metadata). Never throws.
    */
-  async resolve(fetcher: () => Promise<DiscoveredModel[]>): Promise<readonly DiscoveredModel[] | undefined> {
-    await this.ensureSeeded()
-    const fresh = this.cached()
-    if (fresh !== undefined) return fresh
-    const known = this.entry?.models
-    if (known !== undefined) return known
+  async resolve(
+    fetcher: () => Promise<DiscoveredModel[]>,
+  ): Promise<readonly DiscoveredModel[] | undefined> {
+    await this.ensureSeeded();
+    const fresh = this.cached();
+    if (fresh !== undefined) return fresh;
+    const known = this.entry?.models;
+    if (known !== undefined) return known;
     try {
-      return await this.refresh(fetcher)
+      return await this.refresh(fetcher);
     } catch {
-      return undefined
+      return undefined;
     }
   }
 
   /** Drop the cached catalog (e.g. after a 401 proved the credential changed). */
   invalidate(): void {
-    this.generation += 1
-    this.entry = undefined
-    this.inflight = undefined
-    this.seedDisabled = true
-    void this.persistence?.clear().catch(() => undefined)
+    this.generation += 1;
+    this.entry = undefined;
+    this.inflight = undefined;
+    this.seedDisabled = true;
+    void this.persistence?.clear().catch(() => undefined);
   }
 }
 
 /** Whether discovery failed because the stored login is gone. */
 export function isMissingOrInvalidCredential(error: unknown): boolean {
-  return error instanceof LlmError
-    && (error.code === 'MISSING_CREDENTIAL' || error.code === 'INVALID_CREDENTIAL')
+  return (
+    error instanceof LlmError &&
+    (error.code === 'MISSING_CREDENTIAL' || error.code === 'INVALID_CREDENTIAL')
+  );
 }
 
 /** Whether discovery stopped because the caller cancelled or the timeout fired. */
-export function isDiscoveryAborted(error: unknown, signal?: AbortSignal): boolean {
-  if (signal?.aborted === true) return true
+export function isDiscoveryAborted(
+  error: unknown,
+  signal?: AbortSignal,
+): boolean {
+  if (signal?.aborted === true) return true;
   // Only treat abort-shaped errors as cancellation when this call had a signal;
   // a refresh TimeoutError must not fail the whole picker union.
-  return signal !== undefined
-    && error instanceof Error
-    && (error.name === 'AbortError' || error.name === 'TimeoutError')
+  return (
+    signal !== undefined &&
+    error instanceof Error &&
+    (error.name === 'AbortError' || error.name === 'TimeoutError')
+  );
 }
 
 /**
@@ -850,8 +1014,10 @@ export function isDiscoveryAborted(error: unknown, signal?: AbortSignal): boolea
  * the refresh grant still answers, so the store keeps the session.
  */
 export function isDiscoveryAuthFailure(error: unknown): boolean {
-  return (error instanceof OAuthEndpointError && error.status === 401)
-    || (error instanceof LlmError && error.code === 'AUTH')
+  return (
+    (error instanceof OAuthEndpointError && error.status === 401) ||
+    (error instanceof LlmError && error.code === 'AUTH')
+  );
 }
 
 /**
@@ -866,17 +1032,21 @@ export async function discoverOrRetryAuth<T>(
   run: () => Promise<T>,
 ): Promise<T> {
   try {
-    return await run()
+    return await run();
   } catch (error: unknown) {
-    if (isMissingOrInvalidCredential(error) || !isDiscoveryAuthFailure(error)) throw error
+    if (isMissingOrInvalidCredential(error) || !isDiscoveryAuthFailure(error))
+      throw error;
     try {
-      await session(true)
-      return await run()
+      await session(true);
+      return await run();
     } catch (retryError: unknown) {
-      if (!isMissingOrInvalidCredential(retryError) && isDiscoveryAuthFailure(retryError)) {
-        catalog.invalidate()
+      if (
+        !isMissingOrInvalidCredential(retryError) &&
+        isDiscoveryAuthFailure(retryError)
+      ) {
+        catalog.invalidate();
       }
-      throw retryError
+      throw retryError;
     }
   }
 }
@@ -889,14 +1059,18 @@ export async function discoverOrRetryAuth<T>(
  * Missing and empty IDs have no session identity and receive a fresh UUIDv4.
  */
 export function deterministicSessionId(sessionId?: string): string {
-  if (sessionId === undefined || sessionId.length === 0) return randomUUID()
-  const str = String(sessionId)
-  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str)) {
-    return str
+  if (sessionId === undefined || sessionId.length === 0) return randomUUID();
+  const str = String(sessionId);
+  if (
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      str,
+    )
+  ) {
+    return str;
   }
-  const bytes = createHash('sha256').update(str).digest().subarray(0, 16)
-  bytes[6] = (bytes[6] & 0x0f) | 0x80
-  bytes[8] = (bytes[8] & 0x3f) | 0x80
-  const hex = bytes.toString('hex')
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`
+  const bytes = createHash('sha256').update(str).digest().subarray(0, 16);
+  bytes[6] = (bytes[6] & 0x0f) | 0x80;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = bytes.toString('hex');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
 }

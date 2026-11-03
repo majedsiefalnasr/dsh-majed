@@ -3,16 +3,16 @@
  * from Gemini CLI: it uses Antigravity OAuth scopes, project discovery, and
  * the daily-cloudcode-pa v1internal request envelope.
  */
-import { errorChain, EMPTY_RESPONSE_CODE, LlmAdapter, LlmError } from '@deepseek-ai/dsh-llm';
+import { errorChain, EMPTY_RESPONSE_CODE, LlmAdapter, LlmError, } from '@deepseek-ai/dsh-llm';
 import { resolveImages } from '../translate/resolved.js';
 import { antigravityReasoning } from '../translate/antigravity-thinking.js';
 import { parseAntigravityResponse, streamAntigravity, toAntigravityRequest, } from '../translate/antigravity.js';
 import { httpLlmError, withAbortSignal, idleWatchdog, mapFetchFailure, mergeReasoning, ModelCatalogCache, discoverOrRetryAuth, isMissingOrInvalidCredential, oauthEndpointError, OAuthEndpointError, discoverAcrossAccounts, isDiscoveryAborted, } from './common.js';
 import { proxiedFetch } from '../http.js';
 import { sanitizeDiagnostic } from '../diagnostic.js';
-import { ANTIGRAVITY_DEFAULT_CLIENT_ID, ANTIGRAVITY_DEFAULT_CLIENT_SECRET } from './antigravity-oauth-client.js';
-import { DISCOVERY_TIMEOUT_MS, unionAccountCatalogs } from './accounts.js';
-import { DEFAULT_RATE_LIMIT_WAIT, DEFAULT_RETRY, subscriptionRetryPolicy } from './rate-limit.js';
+import { ANTIGRAVITY_DEFAULT_CLIENT_ID, ANTIGRAVITY_DEFAULT_CLIENT_SECRET, } from './antigravity-oauth-client.js';
+import { DISCOVERY_TIMEOUT_MS, unionAccountCatalogs, } from './accounts.js';
+import { DEFAULT_RATE_LIMIT_WAIT, DEFAULT_RETRY, subscriptionRetryPolicy, } from './rate-limit.js';
 export const ANTIGRAVITY_AUTHORIZE_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 export const ANTIGRAVITY_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 export const ANTIGRAVITY_USERINFO_URL = 'https://www.googleapis.com/oauth2/v2/userinfo';
@@ -39,24 +39,37 @@ export function resolveAntigravityOAuthConfig(config) {
     const pair = (id, secret) => {
         if (typeof id !== 'string' || !/^[A-Za-z0-9._-]+$/.test(id.trim()))
             return undefined;
-        if (secret !== undefined && (typeof secret !== 'string' || !/^[\x21-\x7e]+$/.test(secret.trim())))
+        if (secret !== undefined &&
+            (typeof secret !== 'string' || !/^[\x21-\x7e]+$/.test(secret.trim())))
             return undefined;
-        return { clientId: id.trim(), ...(typeof secret === 'string' ? { clientSecret: secret.trim() } : {}) };
+        return {
+            clientId: id.trim(),
+            ...(typeof secret === 'string' ? { clientSecret: secret.trim() } : {}),
+        };
     };
-    if (config && (config.clientId !== undefined || config.clientSecret !== undefined))
+    if (config &&
+        (config.clientId !== undefined || config.clientSecret !== undefined))
         return pair(config.clientId, config.clientSecret);
-    if (process.env.ANTIGRAVITY_CLIENT_ID !== undefined || process.env.ANTIGRAVITY_CLIENT_SECRET !== undefined) {
+    if (process.env.ANTIGRAVITY_CLIENT_ID !== undefined ||
+        process.env.ANTIGRAVITY_CLIENT_SECRET !== undefined) {
         return pair(process.env.ANTIGRAVITY_CLIENT_ID, process.env.ANTIGRAVITY_CLIENT_SECRET);
     }
-    return { clientId: ANTIGRAVITY_DEFAULT_CLIENT_ID, clientSecret: ANTIGRAVITY_DEFAULT_CLIENT_SECRET };
+    return {
+        clientId: ANTIGRAVITY_DEFAULT_CLIENT_ID,
+        clientSecret: ANTIGRAVITY_DEFAULT_CLIENT_SECRET,
+    };
 }
 /** Normalize the configured API origin and reject paths/credentials. */
 export function antigravityBaseURL(value) {
     const parsed = new URL(value?.trim() || ANTIGRAVITY_DEFAULT_BASE_URL);
-    if (parsed.protocol !== 'https:' || parsed.username.length > 0 || parsed.password.length > 0) {
+    if (parsed.protocol !== 'https:' ||
+        parsed.username.length > 0 ||
+        parsed.password.length > 0) {
         throw new Error('config.antigravity.baseURL must be an HTTPS origin without credentials');
     }
-    if (parsed.pathname !== '/' || parsed.search.length > 0 || parsed.hash.length > 0) {
+    if (parsed.pathname !== '/' ||
+        parsed.search.length > 0 ||
+        parsed.hash.length > 0) {
         throw new Error('config.antigravity.baseURL must not contain a path, query, or fragment');
     }
     return parsed.origin;
@@ -71,17 +84,21 @@ async function fetchAntigravity(method, init, runtime, fetchFn) {
         init.signal?.throwIfAborted();
         let response;
         try {
-            response = await withAbortSignal(() => fetchFn(`${endpoint}/v1internal:${method}`, init).then(response => { if (init.signal?.aborted) {
-                void response.body?.cancel().catch(() => { });
-                init.signal.throwIfAborted();
-            } return response; }), init.signal ?? undefined);
+            response = await withAbortSignal(() => fetchFn(`${endpoint}/v1internal:${method}`, init).then((response) => {
+                if (init.signal?.aborted) {
+                    void response.body?.cancel().catch(() => { });
+                    init.signal.throwIfAborted();
+                }
+                return response;
+            }), init.signal ?? undefined);
         }
         catch (error) {
             if (init.signal?.aborted || index === endpoints.length - 1)
                 throw error;
             continue;
         }
-        if (index === endpoints.length - 1 || ![404, 502, 503, 504].includes(response.status))
+        if (index === endpoints.length - 1 ||
+            ![404, 502, 503, 504].includes(response.status))
             return response;
         void response.body?.cancel().catch(() => { });
     }
@@ -113,7 +130,7 @@ export function antigravityFlow(oauth) {
 /** Shared Antigravity API headers. */
 export function antigravityHeaders(accessToken, userAgent = ANTIGRAVITY_DEFAULT_USER_AGENT) {
     return {
-        'authorization': `Bearer ${accessToken}`,
+        authorization: `Bearer ${accessToken}`,
         'content-type': 'application/json',
         'user-agent': userAgent,
     };
@@ -124,7 +141,7 @@ async function callInternal(method, body, accessToken, runtime, fetchFn, signal)
         method: 'POST',
         headers: antigravityHeaders(accessToken, runtime.userAgent),
         body: JSON.stringify(body),
-        ...signal === undefined ? {} : { signal },
+        ...(signal === undefined ? {} : { signal }),
     }, runtime, fetchFn);
     if (!response.ok)
         throw await antigravityHttpError(response, `Antigravity ${method}`, signal);
@@ -135,7 +152,9 @@ async function readBody(response, signal) {
     const reader = response.body?.getReader();
     if (!reader)
         throw new Error('Antigravity response has no body');
-    const cancel = () => { void reader.cancel().catch(() => { }); };
+    const cancel = () => {
+        void reader.cancel().catch(() => { });
+    };
     signal?.addEventListener('abort', cancel, { once: true });
     try {
         const decoder = new TextDecoder();
@@ -167,13 +186,18 @@ async function ownedErrorResponse(response, signal) {
     catch {
         signal?.throwIfAborted();
     }
-    return new Response(body, { status: response.status, headers: response.headers });
+    return new Response(body, {
+        status: response.status,
+        headers: response.headers,
+    });
 }
 async function antigravityHttpError(response, label, signal) {
     const error = await httpLlmError(await ownedErrorResponse(response, signal), label);
     return new LlmError(sanitizeDiagnostic(error.message), error.code, {
         status: error.failure.status,
-        ...error.failure.providerRetryAfterMs === undefined ? {} : { providerRetryAfterMs: error.failure.providerRetryAfterMs },
+        ...(error.failure.providerRetryAfterMs === undefined
+            ? {}
+            : { providerRetryAfterMs: error.failure.providerRetryAfterMs }),
     });
 }
 async function antigravityOAuthError(response, signal) {
@@ -193,11 +217,15 @@ function projectIdOf(value) {
 }
 /** Read (and, when enabled, initialize) the Antigravity project/account. */
 export async function discoverAntigravityAccount(accessToken, runtime = {}, fetchFn = proxiedFetch, signal) {
-    const metadata = { ideType: 'ANTIGRAVITY', platform: 'PLATFORM_UNSPECIFIED', pluginType: 'GEMINI' };
+    const metadata = {
+        ideType: 'ANTIGRAVITY',
+        platform: 'PLATFORM_UNSPECIFIED',
+        pluginType: 'GEMINI',
+    };
     const load = await callInternal('loadCodeAssist', { metadata }, accessToken, runtime, fetchFn, signal);
     let projectId = projectIdOf(load.cloudaicompanionProject);
     if (projectId === undefined && runtime.onboard !== false) {
-        const tierId = load.allowedTiers?.find(tier => tier.isDefault)?.id ?? 'LEGACY';
+        const tierId = load.allowedTiers?.find((tier) => tier.isDefault)?.id ?? 'LEGACY';
         const onboardBody = { tierId, metadata };
         for (let attempt = 0; attempt < 10; attempt++) {
             const result = await callInternal('onboardUser', onboardBody, accessToken, runtime, fetchFn, signal);
@@ -206,9 +234,18 @@ export async function discoverAntigravityAccount(accessToken, runtime = {}, fetc
                 break;
             }
             await new Promise((resolve, reject) => {
-                const done = () => { clearTimeout(timer); signal?.removeEventListener('abort', aborted); };
-                const aborted = () => { done(); reject(signal?.reason); };
-                const timer = setTimeout(() => { done(); resolve(); }, 1_000);
+                const done = () => {
+                    clearTimeout(timer);
+                    signal?.removeEventListener('abort', aborted);
+                };
+                const aborted = () => {
+                    done();
+                    reject(signal?.reason);
+                };
+                const timer = setTimeout(() => {
+                    done();
+                    resolve();
+                }, 1_000);
                 signal?.addEventListener('abort', aborted, { once: true });
                 if (signal?.aborted)
                     aborted();
@@ -221,7 +258,11 @@ export async function discoverAntigravityAccount(accessToken, runtime = {}, fetc
     let account;
     try {
         const profileResponse = await fetchFn(ANTIGRAVITY_USERINFO_URL, {
-            headers: { authorization: `Bearer ${accessToken}`, accept: 'application/json' }, signal,
+            headers: {
+                authorization: `Bearer ${accessToken}`,
+                accept: 'application/json',
+            },
+            signal,
         });
         if (profileResponse.ok) {
             const profile = await readJson(profileResponse, signal);
@@ -233,15 +274,19 @@ export async function discoverAntigravityAccount(accessToken, runtime = {}, fetc
         signal?.throwIfAborted();
         // Identity is display-only; project discovery is the login boundary.
     }
-    const plan = load.paidTier?.name ?? load.paidTier?.id ?? load.currentTier?.name ?? load.currentTier?.id;
+    const plan = load.paidTier?.name ??
+        load.paidTier?.id ??
+        load.currentTier?.name ??
+        load.currentTier?.id;
     return {
         projectId,
-        ...account === undefined ? {} : { account },
-        ...typeof plan !== 'string' || plan.length === 0 ? {} : { plan },
+        ...(account === undefined ? {} : { account }),
+        ...(typeof plan !== 'string' || plan.length === 0 ? {} : { plan }),
     };
 }
 function sessionFromTokens(tokens, account, fallback) {
-    if (typeof tokens.access_token !== 'string' || tokens.access_token.length === 0) {
+    if (typeof tokens.access_token !== 'string' ||
+        tokens.access_token.length === 0) {
         throw new Error('Antigravity token endpoint returned no access token');
     }
     const refreshToken = tokens.refresh_token ?? fallback?.refreshToken;
@@ -256,9 +301,9 @@ function sessionFromTokens(tokens, account, fallback) {
         refreshToken,
         expiresAt: Date.now() + tokens.expires_in * 1000,
         projectId: account.projectId,
-        ...tokens.scope === undefined ? {} : { scopes: tokens.scope },
-        ...account.account === undefined ? {} : { account: account.account },
-        ...account.plan === undefined ? {} : { plan: account.plan },
+        ...(tokens.scope === undefined ? {} : { scopes: tokens.scope }),
+        ...(account.account === undefined ? {} : { account: account.account }),
+        ...(account.plan === undefined ? {} : { plan: account.plan }),
     };
 }
 /** Exchange a Google OAuth authorization code and discover the Antigravity project. */
@@ -269,12 +314,15 @@ export async function exchangeAntigravityCode(code, verifier, redirectUri, oauth
         redirect_uri: redirectUri,
         client_id: oauth.clientId,
         code_verifier: verifier,
-        ...oauth.clientSecret === undefined ? {} : { client_secret: oauth.clientSecret },
+        ...(oauth.clientSecret === undefined
+            ? {}
+            : { client_secret: oauth.clientSecret }),
     });
     const response = await fetchFn(ANTIGRAVITY_TOKEN_URL, {
         method: 'POST',
         headers: { 'content-type': 'application/x-www-form-urlencoded' },
-        body: body.toString(), signal,
+        body: body.toString(),
+        signal,
     });
     if (!response.ok)
         throw await antigravityOAuthError(response, signal);
@@ -290,26 +338,29 @@ export async function refreshAntigravity(session, oauth, fetchFn = proxiedFetch,
         grant_type: 'refresh_token',
         refresh_token: session.refreshToken,
         client_id: oauth.clientId,
-        ...oauth.clientSecret === undefined ? {} : { client_secret: oauth.clientSecret },
+        ...(oauth.clientSecret === undefined
+            ? {}
+            : { client_secret: oauth.clientSecret }),
     });
     const response = await fetchFn(ANTIGRAVITY_TOKEN_URL, {
         method: 'POST',
         headers: { 'content-type': 'application/x-www-form-urlencoded' },
-        body: body.toString(), signal,
+        body: body.toString(),
+        signal,
     });
     if (!response.ok)
         throw await antigravityOAuthError(response, signal);
     return sessionFromTokens(await readJson(response, signal), {
         projectId: session.projectId,
-        ...session.account === undefined ? {} : { account: session.account },
-        ...session.plan === undefined ? {} : { plan: session.plan },
+        ...(session.account === undefined ? {} : { account: session.account }),
+        ...(session.plan === undefined ? {} : { plan: session.plan }),
     }, session);
 }
 /** Refresh failures that require a fresh Google consent grant. */
 export function isAntigravityPermanentRefreshError(error) {
-    return error instanceof OAuthEndpointError
-        && (error.status === 400 || error.status === 401 || error.status === 403)
-        && (error.oauthCode === 'invalid_grant' || error.status !== 400);
+    return (error instanceof OAuthEndpointError &&
+        (error.status === 400 || error.status === 401 || error.status === 403) &&
+        (error.oauthCode === 'invalid_grant' || error.status !== 400));
 }
 /** Fetch the authenticated account's live Antigravity model catalog. */
 export async function fetchAntigravityModels(session, runtime = {}, fetchFn = proxiedFetch, signal) {
@@ -319,11 +370,22 @@ export async function fetchAntigravityModels(session, runtime = {}, fetchFn = pr
     }
     const models = Object.entries(payload.models).map(([id, model]) => ({
         id,
-        name: model.displayName ?? id.split('-').map(word => word.length === 0 ? word : word[0].toUpperCase() + word.slice(1)).join(' '),
-        ...model.description === undefined ? {} : { description: model.description },
-        contextWindow: model.inputTokenLimit ?? model.maxInputTokens ?? ANTIGRAVITY_CONTEXT_WINDOW,
-        ...typeof model.maxOutputTokens === 'number' && Number.isSafeInteger(model.maxOutputTokens) && model.maxOutputTokens > 0
-            ? { maxOutputTokens: model.maxOutputTokens } : {},
+        name: model.displayName ??
+            id
+                .split('-')
+                .map((word) => word.length === 0 ? word : word[0].toUpperCase() + word.slice(1))
+                .join(' '),
+        ...(model.description === undefined
+            ? {}
+            : { description: model.description }),
+        contextWindow: model.inputTokenLimit ??
+            model.maxInputTokens ??
+            ANTIGRAVITY_CONTEXT_WINDOW,
+        ...(typeof model.maxOutputTokens === 'number' &&
+            Number.isSafeInteger(model.maxOutputTokens) &&
+            model.maxOutputTokens > 0
+            ? { maxOutputTokens: model.maxOutputTokens }
+            : {}),
         inputModalities: ['text', 'image'],
     }));
     if (models.length === 0)
@@ -345,12 +407,16 @@ function usageWindow(kind, scope, quota) {
         kind,
         scope,
         usedPercent: Math.max(0, Math.min(100, (1 - remaining) * 100)),
-        ...resetsAt === undefined ? {} : { resetsAt },
+        ...(resetsAt === undefined ? {} : { resetsAt }),
     };
 }
 /** Fetch plan and per-model quota windows when the upstream exposes them. */
 export async function fetchAntigravityUsage(session, runtime = {}, fetchFn = proxiedFetch, signal) {
-    const metadata = { ideType: 'ANTIGRAVITY', platform: 'PLATFORM_UNSPECIFIED', pluginType: 'GEMINI' };
+    const metadata = {
+        ideType: 'ANTIGRAVITY',
+        platform: 'PLATFORM_UNSPECIFIED',
+        pluginType: 'GEMINI',
+    };
     const [models, account] = await Promise.all([
         callInternal('fetchAvailableModels', { project: session.projectId }, session.accessToken, runtime, fetchFn, signal),
         callInternal('loadCodeAssist', { metadata }, session.accessToken, runtime, fetchFn, signal),
@@ -364,14 +430,19 @@ export async function fetchAntigravityUsage(session, runtime = {}, fetchFn = pro
         if (weekly !== undefined)
             windows.push(weekly);
     }
-    const plan = account.paidTier?.name ?? account.paidTier?.id
-        ?? account.currentTier?.name ?? account.currentTier?.id ?? session.plan;
+    const plan = account.paidTier?.name ??
+        account.paidTier?.id ??
+        account.currentTier?.name ??
+        account.currentTier?.id ??
+        session.plan;
     const credits = account.paidTier?.availableCredits?.[0]?.creditAmount;
-    const displayPlan = credits === undefined ? plan : `${plan ?? 'Antigravity'} · ${String(credits)} credits`;
+    const displayPlan = credits === undefined
+        ? plan
+        : `${plan ?? 'Antigravity'} · ${String(credits)} credits`;
     return {
         supported: true,
         windows,
-        ...displayPlan === undefined ? {} : { plan: displayPlan },
+        ...(displayPlan === undefined ? {} : { plan: displayPlan }),
     };
 }
 /** URL for either v1internal generation transport. */
@@ -387,7 +458,7 @@ export async function requestAntigravityContent(session, payload, stream, runtim
             accept: stream ? 'text/event-stream' : 'application/json',
         },
         body: JSON.stringify(payload),
-        ...signal === undefined ? {} : { signal },
+        ...(signal === undefined ? {} : { signal }),
     }, runtime, fetchFn);
 }
 /** DSH provider adapter for the `antigravity` route. */
@@ -423,7 +494,9 @@ export class AntigravityAdapter extends LlmAdapter {
             this.accountCatalogs.get(account)?.invalidate();
             this.accountCatalogs.delete(account);
         }
-        if (account === undefined || this.catalogOwner === account || this.catalogOwner === undefined) {
+        if (account === undefined ||
+            this.catalogOwner === account ||
+            this.catalogOwner === undefined) {
             this.catalogOwner = undefined;
             this.catalog.invalidate();
         }
@@ -453,7 +526,7 @@ export class AntigravityAdapter extends LlmAdapter {
         return subscriptionRetryPolicy(DEFAULT_RETRY, this.options.rateLimit ?? DEFAULT_RATE_LIMIT_WAIT, `antigravity: provider "${provider}" retryPolicy`);
     }
     staticModels(provider) {
-        return this.options.models.map(model => ({
+        return this.options.models.map((model) => ({
             provider,
             id: model.id,
             name: model.name ?? model.id,
@@ -461,7 +534,9 @@ export class AntigravityAdapter extends LlmAdapter {
         }));
     }
     fetchCatalog(account, signal) {
-        return this.options.tokens.session(account).then(session => fetchAntigravityModels(session, this.options.runtime, this.options.fetchFn, signal));
+        return this.options.tokens
+            .session(account)
+            .then((session) => fetchAntigravityModels(session, this.options.runtime, this.options.fetchFn, signal));
     }
     async listModels(provider) {
         if (this.options.setupRequired)
@@ -471,32 +546,37 @@ export class AntigravityAdapter extends LlmAdapter {
         if (pool === undefined)
             return own;
         const extra = await pool.modelsForProvider(provider);
-        const seen = new Set(own.map(model => model.id));
+        const seen = new Set(own.map((model) => model.id));
         // Account pools reuse the catalog row; only configured tiers are extra.
-        return [...own, ...extra.filter(model => !seen.has(model.id))];
+        return [...own, ...extra.filter((model) => !seen.has(model.id))];
     }
     /** The provider's own catalog: union of every account, or one account when named. */
     async listOwnModels(provider, account, signal, preferCached = false) {
         if (this.options.setupRequired)
             return [];
         if (account === undefined) {
-            const accounts = (await this.options.tokens.list()).map(entry => entry.key);
+            const accounts = (await this.options.tokens.list()).map((entry) => entry.key);
             if (accounts.length === 0)
                 return [];
-            return unionAccountCatalogs(accounts, (key, accountSignal) => this.listOwnModels(provider, key, accountSignal, preferCached), { timeoutMs: DISCOVERY_TIMEOUT_MS, ...signal === undefined ? {} : { signal } });
+            return unionAccountCatalogs(accounts, (key, accountSignal) => this.listOwnModels(provider, key, accountSignal, preferCached), {
+                timeoutMs: DISCOVERY_TIMEOUT_MS,
+                ...(signal === undefined ? {} : { signal }),
+            });
         }
-        if (await this.options.tokens.peek(account) === undefined)
+        if ((await this.options.tokens.peek(account)) === undefined)
             return [];
         if (!this.options.discovery)
             return this.staticModels(provider);
         const catalog = await this.catalogFor(account);
         try {
-            const models = await catalog.get(() => discoverOrRetryAuth(force => this.options.tokens.session(account, force), catalog, () => this.fetchCatalog(account, signal)), preferCached);
-            return models.map(model => ({
+            const models = await catalog.get(() => discoverOrRetryAuth((force) => this.options.tokens.session(account, force), catalog, () => this.fetchCatalog(account, signal)), preferCached);
+            return models.map((model) => ({
                 provider,
                 id: model.id,
                 name: model.name,
-                ...model.description === undefined ? {} : { description: model.description },
+                ...(model.description === undefined
+                    ? {}
+                    : { description: model.description }),
                 inputModalities: model.inputModalities ?? ['text', 'image'],
             }));
         }
@@ -512,18 +592,21 @@ export class AntigravityAdapter extends LlmAdapter {
     async discovered(model, account, signal) {
         if (!this.options.discovery)
             return undefined;
-        const accounts = account === undefined ? (await this.options.tokens.list()).map(entry => entry.key) : [account];
+        const accounts = account === undefined
+            ? (await this.options.tokens.list()).map((entry) => entry.key)
+            : [account];
         return discoverAcrossAccounts(accounts, async (key) => {
             const catalog = await this.catalogFor(key);
             const models = await catalog.resolve(() => this.fetchCatalog(key, signal));
-            return models?.find(entry => entry.id === model);
+            return models?.find((entry) => entry.id === model);
         });
     }
     async resolveModel(provider, model, signal) {
         if (this.options.setupRequired)
             throw new Error(ANTIGRAVITY_SETUP_REQUIRED);
         const pool = this.options.pool?.();
-        if (pool !== undefined && await pool.owns(provider, model)) {
+        if (pool !== undefined &&
+            (await pool.owns(provider, model))) {
             return pool.resolveModel(provider, model);
         }
         return this.resolveOwnModel(provider, model, undefined, signal);
@@ -533,28 +616,38 @@ export class AntigravityAdapter extends LlmAdapter {
         if (this.options.setupRequired)
             throw new Error(ANTIGRAVITY_SETUP_REQUIRED);
         const discovered = await withAbortSignal(() => this.discovered(model, account, signal), signal);
-        const configured = this.options.models.find(entry => entry.id === model);
+        const configured = this.options.models.find((entry) => entry.id === model);
         const reasoning = mergeReasoning(this.options.defaultEffortOf?.(model), antigravityReasoning(model));
         const outputLimit = discovered?.maxOutputTokens;
         const preferredMaxTokens = configured?.maxTokens ?? outputLimit ?? ANTIGRAVITY_DEFAULT_MAX_TOKENS;
         // Configuration may lower the default, but must not exceed a known server cap.
-        const defaultMaxTokens = outputLimit === undefined ? preferredMaxTokens : Math.min(preferredMaxTokens, outputLimit);
+        const defaultMaxTokens = outputLimit === undefined
+            ? preferredMaxTokens
+            : Math.min(preferredMaxTokens, outputLimit);
         return {
             provider,
             id: model,
             name: discovered?.name ?? configured?.name ?? model,
-            ...discovered?.description === undefined ? {} : { description: discovered.description },
-            inputModalities: discovered?.inputModalities ?? configured?.inputModalities ?? ['text', 'image'],
-            context: { contextWindow: discovered?.contextWindow ?? configured?.contextWindow ?? ANTIGRAVITY_CONTEXT_WINDOW },
+            ...(discovered?.description === undefined
+                ? {}
+                : { description: discovered.description }),
+            inputModalities: discovered?.inputModalities ??
+                configured?.inputModalities ?? ['text', 'image'],
+            context: {
+                contextWindow: discovered?.contextWindow ??
+                    configured?.contextWindow ??
+                    ANTIGRAVITY_CONTEXT_WINDOW,
+            },
             defaultMaxTokens,
-            ...reasoning === undefined ? {} : { reasoning },
+            ...(reasoning === undefined ? {} : { reasoning }),
         };
     }
     async *stream(options) {
         if (this.options.setupRequired)
             throw new Error(ANTIGRAVITY_SETUP_REQUIRED);
         const pool = this.options.pool?.();
-        if (pool !== undefined && await pool.owns(options.provider, options.model)) {
+        if (pool !== undefined &&
+            (await pool.owns(options.provider, options.model))) {
             yield* pool.stream(options);
             return;
         }
@@ -586,7 +679,9 @@ export class AntigravityAdapter extends LlmAdapter {
             if (response.body === null) {
                 throw new LlmError('Antigravity API returned no response body', EMPTY_RESPONSE_CODE);
             }
-            yield* streamAntigravity(response.body, () => { watchdog.pulse(); }, watchdog.signal);
+            yield* streamAntigravity(response.body, () => {
+                watchdog.pulse();
+            }, watchdog.signal);
         }
         catch (error) {
             throw mapFetchFailure('Antigravity API', error, watchdog, options.signal);

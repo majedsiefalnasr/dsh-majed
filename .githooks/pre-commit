@@ -1,0 +1,8 @@
+#!/bin/sh
+set -eu
+# Execute the indexed helper, not an unstaged working-tree replacement.
+root=$(git rev-parse --show-toplevel)
+helper=$(mktemp "${TMPDIR:-/tmp}/waycraft-pre-commit.XXXXXX")
+trap 'rm -f "$helper"' EXIT HUP INT TERM
+git show :scripts/check-staged-quality.mjs > "$helper"
+WAYCRAFT_QUALITY_ROOT="$root" node --input-type=module < "$helper"

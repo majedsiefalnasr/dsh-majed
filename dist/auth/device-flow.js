@@ -69,7 +69,10 @@ export class DeviceFlowManager {
         const controller = new AbortController();
         let resolveToken;
         let rejectToken;
-        const tokenPromise = new Promise((resolve, reject) => { resolveToken = resolve; rejectToken = reject; });
+        const tokenPromise = new Promise((resolve, reject) => {
+            resolveToken = resolve;
+            rejectToken = reject;
+        });
         tokenPromise.catch(() => undefined);
         let timer;
         const settle = (error, token) => {
@@ -85,7 +88,8 @@ export class DeviceFlowManager {
                 resolveToken(token);
         };
         const attempt = {
-            verificationUrl: '', userCode: '',
+            verificationUrl: '',
+            userCode: '',
             waitToken: () => tokenPromise,
             cancel: () => settle(new Error('login cancelled')),
         };
@@ -101,31 +105,40 @@ export class DeviceFlowManager {
                 return;
             }
             signal.addEventListener('abort', abort, { once: true });
-            work.then(value => {
+            work.then((value) => {
                 signal.removeEventListener('abort', abort);
                 if (signal.aborted)
                     reject(signal.reason);
                 else
                     resolve(value);
-            }, error => { signal.removeEventListener('abort', abort); reject(error); });
+            }, (error) => {
+                signal.removeEventListener('abort', abort);
+                reject(error);
+            });
         });
         try {
             const response = await bounded(fetchFn(spec.deviceCodeUrl, {
                 method: 'POST',
                 headers: {
-                    'accept': 'application/json',
+                    accept: 'application/json',
                     'content-type': 'application/x-www-form-urlencoded',
                 },
-                body: new URLSearchParams({ client_id: spec.clientId, scope: spec.scope }).toString(),
+                body: new URLSearchParams({
+                    client_id: spec.clientId,
+                    scope: spec.scope,
+                }).toString(),
                 signal: controller.signal,
             }));
             if (!response.ok) {
                 throw new Error(`${provider} device-code request failed (HTTP ${String(response.status)})`);
             }
-            const wire = await bounded(response.json());
-            if (typeof wire.device_code !== 'string' || wire.device_code.length === 0
-                || typeof wire.user_code !== 'string' || wire.user_code.length === 0
-                || typeof wire.verification_uri !== 'string' || wire.verification_uri.length === 0) {
+            const wire = (await bounded(response.json()));
+            if (typeof wire.device_code !== 'string' ||
+                wire.device_code.length === 0 ||
+                typeof wire.user_code !== 'string' ||
+                wire.user_code.length === 0 ||
+                typeof wire.verification_uri !== 'string' ||
+                wire.verification_uri.length === 0) {
                 throw new Error(`${provider} device-code response is missing device_code/user_code/verification_uri`);
             }
             const intervalSec = typeof wire.interval === 'number' && wire.interval > 0
@@ -138,7 +151,10 @@ export class DeviceFlowManager {
             const deadline = Date.now() + expiresInSec * 1000;
             timer = setTimeout(() => settle(new Error('device code expired')), expiresInSec * 1000);
             timer.unref();
-            Object.assign(attempt, { verificationUrl: wire.verification_uri, userCode: wire.user_code });
+            Object.assign(attempt, {
+                verificationUrl: wire.verification_uri,
+                userCode: wire.user_code,
+            });
             const poll = async () => {
                 let intervalMs = intervalSec * 1000;
                 while (true) {
@@ -150,7 +166,7 @@ export class DeviceFlowManager {
                     const pollResponse = await bounded(fetchFn(spec.tokenUrl, {
                         method: 'POST',
                         headers: {
-                            'accept': 'application/json',
+                            accept: 'application/json',
                             'content-type': 'application/x-www-form-urlencoded',
                         },
                         body: new URLSearchParams({
@@ -160,10 +176,11 @@ export class DeviceFlowManager {
                         }).toString(),
                         signal: controller.signal,
                     }));
-                    const result = await bounded(pollResponse.json());
+                    const result = (await bounded(pollResponse.json()));
                     if (Date.now() >= deadline)
                         throw new Error('device code expired');
-                    if (typeof result.access_token === 'string' && result.access_token.length > 0) {
+                    if (typeof result.access_token === 'string' &&
+                        result.access_token.length > 0) {
                         settle(undefined, result.access_token);
                         return;
                     }
@@ -189,12 +206,16 @@ export class DeviceFlowManager {
             void poll().catch((error) => {
                 // Aborts land here from sleep/fetch; everything else is a transport or
                 // parse failure worth surfacing as the login failure.
-                settle(controller.signal.aborted ? controller.signal.reason : new Error(`${provider} device-flow polling failed`));
+                settle(controller.signal.aborted
+                    ? controller.signal.reason
+                    : new Error(`${provider} device-flow polling failed`));
             });
             return attempt;
         }
         catch (error) {
-            const failure = controller.signal.aborted ? controller.signal.reason : new Error(`${provider} device-code request failed or response is missing required fields`);
+            const failure = controller.signal.aborted
+                ? controller.signal.reason
+                : new Error(`${provider} device-code request failed or response is missing required fields`);
             settle(failure);
             throw failure;
         }

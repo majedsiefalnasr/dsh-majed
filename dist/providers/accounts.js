@@ -15,7 +15,9 @@ export { DISCOVERY_TIMEOUT_MS } from './common.js';
 /** Catalog sort hint when the provider advertised one (Codex `priority`). */
 function catalogPriority(model) {
     const ranked = model;
-    return typeof ranked.priority === 'number' ? ranked.priority : Number.MAX_SAFE_INTEGER;
+    return typeof ranked.priority === 'number'
+        ? ranked.priority
+        : Number.MAX_SAFE_INTEGER;
 }
 /**
  * Merge per-account catalogs, keeping the first occurrence of each model id.
@@ -31,7 +33,9 @@ export async function unionAccountCatalogs(accounts, listOne, options) {
         try {
             if (timeoutMs === undefined)
                 return await listOne(account, caller);
-            const models = await withTimeout(timeoutSignal => listOne(account, caller === undefined ? timeoutSignal : AbortSignal.any([timeoutSignal, caller])), timeoutMs);
+            const models = await withTimeout((timeoutSignal) => listOne(account, caller === undefined
+                ? timeoutSignal
+                : AbortSignal.any([timeoutSignal, caller])), timeoutMs);
             return models ?? [];
         }
         catch (error) {
@@ -63,10 +67,10 @@ export class AccountTokenManager {
         const provider = options.provider;
         this.io = options.io ?? {
             list: () => listAccounts(provider),
-            get: account => getAccountSession(provider, account),
+            get: (account) => getAccountSession(provider, account),
             save: (account, session) => saveAccountSession(provider, account, session),
-            remove: account => deleteAccountSession(provider, account),
-            resolve: account => resolveAccountKey(provider, account),
+            remove: (account) => deleteAccountSession(provider, account),
+            resolve: (account) => resolveAccountKey(provider, account),
         };
     }
     /** The provider's accounts, default first (straight from the store). */
@@ -86,7 +90,7 @@ export class AccountTokenManager {
      * @throws LlmError MISSING_CREDENTIAL when the account is not logged in.
      */
     async session(account, forceRefresh = false) {
-        const requested = account ?? await this.defaultAccount();
+        const requested = account ?? (await this.defaultAccount());
         if (requested === undefined)
             throw this.missingCredential();
         const key = await this.resolveAccount(requested);
@@ -128,7 +132,9 @@ export class AccountTokenManager {
                     }
                 },
                 remove: () => io.remove(boundAccount),
-                onRemoved: () => { this.options.onAccountRemoved?.(boundAccount); },
+                onRemoved: () => {
+                    this.options.onAccountRemoved?.(boundAccount);
+                },
             });
             this.managers.set(account, manager);
         }
@@ -136,7 +142,7 @@ export class AccountTokenManager {
     }
     /** The logged-out error, mirroring TokenManager's own message. */
     missingCredential() {
-        return new LlmError(`dsh-plugin-subscriptions: not logged in to ${this.options.displayName}; `
-            + 'log in via Settings → Subscriptions in the dsh web app', 'MISSING_CREDENTIAL');
+        return new LlmError(`dsh-plugin-subscriptions: not logged in to ${this.options.displayName}; ` +
+            'log in via Settings → Subscriptions in the dsh web app', 'MISSING_CREDENTIAL');
     }
 }

@@ -19,7 +19,9 @@ export function validatePreferences(provider, input) {
     const raw = input;
     const result = {};
     const nameOf = (value) => {
-        if (typeof value !== 'string' || value.trim().length > 80 || /[\u0000-\u001f\u007f]/.test(value)) {
+        if (typeof value !== 'string' ||
+            value.trim().length > 80 ||
+            /[\u0000-\u001f\u007f]/.test(value)) {
             throw new Error('display name must be a single line of at most 80 characters');
         }
         return value.trim();
@@ -30,7 +32,9 @@ export function validatePreferences(provider, input) {
             result.displayName = name;
     }
     if (raw.modelDisplayNames !== undefined) {
-        if (!raw.modelDisplayNames || typeof raw.modelDisplayNames !== 'object' || Array.isArray(raw.modelDisplayNames)) {
+        if (!raw.modelDisplayNames ||
+            typeof raw.modelDisplayNames !== 'object' ||
+            Array.isArray(raw.modelDisplayNames)) {
             throw new Error('modelDisplayNames must be a model-to-name map');
         }
         const names = Object.create(null);
@@ -45,11 +49,16 @@ export function validatePreferences(provider, input) {
             result.modelDisplayNames = names;
     }
     if (raw.accounts !== undefined) {
-        if (!raw.accounts || typeof raw.accounts !== 'object' || Array.isArray(raw.accounts))
+        if (!raw.accounts ||
+            typeof raw.accounts !== 'object' ||
+            Array.isArray(raw.accounts))
             throw new Error('accounts must be an account-to-preferences map');
         result.accounts = Object.create(null);
         for (const [key, value] of Object.entries(raw.accounts)) {
-            if (!key.trim() || !value || typeof value !== 'object' || Array.isArray(value))
+            if (!key.trim() ||
+                !value ||
+                typeof value !== 'object' ||
+                Array.isArray(value))
                 throw new Error('invalid account preferences');
             const account = value;
             const parsed = {};
@@ -66,7 +75,8 @@ export function validatePreferences(provider, input) {
                 }
             }
             if (account.poolModels !== undefined) {
-                if (!Array.isArray(account.poolModels) || account.poolModels.some(id => typeof id !== 'string' || !id.trim()))
+                if (!Array.isArray(account.poolModels) ||
+                    account.poolModels.some((id) => typeof id !== 'string' || !id.trim()))
                     throw new Error('poolModels must be an array of model ids');
                 parsed.poolModels = [...new Set(account.poolModels)];
             }
@@ -74,7 +84,8 @@ export function validatePreferences(provider, input) {
         }
     }
     if (raw.visibleModels !== undefined) {
-        if (!Array.isArray(raw.visibleModels) || raw.visibleModels.some(id => typeof id !== 'string' || !id.trim())) {
+        if (!Array.isArray(raw.visibleModels) ||
+            raw.visibleModels.some((id) => typeof id !== 'string' || !id.trim())) {
             throw new Error('visibleModels must be an array of model ids');
         }
         result.visibleModels = [...new Set(raw.visibleModels)];
@@ -82,12 +93,17 @@ export function validatePreferences(provider, input) {
     if (raw.contextWindows !== undefined) {
         if (provider !== 'codex')
             throw new Error('context window overrides are currently supported only for Codex');
-        if (!raw.contextWindows || typeof raw.contextWindows !== 'object' || Array.isArray(raw.contextWindows)) {
+        if (!raw.contextWindows ||
+            typeof raw.contextWindows !== 'object' ||
+            Array.isArray(raw.contextWindows)) {
             throw new Error('contextWindows must be a model-to-token map');
         }
         result.contextWindows = Object.create(null);
         for (const [model, value] of Object.entries(raw.contextWindows)) {
-            if (!model.trim() || typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0) {
+            if (!model.trim() ||
+                typeof value !== 'number' ||
+                !Number.isSafeInteger(value) ||
+                value <= 0) {
                 throw new Error('context windows must be positive safe integers');
             }
             result.contextWindows[model] = value;
@@ -104,7 +120,9 @@ export function validatePreferences(provider, input) {
     if (raw.subagentSpeeds !== undefined) {
         if (provider !== 'codex')
             throw new Error('subagent speeds are currently supported only for Codex');
-        if (!raw.subagentSpeeds || typeof raw.subagentSpeeds !== 'object' || Array.isArray(raw.subagentSpeeds)) {
+        if (!raw.subagentSpeeds ||
+            typeof raw.subagentSpeeds !== 'object' ||
+            Array.isArray(raw.subagentSpeeds)) {
             throw new Error('subagent speeds must be a model-to-speed map');
         }
         result.subagentSpeeds = Object.create(null);
@@ -120,7 +138,8 @@ export function validatePreferences(provider, input) {
             throw new Error('tools must be an object');
         result.tools = {};
         for (const [tool, enabled] of Object.entries(raw.tools)) {
-            if (!PROVIDER_TOOLS[provider].includes(tool) || typeof enabled !== 'boolean') {
+            if (!PROVIDER_TOOLS[provider].includes(tool) ||
+                typeof enabled !== 'boolean') {
                 throw new Error(`unsupported tool setting: ${provider}/${tool}`);
             }
             result.tools[tool] = enabled;
@@ -146,19 +165,28 @@ export class ProviderSettingsStore {
                 if (Object.hasOwn(raw.providers, provider))
                     this.current.providers[provider] = validatePreferences(provider, raw.providers[provider]);
             }
-            this.current.toolHistory = raw.toolHistory.map(revision => {
-                if (!PROVIDER_IDS.includes(revision.provider) || !Number.isSafeInteger(revision.at) || revision.at < 0)
+            this.current.toolHistory = raw.toolHistory
+                .map((revision) => {
+                if (!PROVIDER_IDS.includes(revision.provider) ||
+                    !Number.isSafeInteger(revision.at) ||
+                    revision.at < 0)
                     throw new Error('invalid tool history');
-                const tools = validatePreferences(revision.provider, { tools: revision.tools }).tools ?? {};
+                const tools = validatePreferences(revision.provider, { tools: revision.tools })
+                    .tools ?? {};
                 return { at: revision.at, provider: revision.provider, tools };
-            }).sort((a, b) => a.at - b.at);
+            })
+                .sort((a, b) => a.at - b.at);
         }
         catch (error) {
             if (error.code !== 'ENOENT')
-                throw new Error(`Cannot read provider settings at ${path}`, { cause: error });
+                throw new Error(`Cannot read provider settings at ${path}`, {
+                    cause: error,
+                });
         }
     }
-    zenEnabled() { return this.current.zenEnabled !== false; }
+    zenEnabled() {
+        return this.current.zenEnabled !== false;
+    }
     async setZenEnabled(enabled) {
         if (typeof enabled !== 'boolean')
             throw new Error('invalid Zen enablement');
@@ -168,7 +196,9 @@ export class ProviderSettingsStore {
             await mkdir(dirname(this.path), { recursive: true, mode: 0o700 });
             const temporary = `${this.path}.${process.pid}.${Math.random().toString(36).slice(2)}.tmp`;
             try {
-                await writeFile(temporary, JSON.stringify(next, null, 2), { mode: 0o600 });
+                await writeFile(temporary, JSON.stringify(next, null, 2), {
+                    mode: 0o600,
+                });
                 await rename(temporary, this.path);
             }
             finally {
@@ -183,7 +213,7 @@ export class ProviderSettingsStore {
         return structuredClone(this.current.providers[provider] ?? {});
     }
     visible(provider, model) {
-        return this.current.providers[provider]?.visibleModels?.includes(model) ?? true;
+        return (this.current.providers[provider]?.visibleModels?.includes(model) ?? true);
     }
     modelName(provider, model, fallback) {
         const names = this.current.providers[provider]?.modelDisplayNames;
@@ -191,7 +221,9 @@ export class ProviderSettingsStore {
     }
     contextWindow(model) {
         const windows = this.current.providers.codex?.contextWindows;
-        return windows && Object.hasOwn(windows, model) ? windows[model] : undefined;
+        return windows && Object.hasOwn(windows, model)
+            ? windows[model]
+            : undefined;
     }
     /** Read on every request so saved changes apply to the next subagent request. */
     subagentSpeed(model) {
@@ -227,7 +259,7 @@ export class ProviderSettingsStore {
     async update(provider, original, draft) {
         const before = validatePreferences(provider, original);
         const after = validatePreferences(provider, draft);
-        return this.commit(provider, latest => validatePreferences(provider, mergeIntent(latest, before, after)));
+        return this.commit(provider, (latest) => validatePreferences(provider, mergeIntent(latest, before, after)));
     }
     commit(provider, compute) {
         const run = this.writes.then(async () => {
@@ -235,13 +267,19 @@ export class ProviderSettingsStore {
             const before = next.providers[provider]?.tools ?? {};
             const preferences = compute(structuredClone(next.providers[provider] ?? {}));
             next.providers[provider] = preferences;
-            if (PROVIDER_TOOLS[provider].some(tool => (before[tool] !== false) !== (preferences.tools?.[tool] !== false))) {
-                next.toolHistory.push({ at: Date.now(), provider, tools: preferences.tools ?? {} });
+            if (PROVIDER_TOOLS[provider].some((tool) => (before[tool] !== false) !== (preferences.tools?.[tool] !== false))) {
+                next.toolHistory.push({
+                    at: Date.now(),
+                    provider,
+                    tools: preferences.tools ?? {},
+                });
             }
             await mkdir(dirname(this.path), { recursive: true, mode: 0o700 });
             const temporary = `${this.path}.${process.pid}.${Math.random().toString(36).slice(2)}.tmp`;
             try {
-                await writeFile(temporary, JSON.stringify(next, null, 2), { mode: 0o600 });
+                await writeFile(temporary, JSON.stringify(next, null, 2), {
+                    mode: 0o600,
+                });
                 await rename(temporary, this.path);
             }
             finally {

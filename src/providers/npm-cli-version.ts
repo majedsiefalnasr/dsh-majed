@@ -1,43 +1,43 @@
-import { proxiedFetch } from '../http.js'
-import type { FetchFn } from './common.js'
+import { proxiedFetch } from '../http.js';
+import type { FetchFn } from './common.js';
 
 /** Stable `major.minor.patch` only: prerelease and platform tags are not client versions. */
-const STABLE_VERSION = /^\d{1,6}\.\d{1,6}\.\d{1,6}$/
+const STABLE_VERSION = /^\d{1,6}\.\d{1,6}\.\d{1,6}$/;
 
 /**
  * Compare two stable `major.minor.patch` versions numerically.
  * @returns negative when `a` is older, positive when newer, 0 when equal.
  */
 export function compareVersions(a: string, b: string): number {
-  const left = a.split('.').map(Number)
-  const right = b.split('.').map(Number)
-  const different = left.findIndex((part, index) => part !== right[index])
-  return different === -1 ? 0 : left[different]! - right[different]!
+  const left = a.split('.').map(Number);
+  const right = b.split('.').map(Number);
+  const different = left.findIndex((part, index) => part !== right[index]);
+  return different === -1 ? 0 : left[different]! - right[different]!;
 }
 
 /** Where a presented CLI version came from; shown in Settings so a stale one is visible. */
-export type CliVersionSource = 'npm' | 'local' | 'fallback' | 'config'
+export type CliVersionSource = 'npm' | 'local' | 'fallback' | 'config';
 
 /** The CLI version a route presents, and where it came from. */
 export interface CliVersion {
-  version: string
-  source: CliVersionSource
+  version: string;
+  source: CliVersionSource;
 }
 
 export interface NpmCliVersionOptions {
   /** Registry metadata of the package's `latest` dist-tag; public, so never send credentials. */
-  url: string
+  url: string;
   /** Names the CLI in lookup errors. */
-  label: string
+  label: string;
   /**
    * The version served until a lookup succeeds, and the floor a looked-up
    * version may never go below. Read once, on first use, so a costly probe
    * (a local CLI's `--version`) never runs for an unused provider.
    */
-  floor: () => CliVersion
-  fetchFn?: FetchFn
-  now?: () => number
-  timeoutMs?: number
+  floor: () => CliVersion;
+  fetchFn?: FetchFn;
+  now?: () => number;
+  timeoutMs?: number;
 }
 
 /**
@@ -47,29 +47,34 @@ export interface NpmCliVersionOptions {
  * without a plugin release for every CLI bump.
  */
 export class NpmCliVersionCache {
-  private presented: CliVersion | undefined
+  private presented: CliVersion | undefined;
   /** Whether a lookup has finished yet, successfully or not. */
-  private settled = false
-  private expiresAt = 0
-  private pending: Promise<string> | undefined
-  private readonly fetchFn: FetchFn
-  private readonly now: () => number
-  private readonly timeoutMs: number
+  private settled = false;
+  private expiresAt = 0;
+  private pending: Promise<string> | undefined;
+  private readonly fetchFn: FetchFn;
+  private readonly now: () => number;
+  private readonly timeoutMs: number;
 
   constructor(private readonly options: NpmCliVersionOptions) {
-    this.fetchFn = options.fetchFn ?? proxiedFetch
-    this.now = options.now ?? Date.now
-    this.timeoutMs = options.timeoutMs ?? 5000
+    this.fetchFn = options.fetchFn ?? proxiedFetch;
+    this.now = options.now ?? Date.now;
+    this.timeoutMs = options.timeoutMs ?? 5000;
   }
 
   /** A manual catalog refresh also checks for a newly released CLI. */
-  invalidate(): void { this.expiresAt = 0 }
+  invalidate(): void {
+    this.expiresAt = 0;
+  }
 
   resolve(): Promise<string> {
-    if (this.pending !== undefined) return this.pending
-    if (this.presented !== undefined && this.now() < this.expiresAt) return Promise.resolve(this.presented.version)
-    this.pending = this.refresh().finally(() => { this.pending = undefined })
-    return this.pending
+    if (this.pending !== undefined) return this.pending;
+    if (this.presented !== undefined && this.now() < this.expiresAt)
+      return Promise.resolve(this.presented.version);
+    this.pending = this.refresh().finally(() => {
+      this.pending = undefined;
+    });
+    return this.pending;
   }
 
   /**
@@ -78,53 +83,57 @@ export class NpmCliVersionCache {
    * is never reported as a failed one.
    */
   current(): CliVersion | undefined {
-    return this.settled ? this.presented : undefined
+    return this.settled ? this.presented : undefined;
   }
 
   private async refresh(): Promise<string> {
-    const current = (this.presented ??= this.options.floor()).version
-    const { url, label } = this.options
-    const controller = new AbortController()
-    let timer: ReturnType<typeof setTimeout> | undefined
+    const current = (this.presented ??= this.options.floor()).version;
+    const { url, label } = this.options;
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       const lookup = async (): Promise<string> => {
         const response = await this.fetchFn(url, {
           headers: { accept: 'application/json' },
           redirect: 'error',
           signal: controller.signal,
-        })
-        if (!response.ok) throw new Error(`${label} version lookup failed`)
-        const payload: unknown = await response.json()
-        const version = (payload as { version?: unknown } | null)?.version
+        });
+        if (!response.ok) throw new Error(`${label} version lookup failed`);
+        const payload: unknown = await response.json();
+        const version = (payload as { version?: unknown } | null)?.version;
         // Ignore prerelease/platform tags and malformed or regressed metadata.
         if (typeof version !== 'string' || !STABLE_VERSION.test(version)) {
-          throw new Error(`Invalid stable ${label} version`)
+          throw new Error(`Invalid stable ${label} version`);
         }
-        if (compareVersions(version, current) < 0) throw new Error(`Older ${label} version`)
-        return version
-      }
+        if (compareVersions(version, current) < 0)
+          throw new Error(`Older ${label} version`);
+        return version;
+      };
       const timeout = new Promise<never>((_, reject) => {
         timer = setTimeout(() => {
-          controller.abort()
-          reject(new Error(`${label} version lookup timed out`))
-        }, this.timeoutMs)
-      })
+          controller.abort();
+          reject(new Error(`${label} version lookup timed out`));
+        }, this.timeoutMs);
+      });
       // Also bounded when an injected transport ignores cancellation.
-      this.presented = { version: await Promise.race([lookup(), timeout]), source: 'npm' }
-      this.expiresAt = this.now() + 6 * 60 * 60_000
+      this.presented = {
+        version: await Promise.race([lookup(), timeout]),
+        source: 'npm',
+      };
+      this.expiresAt = this.now() + 6 * 60 * 60_000;
     } catch {
       // Retain last-known good; on first use this is the floor.
-      this.expiresAt = this.now() + 5 * 60_000
+      this.expiresAt = this.now() + 5 * 60_000;
     } finally {
-      clearTimeout(timer)
-      this.settled = true
+      clearTimeout(timer);
+      this.settled = true;
     }
-    return this.presented.version
+    return this.presented.version;
   }
 }
 
 /** How long a status poll waits on a refresh already in flight before showing the last result (reference index.ts). */
-export const STATUS_VERSION_WAIT_MS = 1000
+export const STATUS_VERSION_WAIT_MS = 1000;
 
 /**
  * The CLI version a route presents for the Settings page. The first lookup is awaited, so a slow registry is not
@@ -137,14 +146,18 @@ export function presentedVersion(
 ): () => Promise<CliVersion | undefined> {
   return async () => {
     if (cache.current() === undefined) {
-      await cache.resolve()
-      return cache.current()
+      await cache.resolve();
+      return cache.current();
     }
-    let timer: ReturnType<typeof setTimeout> | undefined
+    let timer: ReturnType<typeof setTimeout> | undefined;
     await Promise.race([
       cache.resolve(),
-      new Promise<void>(resolve => { timer = setTimeout(resolve, waitMs) }),
-    ]).finally(() => { clearTimeout(timer) })
-    return cache.current()
-  }
+      new Promise<void>((resolve) => {
+        timer = setTimeout(resolve, waitMs);
+      }),
+    ]).finally(() => {
+      clearTimeout(timer);
+    });
+    return cache.current();
+  };
 }

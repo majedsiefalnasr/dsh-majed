@@ -1,13 +1,20 @@
 /** Model-specific tool schemas for Antigravity's Gemini and custom-tool bridges. */
 import { LlmError } from '@deepseek-ai/dsh-llm';
-const CUSTOM_KEYS = new Set(['type', 'description', 'properties', 'required', 'items', 'enum']);
+const CUSTOM_KEYS = new Set([
+    'type',
+    'description',
+    'properties',
+    'required',
+    'items',
+    'enum',
+]);
 function object(value) {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 /** Resolve local references before removing definitions; reject cycles and remote references. */
 function resolve(value, root, refs = new Set()) {
     if (Array.isArray(value))
-        return value.map(item => resolve(item, root, refs));
+        return value.map((item) => resolve(item, root, refs));
     if (!object(value))
         return value;
     if (typeof value.$ref === 'string') {
@@ -18,7 +25,8 @@ function resolve(value, root, refs = new Set()) {
         let target = root;
         for (const segment of ref.slice(2).split('/')) {
             const key = segment.replaceAll('~1', '/').replaceAll('~0', '~');
-            target = object(target) && Object.hasOwn(target, key) ? target[key] : undefined;
+            target =
+                object(target) && Object.hasOwn(target, key) ? target[key] : undefined;
         }
         if (!object(target))
             throw new LlmError(`Antigravity tool schema reference is missing: ${ref}`, 'INVALID_REQUEST');
@@ -27,9 +35,15 @@ function resolve(value, root, refs = new Set()) {
     }
     return Object.fromEntries(Object.entries(value)
         .filter(([key]) => !['$schema', '$id', '$defs', 'definitions'].includes(key))
-        .map(([key, item]) => [key, key === 'properties' && object(item)
-            ? Object.fromEntries(Object.entries(item).map(([name, property]) => [name, resolve(property, root, refs)]))
-            : resolve(item, root, refs)]));
+        .map(([key, item]) => [
+        key,
+        key === 'properties' && object(item)
+            ? Object.fromEntries(Object.entries(item).map(([name, property]) => [
+                name,
+                resolve(property, root, refs),
+            ]))
+            : resolve(item, root, refs),
+    ]));
 }
 /** Numeric types widen to `number`: every integer is also a number. */
 const NUMERIC = new Set(['integer', 'number']);
@@ -37,7 +51,10 @@ const NUMERIC = new Set(['integer', 'number']);
 function stringChoices(schema) {
     if (typeof schema.const === 'string')
         return [schema.const];
-    return Array.isArray(schema.enum) && schema.enum.every(entry => typeof entry === 'string') ? schema.enum : undefined;
+    return Array.isArray(schema.enum) &&
+        schema.enum.every((entry) => typeof entry === 'string')
+        ? schema.enum
+        : undefined;
 }
 /**
  * Fold schema alternatives into one shape this bridge can express, never
@@ -51,9 +68,12 @@ function widen(variants) {
     const members = variants.filter(object);
     if (members.length === 0 || members.length !== variants.length)
         return {};
-    const types = new Set(members.map(member => member.type));
-    const type = types.size === 1 ? [...types][0]
-        : [...types].every(entry => typeof entry === 'string' && NUMERIC.has(entry)) ? 'number' : undefined;
+    const types = new Set(members.map((member) => member.type));
+    const type = types.size === 1
+        ? [...types][0]
+        : [...types].every((entry) => typeof entry === 'string' && NUMERIC.has(entry))
+            ? 'number'
+            : undefined;
     if (typeof type !== 'string')
         return {};
     if (type === 'object') {
@@ -62,25 +82,29 @@ function widen(variants) {
             if (!object(member.properties))
                 continue;
             for (const [name, property] of Object.entries(member.properties)) {
-                properties[name] = !Object.hasOwn(properties, name) || JSON.stringify(properties[name]) === JSON.stringify(property)
-                    ? property
-                    : widen([properties[name], property]);
+                properties[name] =
+                    !Object.hasOwn(properties, name) ||
+                        JSON.stringify(properties[name]) === JSON.stringify(property)
+                        ? property
+                        : widen([properties[name], property]);
             }
         }
         const required = members
-            .map(member => Array.isArray(member.required) ? member.required.filter(entry => typeof entry === 'string') : [])
-            .reduce((shared, next) => shared.filter(name => next.includes(name)));
+            .map((member) => Array.isArray(member.required)
+            ? member.required.filter((entry) => typeof entry === 'string')
+            : [])
+            .reduce((shared, next) => shared.filter((name) => next.includes(name)));
         return {
             type,
-            ...Object.keys(properties).length === 0 ? {} : { properties },
-            ...required.length === 0 ? {} : { required },
+            ...(Object.keys(properties).length === 0 ? {} : { properties }),
+            ...(required.length === 0 ? {} : { required }),
         };
     }
     if (type === 'array') {
-        return { type, items: widen(members.map(member => member.items ?? {})) };
+        return { type, items: widen(members.map((member) => member.items ?? {})) };
     }
     const choices = members.map(stringChoices);
-    return choices.every(entry => entry !== undefined)
+    return choices.every((entry) => entry !== undefined)
         ? { type, enum: [...new Set(choices.flat())] }
         : { type };
 }
@@ -89,9 +113,17 @@ function absorb(schema, extra) {
     const { properties, required, ...rest } = extra;
     Object.assign(schema, rest);
     if (object(properties))
-        schema.properties = { ...object(schema.properties) ? schema.properties : {}, ...properties };
+        schema.properties = {
+            ...(object(schema.properties) ? schema.properties : {}),
+            ...properties,
+        };
     if (Array.isArray(required)) {
-        schema.required = [...new Set([...Array.isArray(schema.required) ? schema.required : [], ...required])];
+        schema.required = [
+            ...new Set([
+                ...(Array.isArray(schema.required) ? schema.required : []),
+                ...required,
+            ]),
+        ];
     }
 }
 /** Keep property names intact while reducing schema keywords for Claude/GPT-OSS. */
@@ -109,27 +141,38 @@ function custom(value) {
     for (const keyword of ['anyOf', 'oneOf']) {
         if (!Array.isArray(schema[keyword]))
             continue;
-        const variants = schema[keyword].filter(item => !object(item) || item.type !== 'null');
+        const variants = schema[keyword].filter((item) => !object(item) || item.type !== 'null');
         delete schema[keyword];
-        absorb(schema, variants.length === 1 && object(variants[0]) ? variants[0] : widen(variants));
+        absorb(schema, variants.length === 1 && object(variants[0])
+            ? variants[0]
+            : widen(variants));
     }
     const out = {};
     for (const [key, value] of Object.entries(schema)) {
         if (!CUSTOM_KEYS.has(key))
             continue;
         if (key === 'properties' && object(value)) {
-            out[key] = Object.fromEntries(Object.entries(value).map(([name, property]) => [name, custom(property)]));
+            out[key] = Object.fromEntries(Object.entries(value).map(([name, property]) => [
+                name,
+                custom(property),
+            ]));
         }
         else if (key === 'items')
             out[key] = custom(value);
         else if (key === 'type' && Array.isArray(value)) {
-            const types = value.filter(type => type !== 'null');
-            const type = types.length === 1 ? types[0]
-                : types.length > 0 && types.every(entry => NUMERIC.has(entry)) ? 'number' : undefined;
+            const types = value.filter((type) => type !== 'null');
+            const type = types.length === 1
+                ? types[0]
+                : types.length > 0 &&
+                    types.every((entry) => NUMERIC.has(entry))
+                    ? 'number'
+                    : undefined;
             if (type !== undefined)
                 out[key] = type;
         }
-        else if (key !== 'enum' || Array.isArray(value) && value.every(entry => typeof entry === 'string')) {
+        else if (key !== 'enum' ||
+            (Array.isArray(value) &&
+                value.every((entry) => typeof entry === 'string'))) {
             out[key] = value;
         }
     }

@@ -9,7 +9,7 @@
  * cooldown (transport blips say nothing about the account), or rethrow
  * (the request itself is at fault and another account would fail alike).
  */
-import { CONTEXT_WINDOW_EXCEEDED_CODE, LlmError, QUOTA_EXCEEDED_CODE } from '@deepseek-ai/dsh-llm';
+import { CONTEXT_WINDOW_EXCEEDED_CODE, LlmError, QUOTA_EXCEEDED_CODE, } from '@deepseek-ai/dsh-llm';
 /** Registry key for one pool member. */
 export function memberKey(provider, account, model) {
     return `${provider}/${account}/${model}`;
@@ -33,7 +33,10 @@ export const TRANSIENT_COOLDOWN_MS = 60_000;
  * wall means its siblings on the SAME account would too, so the cooldown
  * parks the account (other accounts of the provider are unaffected).
  */
-const MODEL_SCOPED_QUOTA_PROVIDERS = new Set(['claude', 'antigravity']);
+const MODEL_SCOPED_QUOTA_PROVIDERS = new Set([
+    'claude',
+    'antigravity',
+]);
 /** The `retry-after` an adapter propagated through `httpLlmError`, when any. */
 function retryAfterMs(error) {
     return error.failure.providerRetryAfterMs;
@@ -61,16 +64,28 @@ export function classifyPoolFailure(error, provider) {
                 action: 'switch',
                 cooldownMs: retryAfterMs(error) ?? DEFAULT_QUOTA_COOLDOWN_MS,
                 reason: error.code,
-                scope: MODEL_SCOPED_QUOTA_PROVIDERS.has(provider) ? 'member' : 'account',
+                scope: MODEL_SCOPED_QUOTA_PROVIDERS.has(provider)
+                    ? 'member'
+                    : 'account',
             };
         case 'AUTH':
         case 'INVALID_CREDENTIAL':
         case 'MISSING_CREDENTIAL':
-            return { action: 'switch', cooldownMs: AUTH_COOLDOWN_MS, reason: error.code, scope: 'account' };
+            return {
+                action: 'switch',
+                cooldownMs: AUTH_COOLDOWN_MS,
+                reason: error.code,
+                scope: 'account',
+            };
         case 'SERVER':
         case 'TIMEOUT':
         case 'EMPTY_RESPONSE':
-            return { action: 'switch', cooldownMs: TRANSIENT_COOLDOWN_MS, reason: error.code, scope: 'member' };
+            return {
+                action: 'switch',
+                cooldownMs: TRANSIENT_COOLDOWN_MS,
+                reason: error.code,
+                scope: 'member',
+            };
         case 'TRANSPORT':
             return { action: 'switch' };
         case 'HTTP_402':
@@ -78,7 +93,12 @@ export function classifyPoolFailure(error, provider) {
             // Plan/model availability is account-shaped: another account of the
             // same subscription may still serve. A 400 that is not a context-window
             // error stays HTTP_400 and throws (the request itself is at fault).
-            return { action: 'switch', cooldownMs: TRANSIENT_COOLDOWN_MS, reason: error.code, scope: 'member' };
+            return {
+                action: 'switch',
+                cooldownMs: TRANSIENT_COOLDOWN_MS,
+                reason: error.code,
+                scope: 'member',
+            };
         case CONTEXT_WINDOW_EXCEEDED_CODE:
         case 'ABORTED':
         default:
@@ -94,8 +114,8 @@ export class PoolHealthRegistry {
     records = new Map();
     /** Whether a member may serve: neither it nor its whole account is cooling. */
     isMemberAvailable(provider, account, model, now = Date.now()) {
-        return this.isAvailable(accountKey(provider, account), now)
-            && this.isAvailable(memberKey(provider, account, model), now);
+        return (this.isAvailable(accountKey(provider, account), now) &&
+            this.isAvailable(memberKey(provider, account, model), now));
     }
     /** Whether one registry key is clear right now. */
     isAvailable(key, now = Date.now()) {
@@ -142,8 +162,13 @@ export class PoolHealthRegistry {
             }
             if (!keys.has(key))
                 continue;
-            if (earliest === undefined || record.unavailableUntil < earliest.unavailableUntil) {
-                earliest = { key, unavailableUntil: record.unavailableUntil, reason: record.reason };
+            if (earliest === undefined ||
+                record.unavailableUntil < earliest.unavailableUntil) {
+                earliest = {
+                    key,
+                    unavailableUntil: record.unavailableUntil,
+                    reason: record.reason,
+                };
             }
         }
         return earliest;

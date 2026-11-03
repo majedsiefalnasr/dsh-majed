@@ -13,39 +13,44 @@
  * shape, so this local mirror avoids importing from either package.
  */
 
-import * as llm from '@deepseek-ai/dsh-llm'
-import type { ContentBlock, Message as HostMessage } from '@deepseek-ai/dsh-llm'
+import * as llm from '@deepseek-ai/dsh-llm';
+import type {
+  ContentBlock,
+  Message as HostMessage,
+} from '@deepseek-ai/dsh-llm';
 
 /** Tool-result blocks used by older hosts and imported histories. */
 export interface LegacyToolResultBlock {
-  type: 'tool-result'
-  toolCallId: ToolCallId
-  content: readonly CompatibleContentBlock[]
-  isError?: boolean
+  type: 'tool-result';
+  toolCallId: ToolCallId;
+  content: readonly CompatibleContentBlock[];
+  isError?: boolean;
 }
 
 /** Accept both the current host vocabulary and legacy nested tool results. */
-export type CompatibleContentBlock = ContentBlock | LegacyToolResultBlock
+export type CompatibleContentBlock = ContentBlock | LegacyToolResultBlock;
 
 /** Adapter input also accepts one-shot requests without durable identity. */
 export interface CompatibleMessage {
-  id?: HostMessage['id']
-  role: HostMessage['role'] | 'tool'
-  content: readonly CompatibleContentBlock[]
-  source?: HostMessage['source']
-  toolCallId?: string
-  tool_call_id?: string
-  isError?: boolean
+  id?: HostMessage['id'];
+  role: HostMessage['role'] | 'tool';
+  content: readonly CompatibleContentBlock[];
+  source?: HostMessage['source'];
+  toolCallId?: string;
+  tool_call_id?: string;
+  isError?: boolean;
 }
 
 /** The branded tool-call id of whichever dsh-llm line is installed. */
-export type ToolCallId = Extract<ContentBlock, { type: 'tool-call' }>['id']
+export type ToolCallId = Extract<ContentBlock, { type: 'tool-call' }>['id'];
 
 /** Brand a string as a tool-call id: alpha's `ToolCallId`, rc.2's `CallId`. */
 export const ToolCallId: (id: string) => ToolCallId = (() => {
-  const exports = llm as Record<string, unknown>
-  return (exports['ToolCallId'] ?? exports['CallId']) as (id: string) => ToolCallId
-})()
+  const exports = llm as Record<string, unknown>;
+  return (exports['ToolCallId'] ?? exports['CallId']) as (
+    id: string,
+  ) => ToolCallId;
+})();
 
 /**
  * Structural mirror of the RPC result both dsh lines use (rc.2's apiproxy
@@ -53,4 +58,4 @@ export const ToolCallId: (id: string) => ToolCallId = (() => {
  */
 export type RpcResult<T> =
   | { ok: true; value: T }
-  | { ok: false; error: { code: string; message: string; details: object } }
+  | { ok: false; error: { code: string; message: string; details: object } };

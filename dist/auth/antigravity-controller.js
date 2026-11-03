@@ -1,5 +1,5 @@
-import { accountKeyOf, deleteAccountSession, listAccounts, saveAccountSession, setDefaultAccount } from './store.js';
-import { ANTIGRAVITY_SETUP_REQUIRED, antigravityFlow, exchangeAntigravityCode } from '../providers/antigravity.js';
+import { accountKeyOf, deleteAccountSession, listAccounts, saveAccountSession, setDefaultAccount, } from './store.js';
+import { ANTIGRAVITY_SETUP_REQUIRED, antigravityFlow, exchangeAntigravityCode, } from '../providers/antigravity.js';
 import { DISCOVERY_TIMEOUT_MS, withTimeout } from '../providers/common.js';
 export class AntigravityAuthController {
     flows;
@@ -21,8 +21,20 @@ export class AntigravityAuthController {
     }
     async status() {
         const pending = this.flows.pending('antigravity');
-        return { authRevision: this.authRevision, setupRequired: this.oauth === undefined, busy: this.active !== undefined, detail: this.oauth ? this.detail : ANTIGRAVITY_SETUP_REQUIRED, pendingAuth: pending ? { authorizeUrl: pending.authorizeUrl } : undefined,
-            accounts: (await listAccounts('antigravity')).map(({ key, session }, index) => ({ key, isDefault: index === 0, account: session.account ?? key, plan: session.plan, expiresAt: session.expiresAt })) };
+        return {
+            authRevision: this.authRevision,
+            setupRequired: this.oauth === undefined,
+            busy: this.active !== undefined,
+            detail: this.oauth ? this.detail : ANTIGRAVITY_SETUP_REQUIRED,
+            pendingAuth: pending ? { authorizeUrl: pending.authorizeUrl } : undefined,
+            accounts: (await listAccounts('antigravity')).map(({ key, session }, index) => ({
+                key,
+                isDefault: index === 0,
+                account: session.account ?? key,
+                plan: session.plan,
+                expiresAt: session.expiresAt,
+            })),
+        };
     }
     async login() {
         if (!this.oauth)
@@ -32,7 +44,7 @@ export class AntigravityAuthController {
         if (this.active)
             throw new Error('an antigravity login attempt is already in progress');
         const claim = ++this.claim;
-        const active = this.active = new AbortController();
+        const active = (this.active = new AbortController());
         this.detail = undefined;
         try {
             const attempt = await this.flows.start('antigravity', antigravityFlow(this.oauth));
@@ -56,7 +68,7 @@ export class AntigravityAuthController {
                 throw new Error(ANTIGRAVITY_SETUP_REQUIRED);
             const oauth = this.oauth;
             const code = await attempt.waitCode();
-            const session = await withTimeout(signal => exchangeAntigravityCode(code, attempt.pkce.verifier, attempt.redirectUri, oauth, this.runtime, undefined, signal), DISCOVERY_TIMEOUT_MS, active.signal);
+            const session = await withTimeout((signal) => exchangeAntigravityCode(code, attempt.pkce.verifier, attempt.redirectUri, oauth, this.runtime, undefined, signal), DISCOVERY_TIMEOUT_MS, active.signal);
             if (claim !== this.claim || this.disposed)
                 return;
             if (!session)
@@ -76,10 +88,29 @@ export class AntigravityAuthController {
                 this.active = undefined;
         }
     }
-    manual(input) { const attempt = this.flows.pending('antigravity'); if (!attempt)
-        throw new Error('no antigravity login attempt is in progress'); attempt.manual(input); }
-    cancel() { this.claim++; this.active?.abort(new Error('login cancelled')); this.active = undefined; this.flows.pending('antigravity')?.cancel(); }
-    async logout(account) { this.cancel(); await deleteAccountSession('antigravity', account); this.changed(account); }
-    async setDefault(account) { await setDefaultAccount('antigravity', account); this.changed(); }
-    dispose() { this.disposed = true; this.cancel(); }
+    manual(input) {
+        const attempt = this.flows.pending('antigravity');
+        if (!attempt)
+            throw new Error('no antigravity login attempt is in progress');
+        attempt.manual(input);
+    }
+    cancel() {
+        this.claim++;
+        this.active?.abort(new Error('login cancelled'));
+        this.active = undefined;
+        this.flows.pending('antigravity')?.cancel();
+    }
+    async logout(account) {
+        this.cancel();
+        await deleteAccountSession('antigravity', account);
+        this.changed(account);
+    }
+    async setDefault(account) {
+        await setDefaultAccount('antigravity', account);
+        this.changed();
+    }
+    dispose() {
+        this.disposed = true;
+        this.cancel();
+    }
 }

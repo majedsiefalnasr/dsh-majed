@@ -11,39 +11,39 @@
  * over time converges on every window hitting zero right at its reset.
  */
 
-import { isMissingOrInvalidCredential, OAuthEndpointError } from './common.js'
-import type { ProviderUsage, UsageWindow } from './common.js'
-import type { ProviderId } from '../auth/store.js'
-import type { ConcretePoolMember } from './pool-family.js'
+import { isMissingOrInvalidCredential, OAuthEndpointError } from './common.js';
+import type { ProviderUsage, UsageWindow } from './common.js';
+import type { ProviderId } from '../auth/store.js';
+import type { ConcretePoolMember } from './pool-family.js';
 
 /** A member is taken out of rotation once any window crosses this fill level. */
-export const QUOTA_FULL_PERCENT = 95
+export const QUOTA_FULL_PERCENT = 95;
 /** How long a usage snapshot is trusted before a background refresh. */
-export const USAGE_TTL_MS = 5 * 60_000
+export const USAGE_TTL_MS = 5 * 60_000;
 
 /** Assumed window length when the provider discloses no `resetsAt`. */
 const FALLBACK_HORIZON_MS: Record<UsageWindow['kind'], number> = {
   session: 5 * 60 * 60_000,
   weekly: 7 * 24 * 60 * 60_000,
   other: 30 * 24 * 60 * 60_000,
-}
+};
 
 /** The scheduling view of one member's quota. */
 export interface MemberQuota {
   /** False when a window is effectively full or the login is gone. */
-  available: boolean
+  available: boolean;
   /** Required burn rate (fraction of window per ms); 0 when unknown. */
-  urgency: number
+  urgency: number;
   /** Epoch ms of the snapshot this was computed from; 0 when none. */
-  fetchedAt: number
+  fetchedAt: number;
 }
 
 /** A successful snapshot, cached until `ttlMs` (or the entry's own `cooldownMs`) elapses. */
 interface SnapshotEntry {
-  snapshot: ProviderUsage
-  error?: undefined
-  at: number
-  cooldownMs?: undefined
+  snapshot: ProviderUsage;
+  error?: undefined;
+  at: number;
+  cooldownMs?: undefined;
 }
 
 /**
@@ -60,16 +60,16 @@ interface SnapshotEntry {
  * instead of falling back to the zero-urgency/no-data degraded state.
  */
 interface FailureEntry {
-  snapshot?: undefined
-  error: unknown
-  at: number
+  snapshot?: undefined;
+  error: unknown;
+  at: number;
   /** Overrides `ttlMs` — the endpoint's own `retry-after` when it sent one. */
-  cooldownMs: number
+  cooldownMs: number;
   /** The last successful snapshot before this failure, when one exists. */
-  lastSnapshot?: ProviderUsage
+  lastSnapshot?: ProviderUsage;
 }
 
-type CacheEntry = SnapshotEntry | FailureEntry
+type CacheEntry = SnapshotEntry | FailureEntry;
 
 /**
  * Per-ACCOUNT usage snapshots with in-flight dedupe and
@@ -80,11 +80,14 @@ type CacheEntry = SnapshotEntry | FailureEntry
  * tracking on their first score.
  */
 export class PoolUsageTracker {
-  private readonly entries = new Map<string, CacheEntry>()
-  private readonly inflight = new Map<string, Promise<ProviderUsage>>()
+  private readonly entries = new Map<string, CacheEntry>();
+  private readonly inflight = new Map<string, Promise<ProviderUsage>>();
 
   constructor(
-    private readonly fetcherFor: (provider: ProviderId, account: string) => (() => Promise<ProviderUsage>) | undefined,
+    private readonly fetcherFor: (
+      provider: ProviderId,
+      account: string,
+    ) => (() => Promise<ProviderUsage>) | undefined,
     private readonly ttlMs = USAGE_TTL_MS,
   ) {}
 
@@ -105,24 +108,25 @@ export class PoolUsageTracker {
    * @returns availability plus the urgency score.
    */
   async quotaFor(member: ConcretePoolMember): Promise<MemberQuota> {
-    const key = `${member.provider}/${member.account}`
-    const fetcher = this.fetcherFor(member.provider, member.account)
-    if (fetcher === undefined) return { available: true, urgency: 0, fetchedAt: 0 }
-    const entry = this.entries.get(key)
+    const key = `${member.provider}/${member.account}`;
+    const fetcher = this.fetcherFor(member.provider, member.account);
+    if (fetcher === undefined)
+      return { available: true, urgency: 0, fetchedAt: 0 };
+    const entry = this.entries.get(key);
     if (entry !== undefined) {
-      const fresh = Date.now() - entry.at < (entry.cooldownMs ?? this.ttlMs)
+      const fresh = Date.now() - entry.at < (entry.cooldownMs ?? this.ttlMs);
       if (entry.snapshot !== undefined) {
-        if (!fresh) void this.refresh(key, fetcher).catch(() => undefined)
-        return this.score(member, entry)
+        if (!fresh) void this.refresh(key, fetcher).catch(() => undefined);
+        return this.score(member, entry);
       }
-      if (fresh) return degradedQuota(entry.error)
+      if (fresh) return degradedQuota(entry.error);
       // The cooldown expired: fall through to a fresh, blocking attempt.
     }
     try {
-      const snapshot = await this.refresh(key, fetcher)
-      return this.score(member, { snapshot, at: Date.now() })
+      const snapshot = await this.refresh(key, fetcher);
+      return this.score(member, { snapshot, at: Date.now() });
     } catch (error: unknown) {
-      return degradedQuota(error)
+      return degradedQuota(error);
     }
   }
 
@@ -138,44 +142,52 @@ export class PoolUsageTracker {
    *   lockout, so even a forced call still answers from the negative cache.
    * @returns `{ supported: false }` when the provider has no usage fetcher.
    */
-  async snapshotFor(provider: ProviderId, account: string, force = false): Promise<ProviderUsage> {
-    const fetcher = this.fetcherFor(provider, account)
-    if (fetcher === undefined) return { supported: false }
-    const key = `${provider}/${account}`
-    const entry = this.entries.get(key)
-    if (entry !== undefined && Date.now() - entry.at < (entry.cooldownMs ?? this.ttlMs)) {
+  async snapshotFor(
+    provider: ProviderId,
+    account: string,
+    force = false,
+  ): Promise<ProviderUsage> {
+    const fetcher = this.fetcherFor(provider, account);
+    if (fetcher === undefined) return { supported: false };
+    const key = `${provider}/${account}`;
+    const entry = this.entries.get(key);
+    if (
+      entry !== undefined &&
+      Date.now() - entry.at < (entry.cooldownMs ?? this.ttlMs)
+    ) {
       if (entry.snapshot !== undefined) {
-        if (!force) return entry.snapshot
+        if (!force) return entry.snapshot;
       } else if (entry.lastSnapshot !== undefined) {
         // A stale-but-real snapshot beats surfacing the cooldown error to
         // every display surface — this is what was previously showing, so
         // keep showing it (even through a forced refresh: retrying past the
         // cooldown is exactly the retry storm `cooldownMs` exists to avoid).
-        return entry.lastSnapshot
+        return entry.lastSnapshot;
       } else {
-        throw entry.error
+        throw entry.error;
       }
     }
     try {
-      return await this.refresh(key, fetcher)
+      return await this.refresh(key, fetcher);
     } catch (error: unknown) {
       // Same fallback as the already-cooling-down branch above, for the
       // fetch that just failed on THIS call: `refresh` recorded whatever
       // snapshot was on record before it ran onto the new failure entry.
-      const failed = this.entries.get(key)
-      if (failed?.snapshot === undefined && failed?.lastSnapshot !== undefined) return failed.lastSnapshot
-      throw error
+      const failed = this.entries.get(key);
+      if (failed?.snapshot === undefined && failed?.lastSnapshot !== undefined)
+        return failed.lastSnapshot;
+      throw error;
     }
   }
 
   /** Drop cached snapshots: one account, or a whole provider when `account` is omitted. */
   invalidate(provider: ProviderId, account?: string): void {
     if (account !== undefined) {
-      this.entries.delete(`${provider}/${account}`)
-      return
+      this.entries.delete(`${provider}/${account}`);
+      return;
     }
     for (const key of [...this.entries.keys()]) {
-      if (key.startsWith(`${provider}/`)) this.entries.delete(key)
+      if (key.startsWith(`${provider}/`)) this.entries.delete(key);
     }
   }
 
@@ -187,50 +199,57 @@ export class PoolUsageTracker {
    * member rejoins routing the instant its login is fixed, rather than
    * waiting out a stale cooldown.
    */
-  private refresh(key: string, fetcher: () => Promise<ProviderUsage>): Promise<ProviderUsage> {
-    let pending = this.inflight.get(key)
+  private refresh(
+    key: string,
+    fetcher: () => Promise<ProviderUsage>,
+  ): Promise<ProviderUsage> {
+    let pending = this.inflight.get(key);
     if (pending === undefined) {
       // Captured before the fetch starts: whichever real snapshot is on
       // record right now is what a failure below should fall back to. A
       // failure entry's own `lastSnapshot` counts too — otherwise the stale
       // snapshot would survive exactly one cooldown and vanish on the next
       // consecutive failure, even though nothing newer ever replaced it.
-      const prior = this.entries.get(key)
-      const lastSnapshot = prior?.snapshot ?? prior?.lastSnapshot
-      pending = fetcher().then(
-        (snapshot) => {
-          this.entries.set(key, { snapshot, at: Date.now() })
-          return snapshot
-        },
-        (error: unknown) => {
-          if (!isMissingOrInvalidCredential(error)) {
-            this.entries.set(key, {
-              error,
-              at: Date.now(),
-              cooldownMs: cooldownFor(error, this.ttlMs),
-              ...lastSnapshot === undefined ? {} : { lastSnapshot },
-            })
-          }
-          throw error
-        },
-      ).finally(() => {
-        this.inflight.delete(key)
-      })
-      this.inflight.set(key, pending)
+      const prior = this.entries.get(key);
+      const lastSnapshot = prior?.snapshot ?? prior?.lastSnapshot;
+      pending = fetcher()
+        .then(
+          (snapshot) => {
+            this.entries.set(key, { snapshot, at: Date.now() });
+            return snapshot;
+          },
+          (error: unknown) => {
+            if (!isMissingOrInvalidCredential(error)) {
+              this.entries.set(key, {
+                error,
+                at: Date.now(),
+                cooldownMs: cooldownFor(error, this.ttlMs),
+                ...(lastSnapshot === undefined ? {} : { lastSnapshot }),
+              });
+            }
+            throw error;
+          },
+        )
+        .finally(() => {
+          this.inflight.delete(key);
+        });
+      this.inflight.set(key, pending);
     }
-    return pending
+    return pending;
   }
 
   /** Score one member against a snapshot's windows. */
   private score(member: ConcretePoolMember, entry: SnapshotEntry): MemberQuota {
-    const windows = (entry.snapshot.windows ?? []).filter(window => windowApplies(window, member.model))
-    let available = true
-    let urgency = 0
+    const windows = (entry.snapshot.windows ?? []).filter((window) =>
+      windowApplies(window, member.model),
+    );
+    let available = true;
+    let urgency = 0;
     for (const window of windows) {
-      if (window.usedPercent >= QUOTA_FULL_PERCENT) available = false
-      urgency = Math.max(urgency, windowUrgency(window))
+      if (window.usedPercent >= QUOTA_FULL_PERCENT) available = false;
+      urgency = Math.max(urgency, windowUrgency(window));
     }
-    return { available, urgency, fetchedAt: entry.at }
+    return { available, urgency, fetchedAt: entry.at };
   }
 }
 
@@ -243,12 +262,14 @@ export class PoolUsageTracker {
 function degradedQuota(error: unknown): MemberQuota {
   return isMissingOrInvalidCredential(error)
     ? { available: false, urgency: 0, fetchedAt: 0 }
-    : { available: true, urgency: 0, fetchedAt: 0 }
+    : { available: true, urgency: 0, fetchedAt: 0 };
 }
 
 /** How long to hold a failure in the negative cache: the endpoint's own `retry-after`, or the default TTL. */
 function cooldownFor(error: unknown, defaultTtlMs: number): number {
-  return error instanceof OAuthEndpointError && error.retryAfterMs !== undefined ? error.retryAfterMs : defaultTtlMs
+  return error instanceof OAuthEndpointError && error.retryAfterMs !== undefined
+    ? error.retryAfterMs
+    : defaultTtlMs;
 }
 
 /**
@@ -257,15 +278,16 @@ function cooldownFor(error: unknown, defaultTtlMs: number): number {
  * names the model family.
  */
 function windowApplies(window: UsageWindow, model: string): boolean {
-  if (window.scope === undefined) return true
-  return model.toLowerCase().includes(window.scope.toLowerCase())
+  if (window.scope === undefined) return true;
+  return model.toLowerCase().includes(window.scope.toLowerCase());
 }
 
 /** The required burn rate of one window (fraction per ms). */
 function windowUrgency(window: UsageWindow, now = Date.now()): number {
-  const remaining = Math.max(0, 1 - window.usedPercent / 100)
-  const horizon = window.resetsAt !== undefined
-    ? Math.max(window.resetsAt - now, 1)
-    : FALLBACK_HORIZON_MS[window.kind]
-  return remaining / horizon
+  const remaining = Math.max(0, 1 - window.usedPercent / 100);
+  const horizon =
+    window.resetsAt !== undefined
+      ? Math.max(window.resetsAt - now, 1)
+      : FALLBACK_HORIZON_MS[window.kind];
+  return remaining / horizon;
 }

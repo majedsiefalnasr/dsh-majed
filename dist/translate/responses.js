@@ -10,7 +10,9 @@ import { parseSse } from './sse.js';
 import { withToolResultImages } from './resolved.js';
 /** Flatten a tool result's content to plain text for `function_call_output`. */
 function toolResultText(block) {
-    return block.content.map(part => (part.type === 'text' ? part.text : '')).join('');
+    return block.content
+        .map((part) => (part.type === 'text' ? part.text : ''))
+        .join('');
 }
 /**
  * Convert harness messages into Responses `instructions` + `input` items.
@@ -49,14 +51,19 @@ export function toResponsesInput(messages, system, reasoningFor) {
         // Current harness tool results are first-class role=tool messages.
         // Responses represents their text as function_call_output items.
         if (message.role === 'tool') {
-            const callId = message.toolCallId ?? message.tool_call_id
-                ?? (message.source?.kind === 'tool' ? String(message.source.callId) : undefined);
+            const callId = message.toolCallId ??
+                message.tool_call_id ??
+                (message.source?.kind === 'tool'
+                    ? String(message.source.callId)
+                    : undefined);
             if (callId === undefined)
                 throw new LlmError('tool result has no call id', 'INVALID_REQUEST');
             input.push({
                 type: 'function_call_output',
                 call_id: callId,
-                output: message.content.map(block => block.type === 'text' ? block.text : '').join(''),
+                output: message.content
+                    .map((block) => (block.type === 'text' ? block.text : ''))
+                    .join(''),
             });
             continue;
         }
@@ -71,7 +78,10 @@ export function toResponsesInput(messages, system, reasoningFor) {
         for (const block of message.content) {
             switch (block.type) {
                 case 'text':
-                    content.push({ type: role === 'assistant' ? 'output_text' : 'input_text', text: block.text });
+                    content.push({
+                        type: role === 'assistant' ? 'output_text' : 'input_text',
+                        text: block.text,
+                    });
                     break;
                 case 'tool-call': {
                     flushMessage();
@@ -80,9 +90,11 @@ export function toResponsesInput(messages, system, reasoningFor) {
                         for (const item of encrypted) {
                             input.push({
                                 type: 'reasoning',
-                                ...item.id === undefined ? {} : { id: item.id },
-                                ...item.summary === undefined ? {} : { summary: item.summary },
-                                ...item.status === undefined ? {} : { status: item.status },
+                                ...(item.id === undefined ? {} : { id: item.id }),
+                                ...(item.summary === undefined
+                                    ? {}
+                                    : { summary: item.summary }),
+                                ...(item.status === undefined ? {} : { status: item.status }),
                                 encrypted_content: item.encrypted_content,
                             });
                         }
@@ -123,7 +135,7 @@ export function toResponsesInput(messages, system, reasoningFor) {
         flushMessage();
     }
     const instructions = system ?? (systemTexts.length > 0 ? systemTexts.join('\n\n') : undefined);
-    return { ...instructions === undefined ? {} : { instructions }, input };
+    return { ...(instructions === undefined ? {} : { instructions }), input };
 }
 /**
  * Map harness tool schemas to Responses function tools.
@@ -137,12 +149,12 @@ export function toResponsesInput(messages, system, reasoningFor) {
  * @returns Responses `tools` array entries.
  */
 export function toResponsesTools(tools, options = {}) {
-    return tools.map(tool => ({
+    return tools.map((tool) => ({
         type: 'function',
         name: tool.name,
         description: tool.description,
         parameters: tool.parameters,
-        ...options.strict === undefined ? {} : { strict: options.strict },
+        ...(options.strict === undefined ? {} : { strict: options.strict }),
     }));
 }
 /**
@@ -157,8 +169,8 @@ export function mapResponsesUsage(usage) {
     return {
         inputTokens: usage.input_tokens - (cached ?? 0),
         outputTokens: usage.output_tokens,
-        ...cached !== undefined ? { cacheReadTokens: cached } : {},
-        ...reasoning !== undefined ? { reasoningTokens: reasoning } : {},
+        ...(cached !== undefined ? { cacheReadTokens: cached } : {}),
+        ...(reasoning !== undefined ? { reasoningTokens: reasoning } : {}),
     };
 }
 /**
@@ -170,10 +182,12 @@ export function mapResponsesUsage(usage) {
 export function responsesFailure(code, message) {
     const text = message ?? code ?? 'the provider reported a failed response';
     const detail = `${code ?? ''} ${message ?? ''}`;
-    if (code === 'context_window_exceeded' || isContextWindowExceededError(detail)) {
+    if (code === 'context_window_exceeded' ||
+        isContextWindowExceededError(detail)) {
         return new LlmError(text, CONTEXT_WINDOW_EXCEEDED_CODE);
     }
-    if ((code !== undefined && /insufficient|quota/i.test(code)) || isQuotaExceededError(detail)) {
+    if ((code !== undefined && /insufficient|quota/i.test(code)) ||
+        isQuotaExceededError(detail)) {
         return new LlmError(text, QUOTA_EXCEEDED_CODE);
     }
     return new LlmError(text, 'SERVER');
@@ -214,7 +228,7 @@ export class ResponsesStreamTranslator {
             kind,
             text: '',
             callId,
-            ...name === undefined ? {} : { name },
+            ...(name === undefined ? {} : { name }),
         };
         this.blocks.set(key, block);
         this.order.push(block);
@@ -232,7 +246,11 @@ export class ResponsesStreamTranslator {
         if (block === undefined)
             return;
         this.blocks.delete(key);
-        chunks.push({ type: 'block-end', index: block.index, block: closeBlock(block) });
+        chunks.push({
+            type: 'block-end',
+            index: block.index,
+            block: closeBlock(block),
+        });
     }
     /** Close every still-open block for one output item (prefix match on the key). */
     closeItem(itemId, chunks) {
@@ -250,7 +268,11 @@ export class ResponsesStreamTranslator {
         for (const [key, candidate] of this.blocks) {
             if (candidate === block) {
                 this.blocks.delete(key);
-                chunks.push({ type: 'block-end', index: block.index, block: closeBlock(block) });
+                chunks.push({
+                    type: 'block-end',
+                    index: block.index,
+                    block: closeBlock(block),
+                });
                 return;
             }
         }
@@ -275,7 +297,7 @@ export class ResponsesStreamTranslator {
                         type: 'tool-call-delta',
                         index: block.index,
                         id: ToolCallId(callId),
-                        ...item.name === undefined ? {} : { name: item.name },
+                        ...(item.name === undefined ? {} : { name: item.name }),
                         argumentsDelta: '',
                     });
                 }
@@ -285,7 +307,11 @@ export class ResponsesStreamTranslator {
                 const key = `${event.item_id ?? ''}:text:${String(event.content_index ?? 0)}`;
                 const block = this.textBlock(key, chunks);
                 block.text += event.delta ?? '';
-                chunks.push({ type: 'text-delta', index: block.index, text: event.delta ?? '' });
+                chunks.push({
+                    type: 'text-delta',
+                    index: block.index,
+                    text: event.delta ?? '',
+                });
                 return chunks;
             }
             case 'response.reasoning_summary_text.delta':
@@ -294,7 +320,11 @@ export class ResponsesStreamTranslator {
                 const key = `${event.item_id ?? ''}:reason:${String(sub)}`;
                 const block = this.reasoningBlock(key, chunks);
                 block.text += event.delta ?? '';
-                chunks.push({ type: 'reasoning-delta', index: block.index, text: event.delta ?? '' });
+                chunks.push({
+                    type: 'reasoning-delta',
+                    index: block.index,
+                    text: event.delta ?? '',
+                });
                 return chunks;
             }
             case 'response.function_call_arguments.delta': {
@@ -310,7 +340,7 @@ export class ResponsesStreamTranslator {
                     type: 'tool-call-delta',
                     index: block.index,
                     id: ToolCallId(block.callId),
-                    ...block.name === undefined ? {} : { name: block.name },
+                    ...(block.name === undefined ? {} : { name: block.name }),
                     argumentsDelta: event.delta ?? '',
                 });
                 return chunks;
@@ -323,16 +353,20 @@ export class ResponsesStreamTranslator {
                     const key = `${item.id}:call`;
                     // The provider may deliver the complete arguments only on done.
                     const block = this.blocks.get(key);
-                    if (block !== undefined && block.text.length === 0 && item.arguments !== undefined) {
+                    if (block !== undefined &&
+                        block.text.length === 0 &&
+                        item.arguments !== undefined) {
                         block.text = item.arguments;
                     }
                     this.close(key, chunks);
                 }
                 else if (item.type === 'message') {
-                    if (![...this.blocks.keys()].some(key => key.startsWith(`${item.id}:text:`))) {
+                    if (![...this.blocks.keys()].some((key) => key.startsWith(`${item.id}:text:`))) {
                         // No deltas arrived for this item; synthesize blocks from the done payload.
                         for (const [partIndex, part] of (item.content ?? []).entries()) {
-                            if (part?.type !== 'output_text' || typeof part.text !== 'string' || part.text.length === 0)
+                            if (part?.type !== 'output_text' ||
+                                typeof part.text !== 'string' ||
+                                part.text.length === 0)
                                 continue;
                             const block = this.open(`${item.id}:text:${partIndex}`, 'text', chunks);
                             block.text = part.text;
@@ -357,20 +391,26 @@ export class ResponsesStreamTranslator {
                         type: 'finish',
                         reason: {
                             kind: 'error',
-                            failure: { message: 'model returned a completed response with no content', code: EMPTY_RESPONSE_CODE },
+                            failure: {
+                                message: 'model returned a completed response with no content',
+                                code: EMPTY_RESPONSE_CODE,
+                            },
                         },
                     });
                 }
                 else {
-                    chunks.push({ type: 'finish', reason: { kind: this.sawToolCall ? 'tool-calls' : 'stop' } });
+                    chunks.push({
+                        type: 'finish',
+                        reason: { kind: this.sawToolCall ? 'tool-calls' : 'stop' },
+                    });
                 }
                 return chunks;
             }
             case 'response.failed':
                 throw responsesFailure(event.response?.error?.code, event.response?.error?.message);
             case 'response.incomplete':
-                throw responsesFailure(event.response?.incomplete_details?.reason, event.response?.error?.message
-                    ?? `the provider reported an incomplete response (${event.response?.incomplete_details?.reason ?? 'unknown reason'})`);
+                throw responsesFailure(event.response?.incomplete_details?.reason, event.response?.error?.message ??
+                    `the provider reported an incomplete response (${event.response?.incomplete_details?.reason ?? 'unknown reason'})`);
             case 'error':
                 throw responsesFailure(event.code, event.message);
             default:

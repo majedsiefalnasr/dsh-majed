@@ -1,7 +1,7 @@
 /** Account scheduling shared by image generation and editing, independent of chat catalogs/quota. */
 import { LlmError } from '@deepseek-ai/dsh-llm';
 import { httpLlmError } from './common.js';
-import { AUTH_COOLDOWN_MS, DEFAULT_QUOTA_COOLDOWN_MS, TRANSIENT_COOLDOWN_MS, PoolHealthRegistry, memberKey } from './pool-health.js';
+import { AUTH_COOLDOWN_MS, DEFAULT_QUOTA_COOLDOWN_MS, TRANSIENT_COOLDOWN_MS, PoolHealthRegistry, memberKey, } from './pool-health.js';
 export class ImageAccountPool {
     options;
     // Deliberately separate from chat health: image quotas/entitlements need not match chat.
@@ -24,10 +24,13 @@ export class ImageAccountPool {
             throw new LlmError('image_generate: no image account is logged in', 'MISSING_CREDENTIAL');
         }
         const pooling = this.options.enabled !== false;
-        const members = (pooling ? accounts : accounts.slice(0, 1)).map(entry => entry.key);
-        const sticky = pooling && owner !== undefined ? this.sticky.get(owner)?.get(provider) : undefined;
+        const members = (pooling ? accounts : accounts.slice(0, 1)).map((entry) => entry.key);
+        const sticky = pooling && owner !== undefined
+            ? this.sticky.get(owner)?.get(provider)
+            : undefined;
         const ordered = sticky !== undefined && members.includes(sticky)
-            ? [sticky, ...members.filter(key => key !== sticky)] : members;
+            ? [sticky, ...members.filter((key) => key !== sticky)]
+            : members;
         let lastError;
         for (const account of ordered) {
             signal.throwIfAborted();
@@ -60,30 +63,45 @@ export class ImageAccountPool {
                 }
                 // Images can be produced despite timeouts/server failures. Switch only on
                 // explicit auth/quota/entitlement rejection, never ambiguous transport/5xx.
-                failure = await httpLlmError(response, 'image_generate', { rateLimitReset });
+                failure = await httpLlmError(response, 'image_generate', {
+                    rateLimitReset,
+                });
                 if (![401, 402, 403, 404, 429].includes(response.status))
                     throw failure;
             }
             catch (error) {
                 signal.throwIfAborted();
-                if (!(error instanceof LlmError) || !['AUTH', 'INVALID_CREDENTIAL', 'MISSING_CREDENTIAL', 'RATE_LIMIT', 'HTTP_402', 'HTTP_404'].includes(error.code))
+                if (!(error instanceof LlmError) ||
+                    ![
+                        'AUTH',
+                        'INVALID_CREDENTIAL',
+                        'MISSING_CREDENTIAL',
+                        'RATE_LIMIT',
+                        'HTTP_402',
+                        'HTTP_404',
+                    ].includes(error.code))
                     throw error;
                 failure = error;
             }
             if (!pooling)
                 throw failure;
-            const delay = failure.failure.providerRetryAfterMs ?? (failure.code === 'RATE_LIMIT'
-                ? DEFAULT_QUOTA_COOLDOWN_MS
-                : ['AUTH', 'INVALID_CREDENTIAL', 'MISSING_CREDENTIAL'].includes(failure.code) ? AUTH_COOLDOWN_MS : TRANSIENT_COOLDOWN_MS);
+            const delay = failure.failure.providerRetryAfterMs ??
+                (failure.code === 'RATE_LIMIT'
+                    ? DEFAULT_QUOTA_COOLDOWN_MS
+                    : ['AUTH', 'INVALID_CREDENTIAL', 'MISSING_CREDENTIAL'].includes(failure.code)
+                        ? AUTH_COOLDOWN_MS
+                        : TRANSIENT_COOLDOWN_MS);
             this.health.markUnavailable(key, delay, failure.code);
             this.options.onWarn?.(`image pool ${provider}: account ${members.indexOf(account) + 1}/${members.length} rejected (${failure.code}); checking remaining accounts`);
             lastError = failure;
         }
         if (lastError !== undefined)
             throw lastError;
-        const recovery = this.health.earliestRecovery(new Set(members.map(account => memberKey(provider, account, 'images'))));
+        const recovery = this.health.earliestRecovery(new Set(members.map((account) => memberKey(provider, account, 'images'))));
         throw new LlmError(`image_generate: all ${provider} image accounts are cooling down`, 'RATE_LIMIT', {
-            ...recovery === undefined ? {} : { providerRetryAfterMs: Math.max(0, recovery - Date.now()) },
+            ...(recovery === undefined
+                ? {}
+                : { providerRetryAfterMs: Math.max(0, recovery - Date.now()) }),
         });
     }
 }

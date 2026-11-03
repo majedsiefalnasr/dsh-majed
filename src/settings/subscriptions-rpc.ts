@@ -1,5 +1,11 @@
-type ConnectionHandle = { rpc: { call(channel: string, method: string, payload: unknown): Promise<any> } }
-type RpcResult<T> = { ok: true; value: T } | { ok: false; error: { message: string } }
+type ConnectionHandle = {
+  rpc: {
+    call(channel: string, method: string, payload: unknown): Promise<any>;
+  };
+};
+type RpcResult<T> =
+  | { ok: true; value: T }
+  | { ok: false; error: { message: string } };
 
 /**
  * The node half mounts every endpoint as an exact POST route on the shared
@@ -8,8 +14,8 @@ type RpcResult<T> = { ok: true; value: T } | { ok: false; error: { message: stri
  * A dedicated channel is no longer used: since dsh 0.1.5 `rpc.handle`
  * cannot register one from a plugin (see `src/auth/rpc.ts`).
  */
-const SUBSCRIPTIONS_AUTH_CHANNEL = '/api'
-const SUBSCRIPTIONS_AUTH_PREFIX = 'majed-subscriptions.'
+const SUBSCRIPTIONS_AUTH_CHANNEL = '/api';
+const SUBSCRIPTIONS_AUTH_PREFIX = 'majed-subscriptions.';
 
 /** Business error returned by a `subscriptions-auth` endpoint (error branch message). */
 export class SubscriptionsAuthError extends Error {}
@@ -23,14 +29,24 @@ export class SubscriptionsAuthError extends Error {}
  * @param payload - endpoint-owned request payload.
  * @returns the success value, cast by the caller to the endpoint's shape.
  */
-export async function callSubscriptionsAuth<T>(rpc: ConnectionHandle['rpc'], endpoint: string, payload: unknown): Promise<T> {
-  let result: RpcResult<unknown>
+export async function callSubscriptionsAuth<T>(
+  rpc: ConnectionHandle['rpc'],
+  endpoint: string,
+  payload: unknown,
+): Promise<T> {
+  let result: RpcResult<unknown>;
   try {
-    result = await rpc.call(SUBSCRIPTIONS_AUTH_CHANNEL, `${SUBSCRIPTIONS_AUTH_PREFIX}${endpoint}`, payload)
+    result = await rpc.call(
+      SUBSCRIPTIONS_AUTH_CHANNEL,
+      `${SUBSCRIPTIONS_AUTH_PREFIX}${endpoint}`,
+      payload,
+    );
   } catch (error) {
     // The transport rejected rather than answering; surface the same way.
-    throw new SubscriptionsAuthError(error instanceof Error ? error.message : String(error))
+    throw new SubscriptionsAuthError(
+      error instanceof Error ? error.message : String(error),
+    );
   }
-  if (!result.ok) throw new SubscriptionsAuthError(result.error.message)
-  return result.value as T
+  if (!result.ok) throw new SubscriptionsAuthError(result.error.message);
+  return result.value as T;
 }

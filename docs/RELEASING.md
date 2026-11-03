@@ -29,6 +29,12 @@ live verification in the DSH desktop app (see checklist).
 9. Create the GitHub release from the tag using the changelog section as notes
    (`gh release create vX.Y.Z --notes-file <section> [--prerelease]`; use `--prerelease` for `-rc`).
 
+## Local quality checks
+
+After installing dependencies, opt in once per clone with `git config --local core.hooksPath .githooks`. The pre-commit hook checks the staged snapshot for formatting and lint without rewriting it; the pre-push hook runs full `npm run ci` in a disposable snapshot of tracked, owned working-tree files (quality, tests, and isolated reproducible build). Unstaged tracked edits are included; untracked files, private paths and known local DOM fixtures are not copied. Stage new intended inputs before pushing. The snapshot has its own Git index and reuses the existing installed dependencies through a `node_modules` symlink; it does not install packages or access the network itself. CI-generated outputs and test writes stay in the snapshot, which is removed on success or failure, leaving checkout files and the original index unchanged. This checks the local tracked working snapshot, not each outgoing commit. Run `npm run format` to fix formatting, then review and stage the intended changes. Hooks are bypassable and do not replace GitHub checks. To disable this repository's hook path, run `git config --local --unset core.hooksPath`.
+
+Biome checks tracked and new owned code; generated output, reference tests and the byte-preserved OAuth client are excluded. Prettier checks workflow and Cordis YAML formatting. Lint enforces an explicit correctness/suspicious rule subset, not all recommended rules or a comprehensive clean-code assessment. Typecheck includes host, browser source, and reference TypeScript configurations.
+
 ## Automated npm publication
 
 The GitHub Actions workflow `.github/workflows/npm-publish.yml` runs when a non-prerelease GitHub Release is published. It checks out the release tag, requires `v` plus the exact package version, installs locked dependencies, runs tests and the byte-exact fresh-build check, then publishes with OIDC provenance. Existing npm versions are skipped, never overwritten. Registry errors fail closed. Ordinary pushes do not publish. Release approval is still a human gate; do not publish a Release before its source, tests, notes and desktop acceptance are approved.

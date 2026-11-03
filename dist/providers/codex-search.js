@@ -15,7 +15,9 @@ export class CodexWebSearchProvider {
     constructor(options) {
         this.options = options;
     }
-    available() { return this.options.enabled?.() ?? true; }
+    available() {
+        return this.options.enabled?.() ?? true;
+    }
     async search(request, signal) {
         throwIfAborted(signal);
         let session;
@@ -50,10 +52,10 @@ export class CodexWebSearchProvider {
                 response = await fetchFn(CODEX_SEARCH_URL, {
                     method: 'POST',
                     headers: {
-                        'authorization': `Bearer ${session.accessToken}`,
+                        authorization: `Bearer ${session.accessToken}`,
                         'chatgpt-account-id': session.accountId,
                         'content-type': 'application/json',
-                        'originator': 'codex_cli_rs',
+                        originator: 'codex_cli_rs',
                         ...attributionHeaders(),
                     },
                     body: JSON.stringify(body),
@@ -73,7 +75,9 @@ export class CodexWebSearchProvider {
                 await discard(response);
                 throw new WebError('Codex Web Search was rate-limited; retry later', 'CODEX_SEARCH_RATE_LIMIT');
             }
-            if (response.status >= 500 && response.status <= 599 && attempt < MAX_ATTEMPTS) {
+            if (response.status >= 500 &&
+                response.status <= 599 &&
+                attempt < MAX_ATTEMPTS) {
                 await discard(response);
                 await abortableDelay(retryBaseMs * 2 ** (attempt - 1), signal);
                 continue;
@@ -103,14 +107,20 @@ export function normalizeCodexSearchResponse(value) {
         for (const candidate of value.results) {
             if (!record(candidate))
                 continue;
-            const rawUrl = safeString(candidate.url, 8192) ?? safeString(candidate.source_url, 8192);
+            const rawUrl = safeString(candidate.url, 8192) ??
+                safeString(candidate.source_url, 8192);
             const url = rawUrl === undefined ? undefined : httpUrl(rawUrl);
             if (url === undefined || seen.has(url))
                 continue;
             seen.add(url);
-            const title = safeString(candidate.title, 1000) ?? safeString(candidate.source_title, 1000);
+            const title = safeString(candidate.title, 1000) ??
+                safeString(candidate.source_title, 1000);
             const snippet = safeString(candidate.snippet, 4000) ?? safeString(candidate.text, 4000);
-            sources.push({ url, ...(title ? { title } : {}), ...(snippet ? { snippet } : {}) });
+            sources.push({
+                url,
+                ...(title ? { title } : {}),
+                ...(snippet ? { snippet } : {}),
+            });
         }
     return { content: value.output, sources, truncated: false };
 }
@@ -128,7 +138,9 @@ function safeString(value, max) {
 function httpUrl(value) {
     try {
         const parsed = new URL(value);
-        return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? parsed.href : undefined;
+        return parsed.protocol === 'http:' || parsed.protocol === 'https:'
+            ? parsed.href
+            : undefined;
     }
     catch {
         return undefined;
@@ -138,7 +150,9 @@ async function discard(response) {
     try {
         await response.body?.cancel();
     }
-    catch { /* best effort */ }
+    catch {
+        /* best effort */
+    }
 }
 function throwIfAborted(signal) {
     if (signal?.aborted)
@@ -153,9 +167,18 @@ function abortableDelay(ms, signal) {
         return Promise.resolve();
     }
     return new Promise((resolve, reject) => {
-        const timer = setTimeout(() => { cleanup(); resolve(); }, ms);
-        const onAbort = () => { cleanup(); reject(cancelled(signal?.reason)); };
-        const cleanup = () => { clearTimeout(timer); signal?.removeEventListener('abort', onAbort); };
+        const timer = setTimeout(() => {
+            cleanup();
+            resolve();
+        }, ms);
+        const onAbort = () => {
+            cleanup();
+            reject(cancelled(signal?.reason));
+        };
+        const cleanup = () => {
+            clearTimeout(timer);
+            signal?.removeEventListener('abort', onAbort);
+        };
         signal?.addEventListener('abort', onAbort, { once: true });
     });
 }
@@ -193,6 +216,8 @@ async function boundedText(response, signal) {
         try {
             reader.releaseLock();
         }
-        catch { /* best effort */ }
+        catch {
+            /* best effort */
+        }
     }
 }

@@ -14,7 +14,9 @@ import { withAbortSignal } from '../providers/common.js';
  */
 export async function* parseSse(stream, onActivity, signal) {
     const reader = stream.getReader();
-    const cancel = () => { void reader.cancel(signal?.reason).catch(() => { }); };
+    const cancel = () => {
+        void reader.cancel(signal?.reason).catch(() => { });
+    };
     signal?.addEventListener('abort', cancel, { once: true });
     const decoder = new TextDecoder();
     let pending = '';
@@ -37,7 +39,10 @@ export async function* parseSse(stream, onActivity, signal) {
                     line = line.slice(0, -1);
                 if (line.length === 0) {
                     if (dataLines.length > 0) {
-                        yield { data: dataLines.join('\n'), ...eventName === undefined ? {} : { event: eventName } };
+                        yield {
+                            data: dataLines.join('\n'),
+                            ...(eventName === undefined ? {} : { event: eventName }),
+                        };
                     }
                     dataLines = [];
                     eventName = undefined;
@@ -65,7 +70,9 @@ export async function* parseSse(stream, onActivity, signal) {
             try {
                 await reader.cancel();
             }
-            catch { /* preserve the original stream outcome */ }
+            catch {
+                /* preserve the original stream outcome */
+            }
         reader.releaseLock();
     }
 }
