@@ -139,6 +139,9 @@ export class ProviderSettingsStore {
             const raw = JSON.parse(readFileSync(path, 'utf8'));
             if (!raw.providers || !Array.isArray(raw.toolHistory))
                 throw new Error('invalid settings document');
+            if (raw.zenEnabled !== undefined && typeof raw.zenEnabled !== 'boolean')
+                throw new Error('invalid Zen enablement');
+            this.current.zenEnabled = raw.zenEnabled;
             for (const provider of PROVIDER_IDS) {
                 if (Object.hasOwn(raw.providers, provider))
                     this.current.providers[provider] = validatePreferences(provider, raw.providers[provider]);
@@ -154,6 +157,27 @@ export class ProviderSettingsStore {
             if (error.code !== 'ENOENT')
                 throw new Error(`Cannot read provider settings at ${path}`, { cause: error });
         }
+    }
+    zenEnabled() { return this.current.zenEnabled !== false; }
+    async setZenEnabled(enabled) {
+        if (typeof enabled !== 'boolean')
+            throw new Error('invalid Zen enablement');
+        const run = this.writes.then(async () => {
+            const next = structuredClone(this.current);
+            next.zenEnabled = enabled;
+            await mkdir(dirname(this.path), { recursive: true, mode: 0o700 });
+            const temporary = `${this.path}.${process.pid}.${Math.random().toString(36).slice(2)}.tmp`;
+            try {
+                await writeFile(temporary, JSON.stringify(next, null, 2), { mode: 0o600 });
+                await rename(temporary, this.path);
+            }
+            finally {
+                await rm(temporary, { force: true });
+            }
+            this.current = next;
+        });
+        this.writes = run.catch(() => { });
+        return run;
     }
     get(provider) {
         return structuredClone(this.current.providers[provider] ?? {});

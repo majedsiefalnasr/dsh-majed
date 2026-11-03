@@ -11,13 +11,14 @@ vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/api-providers
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 const ok = value => ({ ok: true, value });
 const model = [{ id: 'fixture-model', name: 'Fixture', contextWindow: 8192, maxTokens: 1024, input: ['text'], reasoningEfforts: false }];
-async function fixture(locale) {
+async function fixture(locale, { omitCredentialMetadata = false, includeAccountProvider = false, subscriptions } = {}) {
   const dict = JSON.parse(readFileSync(new URL(`../locale/${locale}.json`, import.meta.url))).subscriptions;
   const ns = { ns: 'llm-pi-ai', revision: 4, base: { providers: { deployment: { baseURL: 'https://deployment.example.test' } } }, user: { providers: { custom: { displayName: 'Custom', baseURL: 'https://custom.example.test', api: 'openai-completions', models: model, apiKeyEnv: 'CUSTOM_API_KEY' } } }, value: {} };
   function resolve() { ns.value = { providers: { ...ns.base.providers, ...ns.user.providers } }; }
   resolve();
   const calls = [], listeners = new Map(); let failKey = false, failSettings = false;
   const entries = [{ provider: 'builtin', displayName: 'Built in', declared: false }, { provider: 'custom', displayName: 'Custom', declared: true }, { provider: 'deployment', displayName: 'Deployment', declared: true }].map(e => ({ ...e, settingsNs: ns.ns, settingsPath: ['providers', e.provider] }));
+  if (includeAccountProvider) entries.push({ provider: 'deepseek-account', displayName: 'DeepSeek Account', settingsNs: ns.ns, settingsPath: [], declared: false });
   const credentials = { CUSTOM_API_KEY: { configured: true, writable: true, source: 'store' } };
   const remote = {
     $on(event, fn) { listeners.set(event, fn); return () => listeners.delete(event); },
@@ -35,7 +36,7 @@ async function fixture(locale) {
       },
     },
     credentials: {
-      async describe(refs) { calls.push(['credentials.describe', refs]); return ok(Object.fromEntries(refs.map(ref => [ref, credentials[ref] ?? { configured: false, writable: true }]))); },
+      async describe(refs) { calls.push(['credentials.describe', refs]); return ok(omitCredentialMetadata ? {} : Object.fromEntries(refs.map(ref => [ref, credentials[ref] ?? { configured: false, writable: true }]))); },
       async set(ref, value) { calls.push(['set', ref, value]); if (failKey) return { ok: false, error: { message: value } }; credentials[ref] = { configured: true, writable: true }; return ok(); },
       async unset(ref) { calls.push(['unset', ref]); credentials[ref] = { configured: false, writable: true }; return ok(); },
     },
@@ -45,21 +46,134 @@ async function fixture(locale) {
       async discoverModels(...args) { calls.push(['discover', ...args]); return ok([{ id: 'discovered', name: 'Found', contextWindow: 4096, maxTokens: 512, inputModalities: ['text', 'image'] }]); },
     },
   };
-  const Card = exports.createApiProviders(React, remote, key => dict[key]);
-  let renderer;
-  await act(async () => { renderer = create(React.createElement(Card)); });
+  const Card = exports.createApiProviders(React, remote, key => dict[key], { SegmentedControl: ({ options, value, onChange, disabled }) => React.createElement('div', { role: 'tablist' }, ...options.map(option => React.createElement('button', { role: 'tab', disabled: disabled || option.disabled, 'aria-selected': option.value === value, onClick: () => onChange(option.value) }, option.label))) });
+  let renderer, focusCount = 0;
+  await act(async () => { renderer = create(React.createElement(Card, { subscriptions }), { createNodeMock: node => node.type === 'button' ? { focus() { focusCount++; } } : null }); });
   const textNode = node => typeof node === 'string' ? node : (node.children ?? []).map(textNode).join('');
-  const buttons = (key, root = renderer.root) => root.findAll(n => n.type === 'button' && textNode(n) === dict[key]);
+  const buttons = (key, root = renderer.root) => root.findAll(n => n.type === 'button' && textNode(n) === dict[key === 'subscriptionAdd' ? 'addAccount' : key === 'apiCancel' && root.findAll(n => n.props.className === 'majed-subscription-add-actions').length ? 'cancel' : key]);
   const click = async (key, root) => { const button = buttons(key, root)[0]; assert.ok(button, key); assert.equal(button.props.disabled, false); await act(async () => { button.props.onClick(); }); };
   const field = async (key, value) => { const input = renderer.root.find(n => n.props['aria-label'] === dict[key] && ['input', 'select', 'textarea'].includes(n.type)); await act(async () => { input.props.onChange({ target: { value } }); }); };
   const row = id => renderer.root.find(n => n.props['data-majed-api-provider'] === id);
   const text = () => JSON.stringify(renderer.toJSON());
-  return { dict, ns, calls, entries, credentials, remote, renderer, buttons, click, field, row, text,
+  return { dict, ns, calls, entries, credentials, remote, renderer, buttons, click, field, row, text, focusCount: () => focusCount,
     failKey(value) { failKey = value; }, failSettings(value) { failSettings = value; },
     async emit(event) { await act(async () => { listeners.get(event)?.(); }); },
     async dispose() { await act(async () => renderer.unmount()); assert.equal(listeners.size, 0); },
   };
 }
+test('API directory excludes subscription route IDs even when registered as configurable (#138)', async () => {
+  const p = await fixture('en');
+  try {
+    for (const provider of ['codex', 'claude', 'grok', 'antigravity', 'copilot', 'opencode-zen']) p.entries.push({ provider, displayName: provider, settingsNs: p.ns.ns, settingsPath: [] });
+    await p.emit('llm/adapters-updated');
+    assert.deepEqual(p.renderer.root.findAll(n => n.type === 'li' && n.props['data-majed-api-provider']).map(n => n.props['data-majed-api-provider']).sort(), ['custom', 'deployment']);
+  } finally { await p.dispose(); }
+});
+for (const locale of ['en', 'ar']) {
+  for (const route of ['codex', 'claude', 'grok', 'antigravity', 'copilot', 'opencode-zen', 'builtin', 'registered-only', 'configured-only']) {
+    test(`Custom API rejects reserved or unfiltered existing route ${route} without side effects in ${locale} (#138)`, async () => {
+      const p = await fixture(locale);
+      try {
+        p.ns.user.providers['configured-only'] = { baseURL: 'https://configured.example.test', models: model };
+        p.ns.value.providers['configured-only'] = p.ns.user.providers['configured-only'];
+        await p.emit('settings/document-updated');
+        await p.click('apiAdd'); await p.click('apiCustom');
+        await p.field('apiRoute', route); await p.field('apiName', 'Retained invalid draft');
+        await p.field('apiURL', 'https://invalid.example.test');
+        await p.click('apiModelAdd'); await p.field('apiModelID', 'draft-model');
+        await p.field('apiKeyAction', 'set'); await p.field('apiKey', 'dummy-invalid-draft');
+        const before = structuredClone(p.ns), callCount = p.calls.length;
+        await p.click('apiSave');
+        assert.ok(p.text().includes(p.dict.apiInvalid), 'validation error remains visible');
+        assert.deepEqual(p.calls.slice(callCount), [], 'zero mutations, credential operations, refreshes or discovery/network requests');
+        assert.deepEqual(p.ns, before, 'native settings remain unchanged');
+        for (const [key, value] of [['apiRoute', route], ['apiName', 'Retained invalid draft'], ['apiURL', 'https://invalid.example.test'], ['apiModelID', 'draft-model'], ['apiKey', 'dummy-invalid-draft']]) {
+          assert.equal(p.renderer.root.find(n => n.type === 'input' && n.props['aria-label'] === p.dict[key]).props.value, value, `${key} draft preserved`);
+        }
+        assert.equal(p.buttons('apiAdd').length, 0, 'invalid Add stays open');
+      } finally { await p.dispose(); }
+    });
+  }
+}
+test('separate Add entries own subscription and API groups (#138)', async () => {
+  let selected;
+  const subscriptions = { rows: [React.createElement('li', { key: 'subscription', 'data-majed-subscription-row': 'codex' }, 'Codex')], providers: [{ id: 'codex', name: 'Codex' }], renderAuth: (id, done) => { selected = id; return React.createElement('button', { onClick: done }, 'Finish fixture'); } };
+  const p = await fixture('en', { subscriptions });
+  try {
+    assert.equal(p.renderer.root.findByProps({ 'data-majed-subscription-row': 'codex' }).parent.props.className, 'majed-api-rows');
+    await p.click('subscriptionAdd');
+    assert.equal(selected, 'codex');
+    assert.equal(p.renderer.root.findAll(n => n.props['aria-label'] === p.dict.apiEditor).length, 0);
+    await act(async () => p.renderer.root.findAllByType('button').find(n => n.children.includes('Finish fixture')).props.onClick());
+    assert.equal(p.buttons('apiAdd').length, 1);
+    assert.ok(p.focusCount() > 0);
+  } finally { await p.dispose(); }
+});
+test('subscription authorization locks modes and awaits cancellation before closing (#138)', async () => {
+  let cancel, resolveCancel;
+  function Auth({ report }) {
+    React.useEffect(() => { report({ busy: true, cancel: () => new Promise(resolve => { cancel = true; resolveCancel = resolve; }) }); }, []);
+    return React.createElement('span', null, 'Pending fixture authorization');
+  }
+  const subscriptions = { rows: [], providers: [{ id: 'codex', name: 'Codex' }], renderAuth: (_id, _done, report) => React.createElement(Auth, { report }) };
+  const p = await fixture('en', { subscriptions });
+  try {
+    await p.click('subscriptionAdd');
+    assert.equal(p.buttons('apiCatalog').length, 0, 'subscription flow has no API mode tabs');
+    assert.equal(p.buttons('apiAdd')[0].props.disabled, true);
+    await act(async () => { p.buttons('apiCancel')[0].props.onClick(); });
+    assert.equal(cancel, true); assert.equal(p.buttons('subscriptionAdd').length, 0);
+    await act(async () => resolveCancel(true));
+    assert.equal(p.buttons('apiAdd').length, 1);
+    assert.equal(p.buttons('apiAdd')[0].props.disabled, false, 'completed cancellation releases Add');
+    await p.click('apiAdd');
+    assert.equal(p.buttons('apiCatalog')[0].props.disabled, false, 'reentry releases modes');
+  } finally { await p.dispose(); }
+});
+test('safe API mode drafts survive a visit to the other mode (#138)', async () => {
+  const p = await fixture('en');
+  try {
+    await p.click('apiAdd');
+    await p.field('apiName', 'Retained catalog name');
+    await p.field('apiKeyAction', 'set');
+    await p.field('apiKey', 'dummy-visited-secret');
+    await p.click('apiCustom');
+    await p.field('apiRoute', 'retained-custom');
+    await p.click('apiCatalog');
+    assert.equal(p.renderer.root.find(n => n.type === 'input' && n.props['aria-label'] === p.dict.apiName).props.value, 'Retained catalog name');
+    assert.equal(p.text().includes('dummy-visited-secret'), false);
+    await p.click('apiCustom');
+    assert.equal(p.renderer.root.find(n => n.type === 'input' && n.props['aria-label'] === p.dict.apiRoute).props.value, 'retained-custom');
+    await p.click('apiCancel');
+    await p.click('apiAdd');
+    assert.equal(p.renderer.root.find(n => n.type === 'input' && n.props['aria-label'] === p.dict.apiName).props.value, '');
+  } finally { await p.dispose(); }
+});
+test('inline API Add replaces its entry button and restores it on Cancel (#138)', async () => {
+  const p = await fixture('en');
+  try {
+    await p.click('apiAdd');
+    assert.equal(p.buttons('apiAdd').length, 0);
+    await p.click('apiCancel');
+    assert.equal(p.buttons('apiAdd').length, 1);
+    assert.equal(p.focusCount(), 1);
+  } finally { await p.dispose(); }
+});
+test('DeepSeek Account never exposes a generic key editor or credential lookup (#138)', async () => {
+  const p = await fixture('en', { includeAccountProvider: true });
+  try {
+    assert.equal(p.buttons('apiEdit', p.row('deepseek-account')).length, 0);
+    assert.equal(p.row('deepseek-account').findAll(n => n.props['data-majed-credential-status'] === 'account-unknown').length, 1);
+    assert.equal(p.calls.filter(c => c[0] === 'credentials.describe').flatMap(c => c[1]).some(ref => ref.includes('DEEPSEEK_ACCOUNT')), false);
+  } finally { await p.dispose(); }
+});
+test('missing credential metadata is unknown, not a missing key (#138)', async () => {
+  const p = await fixture('en', { omitCredentialMetadata: true });
+  try {
+    assert.equal(p.row('custom').findAll(n => n.props['data-majed-credential-status'] === 'unknown').length, 1);
+    assert.equal(p.text().includes(p.dict.apiKeyMissing), false);
+  } finally { await p.dispose(); }
+});
 for (const locale of ['en', 'ar']) {
   test(`native provider list, catalog add, edit and key set/unset in ${locale}`, async () => {
     const p = await fixture(locale);

@@ -25,7 +25,7 @@
  * user-visible string goes through the locale `t` of the
  * 'settings.subscriptions' namespace.
  */
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import type { ComponentType, CSSProperties } from 'react'
 import { subscriptionChromeCss } from '../settings/provider-settings-styles.js'
 import { callSubscriptionsAuth } from '../settings/subscriptions-rpc.js'
@@ -45,12 +45,9 @@ export function usageBadgeIcon(icons: {
 }): ComponentType {
   return hostIcon(icons, 'DataOutline')
 }
-let resolvedIcon: ComponentType | undefined
-/** The data glyph resolved from the host on first render (never at bundle load). */
+/** Owned usage chart glyph; no dependency on a host icon export. */
 function UsageBadgeIcon() {
-  resolvedIcon ??= usageBadgeIcon(hostPrimitives())
-  const Icon = resolvedIcon
-  return <Icon />
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 19V13M10 19V8M16 19V4M3 21h18" /><path d="m3 8 6-4 6 2 6-4" /></svg>
 }
 
 /** How often the badge re-reads usage; the server also shares its own cache/negative-cache across UI surfaces. */
@@ -190,7 +187,7 @@ export function compactSegment(d: ProviderUsageDisplay, model?: string, t: Trans
     const parts = matching.slice(0, 2).map(w => `${w.kind === 'weekly' ? t('usageWeekly') : t('usageWindow')} ${usedPercent(w)}%`)
     return `${d.name} ${parts.join(' · ')}`
   }
-  const parts = windows.slice(0, 2).map(w => `${windowLabel(w)} ${usedPercent(w)}%`)
+  const parts = windows.slice(0, 2).map(w => `${w.scope || (w.kind === 'session' ? t('usageSessionShort') : w.kind === 'weekly' ? t('usageWeeklyShort') : t('usageWindow'))} ${usedPercent(w)}%`)
   if (windows.length > 2) parts.push(`+${windows.length - 2}`)
   return `${d.name} ${parts.join(' · ')}`
 }
@@ -253,7 +250,7 @@ function usageWindowLabel(t: Translate, window: UsageWindow): string {
 
 /**
  * The composer subscription-usage badge: a pill reading e.g.
- * `Codex 6d 1h 25%` for the current model's provider, opening a dialog with
+ * `Codex 5h 25% · Wk 40%` for the current model's provider, opening a dialog with
  * every provider's accounts and their windows. Returns null when no data is
  * available.
  */
@@ -267,6 +264,12 @@ export function SubscriptionUsageBadge({ rpc, currentModel, t }: SubscriptionUsa
   const badgeSelection = retainSubscriptionSelection(lastSubscription, selection)
   const [open, setOpen] = useState(false)
   const [hover, setHover] = useState(false)
+  const [focused, setFocused] = useState(false)
+  const tooltipId = useId()
+  const panelId = useId()
+  const tooltipRef = useRef<HTMLDivElement | null>(null)
+  const buttonRef = useRef<HTMLButtonElement | null>(null)
+  const showTooltip = !open && (hover || focused)
   const inflightRef = useRef(false)
   const mountedRef = useRef(true)
   const rootRef = useRef<HTMLSpanElement | null>(null)
@@ -421,15 +424,19 @@ export function SubscriptionUsageBadge({ rpc, currentModel, t }: SubscriptionUsa
 
   const { useAnchoredPosition, useDismissOnOutsidePointer } = hostPrimitives()
   const pos = useAnchoredPosition({ open, anchorRef: rootRef, panelRef, side: 'top', gap: PANEL_GAP, margin: PANEL_MARGIN })
+  const tooltipPos = useAnchoredPosition({ open: showTooltip, anchorRef: rootRef, panelRef: tooltipRef, side: 'top', gap: PANEL_GAP, margin: PANEL_MARGIN })
   useDismissOnOutsidePointer(rootRef, open, setOpen, panelRef)
   useEffect(() => {
-    if (!open) return
+    if (!open && !showTooltip) return
     const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') setOpen(false)
+      if (event.key === 'Escape') {
+        setOpen(false); setHover(false); setFocused(false)
+        if (open) buttonRef.current?.focus()
+      }
     }
     document.addEventListener('keydown', onKeyDown)
     return () => { document.removeEventListener('keydown', onKeyDown) }
-  }, [open])
+  }, [open, showTooltip])
 
   // Sit on the host's stats row when there is one. Every dock entry is its
   // own row in the composer bar, so a badge rendered in place lands under the
@@ -468,30 +475,54 @@ export function SubscriptionUsageBadge({ rpc, currentModel, t }: SubscriptionUsa
   const toggle = (): void => {
     const next = !open
     setOpen(next)
+    setHover(false); setFocused(false)
     if (next) void refresh()
   }
+
+  const close = (): void => { setOpen(false); setHover(false); setFocused(false); buttonRef.current?.focus() }
+  const tooltipAccount = pillAccountOf(collapsed[0]!)
+  const tooltipWindows = previewWindows(tooltipAccount.windows, badgeSelection?.model, collapsed[0]!.provider)
 
   const pill = (
     <span ref={rootRef} style={styles.anchor}>
       <style>{subscriptionChromeCss}</style>
       <button
+        ref={buttonRef}
         type="button"
         className="majed-subscription-usage-pill"
         style={{ ...styles.pill, ...(hover || open ? styles.pillActive : {}) }}
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-label={`${title} · ${label}`}
-        title={title}
+        aria-describedby={showTooltip ? tooltipId : undefined}
+        aria-controls={open ? panelId : undefined}
         onMouseEnter={() => { setHover(true) }}
         onMouseLeave={() => { setHover(false) }}
+        onFocus={() => { if (!open) setFocused(true) }}
+        onBlur={() => { setFocused(false) }}
+        onKeyDown={event => { if (event.key === 'Escape') { setHover(false); setFocused(false) } }}
         onClick={toggle}
       >
         <UsageBadgeIcon />
-        <span style={styles.label}>{label}</span>
+        <bdi style={styles.label}>{label}</bdi>
       </button>
+      {showTooltip && hostReactDom().createPortal(
+        <div ref={tooltipRef} id={tooltipId} role="tooltip" className="majed-subscription-usage-tooltip"
+          style={{ ...styles.tooltip, ...(tooltipPos ?? MEASURE_STYLE) }}
+          onMouseEnter={() => { setHover(true) }} onMouseLeave={() => { setHover(false) }}>
+          <strong style={styles.tooltipTitle}>{title}</strong>
+          <bdi style={styles.tooltipHint} title={tooltipAccount.account}>{tooltipAccount.account}</bdi>
+          {tooltipWindows.shown.map((w, i) => <div key={i} style={styles.tooltipRow}>
+            <span>{usageWindowLabel(translate, w)}</span>
+            <bdi style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><UsageRing percent={usedPercent(w)} />{usedPercent(w)}%{w.resetsAt !== undefined && ` · ${translate('usageBadgeReset', { time: windowLabel(w) })}`}</bdi>
+          </div>)}
+          <span style={styles.tooltipHint}>{translate('usageBadgeOpenDetails')}</span>
+        </div>, document.body,
+      )}
       {open && hostReactDom().createPortal(
         <div
           ref={panelRef}
+          id={panelId}
           role="dialog"
           aria-label={title}
           className="majed-subscription-usage-panel"
@@ -502,6 +533,9 @@ export function SubscriptionUsageBadge({ rpc, currentModel, t }: SubscriptionUsa
               <UsageBadgeIcon />
               {title}
             </span>
+            <button type="button" className="majed-subscription-usage-close" aria-label={translate('usageBadgeClose')} onClick={close}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden><path d="m6 6 12 12M6 18 18 6" /></svg>
+            </button>
           </div>
           <div style={styles.titleRule} aria-hidden />
           {expanded.map((d, index) => (
@@ -570,7 +604,7 @@ function AccountMeta({ account, translate }: { account: AccountUsageDisplay; tra
   return (
     <span style={styles.providerMeta} title={account.account}>
       {account.isDefault && <span style={styles.defaultStar} aria-label={translate('defaultAccount')}>★ </span>}
-      {parts.join(' · ')}
+      <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}><bdi>{parts[0]}</bdi>{parts[1] && <span>{parts[1]}</span>}</span>
     </span>
   )
 }
@@ -596,6 +630,10 @@ export function AccountWindows({ windows, model, provider, translate }: {
   </>
 }
 
+function UsageRing({ percent }: { percent: number }) {
+  return <svg width="14" height="14" viewBox="0 0 20 20" aria-hidden="true" style={{ flexShrink: 0, transform: 'rotate(-90deg)' }}><circle cx="10" cy="10" r="7" fill="none" stroke="var(--dsw-alias-border-l2)" strokeWidth="3" /><circle cx="10" cy="10" r="7" fill="none" stroke={usageBarColor(percent)} strokeWidth="3" pathLength="100" strokeDasharray={`${percent} 100`} /></svg>
+}
+
 /** One `dt`/`dd` pair: window name → `25% · 6d 1h`, with the bar underneath. */
 function WindowRow({ label, window: w }: { label: string; window: UsageWindow }) {
   const percent = usedPercent(w)
@@ -603,12 +641,10 @@ function WindowRow({ label, window: w }: { label: string; window: UsageWindow })
     <>
       <dt style={styles.dt}>{label}</dt>
       <dd style={styles.dd}>
-        {percent}%
+        <span>{percent}%</span>
         {w.resetsAt !== undefined && <span style={styles.reset}> · {windowLabel(w)}</span>}
       </dd>
-      <div style={styles.bar} aria-hidden>
-        <div style={{ ...styles.barFill, width: `${percent}%`, background: usageBarColor(percent) }} />
-      </div>
+      <div role="progressbar" aria-label={label} aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} style={styles.bar}><div style={{ ...styles.barFill, width: `${percent}%`, background: usageBarColor(percent) }} /></div>
     </>
   )
 }
@@ -621,15 +657,15 @@ const MEASURE_STYLE: CSSProperties = { visibility: 'hidden', left: 0, top: 0 }
 
 const styles: Record<string, CSSProperties> = {
   seat: { display: 'none' },
-  anchor: { minWidth: 0, maxWidth: '100%', display: 'inline-flex' },
+  anchor: { minWidth: 0, maxWidth: 'min(100%, 100vw - 24px)', display: 'inline-flex', flexShrink: 1 },
   // Mirrors the host StatsPills pill so the badge reads as a sibling of the
   // shipped time/token pills.
   pill: {
-    boxSizing: 'border-box', maxWidth: '100%',
+    boxSizing: 'border-box', minWidth: 0, maxWidth: '100%',
     color: 'var(--dsw-alias-label-tertiary)',
     font: 'inherit', fontSize: 'calc(var(--dsh-content-font-size-secondary, 13px) - 1px)',
     fontVariantNumeric: 'tabular-nums', lineHeight: 'calc(20px + var(--dsh-content-font-delta-secondary, 0px))', whiteSpace: 'nowrap',
-    background: 'transparent', border: 'none', borderRadius: 999,
+    background: 'transparent', border: 'none', borderRadius: 'var(--dsw-radius-sm, 8px)',
     alignItems: 'center', gap: 6, padding: '1px 8px', display: 'inline-flex', cursor: 'pointer',
   },
   pillActive: {
@@ -640,13 +676,24 @@ const styles: Record<string, CSSProperties> = {
   // Mirrors the host stat-dialog panel.
   panel: {
     position: 'fixed', zIndex: 1100, boxSizing: 'border-box',
-    background: 'var(--dsw-specific-menu)',
-    width: 'max-content', minWidth: 'min(300px, 100vw - 24px)', maxWidth: 'min(440px, 100vw - 24px)',
+    background: 'var(--dsw-specific-menu, var(--dsw-alias-bg-overlay))',
+    width: 'min(400px, 100vw - 24px)', minWidth: 0, maxWidth: 'calc(100vw - 24px)',
     maxHeight: 'min(560px, 100dvh - 24px)', overflowY: 'auto', overscrollBehavior: 'contain',
     boxShadow: 'var(--dsw-elevation-prominent)',
     color: 'var(--dsw-alias-label-secondary)', cursor: 'default',
     border: 0, borderRadius: 'var(--dsw-radius-lg, 16px)', padding: 16, fontSize: 12, lineHeight: '18px',
   },
+  tooltip: {
+    position: 'fixed', zIndex: 1101, boxSizing: 'border-box',
+    width: 'min(300px, 100vw - 24px)', padding: '8px 10px', borderRadius: 'var(--dsw-radius-lg, 16px)',
+    background: 'var(--dsw-specific-menu, var(--dsw-alias-bg-overlay))', boxShadow: 'var(--dsw-elevation-prominent)',
+    color: 'var(--dsw-alias-label-secondary)', fontSize: 12, lineHeight: '18px',
+    display: 'flex', flexDirection: 'column', gap: 4, overflowWrap: 'anywhere',
+    maxHeight: 'calc(100dvh - 24px)', overflowY: 'auto',
+  },
+  tooltipTitle: { color: 'var(--dsw-alias-label-primary)', fontWeight: 500 },
+  tooltipRow: { display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '2px 8px', fontVariantNumeric: 'tabular-nums' },
+  tooltipHint: { color: 'var(--dsw-alias-label-tertiary)', paddingBlockStart: 2 },
   title: {
     color: 'var(--dsw-alias-label-primary)', display: 'flex',
     justifyContent: 'space-between', gap: 16, marginBottom: 8, fontWeight: 500,
@@ -655,16 +702,15 @@ const styles: Record<string, CSSProperties> = {
   titleRule: { borderTop: '0.5px solid var(--dsw-alias-border-l2)', marginBottom: 10 },
   section: { marginTop: 12, paddingTop: 10, borderTop: '0.5px solid var(--dsw-alias-border-l2)' },
   providerRow: {
-    display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 16, marginBottom: 6,
+    display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: '4px 12px', marginBottom: 8,
   },
-  providerName: { color: 'var(--dsw-alias-label-primary)', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 6 },
+  providerName: { color: 'var(--dsw-alias-label-primary)', fontWeight: 500, display: 'inline-flex', flexWrap: 'wrap', overflowWrap: 'anywhere', alignItems: 'center', gap: 6 },
   currentTag: {
     fontSize: 10, lineHeight: '14px', fontWeight: 400, padding: '0 5px', borderRadius: 7,
     color: 'var(--dsw-alias-label-secondary)', background: 'var(--dsw-alias-interactive-bg-hover)',
   },
   providerMeta: {
-    color: 'var(--dsw-alias-label-tertiary)', minWidth: 0, overflow: 'hidden',
-    textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+    color: 'var(--dsw-alias-label-tertiary)', minWidth: 0, overflowWrap: 'anywhere', display: 'inline-flex', alignItems: 'baseline', gap: 4, fontSize: 11,
   },
   // Same star and color as the default-account marker in Settings → Subscriptions.
   defaultStar: { color: 'var(--dsw-alias-state-warn-label)' },
@@ -672,14 +718,14 @@ const styles: Record<string, CSSProperties> = {
   accountRow: { display: 'flex', marginBottom: 4 },
   details: {
     color: 'var(--dsw-alias-label-tertiary)', display: 'grid',
-    gridTemplateColumns: 'minmax(0, 1fr) max-content', gap: '4px 16px', margin: 0,
+    gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '4px 16px', margin: 0,
   },
   moreWindows: { marginTop: 8 },
   moreSummary: { cursor: 'pointer', color: 'var(--dsw-alias-label-secondary)', marginBottom: 8 },
   dt: { minWidth: 0, margin: 0, overflowWrap: 'anywhere' },
   dd: {
     minWidth: 0, margin: 0, color: 'var(--dsw-alias-label-secondary)',
-    fontVariantNumeric: 'tabular-nums', textAlign: 'end',
+    fontVariantNumeric: 'tabular-nums', textAlign: 'end', overflowWrap: 'anywhere',
   },
   reset: { color: 'var(--dsw-alias-label-tertiary)' },
   bar: {

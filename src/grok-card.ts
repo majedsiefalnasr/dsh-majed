@@ -1,5 +1,5 @@
 import { ProviderAccountManager } from './settings/ProviderAccountManager.js';
-import { controlCss, styles } from './codex-card.js';
+import { controlCss, providerDisclosure, providerIdentity, providerStatus, styles } from './codex-card.js';
 /**
  * Grok Settings card (ticket #133). Scoped presentation port of the Grok part of V1ki v0.9.12 b802311
  * SubscriptionsSection; see PROVENANCE.md. It only ever receives sanitized status from the owned RPC: account
@@ -10,7 +10,9 @@ export function createGrokCard(React: any, primitives: any, rpc: any, t: (key: s
   const Button = primitives.Button ?? 'button';
   const Input = primitives.Input ?? 'input';
   const DEFAULT_NAME = 'Grok (Subscription)';
-  return function GrokCard() {
+  return function GrokCard({ presentation, onComplete, onFlowState, onAccountsChange, revision, initialExpanded = false }: any = {}) {
+    const [expanded, setExpanded] = React.useState(initialExpanded);
+    const initialAuthRevision = React.useRef(null as number | null);
     const [manager, setManager] = React.useState(false);
     const [status, setStatus] = React.useState(null);
     const [error, setError] = React.useState('');
@@ -42,6 +44,7 @@ export function createGrokCard(React: any, primitives: any, rpc: any, t: (key: s
       void refreshStatus().catch((failure: Error) => { if (alive.current) setError(failure.message); });
       return () => { alive.current = false; };
     }, []);
+    React.useEffect(() => { if (revision !== undefined) void refreshStatus().catch(() => {}); }, [revision]);
     React.useEffect(() => {
       if (!status?.busy) return;
       const timer = setInterval(() => { void refreshStatus().catch((failure: Error) => { if (alive.current) setError(failure.message); }); }, 2000);
@@ -60,14 +63,19 @@ export function createGrokCard(React: any, primitives: any, rpc: any, t: (key: s
       usageRequests.current.set(account, request);
       return request;
     };
+    const reportedAccounts = React.useRef(null as string | null);
     const accountsSignature = JSON.stringify((status?.accounts ?? []).map((account: any) => account.key));
     React.useEffect(() => {
+      if (presentation === 'group' && status) {
+        if (reportedAccounts.current !== null && reportedAccounts.current !== accountsSignature) onAccountsChange?.();
+        reportedAccounts.current = accountsSignature;
+      }
       const keys = new Set<string>((status?.accounts ?? []).map((account: any) => account.key));
       const added = [...keys].filter(key => !accountKeys.current.has(key));
       accountKeys.current = keys;
       for (const key of usageRequests.current.keys()) if (!keys.has(key)) usageRequests.current.delete(key);
       setUsage((previous: object) => Object.fromEntries(Object.entries(previous).filter(([key]) => keys.has(key))));
-      for (const key of added) void refreshUsage(key);
+      if (presentation !== 'auth') for (const key of added) void refreshUsage(key);
     }, [accountsSignature]);
     const button = (label: string, onClick: () => void, disabled = false, props: any = {}) => h(Button, { type: 'button', disabled: pending || disabled, onClick, ...props }, label);
     const date = (time: number) => new Date(time).toLocaleString();
@@ -80,22 +88,39 @@ export function createGrokCard(React: any, primitives: any, rpc: any, t: (key: s
         setLogin(result.authorizeUrl ? result : null); await refreshStatus();
       });
     };
+    React.useEffect(() => {
+      if (!status) return;
+      const current = status.authRevision ?? 0;
+      if (initialAuthRevision.current === null) initialAuthRevision.current = current;
+      else if (presentation === 'auth' && current > initialAuthRevision.current) {
+        initialAuthRevision.current = current;
+        onComplete?.();
+      }
+    }, [status]);
     const busy = status?.busy;
+    React.useEffect(() => {
+      if (presentation !== 'auth') return;
+      onFlowState?.({ busy: pending || !!busy, cancel: async () => {
+        if (pending) return false;
+        if (busy) { await call('cancel'); setLogin(null); await refreshStatus(); }
+        return true;
+      } });
+    }, [pending, busy]);
     const name = status?.displayName || DEFAULT_NAME;
     const hasAccounts = !!status?.accounts?.length;
-    return h('div', { style: { ...styles.section, textAlign: 'start' }, className: 'majed-subscriptions-settings', 'data-majed-grok-card': true },
+    return h('div', { style: { ...styles.section, ...(presentation ? { maxWidth: 'none', maxInlineSize: 'none', width: '100%' } : {}), textAlign: 'start' }, className: 'majed-subscriptions-settings', 'data-majed-grok-card': true },
       h('style', null, controlCss),
       manager ? h(ProviderAccountManager, { provider: 'grok', name, rpc, t, onClose: () => { setManager(false); void refreshStatus(); } }) : null,
       part('card', styles.card,
-        part('header', styles.cardHeader,
-          h('span', { 'aria-hidden': true, style: { ...styles.dot, background: busy ? 'var(--dsw-alias-state-warn-label)' : hasAccounts ? 'var(--dsw-alias-state-success-primary)' : 'var(--dsw-alias-label-dimmed)' } }),
-          h('span', { style: styles.name }, name),
-          button(t('accountsManage'), () => setManager(true), false, { style: { marginInlineStart: 'auto' } }),
-          status?.clientVersion ? h('span', { style: styles.clientVersion, title: t('clientVersionHint') }, 'CLI ', h('bdi', { dir: 'ltr' }, status.clientVersion.version), ' · ', t(`source_${status.clientVersion.source}`)) : null),
-        h('p', { style: styles.statusLine, role: 'status' }, status?.registrationError ? t('grokProviderUnavailable') : busy ? t('loginProgress') : hasAccounts ? `${status.accounts.length} ${t('connected')}` : status ? t('notLoggedIn') : t('checking')),
+        presentation !== 'auth' && part('header', styles.cardHeader,
+          providerStatus(h, t, error || status?.registrationError ? 'error' : busy ? 'warning' : !status ? 'checking' : status?.accounts?.length ? 'ready' : 'warning', error || status?.registrationError ? 'providerAttention' : busy ? 'loginProgress' : !status ? 'checking' : status?.accounts?.length ? 'providerConfigured' : 'notLoggedIn'),
+          presentation === 'group' ? providerIdentity(h, t, name, status?.accounts ?? [], usage, status?.clientVersion) : h('span', { style: styles.name }, name),
+          presentation === 'auth' ? null : button(t('accountsManage'), () => setManager(true), false, { style: { marginInlineStart: 'auto' } }),
+          presentation === 'group' ? providerDisclosure(h, t, name, expanded, () => setExpanded(!expanded)) : status?.clientVersion ? h('span', { style: styles.clientVersion, title: t('clientVersionHint') }, 'CLI ', h('bdi', { dir: 'ltr' }, status.clientVersion.version), ' · ', t(`source_${status.clientVersion.source}`)) : null),
+        (presentation === 'auth' || (presentation === 'group' && status?.accounts?.length)) && !busy && !status?.registrationError ? null : h('p', { style: styles.statusLine, role: 'status' }, status?.registrationError ? t('grokProviderUnavailable') : busy ? t('loginProgress') : hasAccounts ? `${status.accounts.length} ${t('connected')}` : status ? t('notLoggedIn') : t('checking')),
         status?.detail ? h('p', { style: styles.statusLine }, status.detail) : null,
         error ? h('p', { style: styles.errorLine, role: 'alert' }, error) : null,
-        ...(status?.accounts ?? []).map((account: any) => {
+        ...(presentation === 'auth' || (presentation === 'group' && !expanded) ? [] : status?.accounts ?? []).map((account: any) => {
           const snapshot = usage[account.key];
           return h('div', { key: account.key, style: styles.accountRow, 'data-majed-grok-part': 'account' },
             part('account-header', styles.accountHeader,
@@ -119,7 +144,7 @@ export function createGrokCard(React: any, primitives: any, rpc: any, t: (key: s
                     h('div', { style: { ...styles.usageFill, background: color, inlineSize: `${percent}%` } })));
               })));
         }),
-        part('actions', styles.actions,
+        presentation !== 'group' && part('actions', styles.actions,
           busy ? button(t('cancelLogin'), () => { void action(async () => { await call('cancel'); setLogin(null); await refreshStatus(); }); })
             : button(t(hasAccounts ? 'addAccountOAuth' : 'login'), () => startLogin(), !!status?.registrationError)),
         busy ? h('div', null,

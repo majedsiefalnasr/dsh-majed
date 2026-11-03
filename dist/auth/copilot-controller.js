@@ -5,6 +5,7 @@ export class CopilotAuthController {
     changed;
     describe;
     claim = 0;
+    authRevision = 0;
     busy = false;
     disposed = false;
     completion;
@@ -16,7 +17,7 @@ export class CopilotAuthController {
     }
     async status() {
         const pending = this.flows.pending('copilot');
-        return { busy: this.busy, detail: this.detail,
+        return { authRevision: this.authRevision, busy: this.busy, detail: this.detail,
             pendingAuth: pending ? { authorizeUrl: pending.verificationUrl, userCode: pending.userCode } : undefined,
             accounts: (await listAccounts('copilot')).map(({ key, session }, index) => ({ key, isDefault: index === 0,
                 account: session.account ?? key, expiresAt: session.expiresAt })) };
@@ -47,6 +48,7 @@ export class CopilotAuthController {
                         return;
                     const account = accountKeyOf('copilot', session);
                     await saveAccountSession('copilot', account, session);
+                    this.authRevision++;
                     this.changed(account);
                 }
                 catch (error) {

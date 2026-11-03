@@ -17,6 +17,7 @@ export type ClaudeLoginMethod = 'oauth' | 'keychain';
 
 export class ClaudeAuthController {
   private claim = 0;
+  private authRevision = 0;
   private finalizing = 0;
   private lastError?: string;
   private disposed = false;
@@ -28,7 +29,7 @@ export class ClaudeAuthController {
 
   async status() {
     const pending = this.flows.pending('claude');
-    return { busy: this.flows.isBusy('claude') || this.finalizing > 0,
+    return { authRevision: this.authRevision, busy: this.flows.isBusy('claude') || this.finalizing > 0,
       pendingAuth: pending ? { authorizeUrl: pending.authorizeUrl } : undefined,
       accounts: (await listAccounts('claude')).map(({ key, session }, index) => ({ key, isDefault: index === 0,
         account: session.emailAddress ?? key, plan: session.subscriptionType, expiresAt: session.expiresAt })), detail: this.lastError };
@@ -55,6 +56,7 @@ export class ClaudeAuthController {
         if (this.disposed || this.claim !== claim) return { authorizeUrl: '' };
         const account = accountKeyOf('claude', session);
         await saveAccountSession('claude', account, session);
+        this.authRevision++;
         this.lastError = undefined;
         this.changed(account);
         return { authorizeUrl: '' };
@@ -79,6 +81,7 @@ export class ClaudeAuthController {
       if (this.claim !== claim) return;
       const account = accountKeyOf('claude', session);
       await saveAccountSession('claude', account, session);
+      this.authRevision++;
       this.lastError = undefined;
       this.changed(account);
     } catch (error) {

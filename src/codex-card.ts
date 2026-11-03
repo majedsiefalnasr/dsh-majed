@@ -1,46 +1,45 @@
-import { ProxySettings } from './settings/ProxySettings.js';
 import { ProviderAccountManager } from './settings/ProviderAccountManager.js';
 /** Scoped presentation port of V1ki v0.9.12 b802311; see PROVENANCE.md. */
 export const styles: Record<string, any> = {
   section: {
-    display: 'flex', flexDirection: 'column', gap: 12, maxInlineSize: 560,
+    display: 'flex', flexDirection: 'column', gap: 12, maxInlineSize: 560, minInlineSize: 0,
     color: 'var(--dsw-alias-label-primary)',
   },
   card: {
-    border: '0.5px solid var(--dsw-alias-settings-card-stroke, var(--dsw-alias-border-l4))',
+    border: '0.5px solid var(--dsw-alias-settings-card-stroke, var(--dsw-alias-border-l2))',
     borderRadius: 'var(--dsw-radius-xl, 20px)', background: 'var(--dsw-alias-settings-card-fill, var(--dsw-alias-bg-layer-2))',
-    padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 6,
+    padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8, minInlineSize: 0,
   },
-  cardHeader: { display: 'flex', alignItems: 'center', gap: 8 },
+  cardHeader: { display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, minInlineSize: 0 },
   dot: { inlineSize: 8, blockSize: 8, borderRadius: '50%', flexShrink: 0 },
-  name: { font: 'var(--dsw-font-s-14)', fontWeight: 500, color: 'var(--dsw-alias-label-primary)' },
-  statusLine: { margin: 0, font: 'var(--dsw-font-s-12)', color: 'var(--dsw-alias-label-tertiary)' },
-  clientVersion: { font: 'var(--dsw-font-s-12)', color: 'var(--dsw-alias-label-tertiary)', fontVariantNumeric: 'tabular-nums' },
-  errorLine: { margin: 0, font: 'var(--dsw-font-s-12)', color: 'var(--dsw-alias-state-error-primary)' },
+  name: { fontSize: 14, lineHeight: '22px', fontWeight: 500, color: 'var(--dsw-alias-label-primary)', overflowWrap: 'anywhere', minInlineSize: 0 },
+  statusLine: { margin: 0, fontSize: 12, lineHeight: '18px', color: 'var(--dsw-alias-label-secondary)', overflowWrap: 'anywhere' },
+  clientVersion: { fontSize: 12, lineHeight: '18px', color: 'var(--dsw-alias-label-secondary)', fontVariantNumeric: 'tabular-nums', overflowWrap: 'anywhere' },
+  errorLine: { margin: 0, fontSize: 12, lineHeight: '18px', color: 'var(--dsw-alias-state-error-primary)', overflowWrap: 'anywhere' },
   actions: { display: 'flex', gap: 8, marginBlockStart: 4, alignItems: 'center', flexWrap: 'wrap' },
   usage: {
     display: 'flex', flexDirection: 'column', gap: 6, marginBlockStart: 4,
     borderBlockStart: '0.5px solid var(--dsw-alias-border-l2)', paddingBlockStart: 8,
   },
   usageHeader: { display: 'flex', alignItems: 'center', gap: 8 },
-  usageTitle: { font: 'var(--dsw-font-s-12)', fontWeight: 500, color: 'var(--dsw-alias-label-secondary)' },
-  usagePlan: { font: 'var(--dsw-font-s-12)', color: 'var(--dsw-alias-label-tertiary)' },
+  usageTitle: { fontSize: 12, lineHeight: '18px', fontWeight: 500, color: 'var(--dsw-alias-label-secondary)' },
+  usagePlan: { fontSize: 12, lineHeight: '18px', color: 'var(--dsw-alias-label-secondary)' },
   usageRefresh: { minHeight: 22, blockSize: 22, padding: '0 8px', marginInlineStart: 'auto' },
   usageRow: { display: 'flex', flexDirection: 'column', gap: 3 },
   usageMeta: {
-    display: 'flex', justifyContent: 'space-between', gap: 8,
-    font: 'var(--dsw-font-s-12)', color: 'var(--dsw-alias-label-tertiary)',
+    display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8,
+    fontSize: 12, lineHeight: '18px', color: 'var(--dsw-alias-label-secondary)', overflowWrap: 'anywhere',
   },
   accountRow: {
-    display: 'flex', flexDirection: 'column', gap: 6,
-    border: '0.5px solid var(--dsw-alias-border-l2)', borderRadius: 'var(--dsw-radius-lg, 16px)',
-    padding: '8px 10px', marginBlockStart: 4,
+    display: 'flex', flexDirection: 'column', gap: 6, minInlineSize: 0,
+    borderBlockStart: '0.5px solid var(--dsw-alias-border-l2)',
+    paddingBlockStart: 12, marginBlockStart: 4,
   },
-  accountHeader: { display: 'flex', alignItems: 'center', gap: 8 },
-  accountName: { font: 'var(--dsw-font-s-13)', color: 'var(--dsw-alias-label-primary)', userSelect: 'all' },
+  accountHeader: { display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, minInlineSize: 0 },
+  accountName: { fontSize: 13, lineHeight: '20px', color: 'var(--dsw-alias-label-primary)', userSelect: 'all', overflowWrap: 'anywhere', minInlineSize: 0 },
   starButton: {
     border: 'none', padding: 0, inlineSize: 28,
-    font: 'var(--dsw-font-s-14)', cursor: 'pointer',
+    fontSize: 14, lineHeight: '22px', cursor: 'pointer',
     color: 'var(--dsw-alias-state-warn-label)',
   },
   usageTrack: {
@@ -48,7 +47,7 @@ export const styles: Record<string, any> = {
     background: 'var(--dsw-alias-bg-layer-1)', border: '0.5px solid var(--dsw-alias-border-l2)',
   },
   usageFill: { blockSize: '100%', borderRadius: 3 },
-  manual: { font: 'var(--dsw-font-s-13)' },
+  manual: { fontSize: 13, lineHeight: '20px' },
   manualRow: { display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginBlockStart: 8 },
   manualInput: { flex: '1 1 200px', minInlineSize: 0 },
   modal: {
@@ -57,10 +56,32 @@ export const styles: Record<string, any> = {
     padding: '16px 18px', borderRadius: 'var(--dsw-radius-panel, 28px)',
     background: 'var(--dsw-alias-bg-layer-2)', border: 0, boxShadow: 'var(--dsw-elevation-prominent)',
   },
-  modalTitle: { font: 'var(--dsw-font-s-16)', fontWeight: 500, color: 'var(--dsw-alias-label-primary)' },
+  modalTitle: { fontSize: 16, lineHeight: '24px', fontWeight: 500, color: 'var(--dsw-alias-label-primary)' },
 };
-export const controlCss = `:is(.majed-subscriptions-settings, .majed-reset-dialog) input:not([type="checkbox"]),
-:is(.majed-subscriptions-settings, .majed-reset-dialog) select {
+/** Shared presentation only; account/usage controllers stay in their existing cards. */
+export function providerIdentity(h: any, t: (key: string) => string, name: string, accounts: any[], usage: any, clientVersion: any) {
+  const account = accounts.find(value => value.isDefault) ?? accounts[0];
+  const plan = account?.plan ?? usage[account?.key]?.plan;
+  return h('div', { className: 'majed-provider-identity' },
+    h('div', { className: 'majed-provider-summary' }, h('span', { style: styles.name }, name),
+      h('span', { style: styles.statusLine }, `${accounts.length} ${t('accountCount')}`),
+      plan ? h('bdi', { style: styles.usagePlan }, plan) : null),
+    clientVersion ? h('span', { style: styles.clientVersion, title: t('clientVersionHint') }, 'CLI ', h('bdi', { dir: 'ltr' }, clientVersion.version), ' · ', t(`source_${clientVersion.source}`)) : null);
+}
+export function providerStatus(h: any, t: (key: string) => string, state: 'checking' | 'ready' | 'warning' | 'error', label: string) {
+  const color = state === 'ready' ? 'var(--dsw-alias-state-success-primary)' : state === 'error' ? 'var(--dsw-alias-state-error-primary)' : state === 'warning' ? 'var(--dsw-alias-state-warn-label)' : 'var(--dsw-alias-label-secondary)';
+  return h('span', { role: 'img', 'aria-label': t(label), title: t(label), 'data-majed-provider-status': state, style: { ...styles.dot, background: color } });
+}
+export function providerDisclosure(h: any, t: (key: string) => string, name: string, expanded: boolean, toggle: () => void) {
+  return h('button', { type: 'button', className: 'majed-provider-disclosure', 'aria-label': `${t('subscriptionDetails')}: ${name}`, 'aria-expanded': expanded, onClick: toggle },
+    h('svg', { 'aria-hidden': true, width: 16, height: 16, viewBox: '0 0 16 16', style: { transform: expanded ? 'rotate(90deg)' : undefined } }, h('path', { d: 'm6 3 5 5-5 5', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round', strokeLinejoin: 'round' })));
+}
+export const controlCss = `.majed-subscriptions-settings button.majed-provider-disclosure{inline-size:28px;min-height:28px;padding:0;border:0;background:transparent}
+.majed-provider-identity{display:flex;flex-direction:column;flex:1 1 160px;min-inline-size:0}
+.majed-provider-summary{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+[dir=rtl] .majed-provider-disclosure svg{scale:-1 1}
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) input:not([type="checkbox"]),
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) select {
   box-sizing: border-box;
   min-width: 0;
   height: 34px;
@@ -70,40 +91,41 @@ export const controlCss = `:is(.majed-subscriptions-settings, .majed-reset-dialo
   background: var(--dsw-alias-bg-layer-3, var(--dsw-alias-bg-layer-1));
   color: var(--dsw-alias-label-primary);
   font: inherit;
-  font: var(--dsw-font-s-13);
+  font-size: 13px;
   font-weight: 400;
   line-height: 1.5;
 }
-:is(.majed-subscriptions-settings, .majed-reset-dialog) input::placeholder {
-  color: var(--dsw-alias-label-tertiary);
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) input::placeholder {
+  color: var(--dsw-alias-label-secondary);
   opacity: 1;
 }
-:is(.majed-subscriptions-settings, .majed-reset-dialog) input:not([type="checkbox"]):focus-visible,
-:is(.majed-subscriptions-settings, .majed-reset-dialog) select:focus-visible {
-  outline: none;
-  border-color: var(--dsw-alias-state-business-primary, var(--dsw-alias-brand-primary));
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) input:not([type="checkbox"]):focus-visible,
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) select:focus-visible {
+  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline-offset: 2px;
+  border-color: var(--dsw-alias-brand-primary);
 }
-:is(.majed-subscriptions-settings, .majed-reset-dialog) input:not([type="checkbox"]):disabled,
-:is(.majed-subscriptions-settings, .majed-reset-dialog) select:disabled {
-  color: var(--dsw-alias-label-tertiary);
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) input:not([type="checkbox"]):disabled,
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) select:disabled {
+  color: var(--dsw-alias-label-secondary);
   cursor: default;
 }
-:is(.majed-subscriptions-settings, .majed-reset-dialog) input[aria-invalid="true"] {
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) input[aria-invalid="true"] {
   border-color: var(--dsw-alias-state-error-primary);
 }
-:is(.majed-subscriptions-settings, .majed-reset-dialog) option {
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) option {
   background: var(--dsw-alias-bg-layer-2, var(--dsw-alias-bg-layer-1));
   color: var(--dsw-alias-label-primary);
 }
-:is(.majed-subscriptions-settings, .majed-reset-dialog) label:has(> input[type="checkbox"]) {
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) label:has(> input[type="checkbox"]) {
   display: flex;
   align-items: flex-start;
   gap: 6px;
-  font: var(--dsw-font-s-14);
+  font-size: 14px;
   line-height: 20px;
   cursor: pointer;
 }
-:is(.majed-subscriptions-settings, .majed-reset-dialog) input[type="checkbox"] {
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) input[type="checkbox"] {
   flex: 0 0 auto;
   width: 16px;
   height: 16px;
@@ -111,67 +133,70 @@ export const controlCss = `:is(.majed-subscriptions-settings, .majed-reset-dialo
   accent-color: var(--dsw-alias-brand-primary);
   cursor: inherit;
 }
-:is(.majed-subscriptions-settings, .majed-reset-dialog) label:has(> input[type="checkbox"]:disabled) {
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) label:has(> input[type="checkbox"]:disabled) {
   cursor: default;
   opacity: 0.5;
 }
-:is(.majed-subscriptions-settings, .majed-reset-dialog) button {
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button {
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  min-height: 28px;
+  min-height: 32px;
+  max-inline-size: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
   padding: 0 10px;
   border: 0.5px solid var(--dsw-alias-border-l3, var(--dsw-alias-border-l2));
   border-radius: var(--dsw-radius-sm, 6px);
   background: transparent;
   color: var(--dsw-alias-label-primary);
   font: inherit;
-  font: var(--dsw-font-s-12);
+  font-size: 12px;
   line-height: 18px;
   cursor: pointer;
 }
-:is(.majed-subscriptions-settings, .majed-reset-dialog) button:hover:not(:disabled) {
-  background: var(--dsw-alias-interactive-bg-hover, var(--dsw-alias-bg-layer-3));
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover, var(--dsw-alias-bg-layer-1));
 }
-:is(.majed-subscriptions-settings, .majed-reset-dialog) button:active:not(:disabled) {
-  background: var(--dsw-alias-interactive-bg-active, var(--dsw-alias-bg-layer-3));
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button:active:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-active, var(--dsw-alias-bg-layer-1));
 }
-:is(.majed-subscriptions-settings, .majed-reset-dialog) button:disabled {
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button:disabled {
   opacity: 0.4;
   cursor: default;
 }
-:is(.majed-subscriptions-settings, .majed-reset-dialog) button.majed-subscription-quiet {
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button.majed-subscription-quiet {
   border-color: transparent;
   color: var(--dsw-alias-label-secondary, var(--dsw-alias-label-primary));
 }
-:is(.majed-subscriptions-settings, .majed-reset-dialog) :is(footer, .majed-subscription-dialog-actions) button {
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) :is(footer, .majed-subscription-dialog-actions) button {
   min-height: 34px;
   padding: 0 14px;
   border-radius: var(--dsw-radius-md, 8px);
-  font: var(--dsw-font-s-13);
+  font-size: 13px;
   line-height: 1.5;
 }
-:is(.majed-subscriptions-settings, .majed-reset-dialog) button.majed-subscription-primary {
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button.majed-subscription-primary {
   border-color: transparent;
   background: var(--dsw-alias-button-primary-fill, var(--dsw-alias-label-primary));
   color: var(--dsw-alias-label-primary-foreground, var(--dsw-alias-bg-layer-1));
   font-weight: 500;
 }
-:is(.majed-subscriptions-settings, .majed-reset-dialog) button.majed-subscription-primary:hover:not(:disabled) {
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button.majed-subscription-primary:hover:not(:disabled) {
   background: var(--dsw-alias-button-primary-hover, var(--dsw-alias-label-secondary));
 }
-:is(.majed-subscriptions-settings, .majed-reset-dialog) button:focus-visible,
-:is(.majed-subscriptions-settings, .majed-reset-dialog) input[type="checkbox"]:focus-visible,
-:is(.majed-subscriptions-settings, .majed-reset-dialog) summary:focus-visible {
-  outline: var(--dsw-focus-ring-width, 2px) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button:focus-visible,
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) input[type="checkbox"]:focus-visible,
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) summary:focus-visible {
+  outline: var(--dsw-focus-ring-width, 2px) solid var(--dsw-focus-ring-color, var(--dsw-alias-brand-primary));
   outline-offset: 2px;
 }
-:is(.majed-subscriptions-settings, .majed-reset-dialog) summary {
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) summary {
   border-radius: var(--dsw-radius-sm, 6px);
 }
-:is(.majed-subscriptions-settings, .majed-reset-dialog) summary:hover {
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) summary:hover {
   color: var(--dsw-alias-label-secondary, var(--dsw-alias-label-primary));
 }
 
@@ -188,7 +213,9 @@ export function createCodexCard(React: any, primitives: any, rpc: any, t: (key: 
   const h = React.createElement;
   const Button = primitives.Button ?? 'button';
   const Input = primitives.Input ?? 'input';
-  return function CodexCard() {
+  return function CodexCard({ presentation, onComplete, onFlowState, onAccountsChange, revision, initialExpanded = false }: any = {}) {
+    const [expanded, setExpanded] = React.useState(initialExpanded);
+    const initialAuthRevision = React.useRef(null as number | null);
     const [manager, setManager] = React.useState(false);
     const [status, setStatus] = React.useState(null);
     const [error, setError] = React.useState('');
@@ -220,6 +247,7 @@ export function createCodexCard(React: any, primitives: any, rpc: any, t: (key: 
       void refreshStatus().catch((error: Error) => { if (alive.current) setError(error.message); });
       return () => { alive.current = false; };
     }, []);
+    React.useEffect(() => { if (revision !== undefined) void refreshStatus().catch(() => {}); }, [revision]);
     React.useEffect(() => {
       if (!status?.busy) return;
       const timer = setInterval(() => { void refreshStatus().catch((error: Error) => { if (alive.current) setError(error.message); }); }, 2000);
@@ -238,17 +266,22 @@ export function createCodexCard(React: any, primitives: any, rpc: any, t: (key: 
       usageRequests.current.set(account, request);
       return request;
     };
+    const reportedAccounts = React.useRef(null as string | null);
     const accountsSignature = JSON.stringify((status?.accounts ?? []).map((account: any) => account.key));
     React.useEffect(() => {
+      if (presentation === 'group' && status) {
+        if (reportedAccounts.current !== null && reportedAccounts.current !== accountsSignature) onAccountsChange?.();
+        reportedAccounts.current = accountsSignature;
+      }
       const keys = new Set<string>((status?.accounts ?? []).map((account: any) => account.key));
       const added = [...keys].filter(key => !accountKeys.current.has(key));
       accountKeys.current = keys;
       for (const key of usageRequests.current.keys()) if (!keys.has(key)) usageRequests.current.delete(key);
       setUsage((previous: object) => Object.fromEntries(Object.entries(previous).filter(([key]) => keys.has(key))));
-      for (const key of added) void refreshUsage(key);
+      if (presentation !== 'auth') for (const key of added) void refreshUsage(key);
     }, [accountsSignature]);
     const button = (label: string, onClick: () => void, disabled = false, props: any = {}) => h(Button, { type: 'button', disabled: pending || disabled, onClick, ...props }, label);
-    const date = (time: number) => new Date(time).toLocaleString();
+    const date = (time: number) => new Date(time).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
     const part = (name: string, style: any, ...children: any[]) => h('div', { style, 'data-majed-codex-part': name }, ...children);
     const startLogin = () => {
       void action(async () => {
@@ -258,21 +291,37 @@ export function createCodexCard(React: any, primitives: any, rpc: any, t: (key: 
         setLogin(result); await refreshStatus();
       });
     };
+    React.useEffect(() => {
+      if (!status) return;
+      const current = status.authRevision ?? 0;
+      if (initialAuthRevision.current === null) initialAuthRevision.current = current;
+      else if (presentation === 'auth' && current > initialAuthRevision.current) {
+        initialAuthRevision.current = current;
+        onComplete?.();
+      }
+    }, [status]);
     const busy = status?.busy;
-    return h('div', { style: { ...styles.section, textAlign: 'start' }, className: 'majed-subscriptions-settings', 'data-majed-codex-card': true },
+    React.useEffect(() => {
+      if (presentation !== 'auth') return;
+      onFlowState?.({ busy: pending || !!busy, cancel: async () => {
+        if (pending) return false;
+        if (busy) { await call('cancel'); setLogin(null); await refreshStatus(); }
+        return true;
+      } });
+    }, [pending, busy]);
+    return h('div', { style: { ...styles.section, ...(presentation ? { maxWidth: 'none', maxInlineSize: 'none', width: '100%' } : {}), textAlign: 'start' }, className: 'majed-subscriptions-settings', 'data-majed-codex-card': true },
       h('style', null, controlCss),
-      h(ProxySettings, { rpc, t }),
       manager ? h(ProviderAccountManager, { provider: 'codex', name: status?.displayName || 'Codex (ChatGPT)', rpc, t, onClose: () => { setManager(false); void refreshStatus(); } }) : null,
       part('card', styles.card,
-        part('header', styles.cardHeader,
-          h('span', { 'aria-hidden': true, style: { ...styles.dot, background: busy ? 'var(--dsw-alias-state-warn-label)' : status?.accounts?.length ? 'var(--dsw-alias-state-success-primary)' : 'var(--dsw-alias-label-dimmed)' } }),
-          h('span', { style: styles.name }, status?.displayName || 'Codex (ChatGPT)'),
-          button(t('accountsManage'), () => setManager(true), false, { style: { marginInlineStart: 'auto' } }),
-          status?.clientVersion ? h('span', { style: styles.clientVersion, title: t('clientVersionHint') }, 'CLI ', h('bdi', { dir: 'ltr' }, status.clientVersion.version), ' · ', t(`source_${status.clientVersion.source}`)) : null),
-        h('p', { style: styles.statusLine, role: 'status' }, status?.registrationError ? t('providerUnavailable') : busy ? t('loginProgress') : status?.accounts?.length ? `${status.accounts.length} ${t('connected')}` : status ? t('notLoggedIn') : t('checking')),
+        presentation !== 'auth' && part('header', styles.cardHeader,
+          providerStatus(h, t, error || status?.registrationError ? 'error' : busy ? 'warning' : !status ? 'checking' : status?.accounts?.length ? 'ready' : 'warning', error || status?.registrationError ? 'providerAttention' : busy ? 'loginProgress' : !status ? 'checking' : status?.accounts?.length ? 'providerConfigured' : 'notLoggedIn'),
+          presentation === 'group' ? providerIdentity(h, t, status?.displayName || 'Codex (ChatGPT)', status?.accounts ?? [], usage, status?.clientVersion) : h('span', { style: styles.name }, status?.displayName || 'Codex (ChatGPT)'),
+          presentation === 'auth' ? null : button(t('accountsManage'), () => setManager(true), false, { style: { marginInlineStart: 'auto' } }),
+          presentation === 'group' ? providerDisclosure(h, t, status?.displayName || 'Codex (ChatGPT)', expanded, () => setExpanded(!expanded)) : status?.clientVersion ? h('span', { style: styles.clientVersion, title: t('clientVersionHint') }, 'CLI ', h('bdi', { dir: 'ltr' }, status.clientVersion.version), ' · ', t(`source_${status.clientVersion.source}`)) : null),
+        (presentation === 'auth' || (presentation === 'group' && status?.accounts?.length)) && !busy && !status?.registrationError ? null : h('p', { style: styles.statusLine, role: 'status' }, status?.registrationError ? t('providerUnavailable') : busy ? t('loginProgress') : status?.accounts?.length ? `${status.accounts.length} ${t('connected')}` : status ? t('notLoggedIn') : t('checking')),
         status?.detail ? h('p', { style: styles.statusLine }, status.detail) : null,
         error ? h('p', { style: styles.errorLine, role: 'alert' }, error) : null,
-        ...(status?.accounts ?? []).map((account: any) => {
+        ...(presentation === 'auth' || (presentation === 'group' && !expanded) ? [] : status?.accounts ?? []).map((account: any) => {
           const snapshot = usage[account.key];
           const credits = [...(snapshot?.resetCredits ?? [])].sort((a: any, b: any) => (a.expiresAt ?? Infinity) - (b.expiresAt ?? Infinity));
           const next = credits.find((credit: any) => credit.id && (credit.expiresAt === undefined || credit.expiresAt > Date.now()));
@@ -288,7 +337,6 @@ export function createCodexCard(React: any, primitives: any, rpc: any, t: (key: 
             snapshot?.supported === false ? h('p', { style: styles.statusLine }, t('usageUnavailable')) : part('usage', styles.usage,
               part('usage-header', styles.usageHeader,
                 h('span', { style: styles.usageTitle }, t('usageTitle')),
-                snapshot?.plan ? h('span', { style: styles.usagePlan }, t('plan'), ': ', h('bdi', null, snapshot.plan)) : null,
                 button(t('refreshUsage'), () => { void action(() => refreshUsage(account.key, true)); }, false, { style: styles.usageRefresh })),
               !snapshot ? h('p', { style: styles.statusLine }, t('usageNotLoaded')) : snapshot.error ? h('p', { style: styles.errorLine, role: 'alert' }, snapshot.error) : !snapshot.windows?.length ? h('p', { style: styles.statusLine }, t('usageUnavailable')) : null,
               ...(snapshot?.windows ?? []).map((window: any, index: number) => {
@@ -313,10 +361,10 @@ export function createCodexCard(React: any, primitives: any, rpc: any, t: (key: 
                     }); }, false, { 'aria-disabled': !!resetBlocked, title: t(resetBlocked ?? 'resetReady'), style: { blockSize: 22, minBlockSize: 22, padding: '0 7px', opacity: resetBlocked ? 0.35 : 1, cursor: resetBlocked ? 'not-allowed' : 'pointer' } }) : null),
                   h('span', { style: { textAlign: 'end' } }, credit.expiresAt === undefined ? t('creditExpiryUnknown') : h('span', null, t('expires'), ' ', h('bdi', null, date(credit.expiresAt)), credit.expiresAt <= Date.now() ? ` · ${t('creditExpired')}` : null)))))) : null));
         }),
-        part('actions', styles.actions,
+        presentation !== 'group' && part('actions', styles.actions,
           busy ? button(t('cancelLogin'), () => { void action(async () => { await call('cancel'); setLogin(null); await refreshStatus(); }); })
             : button(t(status?.accounts?.length ? 'addAccount' : 'login'), startLogin, !!status?.registrationError)),
-        !busy && status?.accounts?.length ? h('p', { style: styles.statusLine }, t('addAccountHint')) : null,
+        presentation !== 'group' && !busy && status?.accounts?.length ? h('p', { style: styles.statusLine }, t('addAccountHint')) : null,
         busy ? h('div', null,
           (status.pendingAuth ?? login)?.authorizeUrl ? h('a', { href: (status.pendingAuth ?? login).authorizeUrl, target: '_blank', rel: 'noopener noreferrer', style: styles.manual }, t('openAuthorization')) : null,
           h('details', { style: styles.manual }, h('summary', null, t('manualSummary')),
@@ -329,7 +377,7 @@ export function createCodexCard(React: any, primitives: any, rpc: any, t: (key: 
         confirmation.kind === 'reset' ? part('reset-context', styles.usageMeta, h('span', null, t('window_weekly')), h('strong', null, `${Math.round(confirmation.weeklyUsedPercent)}%`)) : null,
         confirmation.kind === 'reset' ? h('p', { style: styles.statusLine }, confirmation.creditExpiresAt === undefined ? t('creditExpiryUnknown') : h('span', null, t('expires'), ' ', h('bdi', null, date(confirmation.creditExpiresAt)))) : null,
         confirmation.kind === 'reset' ? h('p', { style: styles.statusLine }, t('resetWarning')) : null,
-        confirmation.kind === 'reset' ? h('label', { style: { display: 'flex', gap: 8, alignItems: 'flex-start', font: 'var(--dsw-font-s-12)' } },
+        confirmation.kind === 'reset' ? h('label', { style: { display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 12, lineHeight: '18px' } },
           h('input', { type: 'checkbox', checked: acknowledged, onChange: (event: any) => setAcknowledged(event.target.checked) }), t('resetAcknowledge')) : null,
         h('div', { className: 'majed-subscription-dialog-actions', style: { ...styles.actions, justifyContent: 'flex-end', marginBlockStart: 8 } },
           button(t('cancel'), () => setConfirmation(null), false, { autoFocus: true }),

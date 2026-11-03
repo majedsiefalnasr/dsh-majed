@@ -248,6 +248,11 @@ test('assembled import through the RPC: no token reaches the browser, the status
     noSecrets(status, 'status'); noSecrets(login, 'login');
     const missing = await component.call('login', { provider: 'claude', method: 'keychain' }); // still importable
     assert.equal(missing.ok, true);
+    const reimported = (await component.call('status')).value.providers.claude;
+    assert.equal(reimported.accounts.length, 1, 'same-identity import does not grow the roster');
+    assert.equal(reimported.authRevision, status.value.providers.claude.authRevision + 1, 'successful persisted import exposes a distinct operation outcome');
+    await component.call('cancel', { provider: 'claude' });
+    assert.equal((await component.call('status')).value.providers.claude.authRevision, reimported.authRevision, 'cancellation is never reported as successful admission');
     // Once an account exists, status presents the Claude CLI version (reference behaviour): the npm registry lookup is
     // the only network use here, it fails closed in this test, and nothing else is contacted.
     assert.ok(fetchGuard.urls.every(url => url.startsWith('https://registry.npmjs.org/@anthropic-ai%2fclaude-code')), fetchGuard.urls.join(','));

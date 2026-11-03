@@ -173,13 +173,13 @@ const CLAUDE_ENDPOINTS = new Set(['status', 'login', 'manual', 'cancel', 'logout
 export interface ApplyOptions { claudeCredsIo?: ClaudeCredsIo; claudeProfile?: ClaudeProfileLookup }
 
 export function apply(ctx: Context, config: Config = {}, options: ApplyOptions = {}): void {
-  const zen = new ZenAdapter();
+  const preferences = new ProviderSettingsStore();
+  const zen = new ZenAdapter(() => preferences.zenEnabled());
   let zenRegistrationError = false;
   try { ctx.llm.registerAdapter(['opencode-zen'], zen); } catch { zenRegistrationError = true; }
   ctx.effect(() => () => zen.dispose(), 'dsh-majed: zen disposal');
   const claudeCredsIo = options.claudeCredsIo ?? SYSTEM_CLAUDE_CREDS_IO;
   const claudeIdentity = { profile: options.claudeProfile ?? fetchClaudeProfile };
-  const preferences = new ProviderSettingsStore();
   void loadModelDefaults().catch(() => ctx.logger.warn('dsh-majed: model defaults unavailable'));
   const flows = new OAuthFlowManager();
   const version = new CodexClientVersionCache();
@@ -493,7 +493,7 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
 
   ctx.inject(['connection'], ctx => {
     const connection = ctx.get('connection') as unknown as { fetch: { register(route: object): () => unknown } };
-    const endpoints = ['zenStatus', 'image', 'video', 'status', 'login', 'manual', 'cancel', 'logout', 'setDefault', 'usage', 'prepareReset', 'consumeReset', 'providerSettings', 'setProviderSettings', 'modelDefaults', 'setModelDefault', 'proxyGet', 'proxySet', 'proxyTest', 'speed', 'setSpeed'];
+    const endpoints = ['zenStatus', 'setZenEnabled', 'image', 'video', 'status', 'login', 'manual', 'cancel', 'logout', 'setDefault', 'usage', 'prepareReset', 'consumeReset', 'providerSettings', 'setProviderSettings', 'modelDefaults', 'setModelDefault', 'proxyGet', 'proxySet', 'proxyTest', 'speed', 'setSpeed'];
     for (const endpoint of endpoints) {
       const NS = 'majed-subscriptions.';
       const method = `${NS}${endpoint}`;
@@ -515,6 +515,10 @@ export function apply(ctx: Context, config: Config = {}, options: ApplyOptions =
             if (provider !== 'codex' && !CLAUDE_ENDPOINTS.has(endpoint)) throw new Error('Only Codex is available');
             let value: unknown = { ok: true };
             switch (endpoint) {
+              case 'setZenEnabled':
+                if (typeof payload.enabled !== 'boolean') throw new Error('enabled must be a boolean');
+                await preferences.setZenEnabled(payload.enabled);
+                value = { ...zen.snapshot(), registrationError: zenRegistrationError }; break;
               case 'zenStatus': value = { ...await zen.status(request.signal), registrationError: zenRegistrationError }; break;
               case 'image': {
                 const ref = payload as unknown as Parameters<AttachmentStore['readImage']>[0];

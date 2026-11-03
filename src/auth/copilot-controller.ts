@@ -5,6 +5,7 @@ import { completeCopilotLogin, copilotDeviceFlow } from '../providers/copilot.js
 
 export class CopilotAuthController {
   private claim = 0;
+  private authRevision = 0;
   private busy = false;
   private disposed = false;
   private completion?: AbortController;
@@ -13,7 +14,7 @@ export class CopilotAuthController {
     private describe: (error: unknown) => string) {}
   async status() {
     const pending = this.flows.pending('copilot');
-    return { busy: this.busy, detail: this.detail,
+    return { authRevision: this.authRevision, busy: this.busy, detail: this.detail,
       pendingAuth: pending ? { authorizeUrl: pending.verificationUrl, userCode: pending.userCode } : undefined,
       accounts: (await listAccounts('copilot')).map(({ key, session }, index) => ({ key, isDefault: index === 0,
         account: session.account ?? key, expiresAt: session.expiresAt })) };
@@ -36,6 +37,7 @@ export class CopilotAuthController {
           if (this.claim !== claim) return;
           const account = accountKeyOf('copilot', session);
           await saveAccountSession('copilot', account, session);
+          this.authRevision++;
           this.changed(account);
         } catch (error) { if (this.claim === claim) this.detail = this.describe(error); }
         finally { if (this.claim === claim) this.busy = false; }

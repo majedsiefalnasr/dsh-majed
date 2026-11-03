@@ -16,7 +16,7 @@ function host(reference) {
     get:()=>({fetch:{register(route){routes.set(route.path,route);return ()=>routes.delete(route.path);}}}),
     effect(fn){const cleanup=fn();if(cleanup)cleanups.push(cleanup);},inject(names,fn){if(names.includes('connection'))fn(ctx);}};
   apply(ctx,{pool:{enabled:false}});
-  return {adapters,async status(endpoint='status', signal){const method='majed-subscriptions.'+endpoint;const response=await routes.get('/api/'+method).fetch(new Request('http://localhost/api/'+method,{method:'POST',signal,headers:{'content-type':'application/json'},body:JSON.stringify({type:'client-request',rpcId:'fixture',method,payload:{}})}));return (await response.json()).result;},dispose(){cleanups.reverse().forEach(fn=>fn());}};
+  return {adapters,async status(endpoint='status', signal, payload={}){const method='majed-subscriptions.'+endpoint;const response=await routes.get('/api/'+method).fetch(new Request('http://localhost/api/'+method,{method:'POST',signal,headers:{'content-type':'application/json'},body:JSON.stringify({type:'client-request',rpcId:'fixture',method,payload})}));return (await response.json()).result;},dispose(){cleanups.reverse().forEach(fn=>fn());}};
 }
 test('Zen offers only free gateway models, caches discovery and coexists with opencode2dsh',async()=>{
   process.env.DSH_HOME=await mkdtemp('/tmp/majed137-host-');
@@ -51,6 +51,44 @@ test('Zen cancellation releases stalled stream bodies and disposal aborts catalo
     await new Promise(resolve=>setTimeout(resolve,20));controller.abort();
     await assert.rejects(()=>run);assert.equal(cancelled,true);assert.equal(body.locked,false);
   }finally{mounted.dispose();globalThis.fetch=previous;}
+});
+
+test('Zen disabling preserves a stream already admitted and blocks the next request', async () => {
+  process.env.DSH_HOME = await mkdtemp('/tmp/majed-zen-inflight-');
+  const previous = globalThis.fetch; let controller;
+  globalThis.fetch = async url => String(url).endsWith('/models') ? Response.json({data:[{id:options.model}]}) : String(url).includes('models.dev') ? Response.json({}) : new Response(new ReadableStream({start(value){controller=value;}}));
+  const mounted = host();
+  try {
+    const adapter = mounted.adapters['opencode-zen'];
+    const run = (async () => { const chunks=[]; for await (const chunk of adapter.stream(options)) chunks.push(chunk); return chunks; })();
+    while (!controller) await new Promise(resolve => setImmediate(resolve));
+    const response = await mounted.status('setZenEnabled', undefined, {enabled:false});
+    assert.equal(response.value.enabled, false);
+    controller.enqueue(new TextEncoder().encode('data: '+JSON.stringify({choices:[{delta:{content:'finished'},finish_reason:null}]})+'\n\ndata: [DONE]\n\n'));
+    controller.close();
+    assert.ok((await run).some(chunk => chunk.type==='text-delta' && chunk.text==='finished'));
+    await assert.rejects(async () => { for await (const chunk of adapter.stream(options)) {} }, /disabled/i);
+  } finally { mounted.dispose(); globalThis.fetch=previous; }
+});
+
+test('Zen persistent switch hides models and rejects new inference without network', async () => {
+  process.env.DSH_HOME = await mkdtemp('/tmp/majed-zen-switch-');
+  const { ProviderSettingsStore } = await import('../dist/provider-settings.js');
+  const settings = new ProviderSettingsStore();
+  assert.equal(settings.zenEnabled(), true);
+  await settings.setZenEnabled(false);
+  assert.equal(new ProviderSettingsStore().zenEnabled(), false);
+  const previous = globalThis.fetch; let calls = 0;
+  globalThis.fetch = async () => { calls++; throw Error('network forbidden'); };
+  const mounted = host();
+  try {
+    const adapter = mounted.adapters['opencode-zen'];
+    assert.deepEqual(await adapter.listModels('opencode-zen'), []);
+    await assert.rejects(async () => { for await (const chunk of adapter.stream(options)) {} }, /disabled/i);
+    assert.equal(calls, 0);
+  } finally { mounted.dispose(); globalThis.fetch = previous; }
+  await settings.setZenEnabled(true);
+  assert.equal(new ProviderSettingsStore().zenEnabled(), true);
 });
 
 const options = {provider:'opencode-zen',model:'mimo-v2.6-flash-free',messages:[{role:'user',content:[{type:'text',text:'fixture'}]}]};
@@ -89,11 +127,19 @@ for(const locale of ['en','ar'])test('Zen actual status card is login-less and l
   const compiled=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText;
   const dictionary=JSON.parse(await readFile(new URL('../locale/'+locale+'.json',import.meta.url),'utf8')).subscriptions;
   const exports={};const calls=[];
-  vm.runInNewContext(compiled,{exports,require:()=>({styles:{},callSubscriptionsAuth:async(rpc,endpoint,payload)=>{calls.push(endpoint);return {reachable:true,modelCount:2,source:'gateway'};}})});
+  const presentation = {};
+  const presentationSource = await readFile(new URL('../src/codex-card.ts',import.meta.url),'utf8');
+  vm.runInNewContext(ts.transpileModule(presentationSource,{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,{exports:presentation,require:()=>({})});
+  vm.runInNewContext(compiled,{exports,require:()=>({...presentation,callSubscriptionsAuth:async(rpc,endpoint,payload)=>{calls.push(endpoint);return {reachable:true,modelCount:2,source:'gateway'};}})});
   const Card=exports.createZenCard(React,{}, {},key=>dictionary[key]);let renderer;
   await act(async()=>{renderer=create(React.createElement(Card));});
-  const rendered=JSON.stringify(renderer.toJSON());assert.ok(rendered.includes(dictionary.zenNoLogin));assert.ok(rendered.includes(dictionary.zenReachable));assert.ok(rendered.includes(dictionary.zenModelCount));
-  assert.equal(renderer.root.findAllByType('button').length,1);assert.deepEqual(calls,['zenStatus']);
+  assert.equal(renderer.root.findByProps({'aria-expanded':false}).type,'button');
+  await act(async()=>renderer.root.findByProps({'aria-expanded':false}).props.onClick());
+  const toggle = renderer.root.findByProps({role:'switch'});
+   assert.equal(toggle.props['aria-checked'], true);
+   assert.equal(renderer.root.findByProps({'aria-expanded':true}).props['aria-expanded'], true);
+   const rendered=JSON.stringify(renderer.toJSON());assert.equal(rendered.includes(dictionary.zenNoLogin), false);assert.ok(rendered.includes(dictionary.zenReachable));assert.ok(rendered.includes(dictionary.zenModelCount));
+  assert.equal(renderer.root.findAllByType('button').length,3);assert.deepEqual(calls,['zenStatus']);
   await act(async()=>{renderer.unmount();});
 });
 

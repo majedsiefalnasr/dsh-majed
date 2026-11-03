@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-01T16:40:00+02:00",
+  "title": "Design System: DSH Majed native settings",
+  "extensions": {},
+  "components": [],
+  "narrative": {
+    "northStar": "Native DSH settings",
+    "overview": "The Owner pinned DSH's existing settings language. This minimal source-backed record preserves that authority; it is not a new brand, a pixel-parity claim or a certification of the current mixed layouts.",
+    "keyCharacteristics": ["Host semantic theme tokens", "Public native primitives", "Compact settings hierarchy", "English/LTR and Arabic/RTL"],
+    "rules": [],
+    "dos": ["Do inherit host theme, controls, keyboard behavior and layout discipline.", "Do retain explicit labels, disabled/busy/error states and focus restoration."],
+    "donts": ["Don't style or replace native Settings > Models.", "Don't treat API key presence as service health, missing metadata as a missing key, DeepSeek Account as an API-key row, or unavailable usage as zero.", "Don't create a second visual brand or fabricated quotas."]
+  }
+}

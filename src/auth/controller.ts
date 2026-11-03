@@ -5,6 +5,7 @@ import { codexFlow, codexProfileClaims, exchangeCodexCode } from '../providers/c
 
 export class CodexAuthController {
   private claim = 0;
+  private authRevision = 0;
   private finalizing = 0;
   private lastError?: string;
   private disposed = false;
@@ -12,7 +13,7 @@ export class CodexAuthController {
     private describe: (error: unknown) => string = error => error instanceof Error ? error.message : String(error)) {}
   async status() {
     const pending = this.flows.pending('codex');
-    return { busy: this.flows.isBusy('codex') || this.finalizing > 0,
+    return { authRevision: this.authRevision, busy: this.flows.isBusy('codex') || this.finalizing > 0,
       pendingAuth: pending ? { authorizeUrl: pending.authorizeUrl } : undefined,
       accounts: (await listAccounts('codex')).map(({ key, session }, index) => ({ key, isDefault: index === 0,
         account: session.emailAddress ?? codexProfileClaims(session.idToken).emailAddress ?? session.accountId,
@@ -35,6 +36,7 @@ export class CodexAuthController {
       if (this.claim !== claim) return;
       const account = accountKeyOf('codex', session);
       await saveAccountSession('codex', account, session);
+      this.authRevision++;
       this.lastError = undefined;
       this.changed(account);
     } catch (error) {

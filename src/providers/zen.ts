@@ -43,6 +43,7 @@ async function text(response: Response, signal: AbortSignal): Promise<string> {
   } finally { void reader.cancel().catch(() => {}); reader.releaseLock(); }
 }
 export class ZenAdapter extends LlmAdapter {
+  constructor(private readonly enabled: () => boolean = () => true) { super() }
   private models = [...STATIC];
   private metadata: Record<string, { cost?: { input?: number; output?: number }; deprecated?: boolean; status?: string; lifecycle?: string; deprecated_at?: unknown; retirement_date?: unknown }> = {};
   private checkedAt = 0;
@@ -52,6 +53,7 @@ export class ZenAdapter extends LlmAdapter {
   dispose(): void { this.lifecycle.abort(); }
   providerInfo(provider: string) { return { id: provider, name: 'OpenCode Zen' }; }
   async listModels(provider: string, signal?: AbortSignal) {
+    if (!this.enabled()) return []
     if (Date.now() - this.checkedAt >= 5 * 60_000) {
       const budget = deadlineSignal(10_000, signal ? AbortSignal.any([signal, this.lifecycle.signal]) : this.lifecycle.signal);
       try {
@@ -84,15 +86,17 @@ export class ZenAdapter extends LlmAdapter {
       }
     }
     signal?.throwIfAborted(); this.lifecycle.signal.throwIfAborted();
+    if (!this.enabled()) return [];
     return this.models.map(id => ({ provider, id, name: id, inputModalities: ['text'] as ['text'] }));
   }
-  snapshot() { return { reachable: this.reachable, modelCount: this.models.length, source: this.source }; }
+  snapshot() { return { enabled: this.enabled(), reachable: this.reachable, modelCount: this.models.length, source: this.source }; }
   async status(signal?: AbortSignal) { await this.listModels('opencode-zen', signal); return this.snapshot(); }
   async resolveModel(provider: string, model: string, signal?: AbortSignal) {
     if (!(await this.listModels(provider, signal)).some(entry => entry.id === model)) throw new LlmError('OpenCode Zen requires an available free model.', 'INVALID_REQUEST');
     return { provider, id: model, name: model, inputModalities: ['text'] as ['text'], context: { contextWindow: 262144 }, defaultMaxTokens: 32768 };
   }
   async *stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
+    if (!this.enabled()) throw new LlmError('OpenCode Zen is disabled.', 'INVALID_REQUEST');
     const budget = deadlineSignal(300_000, options.signal ? AbortSignal.any([options.signal, this.lifecycle.signal]) : this.lifecycle.signal);
     let response: Response | undefined;
     try {

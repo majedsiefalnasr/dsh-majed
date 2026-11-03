@@ -5,6 +5,7 @@ export class CodexAuthController {
     changed;
     describe;
     claim = 0;
+    authRevision = 0;
     finalizing = 0;
     lastError;
     disposed = false;
@@ -15,7 +16,7 @@ export class CodexAuthController {
     }
     async status() {
         const pending = this.flows.pending('codex');
-        return { busy: this.flows.isBusy('codex') || this.finalizing > 0,
+        return { authRevision: this.authRevision, busy: this.flows.isBusy('codex') || this.finalizing > 0,
             pendingAuth: pending ? { authorizeUrl: pending.authorizeUrl } : undefined,
             accounts: (await listAccounts('codex')).map(({ key, session }, index) => ({ key, isDefault: index === 0,
                 account: session.emailAddress ?? codexProfileClaims(session.idToken).emailAddress ?? session.accountId,
@@ -45,6 +46,7 @@ export class CodexAuthController {
                 return;
             const account = accountKeyOf('codex', session);
             await saveAccountSession('codex', account, session);
+            this.authRevision++;
             this.lastError = undefined;
             this.changed(account);
         }

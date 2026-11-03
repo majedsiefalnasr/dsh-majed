@@ -1,5 +1,25 @@
 # Subscriptions provenance
 
+## Plugin catalog icon — 2026-11-02
+
+The root icon.svg is copied from @deepseek-ai/dsh-experimental-plugin-market-bundle/icon.svg shipped in DSH0.2.1-rc.5, Copyright (c)2026 DeepSeek, MIT. Owner rejected the previous worktree-specific icon and requested a general/comprehensive symbol; the modules grid with an addition mark represents an extensible toolkit. Existing DeepSeek MIT notice below applies. Static asset only; no runtime dependency or host modification.
+
+## AI Providers identity and composer usage refinement — 2026-11-02
+
+The page provider-network SVG, localized navigation name, compact quota readout, anchored tooltip, close action and responsive menu presentation are independently authored over the existing attributed badge. Read the installed billion-context native client as a reference only; no code was copied and it did not expose the pictured native context-usage tooltip. The existing host anchoring hook and stats-row integration are retained; no new private imports, dependencies or host changes. Settings navigation exposes a string label but no icon extension, so only the owned page receives a custom icon. React useId accessibility guidance was consulted at https://react.dev/reference/react/useId. Existing attribution and license notices remain applicable.
+
+## #138 Owner-approved hierarchy revision — 2026-11-02
+
+The separated Subscription/API groups, shared single-active Add ownership, authored SVG disclosure, one-count/default-plan summary and initial first-provider expansion are independently authored presentation over the existing owned components. They retain the source-backed DSH semantic tokens and typography reference below. No additional external source, private imports, dependency, host/controller/store or authentication algorithm was introduced. Existing attribution and MIT notices remain unchanged. Prior synthetic captures do not verify this revised hierarchy.
+
+## #138 DSH-aligned presentation pass — 2026-11-02
+
+The shared row/control typography, semantic fallback colors, responsive account separators, inline Add surface, page Settings styling and EN/AR inventory copy are independently authored against `../DESIGN.md` and its source record `../docs/research/dsh-design-source-2026-11-02.md`. No additional third-party code was copied. The existing #136 native hierarchy attribution and DeepSeek MIT notice remain applicable; this pass adds no private imports, runtime dependencies, host changes or authentication algorithms. It does not establish standalone primitive-package compatibility or rendered/installed acceptance.
+
+## #138 partial API presentation corrections
+
+The credential-state labels/dot, DeepSeek Account unknown fallback and generic-editor exclusion, and in-place API Add entry/focus restoration are independently authored changes to the existing #136 adaptation. They introduce no additional third-party source or private imports. The existing DeepSeek MIT notice and #136 source attribution below remain applicable. Page-level Settings ownership is independently authored: existing ProxySettings and UsageBadgeDisplaySetting move unchanged into one semantic disclosure, with Proxy no longer mounted by CodexCard. The subsequent unified composition and optional provider-card presentation props are independently authored orchestration over these existing components: a mixed list, shared three-mode Add, configured account disclosure and selected authentication. Existing attributed controllers, account actions and dialogs remain the source of provider behavior; no further third-party source, private API, auth algorithm or durable store was introduced.
+
 ## #137 OpenCode Zen candidate
 
 Source: https://github.com/FishBottle7/opencode2dsh tag `v0.3.14`, commit `1aa212063cf68b0ad6f3ed310bca4588cf06c008`, MIT copyright 2026 FishBottle7. Inspected pinned source `/tmp/majed137-reference-P9VoiY/source/packages/plugin/src/adapter/{ids,catalog,messages,zen-adapter}.ts`. `providers/zen.ts` adapts canonical inverted-timestamp/session memo and CLI headers, static roster, metadata/name free classification, protocol blocklist, bash/read gate schemas and muse Responses routing. Local changes: provider `opencode-zen`, owned RPC/effects/card data names, existing Majed translators and fetch transport, bounded response readers, generic secrecy-preserving errors and overall request deadline. No sidecar, adaptive inference probes, IP pool, dispatcher mutation, binary downloads, credential delegation or reference runtime dependency. Card independently authored using existing owned styles; English/Arabic are local presentation. No live verification. Full verification and independent Standards/Spec review remain incomplete.

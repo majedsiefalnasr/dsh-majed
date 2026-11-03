@@ -1,6 +1,6 @@
 import { visibleUsageWindows } from './usage-badge/usage-window-filter.js';
 import { ProviderAccountManager } from './settings/ProviderAccountManager.js';
-import { controlCss, styles } from './codex-card.js';
+import { controlCss, providerDisclosure, providerIdentity, providerStatus, styles } from './codex-card.js';
 /**
  * Antigravity Settings card (ticket #135). Scoped presentation port of the Antigravity part of V1ki v0.9.12 b802311
  * SubscriptionsSection; see PROVENANCE.md. It only ever receives sanitized status from the owned RPC: account
@@ -11,7 +11,9 @@ export function createAntigravityCard(React: any, primitives: any, rpc: any, t: 
   const Button = primitives.Button ?? 'button';
   const Input = primitives.Input ?? 'input';
   const DEFAULT_NAME = 'Google Antigravity';
-  return function AntigravityCard() {
+  return function AntigravityCard({ presentation, onComplete, onFlowState, onAccountsChange, revision, initialExpanded = false }: any = {}) {
+    const [expanded, setExpanded] = React.useState(initialExpanded);
+    const initialAuthRevision = React.useRef(null as number | null);
     const [manager, setManager] = React.useState(false);
     const [status, setStatus] = React.useState(null);
     const [error, setError] = React.useState('');
@@ -43,6 +45,7 @@ export function createAntigravityCard(React: any, primitives: any, rpc: any, t: 
       void refreshStatus().catch((failure: Error) => { if (alive.current) setError(failure.message); });
       return () => { alive.current = false; };
     }, []);
+    React.useEffect(() => { if (revision !== undefined) void refreshStatus().catch(() => {}); }, [revision]);
     React.useEffect(() => {
       if (!status?.busy) return;
       const timer = setInterval(() => { void refreshStatus().catch((failure: Error) => { if (alive.current) setError(failure.message); }); }, 2000);
@@ -62,14 +65,19 @@ export function createAntigravityCard(React: any, primitives: any, rpc: any, t: 
       usageRequests.current.set(account, request);
       return request;
     };
+    const reportedAccounts = React.useRef(null as string | null);
     const accountsSignature = JSON.stringify((status?.accounts ?? []).map((account: any) => account.key));
     React.useEffect(() => {
+      if (presentation === 'group' && status) {
+        if (reportedAccounts.current !== null && reportedAccounts.current !== accountsSignature) onAccountsChange?.();
+        reportedAccounts.current = accountsSignature;
+      }
       const keys = new Set<string>((status?.accounts ?? []).map((account: any) => account.key));
       const added = [...keys].filter(key => !accountKeys.current.has(key));
       accountKeys.current = keys;
       for (const key of usageRequests.current.keys()) if (!keys.has(key)) usageRequests.current.delete(key);
       setUsage((previous: object) => Object.fromEntries(Object.entries(previous).filter(([key]) => keys.has(key))));
-      for (const key of added) void refreshUsage(key);
+      if (presentation !== 'auth') for (const key of added) void refreshUsage(key);
     }, [accountsSignature]);
     const button = (label: string, onClick: () => void, disabled = false, props: any = {}) => h(Button, { type: 'button', disabled: pending || disabled, onClick, ...props }, label);
     const date = (time: number) => new Date(time).toLocaleString();
@@ -82,22 +90,39 @@ export function createAntigravityCard(React: any, primitives: any, rpc: any, t: 
         setLogin(result.authorizeUrl ? result : null); await refreshStatus();
       });
     };
+    React.useEffect(() => {
+      if (!status) return;
+      const current = status.authRevision ?? 0;
+      if (initialAuthRevision.current === null) initialAuthRevision.current = current;
+      else if (presentation === 'auth' && current > initialAuthRevision.current) {
+        initialAuthRevision.current = current;
+        onComplete?.();
+      }
+    }, [status]);
     const busy = status?.busy;
+    React.useEffect(() => {
+      if (presentation !== 'auth') return;
+      onFlowState?.({ busy: pending || !!busy, cancel: async () => {
+        if (pending) return false;
+        if (busy) { await call('cancel'); setLogin(null); await refreshStatus(); }
+        return true;
+      } });
+    }, [pending, busy]);
     const name = status?.displayName || DEFAULT_NAME;
     const hasAccounts = !!status?.accounts?.length;
-    return h('div', { style: { ...styles.section, textAlign: 'start' }, className: 'majed-subscriptions-settings', 'data-majed-antigravity-card': true },
+    return h('div', { style: { ...styles.section, ...(presentation ? { maxWidth: 'none', maxInlineSize: 'none', width: '100%' } : {}), textAlign: 'start' }, className: 'majed-subscriptions-settings', 'data-majed-antigravity-card': true },
       h('style', null, controlCss),
       manager ? h(ProviderAccountManager, { provider: 'antigravity', name, rpc, t, onClose: () => { setManager(false); void refreshStatus(); } }) : null,
       part('card', styles.card,
-        part('header', styles.cardHeader,
-          h('span', { 'aria-hidden': true, style: { ...styles.dot, background: busy ? 'var(--dsw-alias-state-warn-label)' : hasAccounts ? 'var(--dsw-alias-state-success-primary)' : 'var(--dsw-alias-label-dimmed)' } }),
-          h('span', { style: styles.name }, name),
-          button(t('accountsManage'), () => setManager(true), false, { style: { marginInlineStart: 'auto' } }),
-          status?.clientVersion ? h('span', { style: styles.clientVersion, title: t('clientVersionHint') }, 'CLI ', h('bdi', { dir: 'ltr' }, status.clientVersion.version), ' · ', t(`source_${status.clientVersion.source}`)) : null),
-        h('p', { style: styles.statusLine, role: 'status' }, status?.setupRequired ? t('antigravitySetupRequired') : status?.registrationError ? t('antigravityProviderUnavailable') : busy ? t('loginProgress') : hasAccounts ? `${status.accounts.length} ${t('connected')}` : status ? t('notLoggedIn') : t('checking')),
+        presentation !== 'auth' && part('header', styles.cardHeader,
+          providerStatus(h, t, error || status?.registrationError || status?.setupRequired ? 'error' : busy ? 'warning' : !status ? 'checking' : status?.accounts?.length ? 'ready' : 'warning', error || status?.registrationError || status?.setupRequired ? 'providerAttention' : busy ? 'loginProgress' : !status ? 'checking' : status?.accounts?.length ? 'providerConfigured' : 'notLoggedIn'),
+          presentation === 'group' ? providerIdentity(h, t, name, status?.accounts ?? [], usage, status?.clientVersion) : h('span', { style: styles.name }, name),
+          presentation === 'auth' ? null : button(t('accountsManage'), () => setManager(true), false, { style: { marginInlineStart: 'auto' } }),
+          presentation === 'group' ? providerDisclosure(h, t, name, expanded, () => setExpanded(!expanded)) : status?.clientVersion ? h('span', { style: styles.clientVersion, title: t('clientVersionHint') }, 'CLI ', h('bdi', { dir: 'ltr' }, status.clientVersion.version), ' · ', t(`source_${status.clientVersion.source}`)) : null),
+        (presentation === 'auth' || (presentation === 'group' && status?.accounts?.length)) && !busy && !status?.registrationError && !status?.setupRequired ? null : h('p', { style: styles.statusLine, role: 'status' }, status?.setupRequired ? t('antigravitySetupRequired') : status?.registrationError ? t('antigravityProviderUnavailable') : busy ? t('loginProgress') : hasAccounts ? `${status.accounts.length} ${t('connected')}` : status ? t('notLoggedIn') : t('checking')),
         status?.detail && !status?.setupRequired ? h('p', { style: styles.statusLine }, status.detail) : null,
         error ? h('p', { style: styles.errorLine, role: 'alert' }, error) : null,
-        ...(status?.accounts ?? []).map((account: any) => {
+        ...(presentation === 'auth' || (presentation === 'group' && !expanded) ? [] : status?.accounts ?? []).map((account: any) => {
           const snapshot = usage[account.key];
           const windows = visibleUsageWindows('antigravity', snapshot?.windows, status?.visibleModels);
           return h('div', { key: account.key, style: styles.accountRow, 'data-majed-antigravity-part': 'account' },
@@ -122,7 +147,7 @@ export function createAntigravityCard(React: any, primitives: any, rpc: any, t: 
                     h('div', { style: { ...styles.usageFill, background: color, inlineSize: `${percent}%` } })));
               })));
         }),
-        part('actions', styles.actions,
+        presentation !== 'group' && part('actions', styles.actions,
           busy ? button(t('cancelLogin'), () => { void action(async () => { await call('cancel'); setLogin(null); await refreshStatus(); }); })
             : button(t(hasAccounts ? 'addAccountOAuth' : 'login'), () => startLogin(), !!status?.registrationError || !!status?.setupRequired)),
         busy ? h('div', null,

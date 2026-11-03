@@ -5,6 +5,7 @@ import { ANTIGRAVITY_SETUP_REQUIRED, antigravityFlow, exchangeAntigravityCode, t
 import { DISCOVERY_TIMEOUT_MS, withTimeout } from '../providers/common.js';
 export class AntigravityAuthController {
   private claim = 0;
+  private authRevision = 0;
   private active?: AbortController;
   private detail?: string;
   private disposed = false;
@@ -12,7 +13,7 @@ export class AntigravityAuthController {
     private changed: (account?: string) => void, private describe: (error: unknown) => string) {}
   async status() {
     const pending = this.flows.pending('antigravity');
-    return { setupRequired: this.oauth === undefined, busy: this.active !== undefined, detail: this.oauth ? this.detail : ANTIGRAVITY_SETUP_REQUIRED, pendingAuth: pending ? { authorizeUrl: pending.authorizeUrl } : undefined,
+    return { authRevision: this.authRevision, setupRequired: this.oauth === undefined, busy: this.active !== undefined, detail: this.oauth ? this.detail : ANTIGRAVITY_SETUP_REQUIRED, pendingAuth: pending ? { authorizeUrl: pending.authorizeUrl } : undefined,
       accounts: (await listAccounts('antigravity')).map(({ key, session }, index) => ({ key, isDefault: index === 0, account: session.account ?? key, plan: session.plan, expiresAt: session.expiresAt })) };
   }
   async login() {
@@ -39,6 +40,7 @@ export class AntigravityAuthController {
       if (!session) throw new Error('Antigravity token exchange timed out');
       const account = accountKeyOf('antigravity', session);
       await saveAccountSession('antigravity', account, session);
+      this.authRevision++;
       if (claim === this.claim && !this.disposed) this.changed(account);
     } catch (error) { if (claim === this.claim) this.detail = this.describe(error); }
     finally { if (this.active === active) this.active = undefined; }
