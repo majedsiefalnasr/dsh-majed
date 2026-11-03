@@ -1,7 +1,18 @@
-# Releasing dsh-majed
+# Releasing Waycraft for DSH
+
+The package name is `dsh-waycraft` (formerly `dsh-majed`). Repository URLs remain unchanged until a separately approved GitHub rename. Never install both names together: Loader row ids and durable compatibility namespaces intentionally remain `majed`-based. Replacement, restart, publication and data migration each retain their explicit approval boundaries. Recheck registry availability before publication; the source package version is not proof of a published release.
 
 Versioning follows Semantic Versioning. Use `-rc.N` for release candidates; a release leaves `-rc` only after
 live verification in the DSH desktop app (see checklist).
+
+## Permanent release and documentation rules
+
+- Build a feature inventory from the entire integration delta, not only the last UI ticket. Separate implemented, controlled-test verified, Owner-accepted, dormant and deferred behavior. Do not advertise roadmap capabilities as shipped.
+- Write release notes in English with version/date, Added/Changed/Fixed compatibility facts, evidence and limitations, prerequisites, upgrade/restart and rollback. Reconcile superseded development entries in a final release summary without rewriting historical evidence or claiming new live coverage.
+- Every visible change updates the changelog. Update README/product docs for current behavior; update glossary/ADRs only when terminology or decisions change. Preserve source/license attribution and historical names where they identify compatibility namespaces, authors or evidence.
+- Verify the exact allowlisted archive: exclude credentials, account stores, private homes, rollback packages, test fixtures and caches. Record artifact hash and compare installed/published bytes with that archive. Never print secrets.
+- Source commit/push, installation/restart, npm publication, GitHub release and real-account/paid operations have separate explicit approval boundaries. Never overwrite an existing registry version; tag only the exact public release commit after approved integration. User completes login/2FA personally; do not request credentials in chat.
+- Record release status and remaining gates in current work before handoff. Installation, registry readback, source integration and desktop acceptance are distinct claims. Link the release summary from the changelog; keep release/docs rules linked from AGENTS.
 
 ## Checklist
 1. Working tree contains only intended changes: `git status`.
@@ -19,4 +30,4 @@ live verification in the DSH desktop app (see checklist).
    (`gh release create vX.Y.Z --notes-file <section> [--prerelease]`; use `--prerelease` for `-rc`).
 
 ## Rollback
-Keep the previous installed copy of `node_modules/dsh-majed` before replacing it. Restore it and restart DSH.
+Preserve the exact previous approved package archive and its hash before replacing the installed bundle (`dsh-majed` for legacy installations, `dsh-waycraft` after cutover). Use the plugin manager for an explicitly approved replacement or rollback, not manual profile edits. Keep account/configuration directories intact, restore the previous archive if necessary and fully restart DSH. An archive rollback does not undo any separately authorized data migration.

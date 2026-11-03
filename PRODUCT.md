@@ -12,11 +12,11 @@ The Owner manages their own model access inside DeepSeek Harness (DSH), includin
 
 ## Product Purpose
 
-`dsh-majed` is an existing DSH plugin. Its Subscriptions component makes the Owner's existing model access usable without losing native API-provider configuration or subscription-specific account capabilities.
+**Waycraft for DSH** (`dsh-waycraft`, formerly `dsh-majed`) is an enhancement toolkit for DSH's interface, workflows and provider access. Its AI Providers component manages subscription-specific accounts and usage while native Models retains API-provider configuration. Intelligent automatic routing is a future direction, not a capability introduced by the identity migration.
 
 ## Operating Context
 
-Existing React/TypeScript browser contribution and JavaScript host plugin, using public DSH extension points. English and Arabic are supported. Native Settings > Models remains a separate, untouched host surface. The owned page is Settings > Subscriptions (Majed), registered as `majed-subscriptions`.
+Existing React/TypeScript browser contribution and JavaScript host plugin, using public DSH extension points. English and Arabic are supported. Native Settings > Models remains a separate, untouched host surface. The owned page is Settings > AI Providers, registered with the retained compatibility id `majed-subscriptions`.
 
 ## Capabilities and Constraints
 

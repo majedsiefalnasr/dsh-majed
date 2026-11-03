@@ -32,8 +32,9 @@ function harness() {
 test('Owner can probe the mounted component; unauthenticated calls are rejected', async () => {
   const host = harness();
   apply(host.ctx);
-  assert.equal(host.routes.size, 21);
+  assert.equal(host.routes.size, 22);
   assert.ok(host.routes.has('/api/majed-subscriptions.zenStatus'), 'dedicated lazy Zen status route');
+  assert.ok(host.routes.has('/api/majed-subscriptions.setZenEnabled'), 'persisted Zen availability route');
   const response = await host.call();
   assert.equal(response.status, 200);
   const envelope = await response.json();

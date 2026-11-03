@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-03
+
+First Waycraft npm release; see [final release scope, upgrade and limitations](docs/RELEASE-0.2.0.md). The development entries below preserve their original checkpoint evidence and superseded designs; they are not a claim that every intermediate UI is shipped.
+
+- Rename the product to Waycraft for DSH and the package to `dsh-waycraft`; update core and AI Providers component metadata and current product documentation. Preserve legacy component ids, RPC/tool names, browser settings and account storage paths for compatibility. Existing installed packages require an explicitly approved replacement; no automatic data migration or registry publication is performed.
+
 - Align Proxy settings with the owned Manage dialog surface, typography, fields, spacing, responsive bounds and trailing actions; preserve password handling, draft tests and save behavior.
 
 - Refine the composer usage dropdown with menu/overlay theme fallbacks and matching tooltip corners; show per-window usage as compact percentage rings while retaining quota labels and reset times.
@@ -100,7 +106,7 @@ All notable changes to this project are documented here. The format follows [Kee
 - Add the disabled-by-default Subscriptions component row, authenticated presence probe and conditional empty Settings section in English and Arabic.
 - Add committed TypeScript/tsdown output under `dist/`, reproducible-build checks, packaging and host/browser seam tests. Existing core preferences remain unchanged; live acceptance is pending.
 
-## [0.2.0] - 2026-10-21
+## Pre-publication baseline - 2026-10-21
 
 Baseline for the component-by-component plan. Features: Bidirectional text, App UI font size, App font with bundled fonts, System notifications, sidebar actions grouped in the account menu, Copy on select, and the composer Approvals dropdown with the deterministic command classifier. See `README.md`.
 

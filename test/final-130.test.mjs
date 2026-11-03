@@ -231,7 +231,7 @@ test('P3 pool Config schema validates strategy and switchMargin and applies the 
   }
   assert.deepEqual(Config({ models: { codex: [{ id: 'm', name: 'M' }] }, codexClientVersion: '1.2.3' }).models.codex, [{ id: 'm', name: 'M', inputModalities: [] }]);
   assert.throws(() => Config({ models: { codex: [{ name: 'no id' }] } }));
-  assert.equal(plugin.name, 'dsh-majed/subscriptions');
+  assert.equal(plugin.name, 'dsh-waycraft/subscriptions');
   assert.deepEqual(plugin.inject, ['llm']);
   void Context;
 });
