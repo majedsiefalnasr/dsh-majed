@@ -12,12 +12,10 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  publish:
+  validate:
+    name: Release identity
     if: ${{ !github.event.release.prerelease && !github.event.release.draft }}
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
     steps:
       - uses: actions/checkout@v6
         with:
@@ -39,16 +37,66 @@ jobs:
             throw new Error('Release tag must match the dsh-waycraft package version');
           }
           JS
+
+  checks:
+    name: Release / ${{ matrix.name }}
+    needs: validate
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Formatting
+            command: npm run format:check
+          - name: Lint
+            command: npm run lint
+          - name: Typecheck
+            command: npm run typecheck
+          - name: Tests
+            command: npm test
+          - name: Build verification
+            command: npm run check:build
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.release.tag_name }}
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
       - run: npm ci --ignore-scripts
       - uses: actions/setup-go@v6
+        if: matrix.name == 'Lint'
         with:
           go-version: '1.24'
           cache: false
       - name: Install pinned workflow linter
+        if: matrix.name == 'Lint'
         run: |
           go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
-      - run: npm run ci
+      - name: Run ${{ matrix.name }}
+        run: ${{ matrix.command }}
+
+  publish:
+    name: Publish npm
+    needs: [validate, checks]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.release.tag_name }}
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          registry-url: https://registry.npmjs.org
+          cache: npm
+      - run: npm ci --ignore-scripts
       - name: Publish only a new version
         run: |
           node --input-type=module - <<'JS'
