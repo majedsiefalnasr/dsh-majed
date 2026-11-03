@@ -41,7 +41,8 @@ test('disposing the component removes every owned registration and stops owned w
   const first = mount(ctx);
   try {
     await settle();
-    assert.equal(first.routes.size, 21, 'twenty owner routes including image/video and speed controls');
+    assert.equal(first.routes.size, 22, 'owned routes including image/video, speed and Zen enablement controls');
+    assert.equal(first.routes.has('/api/majed-subscriptions.setZenEnabled'), true);
     assert.deepEqual(first.llm.listProviders().map(provider => provider.id), ['opencode-zen', 'codex', 'claude', 'grok', 'copilot', 'antigravity']);
     assert.equal(first.tools.has('image_generate'), true, 'image_generate registered on the real tool runtime');
     await assert.rejects(first.search('q'), error => error.code === 'CODEX_AUTH_REQUIRED', 'the mounted Codex provider owns web search (no login → its own auth error)');
@@ -62,7 +63,8 @@ test('disposing the component removes every owned registration and stops owned w
     // A second mount of the same module works and is independent of the disposed one.
     const second = mount(ctx, {}, false);
     await settle();
-    assert.equal(second.routes.size, 21);
+    assert.equal(second.routes.size, 22);
+    assert.equal(second.routes.has('/api/majed-subscriptions.setZenEnabled'), true);
     assert.equal((await second.call('status')).ok, true);
     second.runtime.dispose();
   } finally { globalThis.fetch = savedFetch; }

@@ -215,11 +215,11 @@ for (const locale of ['en', 'ar']) test(`reset credits expose expiry, usability 
   page.render(); await page.settle();
   assert.ok(page.text().includes(page.dictionary.creditExpiryUnknown));
   assert.ok(page.text().includes(page.dictionary.creditExpired));
-  assert.ok(page.text().includes(new Date(expiry).toLocaleString()));
+  assert.ok(page.text().includes(new Date(expiry).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })));
   page.click('useReset'); await page.settle();
   assert.match(page.text(), /87%/);
   const dialog = page.nodes().find(n => n.props.role === 'dialog');
-  assert.ok(page.nodes(dialog).some(n => n.children?.includes(new Date(expiry).toLocaleString())));
+  assert.ok(page.nodes(dialog).some(n => n.children?.includes(new Date(expiry).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))));
   assert.equal(page.nodes().find(n => n.tag === 'button' && n.children.includes(page.dictionary.confirm)).props.disabled, true);
 });
 

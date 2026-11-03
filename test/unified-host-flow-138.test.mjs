@@ -15,6 +15,7 @@ import { apply } from '../dist/subscriptions.js';
 const code = await readFile(new URL('../dist/subscriptions-client.js', import.meta.url), 'utf8');
 const dict = JSON.parse(await readFile(new URL('../locale/en.json', import.meta.url), 'utf8')).subscriptions;
 const turn = () => new Promise(resolve => setImmediate(resolve));
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 const jwt = claims => `e30.${Buffer.from(JSON.stringify(claims)).toString('base64url')}.dummy`;
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -87,6 +88,8 @@ async function fixture(provider) {
   async function dispatch(_channel, method, payload = {}) {
     if (method === 'subscriptions-auth.proxyGet') throw Error('HTTP 404');
     calls.push({ method, payload });
+    // Exercise cold-run IO latency instead of relying on a warm local filesystem.
+    if (method === 'majed-subscriptions.status' && !live.has('majed-subscriptions')) await delay(100);
     const route = routes.get(`/api/${method}`); assert.ok(route, `registered route ${method}`);
     const response = await route.fetch(new Request(`http://localhost/api/${method}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'client-request', rpcId: 'dummy', method, payload }) }));
     return (await response.json()).result;
@@ -116,7 +119,11 @@ async function fixture(provider) {
   api.applySubscriptions(ctx);
   const status = async () => (await rpc('api', 'majed-subscriptions.status')).value.providers[provider];
   async function until(predicate, label) { for (let i = 0; i < 150; i++) { if (await predicate()) return; await turn(); } assert.fail(label); }
-  await until(() => live.has('majed-subscriptions'), 'section registration');
+  // A turn count can expire before cold filesystem IO resolves on CI.
+  // Wait for the observable registration, not unrelated/rejected reference probes.
+  const registrationDeadline = performance.now() + 5000;
+  while (!live.has('majed-subscriptions') && performance.now() < registrationDeadline) await delay(5);
+  assert.equal(live.has('majed-subscriptions'), true, 'section registration within 5 seconds');
   await act(async () => { renderer = create(React.createElement(live.get('majed-subscriptions')), { createNodeMock: node => node.type === 'button' ? { focus() { focused++; } } : null }); await turn(); });
   await settle();
   const buttons = key => renderer.root.findAll(n => n.type === 'button' && (key === 'subscriptionAdd' ? n.props.className === 'majed-subscription-add-trigger' : n.children.join('') === dict[key === 'apiCancel' ? 'cancel' : key]));

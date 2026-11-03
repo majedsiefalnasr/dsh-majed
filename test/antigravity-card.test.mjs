@@ -7,6 +7,12 @@ import { readFile } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
 const source = await readFile(new URL('../src/antigravity-card.ts', import.meta.url), 'utf8');
 const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+const presentation = {};
+const presentationSource = await readFile(new URL('../src/codex-card.ts', import.meta.url), 'utf8');
+vm.runInNewContext(ts.transpileModule(presentationSource, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, { exports: presentation, require: () => ({}) });
+const usageFilter = {};
+const usageFilterSource = await readFile(new URL('../src/usage-badge/usage-window-filter.ts', import.meta.url), 'utf8');
+vm.runInNewContext(ts.transpileModule(usageFilterSource, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, { exports: usageFilter });
 const requireText = locale => readFileSync(new URL(`../locale/${locale}.json`, import.meta.url), 'utf8');
 function fixture(locale, status, respond, open = () => ({ location: {}, close() {} })) {
   const dictionary = JSON.parse(requireText(locale)).subscriptions;
@@ -19,7 +25,7 @@ function fixture(locale, status, respond, open = () => ({ location: {}, close() 
     useEffect(fn, deps) { const index = cursor++; if (!slots[index] || deps.some((value, i) => value !== slots[index][i])) { slots[index] = deps; effects.push(fn); } },
   };
   const exports = {};
-  const shared = { visibleUsageWindows: (provider, windows = [], models) => windows.filter(w => models === undefined || !w.scope || models.includes(w.scope)), ProviderAccountManager: 'ManageFixture', controlCss: '', styles: new Proxy({}, { get: () => ({}) }) };
+  const shared = { ...presentation, ...usageFilter, ProviderAccountManager: 'ManageFixture' };
   vm.runInNewContext(compiled, { exports, require: () => shared, window: { open }, setInterval: () => 1, clearInterval() {}, navigator: { clipboard: { writeText: async code => calls.push({ copied: code }) } }, Date, Error, JSON, Object });
   const rpc = { async call(_, method, payload) {
     calls.push({ method, payload });

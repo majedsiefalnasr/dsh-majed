@@ -62,7 +62,7 @@
   },
   "scripts": {
     "build": "tsc && tsdown && node scripts/assemble-client.mjs",
-    "test": "node scripts/classifier-test-adapter.mjs && node test/classify.test.cjs && tsc -p tsconfig.reference.json && node --test lib-test/test/reference/*.spec.js test/*.test.mjs",
+    "test": "node scripts/prepare-test-dirs.mjs && node scripts/classifier-test-adapter.mjs && node test/classify.test.cjs && tsc -p tsconfig.reference.json && node --test lib-test/test/reference/*.spec.js test/*.test.mjs",
     "check:build": "node scripts/check-build.mjs"
   },
   "devDependencies": {
