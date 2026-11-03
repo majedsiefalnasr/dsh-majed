@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-11-03
+
+- Add owned-source formatting, explicit correctness lint, host/browser/reference type checks, indexed pre-commit checks and isolated pre-push CI without changing account storage or provider behavior.
+- Verify reproducible build outputs from clean allowlisted inputs and detect orphan artifacts without modifying checkout output.
+- Repair clean-runner fixtures and bounded asynchronous readiness checks. Split GitHub CI into independent Formatting, Lint, Typecheck, Tests and Build verification checks; separate release identity validation and publication with OIDC.
+- Require safe post-merge cleanup with verified archival of unique local work. Local hooks remain opt-in; private artifacts remain excluded.
+- Validate the exact `0.2.2-rc.1` candidate after installation and desktop restart: Waycraft settings, Subscriptions, composer speed control and notifications registered active. The owner accepted the live render. No new account or paid-inference validation is claimed.
+
 ## [0.2.1] - 2026-11-03
 
 - Fix the browser factory retaining the legacy package identity after the Waycraft rename, which prevented desktop web boot after restart. Register `dsh-waycraft` consistently with package metadata; retain legacy settings/account namespaces. Add source and assembled-client identity regression checks. Packaging and fresh-build checks pass; desktop restart verification remains required.
