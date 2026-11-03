@@ -16,7 +16,7 @@
  * malformed file reads as empty and is rewritten on the next save, never
  * taking the plugin down with it.
  */
-import { chmod, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, readFile, rename, rm, writeFile, } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths';
 import { PROVIDER_IDS } from './auth/store.js';
@@ -162,7 +162,9 @@ export function defaultEffortOf(provider, model) {
     // plain index would inherit from Object.prototype for names like
     // `toString`, handing a *function* to mergeReasoning (which then throws and
     // breaks that model's resolution).
-    return Object.prototype.hasOwnProperty.call(section, model) ? section[model] : undefined;
+    return Object.prototype.hasOwnProperty.call(section, model)
+        ? section[model]
+        : undefined;
 }
 /** A detached snapshot for the RPC surface (render + diffing). */
 export function modelDefaultsSnapshot() {
@@ -189,7 +191,7 @@ export function setDefaultEffort(provider, model, effort) {
     // shared chain.
     const run = writeChain.then(async () => {
         await ensureReady();
-        const section = { ...sectionOf(current, provider) ?? {} };
+        const section = { ...(sectionOf(current, provider) ?? {}) };
         if (effort === undefined) {
             delete section[model];
         }

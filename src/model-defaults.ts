@@ -16,35 +16,49 @@
  * malformed file reads as empty and is rewritten on the next save, never
  * taking the plugin down with it.
  */
-import { chmod, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
-import { dirname } from 'node:path'
-import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
-import { PROVIDER_IDS, type ProviderId } from './auth/store.js'
+import {
+  chmod,
+  mkdir,
+  readFile,
+  rename,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
+import { dirname } from 'node:path';
+import { dshHomePath } from '@deepseek-ai/dsh-home-paths';
+import { PROVIDER_IDS, type ProviderId } from './auth/store.js';
 
 /** One model id → its configured default reasoning effort id. */
-export type ModelDefaultMap = Readonly<Record<string, string>>
+export type ModelDefaultMap = Readonly<Record<string, string>>;
 /** Provider route → model defaults. */
-export type ModelDefaults = Readonly<Partial<Record<ProviderId, ModelDefaultMap>>>
+export type ModelDefaults = Readonly<
+  Partial<Record<ProviderId, ModelDefaultMap>>
+>;
 
 /** Absolute path of the defaults file. */
 export function modelDefaultsFilePath(): string {
-  return dshHomePath('plugins', 'majed', 'subscriptions', 'model-defaults.json')
+  return dshHomePath(
+    'plugins',
+    'majed',
+    'subscriptions',
+    'model-defaults.json',
+  );
 }
 
-const EMPTY: ModelDefaults = Object.freeze({})
+const EMPTY: ModelDefaults = Object.freeze({});
 /** In-memory snapshot read by every consumer (adapters, RPC). */
-let current: ModelDefaults = EMPTY
+let current: ModelDefaults = EMPTY;
 /** One lazy load of the on-disk file (read once per process). */
-let ready: Promise<void> | undefined
+let ready: Promise<void> | undefined;
 /** Last load failure, surfaced to callers that care; defaults stay empty. */
-let loadError: unknown
+let loadError: unknown;
 /**
  * Serialises every write: the read-modify-write sequence must not interleave,
  * or a fast second save would compute its snapshot from the stale `current`
  * and silently drop the first update (the UI disables only the row being
  * saved, so overlaps are reachable).
  */
-let writeChain: Promise<void> = Promise.resolve()
+let writeChain: Promise<void> = Promise.resolve();
 
 /**
  * Validate one persisted provider section: a string→string map, or undefined.
@@ -53,50 +67,61 @@ let writeChain: Promise<void> = Promise.resolve()
  * that provider. What was dropped is reported so the caller can surface it
  * instead of the loss disappearing.
  */
-function sanitizeProvider(value: unknown, dropped: string[]): ModelDefaultMap | undefined {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined
-  const entries: Record<string, string> = {}
+function sanitizeProvider(
+  value: unknown,
+  dropped: string[],
+): ModelDefaultMap | undefined {
+  if (typeof value !== 'object' || value === null || Array.isArray(value))
+    return undefined;
+  const entries: Record<string, string> = {};
   for (const [model, effort] of Object.entries(value)) {
     if (typeof effort !== 'string' || effort.length === 0) {
-      dropped.push(model)
-      continue
+      dropped.push(model);
+      continue;
     }
-    entries[model] = effort
+    entries[model] = effort;
   }
-  if (Object.keys(entries).length === 0) return undefined
-  return Object.freeze(entries)
+  if (Object.keys(entries).length === 0) return undefined;
+  return Object.freeze(entries);
 }
 
 /** Validate the raw document: only known providers, malformed sections dropped. */
-function sanitizeDefaults(value: unknown): { defaults: ModelDefaults; dropped: string[] } {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return { defaults: EMPTY, dropped: [] }
-  const record = value as Record<string, unknown>
-  const result: Partial<Record<ProviderId, ModelDefaultMap>> = {}
-  const dropped: string[] = []
+function sanitizeDefaults(value: unknown): {
+  defaults: ModelDefaults;
+  dropped: string[];
+} {
+  if (typeof value !== 'object' || value === null || Array.isArray(value))
+    return { defaults: EMPTY, dropped: [] };
+  const record = value as Record<string, unknown>;
+  const result: Partial<Record<ProviderId, ModelDefaultMap>> = {};
+  const dropped: string[] = [];
   for (const provider of PROVIDER_IDS) {
-    const section = sanitizeProvider(record[provider], dropped)
-    if (section !== undefined) result[provider] = section
+    const section = sanitizeProvider(record[provider], dropped);
+    if (section !== undefined) result[provider] = section;
   }
-  return { defaults: Object.freeze(result), dropped }
+  return { defaults: Object.freeze(result), dropped };
 }
 
 /** Read and validate the on-disk file; a missing file reads as empty. */
 async function loadFile(path: string): Promise<ModelDefaults> {
-  let text: string
+  let text: string;
   try {
-    text = await readFile(path, 'utf8')
+    text = await readFile(path, 'utf8');
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return EMPTY
-    throw error
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return EMPTY;
+    throw error;
   }
   try {
-    const { defaults, dropped } = sanitizeDefaults(JSON.parse(text))
-    if (dropped.length > 0) loadError = new Error(
-      `subscriptions model defaults: ${dropped.length} malformed entr${dropped.length === 1 ? 'y' : 'ies'} skipped (${dropped.join(', ')}); fix or delete the file`,
-    )
-    return defaults
+    const { defaults, dropped } = sanitizeDefaults(JSON.parse(text));
+    if (dropped.length > 0)
+      loadError = new Error(
+        `subscriptions model defaults: ${dropped.length} malformed entr${dropped.length === 1 ? 'y' : 'ies'} skipped (${dropped.join(', ')}); fix or delete the file`,
+      );
+    return defaults;
   } catch {
-    throw new Error(`subscriptions model defaults at ${path} are not valid JSON; fix or delete the file`)
+    throw new Error(
+      `subscriptions model defaults at ${path} are not valid JSON; fix or delete the file`,
+    );
   }
 }
 
@@ -104,32 +129,36 @@ async function loadFile(path: string): Promise<ModelDefaults> {
 async function ensureReady(): Promise<void> {
   ready ??= loadFile(modelDefaultsFilePath()).then(
     (loaded) => {
-      current = loaded
+      current = loaded;
       // loadFile itself sets loadError for skipped entries; do not clobber it.
     },
     (error) => {
-      loadError = error
-      current = EMPTY
+      loadError = error;
+      current = EMPTY;
     },
-  )
-  return ready
+  );
+  return ready;
 }
 
 /** Persist a snapshot atomically with owner-only permissions. */
-async function atomicPersist(defaults: ModelDefaults, path: string): Promise<void> {
-  await mkdir(dirname(path), { recursive: true, mode: 0o700 })
-  const tmp = `${path}.tmp-${process.pid}-${Math.random().toString(36).slice(2)}`
+async function atomicPersist(
+  defaults: ModelDefaults,
+  path: string,
+): Promise<void> {
+  await mkdir(dirname(path), { recursive: true, mode: 0o700 });
+  const tmp = `${path}.tmp-${process.pid}-${Math.random().toString(36).slice(2)}`;
   try {
-    await writeFile(tmp, JSON.stringify(defaults, null, 2), { mode: 0o600 })
-    await chmod(tmp, 0o600)
-    await rename(tmp, path)
+    await writeFile(tmp, JSON.stringify(defaults, null, 2), { mode: 0o600 });
+    await chmod(tmp, 0o600);
+    await rename(tmp, path);
   } catch (error) {
-    await rm(tmp, { force: true })
-    throw error
+    await rm(tmp, { force: true });
+    throw error;
   }
 }
 
-let persistDefaults: (defaults: ModelDefaults, path: string) => Promise<void> = atomicPersist
+let persistDefaults: (defaults: ModelDefaults, path: string) => Promise<void> =
+  atomicPersist;
 
 /**
  * Clone one provider section, or undefined when nothing is configured for it.
@@ -138,10 +167,13 @@ let persistDefaults: (defaults: ModelDefaults, path: string) => Promise<void> = 
  * catalog in index.ts does), so an id like `toString` would otherwise yield an
  * inherited *function* where a string is declared.
  */
-function sectionOf(defaults: ModelDefaults, provider: ProviderId): ModelDefaultMap | undefined {
-  const section = defaults[provider]
-  if (section === undefined) return undefined
-  return Object.assign(Object.create(null) as ModelDefaultMap, section)
+function sectionOf(
+  defaults: ModelDefaults,
+  provider: ProviderId,
+): ModelDefaultMap | undefined {
+  const section = defaults[provider];
+  if (section === undefined) return undefined;
+  return Object.assign(Object.create(null) as ModelDefaultMap, section);
 }
 
 /**
@@ -150,7 +182,7 @@ function sectionOf(defaults: ModelDefaults, provider: ProviderId): ModelDefaultM
  * later synchronous read sees the persisted state.
  */
 export async function loadModelDefaults(): Promise<void> {
-  await ensureReady()
+  await ensureReady();
 }
 
 /**
@@ -158,7 +190,7 @@ export async function loadModelDefaults(): Promise<void> {
  * loading; consumers only use it for diagnostics.
  */
 export function modelDefaultsLoadError(): unknown {
-  return loadError
+  return loadError;
 }
 
 /**
@@ -166,24 +198,29 @@ export function modelDefaultsLoadError(): unknown {
  * picker then follows the provider's own default).
  * @internal Exported for the adapters' `defaultEffortOf` options.
  */
-export function defaultEffortOf(provider: ProviderId, model: string): string | undefined {
-  const section = current[provider]
-  if (section === undefined) return undefined
+export function defaultEffortOf(
+  provider: ProviderId,
+  model: string,
+): string | undefined {
+  const section = current[provider];
+  if (section === undefined) return undefined;
   // Own-property lookup: a model id is provider-supplied catalog data, and a
   // plain index would inherit from Object.prototype for names like
   // `toString`, handing a *function* to mergeReasoning (which then throws and
   // breaks that model's resolution).
-  return Object.prototype.hasOwnProperty.call(section, model) ? section[model] : undefined
+  return Object.prototype.hasOwnProperty.call(section, model)
+    ? section[model]
+    : undefined;
 }
 
 /** A detached snapshot for the RPC surface (render + diffing). */
 export function modelDefaultsSnapshot(): ModelDefaults {
-  const result: Partial<Record<ProviderId, ModelDefaultMap>> = {}
+  const result: Partial<Record<ProviderId, ModelDefaultMap>> = {};
   for (const provider of PROVIDER_IDS) {
-    const section = sectionOf(current, provider)
-    if (section !== undefined) result[provider] = section
+    const section = sectionOf(current, provider);
+    if (section !== undefined) result[provider] = section;
   }
-  return Object.freeze(result)
+  return Object.freeze(result);
 }
 
 /**
@@ -204,28 +241,28 @@ export function setDefaultEffort(
   // receives the promise of its own write (a rejection propagates), not the
   // shared chain.
   const run = writeChain.then(async () => {
-    await ensureReady()
-    const section = { ...sectionOf(current, provider) ?? {} }
+    await ensureReady();
+    const section = { ...(sectionOf(current, provider) ?? {}) };
     if (effort === undefined) {
-      delete section[model]
+      delete section[model];
     } else {
-      section[model] = effort
+      section[model] = effort;
     }
-    const next: Partial<Record<ProviderId, ModelDefaultMap>> = { ...current }
+    const next: Partial<Record<ProviderId, ModelDefaultMap>> = { ...current };
     if (Object.keys(section).length === 0) {
-      delete next[provider]
+      delete next[provider];
     } else {
-      next[provider] = Object.freeze(section)
+      next[provider] = Object.freeze(section);
     }
-    const frozen = Object.freeze(next)
-    await persistDefaults(frozen, modelDefaultsFilePath())
-    current = frozen
-  })
+    const frozen = Object.freeze(next);
+    await persistDefaults(frozen, modelDefaultsFilePath());
+    current = frozen;
+  });
   // Keep the chain alive even when one write fails, or every later save would
   // be stuck behind the rejected promise. The caller has already received the
   // rejection through `run`.
-  writeChain = run.catch(() => undefined)
-  return run
+  writeChain = run.catch(() => undefined);
+  return run;
 }
 
 /**
@@ -234,11 +271,11 @@ export function setDefaultEffort(
  * @internal Exported for tests only; not part of the plugin's public surface.
  */
 export async function resetModelDefaultsForTests(): Promise<void> {
-  current = EMPTY
-  ready = undefined
-  loadError = undefined
-  writeChain = Promise.resolve()
-  persistDefaults = atomicPersist
+  current = EMPTY;
+  ready = undefined;
+  loadError = undefined;
+  writeChain = Promise.resolve();
+  persistDefaults = atomicPersist;
 }
 
 /**
@@ -251,5 +288,5 @@ export async function resetModelDefaultsForTests(): Promise<void> {
 export function overridePersistForTests(
   persist: (defaults: ModelDefaults, path: string) => Promise<void>,
 ): void {
-  persistDefaults = persist
+  persistDefaults = persist;
 }

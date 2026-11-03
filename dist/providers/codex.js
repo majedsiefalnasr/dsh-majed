@@ -4,13 +4,13 @@
  * endpoint.
  */
 import { createHash } from 'node:crypto';
-import { attributionHeaders, EMPTY_RESPONSE_CODE, errorChain, LlmAdapter, LlmError, ReasoningEffortId } from '@deepseek-ai/dsh-llm';
+import { attributionHeaders, EMPTY_RESPONSE_CODE, errorChain, LlmAdapter, LlmError, ReasoningEffortId, } from '@deepseek-ai/dsh-llm';
 import { ToolCallId } from '../compat.js';
 import { decodeJwtPayload } from '../auth/jwt.js';
 import { resolveImages } from '../translate/resolved.js';
-import { streamResponses, toResponsesInput, toResponsesTools } from '../translate/responses.js';
+import { streamResponses, toResponsesInput, toResponsesTools, } from '../translate/responses.js';
 import { deterministicSessionId, effortDisplayName, httpLlmError, idleWatchdog, mapFetchFailure, mergeReasoning, ModelCatalogCache, discoverAcrossAccounts, discoverOrRetryAuth, isDiscoveryAborted, isDiscoveryAuthFailure, isMissingOrInvalidCredential, oauthEndpointError, OAuthEndpointError, withAbortSignal, withTimeout, } from './common.js';
-import { DISCOVERY_TIMEOUT_MS, unionAccountCatalogs } from './accounts.js';
+import { DISCOVERY_TIMEOUT_MS, unionAccountCatalogs, } from './accounts.js';
 import { proxiedFetch } from '../http.js';
 import { DEFAULT_RATE_LIMIT_WAIT, DEFAULT_RETRY, jsonBody, resetFromFields, subscriptionRetryPolicy, } from './rate-limit.js';
 export const CODEX_CLIENT_ID = 'app_EMoamEEZ73f0CkXaXp7hrann';
@@ -28,7 +28,12 @@ export const CODEX_PREEMPT_MS = 5 * 60_000;
  * carries `usage_limit_reached` with the seconds left on the window — the case
  * that used to classify as a terminal quota and never be retried at all.
  */
-const CODEX_RESET_FIELDS = ['resets_in_seconds', 'reset_after_seconds', 'resets_at', 'reset_at'];
+const CODEX_RESET_FIELDS = [
+    'resets_in_seconds',
+    'reset_after_seconds',
+    'resets_at',
+    'reset_at',
+];
 /**
  * Reads the reset instant of the Codex window that rejected a request.
  *
@@ -41,8 +46,8 @@ const CODEX_RESET_FIELDS = ['resets_in_seconds', 'reset_after_seconds', 'resets_
  */
 export const codexRateLimitReset = (_response, body, now) => resetFromFields(jsonBody(body), CODEX_RESET_FIELDS, now);
 /** Default instruction when the request carries no system prompt. */
-const DEFAULT_CODEX_INSTRUCTIONS = 'You are Codex, a coding agent based on GPT-5. '
-    + 'Help the user with their software engineering tasks.';
+const DEFAULT_CODEX_INSTRUCTIONS = 'You are Codex, a coding agent based on GPT-5. ' +
+    'Help the user with their software engineering tasks.';
 /** Refresh-grant rejections that mean the login is gone for good. */
 const PERMANENT_REFRESH_CODES = new Set([
     'refresh_token_expired',
@@ -123,13 +128,16 @@ export function codexProfileClaims(idToken) {
         ? auth.chatgpt_plan_type
         : undefined;
     return {
-        ...typeof email === 'string' && email.length > 0 ? { emailAddress: email } : {},
-        ...typeof plan === 'string' && plan.length > 0 ? { planType: plan } : {},
+        ...(typeof email === 'string' && email.length > 0
+            ? { emailAddress: email }
+            : {}),
+        ...(typeof plan === 'string' && plan.length > 0 ? { planType: plan } : {}),
     };
 }
 /** Build a session from a token response; expires_in wins, JWT exp is the fallback. */
 function codexSession(tokens, fallback) {
-    if (typeof tokens.access_token !== 'string' || tokens.access_token.length === 0) {
+    if (typeof tokens.access_token !== 'string' ||
+        tokens.access_token.length === 0) {
         throw new Error('codex token endpoint returned no access token');
     }
     const refreshToken = tokens.refresh_token ?? fallback?.refreshToken;
@@ -150,8 +158,12 @@ function codexSession(tokens, fallback) {
     // one keeps the claims the stored session already had.
     const idToken = tokens.id_token ?? fallback?.idToken;
     const claims = {
-        ...fallback?.emailAddress === undefined ? {} : { emailAddress: fallback.emailAddress },
-        ...fallback?.planType === undefined ? {} : { planType: fallback.planType },
+        ...(fallback?.emailAddress === undefined
+            ? {}
+            : { emailAddress: fallback.emailAddress }),
+        ...(fallback?.planType === undefined
+            ? {}
+            : { planType: fallback.planType }),
         ...codexProfileClaims(tokens.id_token),
     };
     return {
@@ -161,7 +173,7 @@ function codexSession(tokens, fallback) {
         accountId: tokens.id_token === undefined && fallback !== undefined
             ? fallback.accountId
             : accountIdOf(tokens.id_token),
-        ...idToken === undefined ? {} : { idToken },
+        ...(idToken === undefined ? {} : { idToken }),
         ...claims,
     };
 }
@@ -186,7 +198,7 @@ export async function exchangeCodexCode(code, verifier, redirectUri) {
     });
     if (!response.ok)
         throw await oauthEndpointError(response, 'codex');
-    return codexSession(await response.json());
+    return codexSession((await response.json()));
 }
 /**
  * Refresh a codex session (JSON grant — unlike the code exchange).
@@ -205,7 +217,7 @@ export async function refreshCodex(session) {
     });
     if (!response.ok)
         throw await oauthEndpointError(response, 'codex');
-    return codexSession(await response.json(), session);
+    return codexSession((await response.json()), session);
 }
 /**
  * Whether a codex refresh failure means the login is permanently gone.
@@ -213,9 +225,9 @@ export async function refreshCodex(session) {
  * @returns true when re-login is the only fix.
  */
 export function isCodexPermanentRefreshError(error) {
-    return error instanceof OAuthEndpointError
-        && error.oauthCode !== undefined
-        && PERMANENT_REFRESH_CODES.has(error.oauthCode);
+    return (error instanceof OAuthEndpointError &&
+        error.oauthCode !== undefined &&
+        PERMANENT_REFRESH_CODES.has(error.oauthCode));
 }
 export const CODEX_USAGE_URL = 'https://chatgpt.com/backend-api/wham/usage';
 export const CODEX_RESET_CREDITS_URL = 'https://chatgpt.com/backend-api/wham/rate-limit-reset-credits';
@@ -236,22 +248,29 @@ export async function fetchCodexResetCredits(session, fetchFn = proxiedFetch, si
             accept: 'application/json',
             ...attributionHeaders(),
         },
-        ...signal === undefined ? {} : { signal },
+        ...(signal === undefined ? {} : { signal }),
     });
     if (!response.ok)
         throw await oauthEndpointError(response, 'codex reset credits');
-    const payload = await response.json();
+    const payload = (await response.json());
     if (!Array.isArray(payload?.credits))
         throw new Error('codex reset credits: unexpected response (missing credits array)');
     return payload.credits.flatMap((value) => {
         if (typeof value !== 'object' || value === null)
             return [];
         const credit = value;
-        if (credit.status !== 'available' || credit.reset_type !== 'codex_rate_limits')
+        if (credit.status !== 'available' ||
+            credit.reset_type !== 'codex_rate_limits')
             return [];
         const grantedAt = parseResetDate(credit.granted_at);
         const expiresAt = parseResetDate(credit.expires_at);
-        return [{ ...(typeof credit.id === 'string' ? { id: credit.id } : {}), ...(grantedAt === undefined ? {} : { grantedAt }), ...(expiresAt === undefined ? {} : { expiresAt }) }];
+        return [
+            {
+                ...(typeof credit.id === 'string' ? { id: credit.id } : {}),
+                ...(grantedAt === undefined ? {} : { grantedAt }),
+                ...(expiresAt === undefined ? {} : { expiresAt }),
+            },
+        ];
     });
 }
 /** Spend one banked reset. The caller must already have confirmed the credit is still available. */
@@ -261,16 +280,18 @@ export async function consumeCodexResetCredit(session, creditId, requestId, fetc
         headers: {
             authorization: 'Bearer ' + session.accessToken,
             'chatgpt-account-id': session.accountId,
-            originator: 'Codex Desktop', 'openai-beta': 'codex-1',
-            'content-type': 'application/json', accept: 'application/json',
+            originator: 'Codex Desktop',
+            'openai-beta': 'codex-1',
+            'content-type': 'application/json',
+            accept: 'application/json',
             ...attributionHeaders(),
         },
         body: JSON.stringify({ redeem_request_id: requestId, credit_id: creditId }),
-        ...signal === undefined ? {} : { signal },
+        ...(signal === undefined ? {} : { signal }),
     });
     if (!response.ok)
         throw await oauthEndpointError(response, 'codex consume reset');
-    const payload = await response.json();
+    const payload = (await response.json());
     if (payload?.code !== 'reset')
         throw new Error('Reset was not confirmed. Verify the account in Codex before retrying.');
 }
@@ -302,19 +323,21 @@ function codexUsageWindow(value, fallbackKind) {
     if (typeof value !== 'object' || value === null)
         return undefined;
     const window = value;
-    if (typeof window.used_percent !== 'number' || !Number.isFinite(window.used_percent))
+    if (typeof window.used_percent !== 'number' ||
+        !Number.isFinite(window.used_percent))
         return undefined;
     let resetsAt;
     if (typeof window.reset_at === 'number' && window.reset_at > 0) {
         resetsAt = window.reset_at * 1000;
     }
-    else if (typeof window.reset_after_seconds === 'number' && window.reset_after_seconds > 0) {
+    else if (typeof window.reset_after_seconds === 'number' &&
+        window.reset_after_seconds > 0) {
         resetsAt = Date.now() + window.reset_after_seconds * 1000;
     }
     return {
         kind: codexWindowKind(window, fallbackKind),
         usedPercent: window.used_percent,
-        ...resetsAt === undefined ? {} : { resetsAt },
+        ...(resetsAt === undefined ? {} : { resetsAt }),
     };
 }
 /**
@@ -333,17 +356,17 @@ function codexUsageWindow(value, fallbackKind) {
 export async function fetchCodexUsage(session, fetchFn = proxiedFetch, signal) {
     const response = await fetchFn(CODEX_USAGE_URL, {
         headers: {
-            'authorization': `Bearer ${session.accessToken}`,
+            authorization: `Bearer ${session.accessToken}`,
             'chatgpt-account-id': session.accountId,
-            'originator': 'codex_cli_rs',
-            'accept': 'application/json',
+            originator: 'codex_cli_rs',
+            accept: 'application/json',
             ...attributionHeaders(),
         },
-        ...signal === undefined ? {} : { signal },
+        ...(signal === undefined ? {} : { signal }),
     });
     if (!response.ok)
         throw await oauthEndpointError(response, 'codex usage');
-    const payload = await response.json();
+    const payload = (await response.json());
     const windows = [];
     const primary = codexUsageWindow(payload.rate_limit?.primary_window, 'session');
     const secondary = codexUsageWindow(payload.rate_limit?.secondary_window, 'weekly');
@@ -354,9 +377,9 @@ export async function fetchCodexUsage(session, fetchFn = proxiedFetch, signal) {
     return {
         supported: true,
         windows,
-        ...typeof payload.plan_type === 'string' && payload.plan_type.length > 0
+        ...(typeof payload.plan_type === 'string' && payload.plan_type.length > 0
             ? { plan: payload.plan_type }
-            : {},
+            : {}),
     };
 }
 export const CODEX_MODELS_URL = 'https://chatgpt.com/backend-api/codex/models';
@@ -380,8 +403,7 @@ export function codexClientVersion(value = CODEX_CLIENT_VERSION) {
  * wire value, or the legacy `additional_speed_tiers` "fast" entry.
  */
 function supportsFastTier(entry) {
-    return (entry.service_tiers ?? []).some(tier => tier.id === CODEX_FAST_SERVICE_TIER)
-        || (entry.additional_speed_tiers ?? []).includes(CODEX_FAST_SPEED_TIER);
+    return ((entry.service_tiers ?? []).some((tier) => tier.id === CODEX_FAST_SERVICE_TIER) || (entry.additional_speed_tiers ?? []).includes(CODEX_FAST_SPEED_TIER));
 }
 /**
  * Fetch the live codex model catalog with the session's auth headers.
@@ -396,17 +418,17 @@ export async function fetchCodexModels(session, fetchFn = proxiedFetch, signal, 
     const url = `${CODEX_MODELS_URL}?client_version=${encodeURIComponent(version)}`;
     const response = await fetchFn(url, {
         headers: {
-            'authorization': `Bearer ${session.accessToken}`,
+            authorization: `Bearer ${session.accessToken}`,
             'chatgpt-account-id': session.accountId,
-            'originator': 'codex_cli_rs',
-            'accept': 'application/json',
+            originator: 'codex_cli_rs',
+            accept: 'application/json',
             ...attributionHeaders(),
         },
-        ...signal === undefined ? {} : { signal },
+        ...(signal === undefined ? {} : { signal }),
     });
     if (!response.ok)
         throw await oauthEndpointError(response, 'codex models');
-    const payload = await response.json();
+    const payload = (await response.json());
     if (!Array.isArray(payload.models))
         throw new Error('codex models endpoint returned no models array');
     const discovered = [];
@@ -422,15 +444,20 @@ export async function fetchCodexModels(session, fetchFn = proxiedFetch, signal, 
         // "ultra" is a Codex-client mode (max reasoning + automatic sub-agent
         // delegation), not a wire value: the Responses API rejects it with HTTP 400.
         const efforts = (entry.supported_reasoning_levels ?? [])
-            .filter(level => typeof level.effort === 'string' && level.effort.length > 0 && level.effort !== 'ultra')
-            .map(level => ({
+            .filter((level) => typeof level.effort === 'string' &&
+            level.effort.length > 0 &&
+            level.effort !== 'ultra')
+            .map((level) => ({
             id: ReasoningEffortId(level.effort),
             name: effortDisplayName(level.effort),
-            ...level.description === undefined ? {} : { description: level.description },
+            ...(level.description === undefined
+                ? {}
+                : { description: level.description }),
         }));
-        const defaultEffort = typeof entry.default_reasoning_level === 'string'
-            && entry.default_reasoning_level.length > 0
-            && efforts.some(effort => effort.id === ReasoningEffortId(entry.default_reasoning_level))
+        const defaultEffort = typeof entry.default_reasoning_level === 'string' &&
+            entry.default_reasoning_level.length > 0 &&
+            efforts.some((effort) => effort.id ===
+                ReasoningEffortId(entry.default_reasoning_level))
             ? ReasoningEffortId(entry.default_reasoning_level)
             : undefined;
         const model = {
@@ -438,24 +465,34 @@ export async function fetchCodexModels(session, fetchFn = proxiedFetch, signal, 
             name: typeof entry.display_name === 'string' && entry.display_name.length > 0
                 ? entry.display_name
                 : entry.slug,
-            ...typeof entry.description === 'string' && entry.description.length > 0
+            ...(typeof entry.description === 'string' && entry.description.length > 0
                 ? { description: entry.description }
-                : {},
-            ...Number.isSafeInteger(entry.context_window) && entry.context_window > 0
+                : {}),
+            ...(Number.isSafeInteger(entry.context_window) &&
+                entry.context_window > 0
                 ? { contextWindow: entry.context_window }
-                : {},
-            ...Number.isSafeInteger(entry.max_context_window) && entry.max_context_window > 0
+                : {}),
+            ...(Number.isSafeInteger(entry.max_context_window) &&
+                entry.max_context_window > 0
                 ? { maxContextWindow: entry.max_context_window }
-                : {},
-            ...typeof entry.priority === 'number' ? { priority: entry.priority } : {},
-            ...efforts.length > 0
-                ? { reasoning: { efforts, ...defaultEffort === undefined ? {} : { defaultEffort } } }
-                : {},
-            ...supportsFastTier(entry) ? { fastTier: true } : {},
+                : {}),
+            ...(typeof entry.priority === 'number'
+                ? { priority: entry.priority }
+                : {}),
+            ...(efforts.length > 0
+                ? {
+                    reasoning: {
+                        efforts,
+                        ...(defaultEffort === undefined ? {} : { defaultEffort }),
+                    },
+                }
+                : {}),
+            ...(supportsFastTier(entry) ? { fastTier: true } : {}),
         };
         discovered.push(model);
     }
-    discovered.sort((a, b) => (a.priority ?? Number.MAX_SAFE_INTEGER) - (b.priority ?? Number.MAX_SAFE_INTEGER));
+    discovered.sort((a, b) => (a.priority ?? Number.MAX_SAFE_INTEGER) -
+        (b.priority ?? Number.MAX_SAFE_INTEGER));
     // An empty catalog from a 200 response means the backend gated us out (e.g.
     // client_version too old): surface it as a discovery failure so the adapter
     // falls back to the static catalog instead of vanishing from the picker.
@@ -476,7 +513,8 @@ const CODEX_CALL_ID_PREFIX = 'call_';
 function normalizeCodexCallIds(input) {
     const mapping = new Map();
     const used = new Set();
-    const callId = (item) => (item.type === 'function_call' || item.type === 'function_call_output') && typeof item.call_id === 'string'
+    const callId = (item) => (item.type === 'function_call' || item.type === 'function_call_output') &&
+        typeof item.call_id === 'string'
         ? item.call_id
         : undefined;
     for (const item of input) {
@@ -529,20 +567,28 @@ export function reconcileResponsesToolCalls(input) {
     for (const item of input) {
         if (item.type === 'function_call' && typeof item.call_id === 'string')
             calls.add(item.call_id);
-        else if (item.type === 'function_call_output' && typeof item.call_id === 'string')
+        else if (item.type === 'function_call_output' &&
+            typeof item.call_id === 'string')
             outputs.add(item.call_id);
     }
-    const missing = new Set([...calls].filter(callId => !outputs.has(callId)));
-    if (missing.size === 0 && [...outputs].every(callId => calls.has(callId)))
+    const missing = new Set([...calls].filter((callId) => !outputs.has(callId)));
+    if (missing.size === 0 && [...outputs].every((callId) => calls.has(callId)))
         return input;
     const balanced = [];
     for (const item of input) {
-        if (item.type === 'function_call_output' && (typeof item.call_id !== 'string' || !calls.has(item.call_id))) {
+        if (item.type === 'function_call_output' &&
+            (typeof item.call_id !== 'string' || !calls.has(item.call_id))) {
             continue;
         }
         balanced.push(item);
-        if (item.type === 'function_call' && typeof item.call_id === 'string' && missing.delete(item.call_id)) {
-            balanced.push({ type: 'function_call_output', call_id: item.call_id, output: CODEX_UNKNOWN_TOOL_OUTCOME });
+        if (item.type === 'function_call' &&
+            typeof item.call_id === 'string' &&
+            missing.delete(item.call_id)) {
+            balanced.push({
+                type: 'function_call_output',
+                call_id: item.call_id,
+                output: CODEX_UNKNOWN_TOOL_OUTCOME,
+            });
         }
     }
     return balanced;
@@ -571,17 +617,28 @@ export function codexRequestBody(options, resolved, fast) {
         // Omit tool controls for tool-less requests, matching the other adapters.
         // This is request-shape consistency, not a claim that Codex rejects the
         // controls when no tools are supplied.
-        ...options.tools !== undefined && options.tools.length > 0
-            ? { tools: toResponsesTools(options.tools, { strict: false }), tool_choice: 'auto', parallel_tool_calls: true }
-            : {},
-        ...options.reasoningEffort !== undefined
-            ? { reasoning: { effort: codexWireEffort(String(options.reasoningEffort)), summary: 'auto' } }
-            : {},
+        ...(options.tools !== undefined && options.tools.length > 0
+            ? {
+                tools: toResponsesTools(options.tools, { strict: false }),
+                tool_choice: 'auto',
+                parallel_tool_calls: true,
+            }
+            : {}),
+        ...(options.reasoningEffort !== undefined
+            ? {
+                reasoning: {
+                    effort: codexWireEffort(String(options.reasoningEffort)),
+                    summary: 'auto',
+                },
+            }
+            : {}),
         store: false,
         stream: true,
         include: ['reasoning.encrypted_content'],
-        ...options.sessionId !== undefined ? { prompt_cache_key: String(options.sessionId) } : {},
-        ...fast ? { service_tier: CODEX_FAST_SERVICE_TIER } : {},
+        ...(options.sessionId !== undefined
+            ? { prompt_cache_key: String(options.sessionId) }
+            : {}),
+        ...(fast ? { service_tier: CODEX_FAST_SERVICE_TIER } : {}),
     };
 }
 /** Adapt the current harness's first-class tool messages at the Codex boundary. */
@@ -590,20 +647,26 @@ export function projectCodexMessages(messages) {
         if (String(message.role) !== 'tool')
             return message;
         const current = message;
-        const callId = current.toolCallId
-            ?? (current.source?.kind === 'tool' ? String(current.source.callId) : undefined);
+        const callId = current.toolCallId ??
+            (current.source?.kind === 'tool'
+                ? String(current.source.callId)
+                : undefined);
         if (callId === undefined)
             throw new LlmError('Codex tool result has no call id', 'INVALID_REQUEST');
         return {
-            ...message.id === undefined ? {} : { id: message.id },
+            ...(message.id === undefined ? {} : { id: message.id }),
             role: 'user',
             source: { kind: 'tool', callId: ToolCallId(callId) },
-            content: [{
+            content: [
+                {
                     type: 'tool-result',
                     toolCallId: ToolCallId(callId),
                     content: [...message.content],
-                    ...current.isError === undefined ? {} : { isError: current.isError },
-                }],
+                    ...(current.isError === undefined
+                        ? {}
+                        : { isError: current.isError }),
+                },
+            ],
         };
     });
 }
@@ -625,7 +688,8 @@ export class CodexAdapter extends LlmAdapter {
     }
     /** Discovery fetcher: resolves the session through the refresh-aware path. */
     async fetchCatalog(account, signal) {
-        const version = this.options.clientVersion ?? await this.options.resolveClientVersion?.();
+        const version = this.options.clientVersion ??
+            (await this.options.resolveClientVersion?.());
         signal?.throwIfAborted();
         return fetchCodexModels(await this.options.tokens.session(account), this.options.fetchFn, signal, version);
     }
@@ -648,7 +712,9 @@ export class CodexAdapter extends LlmAdapter {
             this.accountCatalogs.get(account)?.invalidate();
             this.accountCatalogs.delete(account);
         }
-        if (account === undefined || this.catalogOwner === account || this.catalogOwner === undefined) {
+        if (account === undefined ||
+            this.catalogOwner === account ||
+            this.catalogOwner === undefined) {
             this.catalogOwner = undefined;
             this.catalog.invalidate();
         }
@@ -676,13 +742,15 @@ export class CodexAdapter extends LlmAdapter {
     }
     /** Picker rows for discovered entries (the wire id doubles as the route id). */
     listed(provider, models) {
-        return models.map(model => ({
+        return models.map((model) => ({
             provider,
             id: model.id,
             name: model.name,
-            ...model.description === undefined ? {} : { description: model.description },
+            ...(model.description === undefined
+                ? {}
+                : { description: model.description }),
             inputModalities: CODEX_MODALITIES,
-            ...model.priority === undefined ? {} : { priority: model.priority },
+            ...(model.priority === undefined ? {} : { priority: model.priority }),
         }));
     }
     /**
@@ -691,7 +759,8 @@ export class CodexAdapter extends LlmAdapter {
      * listed a model minutes ago is still a better answer than "no models".
      */
     async lastKnownOwnModels(provider, account) {
-        if (!this.options.discovery || !await this.options.tokens.hasSession(account))
+        if (!this.options.discovery ||
+            !(await this.options.tokens.hasSession(account)))
             return undefined;
         const known = (await this.catalogFor(account)).lastKnown();
         return known === undefined ? undefined : this.listed(provider, known);
@@ -703,7 +772,7 @@ export class CodexAdapter extends LlmAdapter {
         return subscriptionRetryPolicy(DEFAULT_RETRY, this.options.rateLimit ?? DEFAULT_RATE_LIMIT_WAIT, `codex: provider "${provider}" retryPolicy`);
     }
     staticModels(provider) {
-        return this.options.models.map(model => ({
+        return this.options.models.map((model) => ({
             provider,
             id: model.id,
             name: model.name ?? model.id,
@@ -716,19 +785,22 @@ export class CodexAdapter extends LlmAdapter {
         if (pool === undefined)
             return own;
         const extra = await pool.modelsForProvider(provider);
-        const seen = new Set(own.map(model => model.id));
+        const seen = new Set(own.map((model) => model.id));
         // Account pools reuse the catalog row; only configured tiers are extra.
-        return [...own, ...extra.filter(model => !seen.has(model.id))];
+        return [...own, ...extra.filter((model) => !seen.has(model.id))];
     }
     /** The provider's own catalog: union of every account, or one account when named. */
     async listOwnModels(provider, account, signal, preferCached = false) {
         if (account === undefined) {
-            const accounts = (await this.options.tokens.list()).map(entry => entry.key);
+            const accounts = (await this.options.tokens.list()).map((entry) => entry.key);
             if (accounts.length === 0)
                 return [];
-            return unionAccountCatalogs(accounts, (key, accountSignal) => this.listOwnModels(provider, key, accountSignal, preferCached), { timeoutMs: this.options.discoveryTimeoutMs ?? DISCOVERY_TIMEOUT_MS, ...signal === undefined ? {} : { signal } });
+            return unionAccountCatalogs(accounts, (key, accountSignal) => this.listOwnModels(provider, key, accountSignal, preferCached), {
+                timeoutMs: this.options.discoveryTimeoutMs ?? DISCOVERY_TIMEOUT_MS,
+                ...(signal === undefined ? {} : { signal }),
+            });
         }
-        if (!await this.options.tokens.hasSession(account)) {
+        if (!(await this.options.tokens.hasSession(account))) {
             return [];
         }
         if (!this.options.discovery)
@@ -738,7 +810,7 @@ export class CodexAdapter extends LlmAdapter {
             // The fetcher runs only on a cache miss, and resolves the session
             // through the refresh-aware path so an expired access token renews here
             // instead of failing discovery into the static fallback.
-            const discovered = await catalog.get(() => discoverOrRetryAuth(force => this.options.tokens.session(account, force), catalog, () => this.fetchCatalog(account, signal)), preferCached);
+            const discovered = await catalog.get(() => discoverOrRetryAuth((force) => this.options.tokens.session(account, force), catalog, () => this.fetchCatalog(account, signal)), preferCached);
             return this.listed(provider, discovered);
         }
         catch (error) {
@@ -754,7 +826,9 @@ export class CodexAdapter extends LlmAdapter {
             // the login is revoked server-side. Listing the built-in catalog here
             // would route requests to a dead account and show phantom models.
             if (isDiscoveryAuthFailure(error)) {
-                const who = (await this.options.tokens.peek(account))?.emailAddress ?? account ?? 'default account';
+                const who = (await this.options.tokens.peek(account))?.emailAddress ??
+                    account ??
+                    'default account';
                 this.options.onWarn?.(`codex rejected the login of ${who}; hiding its models until it logs in again (${errorChain(error)})`);
                 return [];
             }
@@ -783,12 +857,12 @@ export class CodexAdapter extends LlmAdapter {
         // One bounded budget for the whole lookup (account listing + every catalog read), also ended by the
         // caller's signal: a hung in-flight catalog fetch sits out as "unknown" (static metadata) instead of
         // hanging resolveModel/contextLimits and the RPCs built on them.
-        return withTimeout(budget => this.boundedLookup(model, account, budget), this.options.discoveryTimeoutMs ?? DISCOVERY_TIMEOUT_MS, signal);
+        return withTimeout((budget) => this.boundedLookup(model, account, budget), this.options.discoveryTimeoutMs ?? DISCOVERY_TIMEOUT_MS, signal);
     }
     async boundedLookup(model, account, budget) {
         return withAbortSignal(async () => {
             const accounts = account === undefined
-                ? (await this.options.tokens.list()).map(entry => entry.key)
+                ? (await this.options.tokens.list()).map((entry) => entry.key)
                 : [account];
             return discoverAcrossAccounts(accounts, async (key) => {
                 budget.throwIfAborted();
@@ -796,7 +870,7 @@ export class CodexAdapter extends LlmAdapter {
                 // The fetch is shared by every caller of this cache, so it gets a private deadline rather than
                 // this caller's signal: one caller leaving must not abort the others' read.
                 const models = await catalog.resolve(() => this.fetchCatalog(key, AbortSignal.timeout(this.options.discoveryTimeoutMs ?? DISCOVERY_TIMEOUT_MS)));
-                return models?.find(entry => entry.id === model);
+                return models?.find((entry) => entry.id === model);
             });
         }, budget);
     }
@@ -812,7 +886,7 @@ export class CodexAdapter extends LlmAdapter {
         // (mirrors the listModels guard above). Union every account: a fast-capable
         // model only the non-default lists (e.g. gpt-5.6-sol) must still show Speed.
         // Every account read is bounded individually: a hung account sits out without delaying the others.
-        const accounts = (await this.options.tokens.list()).map(entry => entry.key);
+        const accounts = (await this.options.tokens.list()).map((entry) => entry.key);
         if (accounts.length === 0)
             return [];
         const lists = await Promise.all(accounts.map(async (account) => {
@@ -841,7 +915,8 @@ export class CodexAdapter extends LlmAdapter {
     }
     async resolveModel(provider, model, signal) {
         const pool = this.options.pool?.();
-        if (pool !== undefined && await withAbortSignal(() => pool.owns(provider, model), signal)) {
+        if (pool !== undefined &&
+            (await withAbortSignal(() => pool.owns(provider, model), signal))) {
             return pool.resolveModel(provider, model, signal);
         }
         return this.resolveOwnModel(provider, model, undefined, signal);
@@ -852,19 +927,26 @@ export class CodexAdapter extends LlmAdapter {
         // the static entry wins over the built-in defaults. A configured default
         // effort merges over both.
         const discovered = await this.discovered(model, account, signal);
-        const configured = this.options.models.find(entry => entry.id === model);
+        const configured = this.options.models.find((entry) => entry.id === model);
         // `extendable` only while falling back to the built-in list: that one is
         // known to trail the backend, so a configured level it omits still has to
         // be selectable. A discovered catalog is the truth about what the model
         // accepts, and a stale override must not be forced onto every request.
-        const reasoning = mergeReasoning(this.options.defaultEffortOf?.(model), discovered?.reasoning ?? { efforts: CODEX_EFFORTS, defaultEffort: CODEX_DEFAULT_EFFORT }, { extendable: discovered?.reasoning === undefined });
+        const reasoning = mergeReasoning(this.options.defaultEffortOf?.(model), discovered?.reasoning ?? {
+            efforts: CODEX_EFFORTS,
+            defaultEffort: CODEX_DEFAULT_EFFORT,
+        }, { extendable: discovered?.reasoning === undefined });
         return {
             provider,
             id: model,
             name: discovered?.name ?? configured?.name ?? model,
-            ...discovered?.description === undefined ? {} : { description: discovered.description },
+            ...(discovered?.description === undefined
+                ? {}
+                : { description: discovered.description }),
             inputModalities: configured?.inputModalities ?? CODEX_MODALITIES,
-            context: { contextWindow: await this.contextWindowFor(model, account, signal) },
+            context: {
+                contextWindow: await this.contextWindowFor(model, account, signal),
+            },
             defaultMaxTokens: configured?.maxTokens ?? CODEX_DEFAULT_MAX_TOKENS,
             ...(reasoning === undefined ? {} : { reasoning }),
         };
@@ -875,8 +957,10 @@ export class CodexAdapter extends LlmAdapter {
      */
     async contextLimits(model, account, signal) {
         const discovered = await this.discovered(model, account, signal);
-        const configured = this.options.models.find(entry => entry.id === model);
-        const fallback = discovered?.contextWindow ?? configured?.contextWindow ?? CODEX_CONTEXT_WINDOW;
+        const configured = this.options.models.find((entry) => entry.id === model);
+        const fallback = discovered?.contextWindow ??
+            configured?.contextWindow ??
+            CODEX_CONTEXT_WINDOW;
         const max = discovered?.maxContextWindow ?? fallback;
         return { default: Math.min(fallback, max), max };
     }
@@ -886,7 +970,8 @@ export class CodexAdapter extends LlmAdapter {
     }
     async *stream(options) {
         const pool = this.options.pool?.();
-        if (pool !== undefined && await pool.owns(options.provider, options.model)) {
+        if (pool !== undefined &&
+            (await pool.owns(options.provider, options.model))) {
             yield* pool.stream(options);
             return;
         }
@@ -909,13 +994,17 @@ export class CodexAdapter extends LlmAdapter {
             if (!response.ok) {
                 throw await httpLlmError(response, 'codex API', {
                     rateLimitReset: codexRateLimitReset,
-                    ...this.options.onWarn === undefined ? {} : { onWarn: this.options.onWarn },
+                    ...(this.options.onWarn === undefined
+                        ? {}
+                        : { onWarn: this.options.onWarn }),
                 });
             }
             if (response.body === null) {
                 throw new LlmError('codex API returned no response body', EMPTY_RESPONSE_CODE);
             }
-            yield* streamResponses(response.body, () => { watchdog.pulse(); });
+            yield* streamResponses(response.body, () => {
+                watchdog.pulse();
+            });
         }
         catch (error) {
             throw mapFetchFailure('codex API', error, watchdog, options.signal);
@@ -926,17 +1015,17 @@ export class CodexAdapter extends LlmAdapter {
     }
     async request(options, session, signal) {
         const messages = await resolveImages(projectCodexMessages(options.messages), this.options.resolveAttachments?.(), signal);
-        const fast = this.options.speedFor !== undefined
-            && await this.options.speedFor(options.sessionId, options.model);
+        const fast = this.options.speedFor !== undefined &&
+            (await this.options.speedFor(options.sessionId, options.model));
         const body = codexRequestBody(options, toResponsesInput(messages, options.system), fast);
         return proxiedFetch(CODEX_API_URL, {
             method: 'POST',
             headers: {
-                'authorization': `Bearer ${session.accessToken}`,
+                authorization: `Bearer ${session.accessToken}`,
                 'chatgpt-account-id': session.accountId,
-                'originator': 'codex_cli_rs',
+                originator: 'codex_cli_rs',
                 'session-id': deterministicSessionId(options.sessionId),
-                'accept': 'text/event-stream',
+                accept: 'text/event-stream',
                 'content-type': 'application/json',
                 ...attributionHeaders(),
             },

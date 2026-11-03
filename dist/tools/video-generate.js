@@ -12,7 +12,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths';
 import { defineTool } from '@deepseek-ai/dsh-tools';
-import { deadlineSignal, withAbortSignal, httpLlmError } from '../providers/common.js';
+import { deadlineSignal, withAbortSignal, httpLlmError, } from '../providers/common.js';
 import { proxiedFetch } from '../http.js';
 /** Endpoint the generation request is posted to. */
 export const VIDEO_GENERATE_URL = 'https://api.x.ai/v1/videos/generations';
@@ -36,20 +36,24 @@ export function buildVideoGenerateBody(args) {
     const prompt = args.prompt.trim();
     if (prompt.length === 0)
         throw new Error('video_generate: prompt must be a non-empty string');
-    if (args.duration !== undefined
-        && (!Number.isInteger(args.duration)
-            || args.duration < DURATION_RANGE.min
-            || args.duration > DURATION_RANGE.max)) {
+    if (args.duration !== undefined &&
+        (!Number.isInteger(args.duration) ||
+            args.duration < DURATION_RANGE.min ||
+            args.duration > DURATION_RANGE.max)) {
         throw new Error(`video_generate: duration must be an integer between ${String(DURATION_RANGE.min)} and ${String(DURATION_RANGE.max)} seconds`);
     }
     const imageUrl = args.image_url?.trim();
     return {
         prompt,
         model: VIDEO_GENERATE_MODEL,
-        ...args.duration === undefined ? {} : { duration: args.duration },
-        ...args.aspect_ratio === undefined ? {} : { aspect_ratio: args.aspect_ratio },
-        ...args.resolution === undefined ? {} : { resolution: args.resolution },
-        ...imageUrl === undefined || imageUrl.length === 0 ? {} : { image: { url: imageUrl } },
+        ...(args.duration === undefined ? {} : { duration: args.duration }),
+        ...(args.aspect_ratio === undefined
+            ? {}
+            : { aspect_ratio: args.aspect_ratio }),
+        ...(args.resolution === undefined ? {} : { resolution: args.resolution }),
+        ...(imageUrl === undefined || imageUrl.length === 0
+            ? {}
+            : { image: { url: imageUrl } }),
     };
 }
 function isRecord(value) {
@@ -84,7 +88,9 @@ export function parseVideoStatusResponse(payload) {
             return {
                 status: 'done',
                 url: video.url,
-                ...typeof video.duration === 'number' ? { duration: video.duration } : {},
+                ...(typeof video.duration === 'number'
+                    ? { duration: video.duration }
+                    : {}),
             };
         }
         case 'failed':
@@ -92,8 +98,13 @@ export function parseVideoStatusResponse(payload) {
             const error = isRecord(body.error) ? body.error : {};
             const detail = typeof error.message === 'string' && error.message.length > 0
                 ? error.message
-                : typeof body.error === 'string' && body.error.length > 0 ? body.error : undefined;
-            return { status: body.status, ...detail === undefined ? {} : { detail } };
+                : typeof body.error === 'string' && body.error.length > 0
+                    ? body.error
+                    : undefined;
+            return {
+                status: body.status,
+                ...(detail === undefined ? {} : { detail }),
+            };
         }
         default:
             throw new Error(`video_generate: unexpected status ${JSON.stringify(body.status)}`);
@@ -119,7 +130,9 @@ function sleep(ms, signal) {
     return new Promise((resolve, reject) => {
         const onAbort = () => {
             clearTimeout(timer);
-            reject(signal.reason instanceof Error ? signal.reason : new Error('video_generate: aborted'));
+            reject(signal.reason instanceof Error
+                ? signal.reason
+                : new Error('video_generate: aborted'));
         };
         const timer = setTimeout(() => {
             signal.removeEventListener('abort', onAbort);
@@ -140,7 +153,9 @@ async function responseText(response, signal) {
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let text = '';
-    const abort = () => { void reader.cancel(signal.reason).catch(() => { }); };
+    const abort = () => {
+        void reader.cancel(signal.reason).catch(() => { });
+    };
     signal.addEventListener('abort', abort, { once: true });
     try {
         for (;;) {
@@ -169,7 +184,9 @@ async function responseError(response, label, signal) {
     }
     signal.throwIfAborted();
     return httpLlmError(new Response(text, {
-        status: response.status, statusText: response.statusText, headers: response.headers,
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers,
     }), label);
 }
 /**
@@ -182,12 +199,16 @@ export function createVideoGenerateTool(options) {
     const maxWaitMs = options.maxWaitMs ?? DEFAULT_MAX_WAIT_MS;
     return defineTool({
         name: 'video_generate',
-        description: `Generate a short video (1-15 seconds) with the grok subscription (${VIDEO_GENERATE_MODEL}) `
-            + 'and save it as an MP4 file. Generation is asynchronous and may take a minute or more; '
-            + 'the tool waits for completion and returns the saved file path. '
-            + 'Optionally animate a still image by passing image_url (image-to-video).',
+        description: `Generate a short video (1-15 seconds) with the grok subscription (${VIDEO_GENERATE_MODEL}) ` +
+            'and save it as an MP4 file. Generation is asynchronous and may take a minute or more; ' +
+            'the tool waits for completion and returns the saved file path. ' +
+            'Optionally animate a still image by passing image_url (image-to-video).',
         parameters: {
-            prompt: { type: 'string', required: true, description: 'What the video should show.' },
+            prompt: {
+                type: 'string',
+                required: true,
+                description: 'What the video should show.',
+            },
             duration: {
                 type: 'integer',
                 description: 'Clip length in seconds (1-15); omit for the provider default.',
@@ -204,8 +225,8 @@ export function createVideoGenerateTool(options) {
             },
             image_url: {
                 type: 'string',
-                description: 'Optional public URL or base64 data URL of a JPEG/PNG/WebP image to animate '
-                    + '(image-to-video); the image becomes the starting frame.',
+                description: 'Optional public URL or base64 data URL of a JPEG/PNG/WebP image to animate ' +
+                    '(image-to-video); the image becomes the starting frame.',
             },
         },
         output: {
@@ -218,20 +239,24 @@ export function createVideoGenerateTool(options) {
                 },
                 additionalProperties: false,
             },
-            render: (_args, value) => [{
+            render: (_args, value) => [
+                {
                     type: 'text',
-                    text: `Saved video to ${value.path}`
-                        + (value.duration === undefined ? '' : ` (${String(value.duration)}s)`)
-                        + `\nTemporary provider URL (expires soon): ${value.url}`,
-                }],
+                    text: `Saved video to ${value.path}` +
+                        (value.duration === undefined
+                            ? ''
+                            : ` (${String(value.duration)}s)`) +
+                        `\nTemporary provider URL (expires soon): ${value.url}`,
+                },
+            ],
             // The client toolview fetches the bytes by bare file name through the
             // `/subscriptions-auth` `video` endpoint; meta hands it that name.
             presentationMeta: (_args, value) => ({
                 fileName: basename(value.path),
-                ...value.duration === undefined ? {} : { duration: value.duration },
+                ...(value.duration === undefined ? {} : { duration: value.duration }),
             }),
         },
-        presentCall: args => ({
+        presentCall: (args) => ({
             card: 'generic',
             title: `video_generate: ${truncate(args.prompt)}`,
         }),
@@ -240,8 +265,8 @@ export function createVideoGenerateTool(options) {
             const session = await options.tokens.session();
             const fetchFn = options.fetchFn ?? proxiedFetch;
             const headers = {
-                'authorization': `Bearer ${session.accessToken}`,
-                'accept': 'application/json',
+                authorization: `Bearer ${session.accessToken}`,
+                accept: 'application/json',
             };
             const budget = deadlineSignal(maxWaitMs, exec.signal);
             const { signal } = budget;
@@ -284,8 +309,8 @@ export function createVideoGenerateTool(options) {
                         break;
                     }
                     if (status.status === 'failed' || status.status === 'expired') {
-                        throw new Error(`video_generate: generation ${status.status} (request ${requestId})`
-                            + (status.detail === undefined ? '' : `: ${status.detail}`));
+                        throw new Error(`video_generate: generation ${status.status} (request ${requestId})` +
+                            (status.detail === undefined ? '' : `: ${status.detail}`));
                     }
                     if (Date.now() >= deadline) {
                         throw new Error(`video_generate: timed out after ${String(maxWaitMs)}ms waiting for request ${requestId}`);
@@ -296,8 +321,15 @@ export function createVideoGenerateTool(options) {
                 if (!download.ok)
                     throw await responseError(download, 'video_generate download', signal);
                 const limit = 100 * 1024 * 1024;
-                const mime = download.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase();
-                if ((mime && mime !== 'video/mp4' && mime !== 'application/octet-stream') || Number(download.headers.get('content-length')) > limit) {
+                const mime = download.headers
+                    .get('content-type')
+                    ?.split(';')[0]
+                    ?.trim()
+                    .toLowerCase();
+                if ((mime &&
+                    mime !== 'video/mp4' &&
+                    mime !== 'application/octet-stream') ||
+                    Number(download.headers.get('content-length')) > limit) {
                     void download.body?.cancel().catch(() => { });
                     throw new Error('video_generate: invalid video download type or size');
                 }
@@ -306,7 +338,9 @@ export function createVideoGenerateTool(options) {
                 const reader = download.body.getReader();
                 const chunks = [];
                 let bytes = 0;
-                const abort = () => { void reader.cancel(signal.reason).catch(() => { }); };
+                const abort = () => {
+                    void reader.cancel(signal.reason).catch(() => { });
+                };
                 signal.addEventListener('abort', abort, { once: true });
                 try {
                     for (;;) {
@@ -338,7 +372,7 @@ export function createVideoGenerateTool(options) {
                 const value = {
                     path,
                     url: done.url,
-                    ...done.duration === undefined ? {} : { duration: done.duration },
+                    ...(done.duration === undefined ? {} : { duration: done.duration }),
                 };
                 return value;
             }

@@ -11,7 +11,9 @@ import { parseSse } from './sse.js';
 import { withToolResultImages } from './resolved.js';
 /** Flatten a tool result's content to plain text for a `tool` message. */
 function toolResultText(block) {
-    return block.content.map(part => (part.type === 'text' ? part.text : '')).join('');
+    return block.content
+        .map((part) => (part.type === 'text' ? part.text : ''))
+        .join('');
 }
 /**
  * Convert harness messages into chat completions `messages`. System-role
@@ -37,15 +39,27 @@ export function toChatMessages(messages, system) {
             continue;
         }
         if (message.role === 'tool') {
-            const callId = message.toolCallId ?? message.tool_call_id
-                ?? (message.source?.kind === 'tool' ? String(message.source.callId) : undefined);
+            const callId = message.toolCallId ??
+                message.tool_call_id ??
+                (message.source?.kind === 'tool'
+                    ? String(message.source.callId)
+                    : undefined);
             if (callId === undefined)
                 throw new LlmError('tool result has no call id', 'INVALID_REQUEST');
-            out.push({ role: 'tool', tool_call_id: callId, content: message.content.map(block => block.type === 'text' ? block.text : '').join('') });
+            out.push({
+                role: 'tool',
+                tool_call_id: callId,
+                content: message.content
+                    .map((block) => (block.type === 'text' ? block.text : ''))
+                    .join(''),
+            });
             continue;
         }
         if (message.role === 'developer') {
-            const content = message.content.filter(block => block.type === 'text').map(block => block.text).join('');
+            const content = message.content
+                .filter((block) => block.type === 'text')
+                .map((block) => block.text)
+                .join('');
             if (content.length > 0)
                 out.push({ role: 'developer', content });
             continue;
@@ -79,7 +93,9 @@ export function toChatMessages(messages, system) {
                         if ('dataBase64' in block) {
                             parts.push({
                                 type: 'image_url',
-                                image_url: { url: `data:${block.mediaType};base64,${block.dataBase64}` },
+                                image_url: {
+                                    url: `data:${block.mediaType};base64,${block.dataBase64}`,
+                                },
                             });
                         }
                         break;
@@ -123,7 +139,7 @@ export function toChatMessages(messages, system) {
         out.push({
             role: 'assistant',
             content: texts.join('\n'),
-            ...toolCalls.length > 0 ? { tool_calls: toolCalls } : {},
+            ...(toolCalls.length > 0 ? { tool_calls: toolCalls } : {}),
         });
     }
     const systemText = system ?? (systemTexts.length > 0 ? systemTexts.join('\n\n') : undefined);
@@ -137,7 +153,7 @@ export function toChatMessages(messages, system) {
  * @returns the wire `tools` array.
  */
 export function toChatTools(tools) {
-    return tools.map(tool => ({
+    return tools.map((tool) => ({
         type: 'function',
         function: {
             name: tool.name,
@@ -158,8 +174,8 @@ export function mapChatCompletionsUsage(usage) {
     return {
         inputTokens: usage.prompt_tokens - (cached ?? 0),
         outputTokens: usage.completion_tokens,
-        ...cached !== undefined ? { cacheReadTokens: cached } : {},
-        ...reasoning !== undefined ? { reasoningTokens: reasoning } : {},
+        ...(cached !== undefined ? { cacheReadTokens: cached } : {}),
+        ...(reasoning !== undefined ? { reasoningTokens: reasoning } : {}),
     };
 }
 /** Assemble the final ContentBlock for one open block. */
@@ -208,7 +224,7 @@ export class ChatCompletionsStreamTranslator {
             kind,
             text: '',
             callId,
-            ...name === undefined ? {} : { name },
+            ...(name === undefined ? {} : { name }),
         };
         this.blocks.set(key, block);
         this.order.push(block);
@@ -220,7 +236,11 @@ export class ChatCompletionsStreamTranslator {
         if (block === undefined)
             return;
         this.blocks.delete(key);
-        chunks.push({ type: 'block-end', index: block.index, block: closeBlock(block) });
+        chunks.push({
+            type: 'block-end',
+            index: block.index,
+            block: closeBlock(block),
+        });
     }
     closeAll(chunks) {
         for (const key of [...this.blocks.keys()])
@@ -233,7 +253,10 @@ export class ChatCompletionsStreamTranslator {
                 type: 'finish',
                 reason: {
                     kind: 'error',
-                    failure: { message: 'model returned a completed response with no content', code: EMPTY_RESPONSE_CODE },
+                    failure: {
+                        message: 'model returned a completed response with no content',
+                        code: EMPTY_RESPONSE_CODE,
+                    },
                 },
             };
         }
@@ -247,17 +270,26 @@ export class ChatCompletionsStreamTranslator {
                     type: 'finish',
                     reason: {
                         kind: 'error',
-                        failure: { message: 'the response was blocked by the provider content filter', code: 'CONTENT_FILTER' },
+                        failure: {
+                            message: 'the response was blocked by the provider content filter',
+                            code: 'CONTENT_FILTER',
+                        },
                     },
                 };
             default:
-                return { type: 'finish', reason: { kind: this.sawToolCall ? 'tool-calls' : 'stop' } };
+                return {
+                    type: 'finish',
+                    reason: { kind: this.sawToolCall ? 'tool-calls' : 'stop' },
+                };
         }
     }
     /** Usage, then the armed finish: the only order the harness accepts. */
     drainTerminal(chunks) {
         if (this.pendingUsage !== undefined) {
-            chunks.push({ type: 'usage', usage: mapChatCompletionsUsage(this.pendingUsage) });
+            chunks.push({
+                type: 'usage',
+                usage: mapChatCompletionsUsage(this.pendingUsage),
+            });
             this.pendingUsage = undefined;
         }
         if (this.armedFinish !== undefined) {
@@ -285,15 +317,26 @@ export class ChatCompletionsStreamTranslator {
             if (typeof delta.content === 'string' && delta.content.length > 0) {
                 const block = this.blocks.get('content') ?? this.open('content', 'text', chunks);
                 block.text += delta.content;
-                chunks.push({ type: 'text-delta', index: block.index, text: delta.content });
+                chunks.push({
+                    type: 'text-delta',
+                    index: block.index,
+                    text: delta.content,
+                });
             }
-            const reasoning = typeof delta.reasoning_content === 'string' ? delta.reasoning_content
-                : typeof delta.reasoning_text === 'string' ? delta.reasoning_text
+            const reasoning = typeof delta.reasoning_content === 'string'
+                ? delta.reasoning_content
+                : typeof delta.reasoning_text === 'string'
+                    ? delta.reasoning_text
                     : undefined;
             if (reasoning !== undefined && reasoning.length > 0) {
-                const block = this.blocks.get('reasoning') ?? this.open('reasoning', 'reasoning', chunks);
+                const block = this.blocks.get('reasoning') ??
+                    this.open('reasoning', 'reasoning', chunks);
                 block.text += reasoning;
-                chunks.push({ type: 'reasoning-delta', index: block.index, text: reasoning });
+                chunks.push({
+                    type: 'reasoning-delta',
+                    index: block.index,
+                    text: reasoning,
+                });
             }
             for (const call of delta.tool_calls ?? []) {
                 const key = `call:${String(call.index ?? 0)}`;
@@ -305,11 +348,12 @@ export class ChatCompletionsStreamTranslator {
                         type: 'tool-call-delta',
                         index: block.index,
                         id: ToolCallId(block.callId),
-                        ...block.name === undefined ? {} : { name: block.name },
+                        ...(block.name === undefined ? {} : { name: block.name }),
                         argumentsDelta: '',
                     });
                 }
-                if (call.function?.arguments !== undefined && call.function.arguments.length > 0) {
+                if (call.function?.arguments !== undefined &&
+                    call.function.arguments.length > 0) {
                     block.text += call.function.arguments;
                     chunks.push({
                         type: 'tool-call-delta',

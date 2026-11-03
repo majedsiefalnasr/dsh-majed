@@ -12,7 +12,7 @@ import { parseSse } from './sse.js';
  * that do not present as Claude Code, so this block is REQUIRED as the first
  * system entry on every request.
  */
-export const CLAUDE_CODE_IDENTITY = 'You are Claude Code, Anthropic\'s official CLI for Claude.';
+export const CLAUDE_CODE_IDENTITY = "You are Claude Code, Anthropic's official CLI for Claude.";
 /** Tags wrapping a mid-conversation system message where it sits in the history. */
 export const SYSTEM_REMINDER_OPEN = '<system-reminder>';
 export const SYSTEM_REMINDER_CLOSE = '</system-reminder>';
@@ -43,19 +43,30 @@ export const DEFAULT_PROMPT_CACHE_TTL = '5m';
  * @returns a fresh marker object (callers attach it to one block each).
  */
 export function cacheControl(ttl = DEFAULT_PROMPT_CACHE_TTL) {
-    return ttl === '1h' ? { type: 'ephemeral', ttl: '1h' } : { type: 'ephemeral' };
+    return ttl === '1h'
+        ? { type: 'ephemeral', ttl: '1h' }
+        : { type: 'ephemeral' };
 }
 /** Preserve native image blocks, retaining the existing text-only wire shape. */
 function toolResultContent(block) {
-    if (!block.content.some(part => part.type === 'image' && 'dataBase64' in part)) {
-        return block.content.map(part => (part.type === 'text' ? part.text : '')).join('');
+    if (!block.content.some((part) => part.type === 'image' && 'dataBase64' in part)) {
+        return block.content
+            .map((part) => (part.type === 'text' ? part.text : ''))
+            .join('');
     }
     const content = [];
     for (const part of block.content) {
         if (part.type === 'text' && part.text.length > 0)
             content.push({ type: 'text', text: part.text });
         if (part.type === 'image' && 'dataBase64' in part) {
-            content.push({ type: 'image', source: { type: 'base64', media_type: part.mediaType, data: part.dataBase64 } });
+            content.push({
+                type: 'image',
+                source: {
+                    type: 'base64',
+                    media_type: part.mediaType,
+                    data: part.dataBase64,
+                },
+            });
         }
     }
     return content;
@@ -64,7 +75,9 @@ function toolResultContent(block) {
 function parseToolInput(raw) {
     try {
         const parsed = JSON.parse(raw);
-        if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+        if (typeof parsed === 'object' &&
+            parsed !== null &&
+            !Array.isArray(parsed)) {
             return parsed;
         }
         return {};
@@ -88,14 +101,16 @@ function parseToolInput(raw) {
  * @param message - one assembled user message, reordered in place.
  */
 function leadWithToolResults(message) {
-    const firstOther = message.content.findIndex(block => block.type !== 'tool_result');
+    const firstOther = message.content.findIndex((block) => block.type !== 'tool_result');
     if (firstOther === -1)
         return;
-    if (!message.content.slice(firstOther).some(block => block.type === 'tool_result'))
+    if (!message.content
+        .slice(firstOther)
+        .some((block) => block.type === 'tool_result'))
         return;
     message.content = [
-        ...message.content.filter(block => block.type === 'tool_result'),
-        ...message.content.filter(block => block.type !== 'tool_result'),
+        ...message.content.filter((block) => block.type === 'tool_result'),
+        ...message.content.filter((block) => block.type !== 'tool_result'),
     ];
 }
 /**
@@ -111,7 +126,7 @@ function leadWithToolResults(message) {
  * @returns the boundary index separating the two.
  */
 function conversationStart(messages) {
-    const index = messages.findIndex(message => message.role !== 'system');
+    const index = messages.findIndex((message) => message.role !== 'system');
     return index === -1 ? messages.length : index;
 }
 /**
@@ -140,15 +155,22 @@ export function toAnthropicMessages(messages) {
         const role = message.role === 'assistant' ? 'assistant' : 'user';
         const blocks = [];
         if (message.role === 'tool') {
-            const id = message.toolCallId ?? message.tool_call_id
-                ?? (message.source?.kind === 'tool' ? String(message.source.callId) : undefined);
+            const id = message.toolCallId ??
+                message.tool_call_id ??
+                (message.source?.kind === 'tool'
+                    ? String(message.source.callId)
+                    : undefined);
             if (id === undefined)
                 throw new LlmError('tool result has no call id', 'INVALID_REQUEST');
             blocks.push({
                 type: 'tool_result',
                 tool_use_id: id,
-                content: toolResultContent({ type: 'tool-result', toolCallId: ToolCallId(id), content: message.content }),
-                ...message.isError === true ? { is_error: true } : {},
+                content: toolResultContent({
+                    type: 'tool-result',
+                    toolCallId: ToolCallId(id),
+                    content: message.content,
+                }),
+                ...(message.isError === true ? { is_error: true } : {}),
             });
             const last = out[out.length - 1];
             if (last?.role === 'user')
@@ -181,21 +203,28 @@ export function toAnthropicMessages(messages) {
                             name: block.name,
                             input: parseToolInput(block.arguments),
                         }
-                        : { type: 'text', text: `[tool call ${block.name}: ${block.arguments}]` });
+                        : {
+                            type: 'text',
+                            text: `[tool call ${block.name}: ${block.arguments}]`,
+                        });
                     break;
                 case 'tool-result':
                     blocks.push({
                         type: 'tool_result',
                         tool_use_id: String(block.toolCallId),
                         content: toolResultContent(block),
-                        ...block.isError === true ? { is_error: true } : {},
+                        ...(block.isError === true ? { is_error: true } : {}),
                     });
                     break;
                 case 'image':
                     if ('dataBase64' in block) {
                         blocks.push({
                             type: 'image',
-                            source: { type: 'base64', media_type: block.mediaType, data: block.dataBase64 },
+                            source: {
+                                type: 'base64',
+                                media_type: block.mediaType,
+                                data: block.dataBase64,
+                            },
                         });
                     }
                     // An unresolved ImageBlock carries only an attachment reference; the
@@ -233,7 +262,7 @@ export function toAnthropicMessages(messages) {
  * @param ttl - cache lifetime for every mark; defaults to five minutes.
  */
 export function markMessageCache(messages, ttl) {
-    const blocks = messages.flatMap(message => message.content);
+    const blocks = messages.flatMap((message) => message.content);
     for (let mark = 0; mark < MESSAGE_CACHE_BREAKPOINTS; mark++) {
         const at = blocks.length - 1 - mark * CACHE_BLOCK_STRIDE;
         if (at < 0)
@@ -251,7 +280,9 @@ export function markMessageCache(messages, ttl) {
  * @returns the system content blocks.
  */
 export function toAnthropicSystem(system, messages, ttl) {
-    const blocks = [{ type: 'text', text: CLAUDE_CODE_IDENTITY }];
+    const blocks = [
+        { type: 'text', text: CLAUDE_CODE_IDENTITY },
+    ];
     if (system !== undefined && system.length > 0)
         blocks.push({ type: 'text', text: system });
     const history = messages ?? [];
@@ -284,8 +315,8 @@ export function toAnthropicSystem(system, messages, ttl) {
  */
 export function toAnthropicTools(tools) {
     return [...tools]
-        .sort((left, right) => (left.name < right.name ? -1 : left.name > right.name ? 1 : 0))
-        .map(tool => ({
+        .sort((left, right) => left.name < right.name ? -1 : left.name > right.name ? 1 : 0)
+        .map((tool) => ({
         name: tool.name,
         description: tool.description,
         input_schema: tool.parameters,
@@ -347,7 +378,7 @@ export class AnthropicStreamTranslator {
             kind,
             text: '',
             callId,
-            ...name === undefined ? {} : { name },
+            ...(name === undefined ? {} : { name }),
         };
         this.blocks.set(wireIndex, block);
         this.sawAnyBlock = true;
@@ -361,12 +392,12 @@ export class AnthropicStreamTranslator {
         const usage = {
             inputTokens: this.pendingUsage?.inputTokens ?? 0,
             outputTokens: this.outputTokens ?? 0,
-            ...this.pendingUsage?.cacheReadTokens !== undefined
+            ...(this.pendingUsage?.cacheReadTokens !== undefined
                 ? { cacheReadTokens: this.pendingUsage.cacheReadTokens }
-                : {},
-            ...this.pendingUsage?.cacheWriteTokens !== undefined
+                : {}),
+            ...(this.pendingUsage?.cacheWriteTokens !== undefined
                 ? { cacheWriteTokens: this.pendingUsage.cacheWriteTokens }
-                : {},
+                : {}),
         };
         chunks.push({ type: 'usage', usage });
     }
@@ -385,12 +416,12 @@ export class AnthropicStreamTranslator {
                 if (usage !== undefined) {
                     this.pendingUsage = {
                         inputTokens: usage.input_tokens ?? 0,
-                        ...usage.cache_read_input_tokens !== undefined
+                        ...(usage.cache_read_input_tokens !== undefined
                             ? { cacheReadTokens: usage.cache_read_input_tokens }
-                            : {},
-                        ...usage.cache_creation_input_tokens !== undefined
+                            : {}),
+                        ...(usage.cache_creation_input_tokens !== undefined
                             ? { cacheWriteTokens: usage.cache_creation_input_tokens }
-                            : {},
+                            : {}),
                     };
                     this.outputTokens = usage.output_tokens ?? this.outputTokens;
                 }
@@ -412,7 +443,7 @@ export class AnthropicStreamTranslator {
                             type: 'tool-call-delta',
                             index: opened.index,
                             id: ToolCallId(opened.callId),
-                            ...block.name === undefined ? {} : { name: block.name },
+                            ...(block.name === undefined ? {} : { name: block.name }),
                             argumentsDelta: '',
                         });
                         break;
@@ -431,11 +462,19 @@ export class AnthropicStreamTranslator {
                 switch (delta.type) {
                     case 'text_delta':
                         block.text += delta.text ?? '';
-                        chunks.push({ type: 'text-delta', index: block.index, text: delta.text ?? '' });
+                        chunks.push({
+                            type: 'text-delta',
+                            index: block.index,
+                            text: delta.text ?? '',
+                        });
                         break;
                     case 'thinking_delta':
                         block.text += delta.thinking ?? '';
-                        chunks.push({ type: 'reasoning-delta', index: block.index, text: delta.thinking ?? '' });
+                        chunks.push({
+                            type: 'reasoning-delta',
+                            index: block.index,
+                            text: delta.thinking ?? '',
+                        });
                         break;
                     case 'input_json_delta':
                         block.text += delta.partial_json ?? '';
@@ -443,7 +482,7 @@ export class AnthropicStreamTranslator {
                             type: 'tool-call-delta',
                             index: block.index,
                             id: ToolCallId(block.callId),
-                            ...block.name === undefined ? {} : { name: block.name },
+                            ...(block.name === undefined ? {} : { name: block.name }),
                             argumentsDelta: delta.partial_json ?? '',
                         });
                         break;
@@ -459,7 +498,11 @@ export class AnthropicStreamTranslator {
                 if (block === undefined)
                     return chunks;
                 this.blocks.delete(wireIndex);
-                chunks.push({ type: 'block-end', index: block.index, block: closeBlock(block) });
+                chunks.push({
+                    type: 'block-end',
+                    index: block.index,
+                    block: closeBlock(block),
+                });
                 return chunks;
             }
             case 'message_delta': {
@@ -485,7 +528,11 @@ export class AnthropicStreamTranslator {
                 this.terminated = true;
                 for (const [wireIndex, block] of [...this.blocks]) {
                     this.blocks.delete(wireIndex);
-                    chunks.push({ type: 'block-end', index: block.index, block: closeBlock(block) });
+                    chunks.push({
+                        type: 'block-end',
+                        index: block.index,
+                        block: closeBlock(block),
+                    });
                 }
                 this.emitUsage(chunks);
                 if (this.stopReason === 'stop' && !this.sawAnyBlock) {
@@ -493,7 +540,10 @@ export class AnthropicStreamTranslator {
                         type: 'finish',
                         reason: {
                             kind: 'error',
-                            failure: { message: 'model returned a completed response with no content', code: EMPTY_RESPONSE_CODE },
+                            failure: {
+                                message: 'model returned a completed response with no content',
+                                code: EMPTY_RESPONSE_CODE,
+                            },
                         },
                     });
                 }

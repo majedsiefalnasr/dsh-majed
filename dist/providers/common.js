@@ -7,7 +7,7 @@
  */
 import { createHash, randomUUID } from 'node:crypto';
 import { CONTEXT_WINDOW_EXCEEDED_CODE, isContextWindowExceededError, isQuotaExceededError, LlmError, QUOTA_EXCEEDED_CODE, ReasoningEffortId, } from '@deepseek-ai/dsh-llm';
-import { durationMs, rateLimitDiagnostics, retryAfterInstant, waitFromReset } from './rate-limit.js';
+import { durationMs, rateLimitDiagnostics, retryAfterInstant, waitFromReset, } from './rate-limit.js';
 /**
  * Validate a configured model catalog (mirrors llm-deepseek's resolveModels).
  * @param models - raw configured entries.
@@ -22,19 +22,22 @@ export function validateModels(models, label) {
         if (model.name !== undefined && model.name.length === 0) {
             throw new Error(`${label}: catalog model "${model.id}" has an empty name`);
         }
-        if (model.contextWindow !== undefined
-            && (!Number.isInteger(model.contextWindow) || model.contextWindow <= 0)) {
+        if (model.contextWindow !== undefined &&
+            (!Number.isInteger(model.contextWindow) || model.contextWindow <= 0)) {
             throw new Error(`${label}: catalog model "${model.id}" contextWindow must be a positive integer`);
         }
-        if (model.maxTokens !== undefined && (!Number.isInteger(model.maxTokens) || model.maxTokens <= 0)) {
+        if (model.maxTokens !== undefined &&
+            (!Number.isInteger(model.maxTokens) || model.maxTokens <= 0)) {
             throw new Error(`${label}: catalog model "${model.id}" maxTokens must be a positive integer`);
         }
-        if (model.inputModalities !== undefined
-            && (model.inputModalities.length === 0
-                || model.inputModalities.some(modality => modality !== 'text' && modality !== 'image'))) {
+        if (model.inputModalities !== undefined &&
+            (model.inputModalities.length === 0 ||
+                model.inputModalities.some((modality) => modality !== 'text' && modality !== 'image'))) {
             throw new Error(`${label}: catalog model "${model.id}" inputModalities must be a non-empty list of "text"/"image"`);
         }
-        if (model.wire !== undefined && model.wire !== 'chat-completions' && model.wire !== 'responses') {
+        if (model.wire !== undefined &&
+            model.wire !== 'chat-completions' &&
+            model.wire !== 'responses') {
             throw new Error(`${label}: catalog model "${model.id}" wire must be "chat-completions" or "responses"`);
         }
         if (seen.has(model.id))
@@ -42,11 +45,15 @@ export function validateModels(models, label) {
         seen.add(model.id);
         return {
             id: model.id,
-            ...model.name === undefined ? {} : { name: model.name },
-            ...model.contextWindow === undefined ? {} : { contextWindow: model.contextWindow },
-            ...model.maxTokens === undefined ? {} : { maxTokens: model.maxTokens },
-            ...model.inputModalities === undefined ? {} : { inputModalities: [...model.inputModalities] },
-            ...model.wire === undefined ? {} : { wire: model.wire },
+            ...(model.name === undefined ? {} : { name: model.name }),
+            ...(model.contextWindow === undefined
+                ? {}
+                : { contextWindow: model.contextWindow }),
+            ...(model.maxTokens === undefined ? {} : { maxTokens: model.maxTokens }),
+            ...(model.inputModalities === undefined
+                ? {}
+                : { inputModalities: [...model.inputModalities] }),
+            ...(model.wire === undefined ? {} : { wire: model.wire }),
         };
     });
 }
@@ -108,14 +115,18 @@ export async function httpLlmError(response, label, options = {}) {
     // re-hitting the same closed window.
     const rateLimited = response.status === 429;
     const reset = rateLimited
-        ? options.rateLimitReset?.(response, body, now) ?? googleQuotaReset(body, now) ?? retryAfterInstant(response, now)
+        ? (options.rateLimitReset?.(response, body, now) ??
+            googleQuotaReset(body, now) ??
+            retryAfterInstant(response, now))
         : retryAfterInstant(response, now);
     if (reset === undefined && rateLimited) {
         options.onWarn?.(`${label}: ${rateLimitDiagnostics(response, body)}`);
     }
     return new LlmError(message, code, {
         status: response.status,
-        ...reset === undefined ? {} : { providerRetryAfterMs: waitFromReset(reset, now) },
+        ...(reset === undefined
+            ? {}
+            : { providerRetryAfterMs: waitFromReset(reset, now) }),
     });
 }
 /**
@@ -204,9 +215,13 @@ export function idleWatchdog(caller, timeoutMs) {
  */
 export function mapFetchFailure(label, error, watchdog, caller) {
     if (watchdog.timedOut())
-        return new LlmError(`${label} stream idle timeout`, 'TIMEOUT', { cause: error });
+        return new LlmError(`${label} stream idle timeout`, 'TIMEOUT', {
+            cause: error,
+        });
     if (caller?.aborted === true)
-        return new LlmError(`${label} request aborted by caller`, 'ABORTED', { cause: error });
+        return new LlmError(`${label} request aborted by caller`, 'ABORTED', {
+            cause: error,
+        });
     if (error instanceof LlmError)
         return error;
     return new LlmError(`${label} request failed`, 'TRANSPORT', { cause: error });
@@ -248,7 +263,7 @@ export async function oauthEndpointError(response, label) {
     let oauthCode;
     let detail = '';
     try {
-        const parsed = await response.json();
+        const parsed = (await response.json());
         if (typeof parsed.error === 'string') {
             oauthCode = parsed.error;
         }
@@ -313,10 +328,11 @@ export class TokenManager {
     async session(forceRefresh = false) {
         const session = await this.options.load();
         if (session === undefined) {
-            throw new LlmError(`dsh-plugin-subscriptions: not logged in to ${this.options.displayName}; `
-                + 'log in via Settings → Subscriptions in the dsh web app', 'MISSING_CREDENTIAL');
+            throw new LlmError(`dsh-plugin-subscriptions: not logged in to ${this.options.displayName}; ` +
+                'log in via Settings → Subscriptions in the dsh web app', 'MISSING_CREDENTIAL');
         }
-        if (!forceRefresh && session.expiresAt - Date.now() > this.options.preemptMs) {
+        if (!forceRefresh &&
+            session.expiresAt - Date.now() > this.options.preemptMs) {
             return session;
         }
         this.inflight ??= this.doRefresh(session).finally(() => {
@@ -332,7 +348,9 @@ export class TokenManager {
                 // log out an account that just signed in. Serve it instead.
                 const attempted = this.attempted;
                 const stored = await this.options.load();
-                if (stored !== undefined && attempted !== undefined && stored.refreshToken !== attempted.refreshToken) {
+                if (stored !== undefined &&
+                    attempted !== undefined &&
+                    stored.refreshToken !== attempted.refreshToken) {
                     return stored;
                 }
                 await this.options.remove();
@@ -352,9 +370,9 @@ export class TokenManager {
         // A concurrent caller may have refreshed while this one waited: re-read
         // the store and skip the round trip when the stored session is fresh.
         const current = await this.options.load();
-        if (current !== undefined
-            && current.accessToken !== session.accessToken
-            && current.expiresAt - Date.now() > this.options.preemptMs) {
+        if (current !== undefined &&
+            current.accessToken !== session.accessToken &&
+            current.expiresAt - Date.now() > this.options.preemptMs) {
             return current;
         }
         const attempted = current ?? session;
@@ -373,9 +391,23 @@ export async function withAbortSignal(work, signal) {
         return work();
     return new Promise((resolve, reject) => {
         const cleanup = () => signal.removeEventListener('abort', abort);
-        const abort = () => { cleanup(); reject(signal.reason); };
+        const abort = () => {
+            cleanup();
+            reject(signal.reason);
+        };
         signal.addEventListener('abort', abort, { once: true });
-        Promise.resolve().then(() => { signal.throwIfAborted(); return work(); }).then(value => { cleanup(); resolve(value); }, error => { cleanup(); reject(error); });
+        Promise.resolve()
+            .then(() => {
+            signal.throwIfAborted();
+            return work();
+        })
+            .then((value) => {
+            cleanup();
+            resolve(value);
+        }, (error) => {
+            cleanup();
+            reject(error);
+        });
     });
 }
 /**
@@ -386,7 +418,10 @@ export function deadlineSignal(timeoutMs, parent) {
     const controller = new AbortController();
     const onParent = () => controller.abort(parent?.reason);
     const timer = setTimeout(() => controller.abort(new DOMException('The operation timed out.', 'TimeoutError')), timeoutMs);
-    const release = () => { clearTimeout(timer); parent?.removeEventListener('abort', onParent); };
+    const release = () => {
+        clearTimeout(timer);
+        parent?.removeEventListener('abort', onParent);
+    };
     if (parent?.aborted === true)
         controller.abort(parent.reason);
     else
@@ -409,8 +444,11 @@ export function withTimeout(work, timeoutMs, parent) {
             clearTimeout(timer);
         parent?.removeEventListener('abort', onParent);
     };
-    const aborted = new Promise(resolve => {
-        controller.signal.addEventListener('abort', () => { cleanup(); resolve(undefined); }, { once: true });
+    const aborted = new Promise((resolve) => {
+        controller.signal.addEventListener('abort', () => {
+            cleanup();
+            resolve(undefined);
+        }, { once: true });
         if (parent?.aborted === true)
             controller.abort(parent.reason);
         else {
@@ -420,7 +458,10 @@ export function withTimeout(work, timeoutMs, parent) {
     });
     const signal = controller.signal;
     return Promise.race([
-        work(signal).then(value => { cleanup(); return signal.aborted ? undefined : value; }, (error) => {
+        work(signal).then((value) => {
+            cleanup();
+            return signal.aborted ? undefined : value;
+        }, (error) => {
             cleanup();
             if (signal.aborted)
                 return undefined;
@@ -431,7 +472,9 @@ export function withTimeout(work, timeoutMs, parent) {
 }
 /** Display name for a wire reasoning-effort identifier. */
 export function effortDisplayName(effort) {
-    return effort === 'xhigh' ? 'Extra High' : effort.charAt(0).toUpperCase() + effort.slice(1);
+    return effort === 'xhigh'
+        ? 'Extra High'
+        : effort.charAt(0).toUpperCase() + effort.slice(1);
 }
 /**
  * Fold a configured per-model default effort into a reasoning block, keeping
@@ -460,7 +503,9 @@ export function mergeReasoning(configuredDefault, base, options) {
         ? undefined
         : {
             efforts: [...base.efforts],
-            ...(base.defaultEffort === undefined ? {} : { defaultEffort: base.defaultEffort }),
+            ...(base.defaultEffort === undefined
+                ? {}
+                : { defaultEffort: base.defaultEffort }),
         };
     if (configuredDefault === undefined)
         return detached;
@@ -470,10 +515,13 @@ export function mergeReasoning(configuredDefault, base, options) {
         // catalog does not cover). Inventing a reasoning block here would claim a
         // capability nobody advertised; only a fallback-based provider may.
         return options?.extendable === true
-            ? { efforts: [{ id: effort, name: effortDisplayName(effort) }], defaultEffort: effort }
+            ? {
+                efforts: [{ id: effort, name: effortDisplayName(effort) }],
+                defaultEffort: effort,
+            }
             : undefined;
     }
-    if (base.efforts.some(entry => entry.id === effort)) {
+    if (base.efforts.some((entry) => entry.id === effort)) {
         return { efforts: [...base.efforts], defaultEffort: effort };
     }
     if (options?.extendable !== true)
@@ -554,7 +602,9 @@ export class ModelCatalogCache {
         if (this.persistence === undefined)
             return Promise.resolve();
         this.seeded ??= this.persistence.load().then((snapshot) => {
-            if (snapshot !== undefined && this.entry === undefined && !this.seedDisabled) {
+            if (snapshot !== undefined &&
+                this.entry === undefined &&
+                !this.seedDisabled) {
                 this.entry = snapshot;
             }
         }, () => undefined);
@@ -569,7 +619,8 @@ export class ModelCatalogCache {
             .then((models) => {
             if (this.generation !== gen)
                 return models;
-            const changed = this.entry === undefined || JSON.stringify(this.entry.models) !== JSON.stringify(models);
+            const changed = this.entry === undefined ||
+                JSON.stringify(this.entry.models) !== JSON.stringify(models);
             const snapshot = { at: Date.now(), models };
             this.entry = snapshot;
             // Write-through is fire-and-forget: a failed save only costs durability.
@@ -639,8 +690,8 @@ export class ModelCatalogCache {
 }
 /** Whether discovery failed because the stored login is gone. */
 export function isMissingOrInvalidCredential(error) {
-    return error instanceof LlmError
-        && (error.code === 'MISSING_CREDENTIAL' || error.code === 'INVALID_CREDENTIAL');
+    return (error instanceof LlmError &&
+        (error.code === 'MISSING_CREDENTIAL' || error.code === 'INVALID_CREDENTIAL'));
 }
 /** Whether discovery stopped because the caller cancelled or the timeout fired. */
 export function isDiscoveryAborted(error, signal) {
@@ -648,9 +699,9 @@ export function isDiscoveryAborted(error, signal) {
         return true;
     // Only treat abort-shaped errors as cancellation when this call had a signal;
     // a refresh TimeoutError must not fail the whole picker union.
-    return signal !== undefined
-        && error instanceof Error
-        && (error.name === 'AbortError' || error.name === 'TimeoutError');
+    return (signal !== undefined &&
+        error instanceof Error &&
+        (error.name === 'AbortError' || error.name === 'TimeoutError'));
 }
 /**
  * Whether discovery failed because the access token was rejected. After
@@ -659,8 +710,8 @@ export function isDiscoveryAborted(error, signal) {
  * the refresh grant still answers, so the store keeps the session.
  */
 export function isDiscoveryAuthFailure(error) {
-    return (error instanceof OAuthEndpointError && error.status === 401)
-        || (error instanceof LlmError && error.code === 'AUTH');
+    return ((error instanceof OAuthEndpointError && error.status === 401) ||
+        (error instanceof LlmError && error.code === 'AUTH'));
 }
 /**
  * Run a catalog fetch, retrying once after a forced token refresh when the
@@ -680,7 +731,8 @@ export async function discoverOrRetryAuth(session, catalog, run) {
             return await run();
         }
         catch (retryError) {
-            if (!isMissingOrInvalidCredential(retryError) && isDiscoveryAuthFailure(retryError)) {
+            if (!isMissingOrInvalidCredential(retryError) &&
+                isDiscoveryAuthFailure(retryError)) {
                 catalog.invalidate();
             }
             throw retryError;

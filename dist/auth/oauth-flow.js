@@ -9,12 +9,12 @@ import { createServer } from 'node:http';
 import { createPkce, randomHex, randomToken } from './pkce.js';
 /** Default attempt lifetime: three minutes for the user to complete login. */
 export const DEFAULT_FLOW_TIMEOUT_MS = 180_000;
-const SUCCESS_PAGE = '<!doctype html><html><head><meta charset="utf-8"><title>Login successful</title></head>'
-    + '<body style="font-family:sans-serif"><h1>Login successful</h1>'
-    + '<p>You can close this tab and return to DeepSeek Harness.</p></body></html>';
+const SUCCESS_PAGE = '<!doctype html><html><head><meta charset="utf-8"><title>Login successful</title></head>' +
+    '<body style="font-family:sans-serif"><h1>Login successful</h1>' +
+    '<p>You can close this tab and return to DeepSeek Harness.</p></body></html>';
 function failurePage(detail) {
-    return '<!doctype html><html><head><meta charset="utf-8"><title>Login failed</title></head>'
-        + `<body style="font-family:sans-serif"><h1>Login failed</h1><p>${detail.replace(/[<>&]/g, '')}</p></body></html>`;
+    return ('<!doctype html><html><head><meta charset="utf-8"><title>Login failed</title></head>' +
+        `<body style="font-family:sans-serif"><h1>Login failed</h1><p>${detail.replace(/[<>&]/g, '')}</p></body></html>`);
 }
 /**
  * Loopback addresses one listen host covers. `localhost` resolves to ::1 or
@@ -37,7 +37,7 @@ function familyUnavailable(error) {
  */
 async function listen(handler, spec) {
     const hosts = listenHosts(spec.host);
-    const candidates = spec.ports.flatMap(port => (port === 0 ? [0, 0, 0] : [port]));
+    const candidates = spec.ports.flatMap((port) => port === 0 ? [0, 0, 0] : [port]);
     let lastError;
     for (const candidate of candidates) {
         const servers = [];
@@ -138,7 +138,8 @@ export class OAuthFlowManager {
                 response.end('not found');
                 return;
             }
-            const errorDescription = url.searchParams.get('error_description') ?? url.searchParams.get('error');
+            const errorDescription = url.searchParams.get('error_description') ??
+                url.searchParams.get('error');
             if (errorDescription !== null) {
                 response.writeHead(200, { 'content-type': 'text/html' });
                 response.end(failurePage(errorDescription));

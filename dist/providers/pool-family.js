@@ -30,14 +30,22 @@ export function buildAccountPools(sources) {
                     entry = { members: [], info: model };
                     byModel.set(model.id, entry);
                 }
-                entry.members.push({ provider, account: catalog.account, model: model.id });
+                entry.members.push({
+                    provider,
+                    account: catalog.account,
+                    model: model.id,
+                });
             }
         }
         for (const [id, { members, info }] of byModel) {
             pools.set(poolKey(provider, id), {
                 members,
-                ...info.name === undefined || info.name === id ? {} : { name: info.name },
-                ...info.description === undefined ? {} : { description: info.description },
+                ...(info.name === undefined || info.name === id
+                    ? {}
+                    : { name: info.name }),
+                ...(info.description === undefined
+                    ? {}
+                    : { description: info.description }),
             });
         }
     }

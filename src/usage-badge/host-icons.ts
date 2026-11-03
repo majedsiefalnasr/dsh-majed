@@ -6,10 +6,10 @@
  * host no longer exports is `undefined`, and rendering it crashes the whole
  * slot (React error #130).
  */
-import type { ComponentType } from 'react'
+import type { ComponentType } from 'react';
 
 /** A decorative glyph the host lacks renders nothing rather than crashing. */
-const NoIcon: ComponentType<any> = () => null
+const NoIcon: ComponentType<any> = () => null;
 
 /**
  * Resolve one 16px glyph under either host naming.
@@ -18,6 +18,6 @@ const NoIcon: ComponentType<any> = () => null
  * @returns the host's component, or one rendering nothing.
  */
 export function hostIcon(icons: object, name: string): ComponentType<any> {
-  const exports = icons as Record<string, ComponentType<any> | undefined>
-  return exports[`Icon${name}Regular`] ?? exports[`Icon${name}16`] ?? NoIcon
+  const exports = icons as Record<string, ComponentType<any> | undefined>;
+  return exports[`Icon${name}Regular`] ?? exports[`Icon${name}16`] ?? NoIcon;
 }

@@ -3,7 +3,8 @@
  * with the dialog instead of relying on a separate CSS asset. Geometry and
  * theme tokens follow the host's settings-form and ui-primitives controls.
  */
-const formScope = ':is(.majed-subscription-manager, .majed-subscriptions-settings)'
+const formScope =
+  ':is(.majed-subscription-manager, .majed-subscriptions-settings)';
 
 export const providerSettingsCss = `
 .majed-subscription-manager {
@@ -182,7 +183,7 @@ ${formScope} summary {
 ${formScope} summary:hover {
   color: var(--dsw-alias-label-secondary, var(--dsw-alias-label-primary));
 }
-`
+`;
 
 /** Composer controls retain their own geometry, separate from settings forms. */
 export const subscriptionChromeCss = `
@@ -218,4 +219,4 @@ export const subscriptionChromeCss = `
   outline: var(--dsw-focus-ring-width, 2px) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: 2px;
 }
-`
+`;

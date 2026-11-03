@@ -1,5 +1,5 @@
-import { accountKeyOf, deleteAccountSession, listAccounts, saveAccountSession, setDefaultAccount } from './store.js';
-import { completeCopilotLogin, copilotDeviceFlow } from '../providers/copilot.js';
+import { accountKeyOf, deleteAccountSession, listAccounts, saveAccountSession, setDefaultAccount, } from './store.js';
+import { completeCopilotLogin, copilotDeviceFlow, } from '../providers/copilot.js';
 export class CopilotAuthController {
     flows;
     changed;
@@ -17,10 +17,20 @@ export class CopilotAuthController {
     }
     async status() {
         const pending = this.flows.pending('copilot');
-        return { authRevision: this.authRevision, busy: this.busy, detail: this.detail,
-            pendingAuth: pending ? { authorizeUrl: pending.verificationUrl, userCode: pending.userCode } : undefined,
-            accounts: (await listAccounts('copilot')).map(({ key, session }, index) => ({ key, isDefault: index === 0,
-                account: session.account ?? key, expiresAt: session.expiresAt })) };
+        return {
+            authRevision: this.authRevision,
+            busy: this.busy,
+            detail: this.detail,
+            pendingAuth: pending
+                ? { authorizeUrl: pending.verificationUrl, userCode: pending.userCode }
+                : undefined,
+            accounts: (await listAccounts('copilot')).map(({ key, session }, index) => ({
+                key,
+                isDefault: index === 0,
+                account: session.account ?? key,
+                expiresAt: session.expiresAt,
+            })),
+        };
     }
     async login() {
         if (this.disposed)
@@ -60,7 +70,10 @@ export class CopilotAuthController {
                         this.busy = false;
                 }
             })();
-            return { authorizeUrl: attempt.verificationUrl, userCode: attempt.userCode };
+            return {
+                authorizeUrl: attempt.verificationUrl,
+                userCode: attempt.userCode,
+            };
         }
         catch (error) {
             if (this.claim === claim)
@@ -68,8 +81,24 @@ export class CopilotAuthController {
             throw error;
         }
     }
-    cancel() { this.claim++; this.completion?.abort(new Error('login cancelled')); this.completion = undefined; this.busy = false; this.flows.pending('copilot')?.cancel(); }
-    async logout(account) { this.cancel(); await deleteAccountSession('copilot', account); this.changed(account); }
-    async setDefault(account) { await setDefaultAccount('copilot', account); this.changed(); }
-    dispose() { this.disposed = true; this.cancel(); }
+    cancel() {
+        this.claim++;
+        this.completion?.abort(new Error('login cancelled'));
+        this.completion = undefined;
+        this.busy = false;
+        this.flows.pending('copilot')?.cancel();
+    }
+    async logout(account) {
+        this.cancel();
+        await deleteAccountSession('copilot', account);
+        this.changed(account);
+    }
+    async setDefault(account) {
+        await setDefaultAccount('copilot', account);
+        this.changed();
+    }
+    dispose() {
+        this.disposed = true;
+        this.cancel();
+    }
 }

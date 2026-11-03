@@ -6,49 +6,49 @@
  * aggregation.
  */
 
-import type { LlmModelInfo } from '@deepseek-ai/dsh-llm'
-import type { ProviderId } from '../auth/store.js'
+import type { LlmModelInfo } from '@deepseek-ai/dsh-llm';
+import type { ProviderId } from '../auth/store.js';
 
 /** One pool member: an exact provider/account/model route. */
 export interface PoolMemberRef {
-  provider: ProviderId
+  provider: ProviderId;
   /** Account key; omitted in configured members to mean "the default account". */
-  account?: string
-  model: string
+  account?: string;
+  model: string;
 }
 
 /** A member with its account resolved (no config indirection left). */
-export type ConcretePoolMember = PoolMemberRef & { account: string }
+export type ConcretePoolMember = PoolMemberRef & { account: string };
 
 /** One pool: its members plus display metadata for the picker. */
 export interface PoolDefinition {
-  members: PoolMemberRef[]
+  members: PoolMemberRef[];
   /** Display name of the catalog entry (account pools) or the pool id (extras). */
-  name?: string
+  name?: string;
   /** Description of the catalog entry, when the pool borrowed one. */
-  description?: string
+  description?: string;
   /**
    * When true, the pool is an extra picker entry (a configured tier). Account
    * pools leave this unset so they reuse the provider's existing catalog row.
    */
-  extra?: boolean
+  extra?: boolean;
 }
 
 /** One account's catalog as seen through that account's credentials. */
 export interface AccountCatalog {
-  account: string
-  models: readonly LlmModelInfo[]
+  account: string;
+  models: readonly LlmModelInfo[];
 }
 
 /** One provider's contribution to account-pool aggregation. */
 export interface ProviderPoolSource {
   /** Per-account catalogs, default first. A model pools only the accounts that list it. */
-  catalogs: readonly AccountCatalog[]
+  catalogs: readonly AccountCatalog[];
 }
 
 /** Map key for one provider's pool of one model (ids collide across providers). */
 export function poolKey(provider: string, model: string): string {
-  return `${provider}/${model}`
+  return `${provider}/${model}`;
 }
 
 /**
@@ -64,26 +64,40 @@ export function poolKey(provider: string, model: string): string {
 export function buildAccountPools(
   sources: Partial<Record<ProviderId, ProviderPoolSource>>,
 ): Map<string, PoolDefinition> {
-  const pools = new Map<string, PoolDefinition>()
-  for (const [provider, source] of Object.entries(sources) as [ProviderId, ProviderPoolSource][]) {
-    const byModel = new Map<string, { members: PoolMemberRef[]; info: LlmModelInfo }>()
+  const pools = new Map<string, PoolDefinition>();
+  for (const [provider, source] of Object.entries(sources) as [
+    ProviderId,
+    ProviderPoolSource,
+  ][]) {
+    const byModel = new Map<
+      string,
+      { members: PoolMemberRef[]; info: LlmModelInfo }
+    >();
     for (const catalog of source.catalogs) {
       for (const model of catalog.models) {
-        let entry = byModel.get(model.id)
+        let entry = byModel.get(model.id);
         if (entry === undefined) {
-          entry = { members: [], info: model }
-          byModel.set(model.id, entry)
+          entry = { members: [], info: model };
+          byModel.set(model.id, entry);
         }
-        entry.members.push({ provider, account: catalog.account, model: model.id })
+        entry.members.push({
+          provider,
+          account: catalog.account,
+          model: model.id,
+        });
       }
     }
     for (const [id, { members, info }] of byModel) {
       pools.set(poolKey(provider, id), {
         members,
-        ...info.name === undefined || info.name === id ? {} : { name: info.name },
-        ...info.description === undefined ? {} : { description: info.description },
-      })
+        ...(info.name === undefined || info.name === id
+          ? {}
+          : { name: info.name }),
+        ...(info.description === undefined
+          ? {}
+          : { description: info.description }),
+      });
     }
   }
-  return pools
+  return pools;
 }

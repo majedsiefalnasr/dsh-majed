@@ -32,11 +32,28 @@ const TEXT_KEY = new RegExp(`(?:${WORDS})(?![\\w.-])`, 'gi');
 const URL_USERINFO = /((?:\b[a-z][a-z0-9+.-]{0,31}:)?)\/\/[^\s/?#"'<>\\]{0,512}@/gi;
 const BEARER = /\b(Bearer|Basic|Negotiate|NTLM)[ \t]{1,8}([A-Za-z0-9._~+/=-]+)/gi;
 const DIGEST = /\bDigest\s+\w+=[^\r\n]*/gi;
-const STOP_WORDS = new Set(['authentication', 'authorization', 'credentials', 'credential', 'scheme', 'realm', 'challenge', 'header', 'required', 'failed', 'missing', 'invalid', 'token', 'auth']);
+const STOP_WORDS = new Set([
+    'authentication',
+    'authorization',
+    'credentials',
+    'credential',
+    'scheme',
+    'realm',
+    'challenge',
+    'header',
+    'required',
+    'failed',
+    'missing',
+    'invalid',
+    'token',
+    'auth',
+]);
 const isQuote = (c) => c === '"' || c === "'";
 /** Variants of `value` as it might appear in an error: raw, URI, form, JSON-escaped and base64 encodings. */
 function secretForms(value) {
-    const asciiJson = JSON.stringify(value).slice(1, -1).replace(/[\u0080-\uffff]/g, c => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`);
+    const asciiJson = JSON.stringify(value)
+        .slice(1, -1)
+        .replace(/[\u0080-\uffff]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`);
     const percent = encodeURIComponent(value);
     const b64 = (text) => {
         const buffer = Buffer.from(text, 'utf8');
@@ -44,13 +61,24 @@ function secretForms(value) {
         const url = buffer.toString('base64url');
         return [plain, plain.replace(/=+$/, ''), url];
     };
-    return [value, percent, percent.toLowerCase(), percent.replace(/%20/g, '+'), (() => { try {
-            return encodeURI(value);
-        }
-        catch {
-            return value;
-        } })(),
-        JSON.stringify(value).slice(1, -1), asciiJson, ...b64(value), ...b64(`:${value}`)];
+    return [
+        value,
+        percent,
+        percent.toLowerCase(),
+        percent.replace(/%20/g, '+'),
+        (() => {
+            try {
+                return encodeURI(value);
+            }
+            catch {
+                return value;
+            }
+        })(),
+        JSON.stringify(value).slice(1, -1),
+        asciiJson,
+        ...b64(value),
+        ...b64(`:${value}`),
+    ];
 }
 /**
  * Every spelling of the known secrets to remove, longest first. A username that is known adds the
@@ -100,7 +128,8 @@ class JsonScan {
     skipSpace(i) {
         const t = this.text;
         let j = i;
-        while (j < t.length && (t[j] === ' ' || t[j] === '\t' || t[j] === '\n' || t[j] === '\r'))
+        while (j < t.length &&
+            (t[j] === ' ' || t[j] === '\t' || t[j] === '\n' || t[j] === '\r'))
             j += 1;
         this.charge(j - i + 1);
         return j;
@@ -251,7 +280,9 @@ function quotedEnd(text, v, escaped) {
     const q = text[escaped ? v + 1 : v];
     if (escaped) {
         const close = text.indexOf(`\\${q}`, v + 2);
-        return close < 0 ? { end: text.length, closed: false } : { end: close + 2, closed: true };
+        return close < 0
+            ? { end: text.length, closed: false }
+            : { end: close + 2, closed: true };
     }
     let j = v + 1;
     while (j < text.length) {
@@ -282,7 +313,12 @@ function bracketEnd(text, v) {
 }
 function skipSpace(text, i) {
     let j = i;
-    while (j < text.length && j - i < 16 && (text[j] === ' ' || text[j] === '\t' || text[j] === '\n' || text[j] === '\r'))
+    while (j < text.length &&
+        j - i < 16 &&
+        (text[j] === ' ' ||
+            text[j] === '\t' ||
+            text[j] === '\n' ||
+            text[j] === '\r'))
         j += 1;
     return j;
 }
@@ -321,7 +357,8 @@ function redactPairs(text) {
         else if (c === '[' || c === '{') {
             end = bracketEnd(text, v);
         }
-        else if (lineValue || (isAuth && /^digest\b/i.test(text.slice(v, v + 8)))) {
+        else if (lineValue ||
+            (isAuth && /^digest\b/i.test(text.slice(v, v + 8)))) {
             end = v;
             while (end < text.length && text[end] !== '\n' && text[end] !== '\r')
                 end += 1;
@@ -333,7 +370,9 @@ function redactPairs(text) {
                 end += 1;
             if (/^[A-Za-z]+$/.test(text.slice(v, end))) {
                 let next = end;
-                while (next < text.length && (text[next] === ' ' || text[next] === '\t') && next - end < 8)
+                while (next < text.length &&
+                    (text[next] === ' ' || text[next] === '\t') &&
+                    next - end < 8)
                     next += 1;
                 let stop = next;
                 while (stop < text.length && !/[\s,;|"'}\]]/.test(text[stop]))
@@ -365,7 +404,9 @@ function redactSchemes(text) {
             return whole;
         if (token === MARK)
             return whole;
-        return (capitalized && token.length >= 6) || (strong && token.length >= 8) ? `${scheme} ${MARK}` : whole;
+        return (capitalized && token.length >= 6) || (strong && token.length >= 8)
+            ? `${scheme} ${MARK}`
+            : whole;
     });
 }
 function scrub(input, known, budget, depth) {

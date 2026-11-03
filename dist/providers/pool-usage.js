@@ -97,7 +97,8 @@ export class PoolUsageTracker {
             return { supported: false };
         const key = `${provider}/${account}`;
         const entry = this.entries.get(key);
-        if (entry !== undefined && Date.now() - entry.at < (entry.cooldownMs ?? this.ttlMs)) {
+        if (entry !== undefined &&
+            Date.now() - entry.at < (entry.cooldownMs ?? this.ttlMs)) {
             if (entry.snapshot !== undefined) {
                 if (!force)
                     return entry.snapshot;
@@ -155,7 +156,8 @@ export class PoolUsageTracker {
             // consecutive failure, even though nothing newer ever replaced it.
             const prior = this.entries.get(key);
             const lastSnapshot = prior?.snapshot ?? prior?.lastSnapshot;
-            pending = fetcher().then((snapshot) => {
+            pending = fetcher()
+                .then((snapshot) => {
                 this.entries.set(key, { snapshot, at: Date.now() });
                 return snapshot;
             }, (error) => {
@@ -164,11 +166,12 @@ export class PoolUsageTracker {
                         error,
                         at: Date.now(),
                         cooldownMs: cooldownFor(error, this.ttlMs),
-                        ...lastSnapshot === undefined ? {} : { lastSnapshot },
+                        ...(lastSnapshot === undefined ? {} : { lastSnapshot }),
                     });
                 }
                 throw error;
-            }).finally(() => {
+            })
+                .finally(() => {
                 this.inflight.delete(key);
             });
             this.inflight.set(key, pending);
@@ -177,7 +180,7 @@ export class PoolUsageTracker {
     }
     /** Score one member against a snapshot's windows. */
     score(member, entry) {
-        const windows = (entry.snapshot.windows ?? []).filter(window => windowApplies(window, member.model));
+        const windows = (entry.snapshot.windows ?? []).filter((window) => windowApplies(window, member.model));
         let available = true;
         let urgency = 0;
         for (const window of windows) {
@@ -201,7 +204,9 @@ function degradedQuota(error) {
 }
 /** How long to hold a failure in the negative cache: the endpoint's own `retry-after`, or the default TTL. */
 function cooldownFor(error, defaultTtlMs) {
-    return error instanceof OAuthEndpointError && error.retryAfterMs !== undefined ? error.retryAfterMs : defaultTtlMs;
+    return error instanceof OAuthEndpointError && error.retryAfterMs !== undefined
+        ? error.retryAfterMs
+        : defaultTtlMs;
 }
 /**
  * Whether a window constrains this model: unscoped windows always do; a

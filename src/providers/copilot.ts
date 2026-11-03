@@ -14,27 +14,41 @@
  * unchanged.
  */
 
-import { EMPTY_RESPONSE_CODE, errorChain, LlmAdapter, LlmError, ReasoningEffortId } from '@deepseek-ai/dsh-llm'
+import {
+  EMPTY_RESPONSE_CODE,
+  errorChain,
+  LlmAdapter,
+  LlmError,
+  ReasoningEffortId,
+} from '@deepseek-ai/dsh-llm';
 import type {
   GenerateOptions,
   LlmModelInfo,
   LlmProviderInfo,
   LlmResolvedModelInfo,
   StreamChunk,
-} from '@deepseek-ai/dsh-llm'
-import type { DeviceFlowSpec } from '../auth/device-flow.js'
-import type { CopilotSession } from '../auth/store.js'
-import type { ProviderId } from '../auth/store.js'
-import type { PoolAdapter } from './pool.js'
-import type { AttachmentStore } from '@deepseek-ai/dsh-attachment'
-import { resolveImages } from '../translate/resolved.js'
+} from '@deepseek-ai/dsh-llm';
+import type { DeviceFlowSpec } from '../auth/device-flow.js';
+import type { CopilotSession } from '../auth/store.js';
+import type { ProviderId } from '../auth/store.js';
+import type { PoolAdapter } from './pool.js';
+import type { AttachmentStore } from '@deepseek-ai/dsh-attachment';
+import { resolveImages } from '../translate/resolved.js';
 import {
   streamChatCompletions,
   toChatMessages,
   toChatTools,
-} from '../translate/chat-completions.js'
-import { streamResponses, toResponsesInput, toResponsesTools } from '../translate/responses.js'
-import type { ReasoningReplayItem, ResponsesRequestInput, ResponsesStreamEvent } from '../translate/responses.js'
+} from '../translate/chat-completions.js';
+import {
+  streamResponses,
+  toResponsesInput,
+  toResponsesTools,
+} from '../translate/responses.js';
+import type {
+  ReasoningReplayItem,
+  ResponsesRequestInput,
+  ResponsesStreamEvent,
+} from '../translate/responses.js';
 import {
   httpLlmError,
   withAbortSignal,
@@ -49,41 +63,47 @@ import {
   isMissingOrInvalidCredential,
   oauthEndpointError,
   OAuthEndpointError,
-} from './common.js'
-import { AccountTokenManager, DISCOVERY_TIMEOUT_MS, unionAccountCatalogs } from './accounts.js'
+} from './common.js';
+import {
+  AccountTokenManager,
+  DISCOVERY_TIMEOUT_MS,
+  unionAccountCatalogs,
+} from './accounts.js';
 import type {
   CatalogPersistence,
   DiscoveredModel,
   FetchFn,
   ModelEntry,
-} from './common.js'
-import { proxiedFetch } from '../http.js'
+} from './common.js';
+import { proxiedFetch } from '../http.js';
 import {
   DEFAULT_RATE_LIMIT_WAIT,
   DEFAULT_RETRY,
   subscriptionRetryPolicy,
-} from './rate-limit.js'
-import type { RateLimitWait } from './rate-limit.js'
+} from './rate-limit.js';
+import type { RateLimitWait } from './rate-limit.js';
 
 /**
  * Client id of the VS Code Copilot Chat GitHub App (pi-mono and
  * copilot2api-go use the same value): the app is pre-authorized for the
  * Copilot internal token exchange, a self-registered OAuth App is not.
  */
-export const COPILOT_CLIENT_ID = 'Iv1.b507a08c87ecfe98'
-export const COPILOT_DEVICE_CODE_URL = 'https://github.com/login/device/code'
-export const COPILOT_DEVICE_TOKEN_URL = 'https://github.com/login/oauth/access_token'
-export const COPILOT_TOKEN_URL = 'https://api.github.com/copilot_internal/v2/token'
-export const GITHUB_USER_URL = 'https://api.github.com/user'
-export const COPILOT_API_URL = 'https://api.githubcopilot.com/chat/completions'
+export const COPILOT_CLIENT_ID = 'Iv1.b507a08c87ecfe98';
+export const COPILOT_DEVICE_CODE_URL = 'https://github.com/login/device/code';
+export const COPILOT_DEVICE_TOKEN_URL =
+  'https://github.com/login/oauth/access_token';
+export const COPILOT_TOKEN_URL =
+  'https://api.github.com/copilot_internal/v2/token';
+export const GITHUB_USER_URL = 'https://api.github.com/user';
+export const COPILOT_API_URL = 'https://api.githubcopilot.com/chat/completions';
 /** Responses endpoint for models whose catalog entry only lists `/responses`. */
-export const COPILOT_RESPONSES_URL = 'https://api.githubcopilot.com/responses'
-export const COPILOT_MODELS_URL = 'https://api.githubcopilot.com/models'
-const COPILOT_SCOPE = 'read:user'
-const COPILOT_CONTEXT_WINDOW = 128_000
-const COPILOT_DEFAULT_MAX_TOKENS = 16_000
+export const COPILOT_RESPONSES_URL = 'https://api.githubcopilot.com/responses';
+export const COPILOT_MODELS_URL = 'https://api.githubcopilot.com/models';
+const COPILOT_SCOPE = 'read:user';
+const COPILOT_CONTEXT_WINDOW = 128_000;
+const COPILOT_DEFAULT_MAX_TOKENS = 16_000;
 /** Refresh when the Copilot API token has less than this much life left. */
-export const COPILOT_PREEMPT_MS = 5 * 60_000
+export const COPILOT_PREEMPT_MS = 5 * 60_000;
 
 /**
  * The VS Code update feed answers a JSON array of version strings, latest
@@ -91,13 +111,14 @@ export const COPILOT_PREEMPT_MS = 5 * 60_000
  * old with `401 IDE token expired`, so the version is resolved live (cached
  * for a day) instead of hardcoded — a stale hardcode bricks every request.
  */
-export const VSCODE_RELEASES_URL = 'https://update.code.visualstudio.com/api/releases/stable'
+export const VSCODE_RELEASES_URL =
+  'https://update.code.visualstudio.com/api/releases/stable';
 /** Last-known-good VS Code version when the feed is unreachable. */
-export const FALLBACK_VSCODE_VERSION = '1.107.0'
-const VSCODE_VERSION_TTL_MS = 24 * 3_600_000
+export const FALLBACK_VSCODE_VERSION = '1.107.0';
+const VSCODE_VERSION_TTL_MS = 24 * 3_600_000;
 
-let vscodeVersionCache: { version: string; at: number } | undefined
-let vscodeVersionInflight: Promise<string> | undefined
+let vscodeVersionCache: { version: string; at: number } | undefined;
+let vscodeVersionInflight: Promise<string> | undefined;
 
 /**
  * Resolve the VS Code version presented as Editor-Version: the latest stable
@@ -107,34 +128,49 @@ let vscodeVersionInflight: Promise<string> | undefined
  * @param forceRefresh - bypass the cache (a 401 `IDE token expired` retry).
  * @returns a `major.minor.patch` version string.
  */
-export async function latestVsCodeVersion(fetchFn: FetchFn = proxiedFetch, forceRefresh = false): Promise<string> {
-  if (!forceRefresh && vscodeVersionCache !== undefined
-    && Date.now() - vscodeVersionCache.at < VSCODE_VERSION_TTL_MS) {
-    return vscodeVersionCache.version
+export async function latestVsCodeVersion(
+  fetchFn: FetchFn = proxiedFetch,
+  forceRefresh = false,
+): Promise<string> {
+  if (
+    !forceRefresh &&
+    vscodeVersionCache !== undefined &&
+    Date.now() - vscodeVersionCache.at < VSCODE_VERSION_TTL_MS
+  ) {
+    return vscodeVersionCache.version;
   }
   vscodeVersionInflight ??= (async () => {
-    const deadline = deadlineSignal(DISCOVERY_TIMEOUT_MS)
+    const deadline = deadlineSignal(DISCOVERY_TIMEOUT_MS);
     try {
       const releases: unknown = await withAbortSignal(async () => {
-        const response = await fetchFn(VSCODE_RELEASES_URL, { headers: { accept: 'application/json' }, signal: deadline.signal })
-        if (!response.ok) throw new Error(`HTTP ${String(response.status)}`)
-        return response.json()
-      }, deadline.signal)
+        const response = await fetchFn(VSCODE_RELEASES_URL, {
+          headers: { accept: 'application/json' },
+          signal: deadline.signal,
+        });
+        if (!response.ok) throw new Error(`HTTP ${String(response.status)}`);
+        return response.json();
+      }, deadline.signal);
       const version = Array.isArray(releases)
-        ? releases.find(entry => typeof entry === 'string' && /^\d+\.\d+\.\d+$/.test(entry))
-        : undefined
-      if (version === undefined) throw new Error('no version string in the feed')
-      vscodeVersionCache = { version: version as string, at: Date.now() }
-      return version as string
+        ? releases.find(
+            (entry) =>
+              typeof entry === 'string' && /^\d+\.\d+\.\d+$/.test(entry),
+          )
+        : undefined;
+      if (version === undefined)
+        throw new Error('no version string in the feed');
+      vscodeVersionCache = { version: version as string, at: Date.now() };
+      return version as string;
     } catch {
       // A feed failure must never break provider traffic: serve the stale
       // cache, else the pinned fallback.
-      return vscodeVersionCache?.version ?? FALLBACK_VSCODE_VERSION
+      return vscodeVersionCache?.version ?? FALLBACK_VSCODE_VERSION;
     } finally {
-      deadline.release()
+      deadline.release();
     }
-  })().finally(() => { vscodeVersionInflight = undefined })
-  return vscodeVersionInflight
+  })().finally(() => {
+    vscodeVersionInflight = undefined;
+  });
+  return vscodeVersionInflight;
 }
 
 /**
@@ -147,7 +183,7 @@ export function copilotDeviceFlow(): DeviceFlowSpec {
     scope: COPILOT_SCOPE,
     deviceCodeUrl: COPILOT_DEVICE_CODE_URL,
     tokenUrl: COPILOT_DEVICE_TOKEN_URL,
-  }
+  };
 }
 
 /**
@@ -157,7 +193,10 @@ export function copilotDeviceFlow(): DeviceFlowSpec {
  * @param vscodeVersion - Editor-Version value from {@link latestVsCodeVersion}.
  * @returns headers to merge into Copilot API requests.
  */
-export function copilotHeaders(hasVision = false, vscodeVersion = FALLBACK_VSCODE_VERSION): Record<string, string> {
+export function copilotHeaders(
+  hasVision = false,
+  vscodeVersion = FALLBACK_VSCODE_VERSION,
+): Record<string, string> {
   return {
     'user-agent': 'GitHubCopilotChat/0.35.0',
     'editor-version': `vscode/${vscodeVersion}`,
@@ -165,21 +204,21 @@ export function copilotHeaders(hasVision = false, vscodeVersion = FALLBACK_VSCOD
     'copilot-integration-id': 'vscode-chat',
     'openai-intent': 'conversation-edits',
     'x-github-api-version': '2026-06-01',
-    ...hasVision ? { 'copilot-vision-request': 'true' } : {},
-  }
+    ...(hasVision ? { 'copilot-vision-request': 'true' } : {}),
+  };
 }
 
 /** Copilot token-exchange response shape (subset). */
 interface CopilotTokenWire {
-  token?: string
+  token?: string;
   /** Epoch SECONDS at which the Copilot API token expires. */
-  expires_at?: number
+  expires_at?: number;
 }
 
 /** The freshly exchanged Copilot API token half of a session. */
 interface CopilotTokenPair {
-  accessToken: string
-  expiresAt: number
+  accessToken: string;
+  expiresAt: number;
 }
 
 /**
@@ -195,34 +234,52 @@ export async function exchangeCopilotToken(
   fetchFn: FetchFn = proxiedFetch,
   signal?: AbortSignal,
 ): Promise<CopilotTokenPair> {
-  const deadline = deadlineSignal(DISCOVERY_TIMEOUT_MS, signal)
+  const deadline = deadlineSignal(DISCOVERY_TIMEOUT_MS, signal);
   try {
-    return await withAbortSignal(() => exchangeCopilotTokenWithinDeadline(githubToken, fetchFn, deadline.signal), deadline.signal)
-  } finally { deadline.release() }
+    return await withAbortSignal(
+      () =>
+        exchangeCopilotTokenWithinDeadline(
+          githubToken,
+          fetchFn,
+          deadline.signal,
+        ),
+      deadline.signal,
+    );
+  } finally {
+    deadline.release();
+  }
 }
 
-async function exchangeCopilotTokenWithinDeadline(githubToken: string, fetchFn: FetchFn, signal: AbortSignal): Promise<CopilotTokenPair> {
+async function exchangeCopilotTokenWithinDeadline(
+  githubToken: string,
+  fetchFn: FetchFn,
+  signal: AbortSignal,
+): Promise<CopilotTokenPair> {
   const response = await fetchFn(COPILOT_TOKEN_URL, {
     headers: {
-      'authorization': `Bearer ${githubToken}`,
-      'accept': 'application/json',
-      ...copilotHeaders(false, await withAbortSignal(() => latestVsCodeVersion(fetchFn), signal)),
+      authorization: `Bearer ${githubToken}`,
+      accept: 'application/json',
+      ...copilotHeaders(
+        false,
+        await withAbortSignal(() => latestVsCodeVersion(fetchFn), signal),
+      ),
     },
     signal,
-  })
-  if (!response.ok) throw await oauthEndpointError(response, 'copilot')
-  const wire = await response.json() as CopilotTokenWire
+  });
+  if (!response.ok) throw await oauthEndpointError(response, 'copilot');
+  const wire = (await response.json()) as CopilotTokenWire;
   if (typeof wire.token !== 'string' || wire.token.length === 0) {
-    throw new Error('copilot token endpoint returned no token')
+    throw new Error('copilot token endpoint returned no token');
   }
   return {
     accessToken: wire.token,
     // A missing expiry falls back to a conservative 25 minutes (the tokens
     // typically live ~30).
-    expiresAt: typeof wire.expires_at === 'number' && wire.expires_at > 0
-      ? wire.expires_at * 1000
-      : Date.now() + 25 * 60_000,
-  }
+    expiresAt:
+      typeof wire.expires_at === 'number' && wire.expires_at > 0
+        ? wire.expires_at * 1000
+        : Date.now() + 25 * 60_000,
+  };
 }
 
 /**
@@ -237,28 +294,43 @@ export async function completeCopilotLogin(
   fetchFn: FetchFn = proxiedFetch,
   signal?: AbortSignal,
 ): Promise<CopilotSession> {
-  const deadline = deadlineSignal(DISCOVERY_TIMEOUT_MS, signal)
+  const deadline = deadlineSignal(DISCOVERY_TIMEOUT_MS, signal);
   try {
-    return await withAbortSignal(() => completeCopilotLoginWithinDeadline(githubToken, fetchFn, deadline.signal), deadline.signal)
-  } finally { deadline.release() }
+    return await withAbortSignal(
+      () =>
+        completeCopilotLoginWithinDeadline(
+          githubToken,
+          fetchFn,
+          deadline.signal,
+        ),
+      deadline.signal,
+    );
+  } finally {
+    deadline.release();
+  }
 }
 
-async function completeCopilotLoginWithinDeadline(githubToken: string, fetchFn: FetchFn, signal: AbortSignal): Promise<CopilotSession> {
-  const pair = await exchangeCopilotToken(githubToken, fetchFn, signal)
-  let account: string | undefined
+async function completeCopilotLoginWithinDeadline(
+  githubToken: string,
+  fetchFn: FetchFn,
+  signal: AbortSignal,
+): Promise<CopilotSession> {
+  const pair = await exchangeCopilotToken(githubToken, fetchFn, signal);
+  let account: string | undefined;
   try {
     const response = await fetchFn(GITHUB_USER_URL, {
       headers: {
-        'authorization': `Bearer ${githubToken}`,
-        'accept': 'application/json',
+        authorization: `Bearer ${githubToken}`,
+        accept: 'application/json',
         // api.github.com only demands a user agent; no editor disguise needed.
         'user-agent': 'GitHubCopilotChat/0.35.0',
       },
       signal,
-    })
+    });
     if (response.ok) {
-      const profile = await response.json() as { login?: string }
-      if (typeof profile.login === 'string' && profile.login.length > 0) account = profile.login
+      const profile = (await response.json()) as { login?: string };
+      if (typeof profile.login === 'string' && profile.login.length > 0)
+        account = profile.login;
     }
   } catch {
     // A profile lookup failure must not fail the login; the session works without a display name.
@@ -267,8 +339,8 @@ async function completeCopilotLoginWithinDeadline(githubToken: string, fetchFn: 
     accessToken: pair.accessToken,
     refreshToken: githubToken,
     expiresAt: pair.expiresAt,
-    ...account === undefined ? {} : { account },
-  }
+    ...(account === undefined ? {} : { account }),
+  };
 }
 
 /**
@@ -278,14 +350,17 @@ async function completeCopilotLoginWithinDeadline(githubToken: string, fetchFn: 
  * @param fetchFn - fetch implementation (injectable for tests).
  * @returns the fresh session to store.
  */
-export async function refreshCopilot(session: CopilotSession, fetchFn: FetchFn = proxiedFetch): Promise<CopilotSession> {
-  const pair = await exchangeCopilotToken(session.refreshToken, fetchFn)
+export async function refreshCopilot(
+  session: CopilotSession,
+  fetchFn: FetchFn = proxiedFetch,
+): Promise<CopilotSession> {
+  const pair = await exchangeCopilotToken(session.refreshToken, fetchFn);
   return {
     accessToken: pair.accessToken,
     refreshToken: session.refreshToken,
     expiresAt: pair.expiresAt,
-    ...session.account === undefined ? {} : { account: session.account },
-  }
+    ...(session.account === undefined ? {} : { account: session.account }),
+  };
 }
 
 /**
@@ -294,30 +369,35 @@ export async function refreshCopilot(session: CopilotSession, fetchFn: FetchFn =
  * @returns true when re-login is the only fix (GitHub token revoked or the subscription lost).
  */
 export function isCopilotPermanentRefreshError(error: unknown): boolean {
-  return error instanceof OAuthEndpointError && (error.status === 401 || error.status === 403)
+  return (
+    error instanceof OAuthEndpointError &&
+    (error.status === 401 || error.status === 403)
+  );
 }
 
 /** The /models catalog entry subset this plugin reads. */
 interface CopilotWireModel {
-  id?: string
-  name?: string
-  model_picker_enabled?: boolean
-  policy?: { state?: string }
-  supported_endpoints?: string[]
+  id?: string;
+  name?: string;
+  model_picker_enabled?: boolean;
+  policy?: { state?: string };
+  supported_endpoints?: string[];
   capabilities?: {
     supports?: {
-      vision?: boolean
-      tool_calls?: boolean
+      vision?: boolean;
+      tool_calls?: boolean;
       /** Supported reasoning efforts, present only on models that reason. */
-      reasoning_effort?: string[] | null
-    }
-    limits?: { max_context_window_tokens?: number }
-  }
+      reasoning_effort?: string[] | null;
+    };
+    limits?: { max_context_window_tokens?: number };
+  };
 }
 
 /** Display name for one Copilot wire reasoning-effort value. */
 function copilotEffortName(effort: string): string {
-  return effort === 'xhigh' ? 'Extra High' : effort.charAt(0).toUpperCase() + effort.slice(1)
+  return effort === 'xhigh'
+    ? 'Extra High'
+    : effort.charAt(0).toUpperCase() + effort.slice(1);
 }
 
 /**
@@ -326,17 +406,23 @@ function copilotEffortName(effort: string): string {
  * (absence preserves the provider's own default). Duplicates and non-string
  * entries are dropped: the harness rejects duplicate effort ids outright.
  */
-function copilotReasoning(entry: CopilotWireModel): { efforts: { id: ReasoningEffortId; name: string }[] } | undefined {
-  const wire = entry.capabilities?.supports?.reasoning_effort
-  if (!Array.isArray(wire)) return undefined
-  const seen = new Set<string>()
-  const efforts: { id: ReasoningEffortId; name: string }[] = []
+function copilotReasoning(
+  entry: CopilotWireModel,
+): { efforts: { id: ReasoningEffortId; name: string }[] } | undefined {
+  const wire = entry.capabilities?.supports?.reasoning_effort;
+  if (!Array.isArray(wire)) return undefined;
+  const seen = new Set<string>();
+  const efforts: { id: ReasoningEffortId; name: string }[] = [];
   for (const value of wire) {
-    if (typeof value !== 'string' || value.length === 0 || seen.has(value)) continue
-    seen.add(value)
-    efforts.push({ id: ReasoningEffortId(value), name: copilotEffortName(value) })
+    if (typeof value !== 'string' || value.length === 0 || seen.has(value))
+      continue;
+    seen.add(value);
+    efforts.push({
+      id: ReasoningEffortId(value),
+      name: copilotEffortName(value),
+    });
   }
-  return efforts.length > 0 ? { efforts } : undefined
+  return efforts.length > 0 ? { efforts } : undefined;
 }
 
 /**
@@ -363,52 +449,70 @@ export async function fetchCopilotModels(
 ): Promise<DiscoveredModel[]> {
   const response = await fetchFn(COPILOT_MODELS_URL, {
     headers: {
-      'authorization': `Bearer ${session.accessToken}`,
-      'accept': 'application/json',
+      authorization: `Bearer ${session.accessToken}`,
+      accept: 'application/json',
       ...copilotHeaders(false, await latestVsCodeVersion(fetchFn)),
     },
-    ...signal === undefined ? {} : { signal },
-  })
-  if (!response.ok) throw await oauthEndpointError(response, 'copilot models')
-  const payload = await response.json() as { data?: CopilotWireModel[] }
-  if (!Array.isArray(payload.data)) throw new Error('copilot models endpoint returned no data array')
-  const seen = new Set<string>()
-  const discovered: DiscoveredModel[] = []
+    ...(signal === undefined ? {} : { signal }),
+  });
+  if (!response.ok) throw await oauthEndpointError(response, 'copilot models');
+  const payload = (await response.json()) as { data?: CopilotWireModel[] };
+  if (!Array.isArray(payload.data))
+    throw new Error('copilot models endpoint returned no data array');
+  const seen = new Set<string>();
+  const discovered: DiscoveredModel[] = [];
   for (const entry of payload.data) {
-    if (typeof entry.id !== 'string' || entry.id.length === 0 || seen.has(entry.id)) continue
-    if (entry.model_picker_enabled !== true || entry.policy?.state === 'disabled') continue
-    let wire: 'chat-completions' | 'responses' | undefined
-    let responsesSupported = false
+    if (
+      typeof entry.id !== 'string' ||
+      entry.id.length === 0 ||
+      seen.has(entry.id)
+    )
+      continue;
+    if (
+      entry.model_picker_enabled !== true ||
+      entry.policy?.state === 'disabled'
+    )
+      continue;
+    let wire: 'chat-completions' | 'responses' | undefined;
+    let responsesSupported = false;
     if (Array.isArray(entry.supported_endpoints)) {
-      responsesSupported = entry.supported_endpoints.includes('/responses')
-      if (entry.supported_endpoints.includes('/chat/completions')) wire = 'chat-completions'
-      else if (responsesSupported) wire = 'responses'
-      else continue
+      responsesSupported = entry.supported_endpoints.includes('/responses');
+      if (entry.supported_endpoints.includes('/chat/completions'))
+        wire = 'chat-completions';
+      else if (responsesSupported) wire = 'responses';
+      else continue;
     }
-    seen.add(entry.id)
-    const reasoning = copilotReasoning(entry)
+    seen.add(entry.id);
+    const reasoning = copilotReasoning(entry);
     discovered.push({
       id: entry.id,
-      name: typeof entry.name === 'string' && entry.name.length > 0 ? entry.name : entry.id,
-      ...typeof entry.capabilities?.limits?.max_context_window_tokens === 'number'
-        && entry.capabilities.limits.max_context_window_tokens > 0
+      name:
+        typeof entry.name === 'string' && entry.name.length > 0
+          ? entry.name
+          : entry.id,
+      ...(typeof entry.capabilities?.limits?.max_context_window_tokens ===
+        'number' && entry.capabilities.limits.max_context_window_tokens > 0
         ? { contextWindow: entry.capabilities.limits.max_context_window_tokens }
-        : {},
-      inputModalities: entry.capabilities?.supports?.vision === true ? ['text', 'image'] : ['text'],
-      ...reasoning === undefined ? {} : { reasoning },
-      ...wire === undefined ? {} : { copilotWire: wire },
-      ...responsesSupported ? { copilotResponses: true } : {},
-    })
+        : {}),
+      inputModalities:
+        entry.capabilities?.supports?.vision === true
+          ? ['text', 'image']
+          : ['text'],
+      ...(reasoning === undefined ? {} : { reasoning }),
+      ...(wire === undefined ? {} : { copilotWire: wire }),
+      ...(responsesSupported ? { copilotResponses: true } : {}),
+    });
   }
   // An empty catalog from a 200 response is treated as a discovery failure so
   // the adapter falls back to the static catalog instead of vanishing from
   // the picker.
-  if (discovered.length === 0) throw new Error('copilot models endpoint returned an empty catalog')
-  return discovered
+  if (discovered.length === 0)
+    throw new Error('copilot models endpoint returned an empty catalog');
+  return discovered;
 }
 
 /** Which upstream protocol one Copilot model speaks. */
-export type CopilotWire = 'chat-completions' | 'responses'
+export type CopilotWire = 'chat-completions' | 'responses';
 
 /**
  * The wire protocol for one model: the discovered catalog entry's recorded
@@ -417,8 +521,10 @@ export type CopilotWire = 'chat-completions' | 'responses'
  * @param entry - the discovered catalog entry, when known.
  * @returns the protocol the request for this model must speak.
  */
-export function copilotWireFor(entry: DiscoveredModel | undefined): CopilotWire {
-  return entry?.copilotWire === 'responses' ? 'responses' : 'chat-completions'
+export function copilotWireFor(
+  entry: DiscoveredModel | undefined,
+): CopilotWire {
+  return entry?.copilotWire === 'responses' ? 'responses' : 'chat-completions';
 }
 
 /**
@@ -439,12 +545,16 @@ export function copilotRequestWire(
   entry: DiscoveredModel | undefined,
   options: Pick<GenerateOptions, 'tools' | 'reasoningEffort'>,
 ): CopilotWire {
-  const wire = copilotWireFor(entry)
-  if (wire !== 'chat-completions') return wire
-  if (entry?.copilotResponses !== true) return wire
-  if (options.tools === undefined || options.tools.length === 0) return wire
-  if (options.reasoningEffort === undefined || options.reasoningEffort === 'none') return wire
-  return 'responses'
+  const wire = copilotWireFor(entry);
+  if (wire !== 'chat-completions') return wire;
+  if (entry?.copilotResponses !== true) return wire;
+  if (options.tools === undefined || options.tools.length === 0) return wire;
+  if (
+    options.reasoningEffort === undefined ||
+    options.reasoningEffort === 'none'
+  )
+    return wire;
+  return 'responses';
 }
 
 /**
@@ -463,20 +573,22 @@ export function copilotChatRequestBody(
   return {
     model: options.model,
     messages,
-    ...options.tools !== undefined && options.tools.length > 0
+    ...(options.tools !== undefined && options.tools.length > 0
       ? { tools: toChatTools(options.tools), tool_choice: 'auto' }
-      : {},
-    ...options.maxTokens !== undefined ? { max_completion_tokens: options.maxTokens } : {},
+      : {}),
+    ...(options.maxTokens !== undefined
+      ? { max_completion_tokens: options.maxTokens }
+      : {}),
     // The harness only passes an effort the resolved model advertised (the
     // catalog's reasoning_effort array), and copilotRequestWire keeps the
     // tools+effort combination off this wire for models that reject it.
-    ...options.reasoningEffort !== undefined
+    ...(options.reasoningEffort !== undefined
       ? { reasoning_effort: String(options.reasoningEffort) }
-      : {},
+      : {}),
     // The upstream is stream-only; usage arrives on the terminal chunk.
     stream: true,
     stream_options: { include_usage: true },
-  }
+  };
 }
 
 /**
@@ -492,23 +604,30 @@ export function copilotResponsesRequestBody(
 ): Record<string, unknown> {
   return {
     model: options.model,
-    ...resolved.instructions !== undefined ? { instructions: resolved.instructions } : {},
+    ...(resolved.instructions !== undefined
+      ? { instructions: resolved.instructions }
+      : {}),
     input: resolved.input,
-    ...options.tools !== undefined && options.tools.length > 0
-      ? { tools: toResponsesTools(options.tools, { strict: false }), tool_choice: 'auto' }
-      : {},
-    ...options.maxTokens !== undefined ? { max_output_tokens: options.maxTokens } : {},
+    ...(options.tools !== undefined && options.tools.length > 0
+      ? {
+          tools: toResponsesTools(options.tools, { strict: false }),
+          tool_choice: 'auto',
+        }
+      : {}),
+    ...(options.maxTokens !== undefined
+      ? { max_output_tokens: options.maxTokens }
+      : {}),
     // The Responses wire spells the effort nested; only advertised efforts
     // ever reach this branch (see copilotChatRequestBody).
-    ...options.reasoningEffort !== undefined
+    ...(options.reasoningEffort !== undefined
       ? { reasoning: { effort: String(options.reasoningEffort) } }
-      : {},
+      : {}),
     // [2026-08-23]-[a reasoning model continuing a tool chain must replay its
     // encrypted reasoning on the next request, and the blobs only arrive when
     // asked for; for non-reasoning models the include is a no-op]
     include: ['reasoning.encrypted_content'],
     stream: true,
-  }
+  };
 }
 
 /**
@@ -520,16 +639,24 @@ export function copilotResponsesRequestBody(
  * not replayable and degrades to the no-replay path instead of risking an
  * invalid input item.
  */
-function completedReasoningItem(item: NonNullable<ResponsesStreamEvent['item']>): ReasoningReplayItem | undefined {
-  if (typeof item.encrypted_content !== 'string' || item.encrypted_content.length === 0) return undefined
-  if (typeof item.id !== 'string' || item.id.length === 0) return undefined
+function completedReasoningItem(
+  item: NonNullable<ResponsesStreamEvent['item']>,
+): ReasoningReplayItem | undefined {
+  if (
+    typeof item.encrypted_content !== 'string' ||
+    item.encrypted_content.length === 0
+  )
+    return undefined;
+  if (typeof item.id !== 'string' || item.id.length === 0) return undefined;
   return {
     type: 'reasoning',
     id: item.id,
-    ...Array.isArray(item.summary) ? { summary: item.summary } : {},
-    ...typeof item.status === 'string' && item.status.length > 0 ? { status: item.status } : {},
+    ...(Array.isArray(item.summary) ? { summary: item.summary } : {}),
+    ...(typeof item.status === 'string' && item.status.length > 0
+      ? { status: item.status }
+      : {}),
     encrypted_content: item.encrypted_content,
-  }
+  };
 }
 
 /**
@@ -551,11 +678,11 @@ function completedReasoningItem(item: NonNullable<ResponsesStreamEvent['item']>)
  * identity additionally rides the gateway-stable `call_id`.
  */
 export class CopilotResponsesItemNormalizer {
-  private adds = 0
-  private lastKey = 'copilot-item-0'
+  private adds = 0;
+  private lastKey = 'copilot-item-0';
   /** Call ids and completed reasoning items collected for the open response. */
-  private capturedCallIds: string[] = []
-  private capturedReasoning: ReasoningReplayItem[] = []
+  private capturedCallIds: string[] = [];
+  private capturedReasoning: ReasoningReplayItem[] = [];
 
   /**
    * @param onCaptured - fired at each `response.completed` that produced BOTH
@@ -563,7 +690,12 @@ export class CopilotResponsesItemNormalizer {
    *   call ids and replayable reasoning items so the adapter can replay them
    *   on the next request.
    */
-  constructor(private readonly onCaptured?: (callIds: string[], items: ReasoningReplayItem[]) => void) {}
+  constructor(
+    private readonly onCaptured?: (
+      callIds: string[],
+      items: ReasoningReplayItem[],
+    ) => void,
+  ) {}
 
   /**
    * [2026-08-23]-[a single arrival-order ordinal mis-buckets every event after
@@ -575,7 +707,7 @@ export class CopilotResponsesItemNormalizer {
   private keyFor(event: ResponsesStreamEvent): string {
     return event.output_index !== undefined
       ? `copilot-item-${String(event.output_index)}`
-      : this.lastKey
+      : this.lastKey;
   }
 
   /**
@@ -585,92 +717,100 @@ export class CopilotResponsesItemNormalizer {
    */
   push(event: ResponsesStreamEvent): ResponsesStreamEvent {
     if (event.type === 'response.output_item.added') {
-      this.adds += 1
-      const key = event.output_index !== undefined
-        ? `copilot-item-${String(event.output_index)}`
-        : `copilot-item-${String(this.adds)}`
-      this.lastKey = key
-      const item = event.item
-      if (item?.type === 'function_call' && typeof item.call_id === 'string' && item.call_id.length > 0) {
-        this.capturedCallIds.push(item.call_id)
+      this.adds += 1;
+      const key =
+        event.output_index !== undefined
+          ? `copilot-item-${String(event.output_index)}`
+          : `copilot-item-${String(this.adds)}`;
+      this.lastKey = key;
+      const item = event.item;
+      if (
+        item?.type === 'function_call' &&
+        typeof item.call_id === 'string' &&
+        item.call_id.length > 0
+      ) {
+        this.capturedCallIds.push(item.call_id);
       }
       return item === undefined
         ? event
-        : { ...event, item: { ...item, id: key } }
+        : { ...event, item: { ...item, id: key } };
     }
     if (event.type === 'response.output_item.done') {
-      const item = event.item
+      const item = event.item;
       if (item?.type === 'reasoning') {
         // Capture runs BEFORE the stable-key rewrite: the replay item must
         // carry the item's original gateway id, not the translator key.
-        const captured = completedReasoningItem(item)
-        if (captured !== undefined) this.capturedReasoning.push(captured)
+        const captured = completedReasoningItem(item);
+        if (captured !== undefined) this.capturedReasoning.push(captured);
       }
       return item === undefined
         ? event
-        : { ...event, item: { ...item, id: this.keyFor(event) } }
+        : { ...event, item: { ...item, id: this.keyFor(event) } };
     }
     if (event.type === 'response.completed') {
       // Both sides present is the only replayable response; clear either way —
       // one SSE stream may carry multiple responses.
-      if (this.capturedCallIds.length > 0 && this.capturedReasoning.length > 0) {
-        this.onCaptured?.(this.capturedCallIds, this.capturedReasoning)
+      if (
+        this.capturedCallIds.length > 0 &&
+        this.capturedReasoning.length > 0
+      ) {
+        this.onCaptured?.(this.capturedCallIds, this.capturedReasoning);
       }
-      this.capturedCallIds = []
-      this.capturedReasoning = []
-      return event
+      this.capturedCallIds = [];
+      this.capturedReasoning = [];
+      return event;
     }
-    if (event.item_id === undefined) return event
-    return { ...event, item_id: this.keyFor(event) }
+    if (event.item_id === undefined) return event;
+    return { ...event, item_id: this.keyFor(event) };
   }
 }
 
 /** Constructor dependencies for {@link CopilotAdapter}. */
 export interface CopilotAdapterOptions {
-  models: readonly ModelEntry[]
-  streamIdleTimeoutMs: number
-  tokens: AccountTokenManager<CopilotSession>
+  models: readonly ModelEntry[];
+  streamIdleTimeoutMs: number;
+  tokens: AccountTokenManager<CopilotSession>;
   /** Late-bound pool facade (wired after adapter construction); pools list under their first member's provider. */
-  pool?: () => PoolAdapter | undefined
+  pool?: () => PoolAdapter | undefined;
   /** Whether to fetch the live catalog when logged in (false when config `models` overrides). */
-  discovery: boolean
+  discovery: boolean;
   /** Warning sink for discovery failures that fall back to the static catalog. */
-  onWarn?: (message: string) => void
+  onWarn?: (message: string) => void;
   /** Fetch implementation for discovery (defaults to the proxy-aware fetch). */
-  fetchFn?: FetchFn
+  fetchFn?: FetchFn;
   /** Resolve the attachment service per request; absent means image requests fail loudly. */
-  resolveAttachments?: () => AttachmentStore | undefined
+  resolveAttachments?: () => AttachmentStore | undefined;
   /** Durable catalog store seeding capability metadata across restarts. */
-  catalogStore?: CatalogPersistence
-  onCatalogChanged?: () => void
-  accountCatalogStore?: (account: string) => CatalogPersistence
+  catalogStore?: CatalogPersistence;
+  onCatalogChanged?: () => void;
+  accountCatalogStore?: (account: string) => CatalogPersistence;
   /** How long this route may hold a turn open waiting for a rate-limit window; defaults to waiting on, six-hour ceiling. */
-  rateLimit?: RateLimitWait
+  rateLimit?: RateLimitWait;
   /**
    * Per-model default reasoning effort override (the Settings page's picker).
    * Returns the user-configured default for one model, or undefined to follow
    * the provider's own default.
    */
-  defaultEffortOf?: (model: string) => string | undefined
+  defaultEffortOf?: (model: string) => string | undefined;
 }
 
 /** One captured replay bundle: a response's completed reasoning items. */
 interface ReasoningReplayEntry {
   /** Completed reasoning items in output order, replayed ahead of the response's first function call. */
-  items: ReasoningReplayItem[]
+  items: ReasoningReplayItem[];
   /** Capture time (epoch ms); entries older than the TTL answer as misses. */
-  at: number
+  at: number;
 }
 
 /** Copilot wire adapter: one instance serves the `copilot` provider route. */
 export class CopilotAdapter extends LlmAdapter {
-  private readonly catalog: ModelCatalogCache
+  private readonly catalog: ModelCatalogCache;
   /** In-memory catalogs for non-default accounts (the persisted cache is the default's). */
-  private readonly accountCatalogs = new Map<string, ModelCatalogCache>()
-  private accountCatalogsInvalidated = false
-  private readonly invalidatedAccounts = new Set<string>()
+  private readonly accountCatalogs = new Map<string, ModelCatalogCache>();
+  private accountCatalogsInvalidated = false;
+  private readonly invalidatedAccounts = new Set<string>();
   /** Account whose snapshot currently lives in {@link catalog}; cleared on default change. */
-  private catalogOwner: string | undefined
+  private catalogOwner: string | undefined;
   /**
    * [2026-08-23]-[a reasoning model continuing a tool chain must get its
    * reasoning back or it restarts from scratch every tool round trip; the
@@ -680,64 +820,88 @@ export class CopilotAdapter extends LlmAdapter {
    * TTL, and the whole store is dropped on auth transitions, so replay
    * degrades to the old behavior instead of leaking across contexts]
    */
-  private readonly replayByScope = new Map<string, Map<string, ReasoningReplayEntry>>()
+  private readonly replayByScope = new Map<
+    string,
+    Map<string, ReasoningReplayEntry>
+  >();
   /** Call-id entries kept per scope; see {@link captureReasoning}. */
-  private static readonly REPLAY_CALL_LIMIT = 64
+  private static readonly REPLAY_CALL_LIMIT = 64;
   /** Conversation scopes kept at once; bounds memory when many sessions interleave. */
-  private static readonly REPLAY_SCOPE_LIMIT = 32
+  private static readonly REPLAY_SCOPE_LIMIT = 32;
   /** How long a captured entry stays replayable; tool round trips take minutes, not hours. */
-  private static readonly REPLAY_TTL_MS = 30 * 60_000
+  private static readonly REPLAY_TTL_MS = 30 * 60_000;
 
   constructor(private readonly options: CopilotAdapterOptions) {
-    super()
-    this.catalog = new ModelCatalogCache(options.catalogStore, undefined, options.onCatalogChanged)
+    super();
+    this.catalog = new ModelCatalogCache(
+      options.catalogStore,
+      undefined,
+      options.onCatalogChanged,
+    );
   }
 
   /** Discovery fetcher: resolves the session through the refresh-aware path. */
-  private async fetchCatalog(account?: string, signal?: AbortSignal): Promise<DiscoveredModel[]> {
-    return fetchCopilotModels(await this.options.tokens.session(account), this.options.fetchFn, signal)
+  private async fetchCatalog(
+    account?: string,
+    signal?: AbortSignal,
+  ): Promise<DiscoveredModel[]> {
+    return fetchCopilotModels(
+      await this.options.tokens.session(account),
+      this.options.fetchFn,
+      signal,
+    );
   }
 
   /** Drop cached catalogs after login/logout so the next list does not reuse a stale plan. */
   clearAccountCatalog(account?: string): void {
-    if (account === undefined) { this.accountCatalogsInvalidated = true; this.invalidatedAccounts.clear() }
-    else this.invalidatedAccounts.add(account)
     if (account === undefined) {
-      for (const cache of this.accountCatalogs.values()) cache.invalidate()
-      this.accountCatalogs.clear()
+      this.accountCatalogsInvalidated = true;
+      this.invalidatedAccounts.clear();
+    } else this.invalidatedAccounts.add(account);
+    if (account === undefined) {
+      for (const cache of this.accountCatalogs.values()) cache.invalidate();
+      this.accountCatalogs.clear();
     } else {
-      this.accountCatalogs.get(account)?.invalidate()
-      this.accountCatalogs.delete(account)
+      this.accountCatalogs.get(account)?.invalidate();
+      this.accountCatalogs.delete(account);
     }
-    if (account === undefined || this.catalogOwner === account || this.catalogOwner === undefined) {
-      this.catalogOwner = undefined
-      this.catalog.invalidate()
+    if (
+      account === undefined ||
+      this.catalogOwner === account ||
+      this.catalogOwner === undefined
+    ) {
+      this.catalogOwner = undefined;
+      this.catalog.invalidate();
     }
   }
 
   /** Default and secondary accounts each seed their own persisted catalog. */
   private async catalogFor(account?: string): Promise<ModelCatalogCache> {
-    const defaultKey = await this.options.tokens.defaultAccount()
-    const key = account ?? defaultKey
+    const defaultKey = await this.options.tokens.defaultAccount();
+    const key = account ?? defaultKey;
     if (key === undefined || key === defaultKey) {
       if (this.catalogOwner !== undefined && this.catalogOwner !== defaultKey) {
-        this.catalog.invalidate()
+        this.catalog.invalidate();
       }
-      this.catalogOwner = defaultKey
-      return this.catalog
+      this.catalogOwner = defaultKey;
+      return this.catalog;
     }
-    let cache = this.accountCatalogs.get(key)
+    let cache = this.accountCatalogs.get(key);
     if (cache === undefined) {
-      cache = new ModelCatalogCache(this.options.accountCatalogStore?.(key), undefined, this.options.onCatalogChanged)
-      const invalidated = this.invalidatedAccounts.delete(key)
-      if (this.accountCatalogsInvalidated || invalidated) cache.invalidate()
-      this.accountCatalogs.set(key, cache)
+      cache = new ModelCatalogCache(
+        this.options.accountCatalogStore?.(key),
+        undefined,
+        this.options.onCatalogChanged,
+      );
+      const invalidated = this.invalidatedAccounts.delete(key);
+      if (this.accountCatalogsInvalidated || invalidated) cache.invalidate();
+      this.accountCatalogs.set(key, cache);
     }
-    return cache
+    return cache;
   }
 
   override providerInfo(provider: string): LlmProviderInfo {
-    return { id: provider, name: 'GitHub Copilot' }
+    return { id: provider, name: 'GitHub Copilot' };
   }
 
   override providerRetryPolicy(provider: string) {
@@ -745,69 +909,90 @@ export class CopilotAdapter extends LlmAdapter {
       DEFAULT_RETRY,
       this.options.rateLimit ?? DEFAULT_RATE_LIMIT_WAIT,
       `copilot: provider "${provider}" retryPolicy`,
-    )
+    );
   }
 
   private staticModels(provider: string): LlmModelInfo[] {
-    return this.options.models.map(model => ({
+    return this.options.models.map((model) => ({
       provider,
       id: model.id,
       name: model.name ?? model.id,
       inputModalities: model.inputModalities ?? ['text'],
-    }))
+    }));
   }
 
-  override async listModels(provider: string): Promise<readonly LlmModelInfo[]> {
-    const own = await this.listOwnModels(provider, undefined, undefined, true)
-    const pool = this.options.pool?.()
-    if (pool === undefined) return own
-    const extra = await pool.modelsForProvider(provider as ProviderId)
-    const seen = new Set(own.map(model => model.id))
+  override async listModels(
+    provider: string,
+  ): Promise<readonly LlmModelInfo[]> {
+    const own = await this.listOwnModels(provider, undefined, undefined, true);
+    const pool = this.options.pool?.();
+    if (pool === undefined) return own;
+    const extra = await pool.modelsForProvider(provider as ProviderId);
+    const seen = new Set(own.map((model) => model.id));
     // Account pools reuse the catalog row; only configured tiers are extra.
-    return [...own, ...extra.filter(model => !seen.has(model.id))]
+    return [...own, ...extra.filter((model) => !seen.has(model.id))];
   }
 
   /** The provider's own catalog: union of every account, or one account when named. */
-  async listOwnModels(provider: string, account?: string, signal?: AbortSignal, preferCached = false): Promise<readonly LlmModelInfo[]> {
+  async listOwnModels(
+    provider: string,
+    account?: string,
+    signal?: AbortSignal,
+    preferCached = false,
+  ): Promise<readonly LlmModelInfo[]> {
     if (account === undefined) {
-      const accounts = (await this.options.tokens.list()).map(entry => entry.key)
-      if (accounts.length === 0) return []
+      const accounts = (await this.options.tokens.list()).map(
+        (entry) => entry.key,
+      );
+      if (accounts.length === 0) return [];
       return unionAccountCatalogs(
         accounts,
-        (key, accountSignal) => this.listOwnModels(provider, key, accountSignal, preferCached),
-        { timeoutMs: DISCOVERY_TIMEOUT_MS, ...signal === undefined ? {} : { signal } },
-      )
+        (key, accountSignal) =>
+          this.listOwnModels(provider, key, accountSignal, preferCached),
+        {
+          timeoutMs: DISCOVERY_TIMEOUT_MS,
+          ...(signal === undefined ? {} : { signal }),
+        },
+      );
     }
-    if (!await this.options.tokens.hasSession(account)) {
-      return []
+    if (!(await this.options.tokens.hasSession(account))) {
+      return [];
     }
-    if (!this.options.discovery) return this.staticModels(provider)
-    const catalog = await this.catalogFor(account)
+    if (!this.options.discovery) return this.staticModels(provider);
+    const catalog = await this.catalogFor(account);
     try {
       // The fetcher runs only on a cache miss, and resolves the session
       // through the refresh-aware path so an expired access token renews here
       // instead of failing discovery into the static fallback.
-      const discovered = await catalog.get(() => discoverOrRetryAuth(
-        force => this.options.tokens.session(account, force),
-        catalog,
-        () => this.fetchCatalog(account, signal),
-      ), preferCached)
-      return discovered.map(model => ({
+      const discovered = await catalog.get(
+        () =>
+          discoverOrRetryAuth(
+            (force) => this.options.tokens.session(account, force),
+            catalog,
+            () => this.fetchCatalog(account, signal),
+          ),
+        preferCached,
+      );
+      return discovered.map((model) => ({
         provider,
         id: model.id,
         name: model.name,
-        ...model.description === undefined ? {} : { description: model.description },
-        ...model.inputModalities === undefined ? {} : { inputModalities: model.inputModalities },
-      }))
+        ...(model.description === undefined
+          ? {}
+          : { description: model.description }),
+        ...(model.inputModalities === undefined
+          ? {}
+          : { inputModalities: model.inputModalities }),
+      }));
     } catch (error: unknown) {
-      if (isDiscoveryAborted(error, signal)) throw error
+      if (isDiscoveryAborted(error, signal)) throw error;
       // A permanent refresh failure deletes the stored session: the provider
       // is logged out, so hide it instead of showing a stale static catalog.
-      if (isMissingOrInvalidCredential(error)) return []
+      if (isMissingOrInvalidCredential(error)) return [];
       this.options.onWarn?.(
         `copilot model discovery failed; using the built-in catalog (${errorChain(error)})`,
-      )
-      return this.staticModels(provider)
+      );
+      return this.staticModels(provider);
     }
   }
 
@@ -817,17 +1002,26 @@ export class CopilotAdapter extends LlmAdapter {
    * a long conversation — a mid-turn refetch must neither block nor fail the
    * call before provider I/O.
    */
-  private async discovered(model: string, account?: string, signal?: AbortSignal): Promise<DiscoveredModel | undefined> {
-    signal?.throwIfAborted()
-    if (!this.options.discovery) return undefined
-    const accounts = account === undefined ? (await this.options.tokens.list()).map(entry => entry.key) : [account]
-    return discoverAcrossAccounts(accounts, async account => {
-      signal?.throwIfAborted()
-      const catalog = await this.catalogFor(account)
-      const models = await catalog.resolve(() => this.fetchCatalog(account, signal))
-      signal?.throwIfAborted()
-      return models?.find(entry => entry.id === model)
-    })
+  private async discovered(
+    model: string,
+    account?: string,
+    signal?: AbortSignal,
+  ): Promise<DiscoveredModel | undefined> {
+    signal?.throwIfAborted();
+    if (!this.options.discovery) return undefined;
+    const accounts =
+      account === undefined
+        ? (await this.options.tokens.list()).map((entry) => entry.key)
+        : [account];
+    return discoverAcrossAccounts(accounts, async (account) => {
+      signal?.throwIfAborted();
+      const catalog = await this.catalogFor(account);
+      const models = await catalog.resolve(() =>
+        this.fetchCatalog(account, signal),
+      );
+      signal?.throwIfAborted();
+      return models?.find((entry) => entry.id === model);
+    });
   }
 
   /**
@@ -838,10 +1032,14 @@ export class CopilotAdapter extends LlmAdapter {
    * `models[].wire` now routes the request even without discovery]
    */
   private configuredWireEntry(model: string): DiscoveredModel | undefined {
-    const configured = this.options.models.find(entry => entry.id === model)
+    const configured = this.options.models.find((entry) => entry.id === model);
     return configured?.wire === undefined
       ? undefined
-      : { id: configured.id, name: configured.name ?? configured.id, copilotWire: configured.wire }
+      : {
+          id: configured.id,
+          name: configured.name ?? configured.id,
+          copilotWire: configured.wire,
+        };
   }
 
   /**
@@ -855,14 +1053,18 @@ export class CopilotAdapter extends LlmAdapter {
    * other scope, so reused ids cannot leak reasoning across accounts,
    * conversations, or models.
    */
-  private replayScope(tokenKey: string, options: GenerateOptions): string | undefined {
-    const conversation = options.sessionId !== undefined
-      ? `session:${String(options.sessionId)}`
-      : options.messages[0]?.id !== undefined
-        ? `anchor:${String(options.messages[0].id)}`
-        : undefined
-    if (conversation === undefined) return undefined
-    return `${tokenKey}\u0000${conversation}\u0000${options.model}`
+  private replayScope(
+    tokenKey: string,
+    options: GenerateOptions,
+  ): string | undefined {
+    const conversation =
+      options.sessionId !== undefined
+        ? `session:${String(options.sessionId)}`
+        : options.messages[0]?.id !== undefined
+          ? `anchor:${String(options.messages[0].id)}`
+          : undefined;
+    if (conversation === undefined) return undefined;
+    return `${tokenKey}\u0000${conversation}\u0000${options.model}`;
   }
 
   /**
@@ -880,35 +1082,36 @@ export class CopilotAdapter extends LlmAdapter {
     callIds: readonly string[],
     items: readonly ReasoningReplayItem[],
   ): void {
-    if (scope === undefined) return
-    let entries = this.replayByScope.get(scope)
+    if (scope === undefined) return;
+    let entries = this.replayByScope.get(scope);
     if (entries === undefined) {
-      entries = new Map<string, ReasoningReplayEntry>()
-      this.replayByScope.set(scope, entries)
+      entries = new Map<string, ReasoningReplayEntry>();
+      this.replayByScope.set(scope, entries);
     } else {
       // Refresh the scope's recency so an active conversation is never the
       // scope-cap eviction victim.
-      this.replayByScope.delete(scope)
-      this.replayByScope.set(scope, entries)
+      this.replayByScope.delete(scope);
+      this.replayByScope.set(scope, entries);
     }
-    const now = Date.now()
+    const now = Date.now();
     for (const [callId, entry] of entries) {
-      if (now - entry.at >= CopilotAdapter.REPLAY_TTL_MS) entries.delete(callId)
+      if (now - entry.at >= CopilotAdapter.REPLAY_TTL_MS)
+        entries.delete(callId);
     }
-    const entry: ReasoningReplayEntry = { items: [...items], at: now }
-    for (const callId of callIds) entries.set(callId, entry)
+    const entry: ReasoningReplayEntry = { items: [...items], at: now };
+    for (const callId of callIds) entries.set(callId, entry);
     // Blobs reach tens of kilobytes; cap the ENTRY count and evict the oldest
     // by insertion order rather than tracking bytes — eviction merely degrades
     // ancient calls to the pre-capture behavior.
     while (entries.size > CopilotAdapter.REPLAY_CALL_LIMIT) {
-      const oldest = entries.keys().next().value
-      if (oldest === undefined) break
-      entries.delete(oldest)
+      const oldest = entries.keys().next().value;
+      if (oldest === undefined) break;
+      entries.delete(oldest);
     }
     while (this.replayByScope.size > CopilotAdapter.REPLAY_SCOPE_LIMIT) {
-      const oldest = this.replayByScope.keys().next().value
-      if (oldest === undefined) break
-      this.replayByScope.delete(oldest)
+      const oldest = this.replayByScope.keys().next().value;
+      if (oldest === undefined) break;
+      this.replayByScope.delete(oldest);
     }
   }
 
@@ -920,19 +1123,22 @@ export class CopilotAdapter extends LlmAdapter {
    * absent or aged-out entry answers `undefined` — the no-replay
    * degradation, never an error.
    */
-  private replayFor(scope: string | undefined, callId: string): readonly ReasoningReplayItem[] | undefined {
-    if (scope === undefined) return undefined
-    const entries = this.replayByScope.get(scope)
-    const entry = entries?.get(callId)
-    if (entries === undefined || entry === undefined) return undefined
-    const now = Date.now()
-    if (now - entry.at >= CopilotAdapter.REPLAY_TTL_MS) return undefined
-    entry.at = now
-    entries.delete(callId)
-    entries.set(callId, entry)
-    this.replayByScope.delete(scope)
-    this.replayByScope.set(scope, entries)
-    return entry.items
+  private replayFor(
+    scope: string | undefined,
+    callId: string,
+  ): readonly ReasoningReplayItem[] | undefined {
+    if (scope === undefined) return undefined;
+    const entries = this.replayByScope.get(scope);
+    const entry = entries?.get(callId);
+    if (entries === undefined || entry === undefined) return undefined;
+    const now = Date.now();
+    if (now - entry.at >= CopilotAdapter.REPLAY_TTL_MS) return undefined;
+    entry.at = now;
+    entries.delete(callId);
+    entries.set(callId, entry);
+    this.replayByScope.delete(scope);
+    this.replayByScope.set(scope, entries);
+    return entry.items;
   }
 
   /**
@@ -944,57 +1150,95 @@ export class CopilotAdapter extends LlmAdapter {
    * bounded by the TTL and the caps.
    */
   clearReplayState(): void {
-    this.replayByScope.clear()
+    this.replayByScope.clear();
   }
 
-  override async resolveModel(provider: string, model: string, signal?: AbortSignal): Promise<LlmResolvedModelInfo> {
-    const pool = this.options.pool?.()
-    if (pool !== undefined && await pool.owns(provider as ProviderId, model)) {
-      return pool.resolveModel(provider, model)
+  override async resolveModel(
+    provider: string,
+    model: string,
+    signal?: AbortSignal,
+  ): Promise<LlmResolvedModelInfo> {
+    const pool = this.options.pool?.();
+    if (
+      pool !== undefined &&
+      (await pool.owns(provider as ProviderId, model))
+    ) {
+      return pool.resolveModel(provider, model);
     }
-    return this.resolveOwnModel(provider, model, undefined, signal)
+    return this.resolveOwnModel(provider, model, undefined, signal);
   }
 
   /** Capability resolution of the provider's own models (the pool resolves members here). */
-  async resolveOwnModel(provider: string, model: string, account?: string, signal?: AbortSignal): Promise<LlmResolvedModelInfo> {
-    const discovered = await withAbortSignal(() => this.discovered(model, account, signal), signal)
-    signal?.throwIfAborted()
-    const configured = this.options.models.find(entry => entry.id === model)
+  async resolveOwnModel(
+    provider: string,
+    model: string,
+    account?: string,
+    signal?: AbortSignal,
+  ): Promise<LlmResolvedModelInfo> {
+    const discovered = await withAbortSignal(
+      () => this.discovered(model, account, signal),
+      signal,
+    );
+    signal?.throwIfAborted();
+    const configured = this.options.models.find((entry) => entry.id === model);
     // Efforts come from the discovered catalog's reasoning_effort array; a
     // model that did not advertise one exposes none, so the harness rejects
     // an explicit effort before provider I/O instead of the API 400ing
     // (Copilot returns invalid_request_body for models that cannot reason).
     // A configured default effort still merges in: the picker then
     // preselects it even for models the catalog does not cover.
-    const reasoning = mergeReasoning(this.options.defaultEffortOf?.(model), discovered?.reasoning)
+    const reasoning = mergeReasoning(
+      this.options.defaultEffortOf?.(model),
+      discovered?.reasoning,
+    );
     return {
       provider,
       id: model,
       name: discovered?.name ?? configured?.name ?? model,
-      ...discovered?.description === undefined ? {} : { description: discovered.description },
-      inputModalities: discovered?.inputModalities ?? configured?.inputModalities ?? ['text'],
-      context: { contextWindow: discovered?.contextWindow ?? configured?.contextWindow ?? COPILOT_CONTEXT_WINDOW },
+      ...(discovered?.description === undefined
+        ? {}
+        : { description: discovered.description }),
+      inputModalities: discovered?.inputModalities ??
+        configured?.inputModalities ?? ['text'],
+      context: {
+        contextWindow:
+          discovered?.contextWindow ??
+          configured?.contextWindow ??
+          COPILOT_CONTEXT_WINDOW,
+      },
       defaultMaxTokens: configured?.maxTokens ?? COPILOT_DEFAULT_MAX_TOKENS,
-      ...reasoning === undefined ? {} : { reasoning },
-    }
+      ...(reasoning === undefined ? {} : { reasoning }),
+    };
   }
 
   async *stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
-    const pool = this.options.pool?.()
-    if (pool !== undefined && await pool.owns(options.provider as ProviderId, options.model)) {
-      yield* pool.stream(options)
-      return
+    const pool = this.options.pool?.();
+    if (
+      pool !== undefined &&
+      (await pool.owns(options.provider as ProviderId, options.model))
+    ) {
+      yield* pool.stream(options);
+      return;
     }
-    yield* this.streamCore(options)
+    yield* this.streamCore(options);
   }
 
   /** Pool seam: stream through one specific account instead of the default. */
-  streamAccount(options: GenerateOptions, account: string): AsyncIterable<StreamChunk> {
-    return this.streamCore(options, account)
+  streamAccount(
+    options: GenerateOptions,
+    account: string,
+  ): AsyncIterable<StreamChunk> {
+    return this.streamCore(options, account);
   }
 
-  private async *streamCore(options: GenerateOptions, account?: string): AsyncIterable<StreamChunk> {
-    const watchdog = idleWatchdog(options.signal, this.options.streamIdleTimeoutMs)
+  private async *streamCore(
+    options: GenerateOptions,
+    account?: string,
+  ): AsyncIterable<StreamChunk> {
+    const watchdog = idleWatchdog(
+      options.signal,
+      this.options.streamIdleTimeoutMs,
+    );
     try {
       // The discovered catalog decides the protocol: `/responses`-only model
       // families (gpt-5.5/5.6, …) reject /chat/completions outright, and
@@ -1002,49 +1246,84 @@ export class CopilotAdapter extends LlmAdapter {
       // tools with a reasoning effort (gpt-5.4 400s on the chat wire then).
       // A configured `wire` outranks the catalog (see configuredWireEntry).
       const wire = copilotRequestWire(
-        this.configuredWireEntry(options.model) ?? await withAbortSignal(async () => this.discovered(options.model, account ?? await this.options.tokens.defaultAccount(), watchdog.signal), watchdog.signal),
+        this.configuredWireEntry(options.model) ??
+          (await withAbortSignal(
+            async () =>
+              this.discovered(
+                options.model,
+                account ?? (await this.options.tokens.defaultAccount()),
+                watchdog.signal,
+              ),
+            watchdog.signal,
+          )),
         options,
-      )
-      let session = await this.options.tokens.session(account)
+      );
+      let session = await this.options.tokens.session(account);
       // Replay scope: account identity × conversation × model (see
       // replayScope); a Copilot-token refresh preserves the GitHub token, so
       // the 401 retry below reuses it too.
-      const scope = this.replayScope(session.refreshToken, options)
-      let response = await this.request(options, session, watchdog.signal, wire, scope)
+      const scope = this.replayScope(session.refreshToken, options);
+      let response = await this.request(
+        options,
+        session,
+        watchdog.signal,
+        wire,
+        scope,
+      );
       if (response.status === 401) {
         // One forced refresh + retry on an unexpired-but-rejected token. The
         // editor version is force-refreshed too: a 401 `IDE token expired`
         // means GitHub raised its minimum VS Code version, and only a fresh
         // Editor-Version header fixes that (a new token does not).
-        await withAbortSignal(() => latestVsCodeVersion(this.options.fetchFn ?? proxiedFetch, true), watchdog.signal)
-        session = await this.options.tokens.session(account, true)
-        response = await this.request(options, session, watchdog.signal, wire, scope)
+        await withAbortSignal(
+          () => latestVsCodeVersion(this.options.fetchFn ?? proxiedFetch, true),
+          watchdog.signal,
+        );
+        session = await this.options.tokens.session(account, true);
+        response = await this.request(
+          options,
+          session,
+          watchdog.signal,
+          wire,
+          scope,
+        );
       }
       if (!response.ok) {
         throw await httpLlmError(response, 'copilot API', {
           // Copilot has no provider-specific reset reader yet. The shared
           // mapper still honors its generic retry-after header and warns with
           // rate-limit-shaped headers/body when GitHub sends another signal.
-          ...this.options.onWarn === undefined ? {} : { onWarn: this.options.onWarn },
-        })
+          ...(this.options.onWarn === undefined
+            ? {}
+            : { onWarn: this.options.onWarn }),
+        });
       }
       if (response.body === null) {
-        throw new LlmError('copilot API returned no response body', EMPTY_RESPONSE_CODE)
+        throw new LlmError(
+          'copilot API returned no response body',
+          EMPTY_RESPONSE_CODE,
+        );
       }
-      const pulse = (): void => { watchdog.pulse() }
+      const pulse = (): void => {
+        watchdog.pulse();
+      };
       if (wire === 'responses') {
         // The normalizer doubles as the capture point for completed reasoning.
-        const normalizer = new CopilotResponsesItemNormalizer((callIds, items) => {
-          this.captureReasoning(scope, callIds, items)
-        })
-        yield* streamResponses(response.body, pulse, event => normalizer.push(event))
+        const normalizer = new CopilotResponsesItemNormalizer(
+          (callIds, items) => {
+            this.captureReasoning(scope, callIds, items);
+          },
+        );
+        yield* streamResponses(response.body, pulse, (event) =>
+          normalizer.push(event),
+        );
       } else {
-        yield* streamChatCompletions(response.body, pulse)
+        yield* streamChatCompletions(response.body, pulse);
       }
     } catch (error: unknown) {
-      throw mapFetchFailure('copilot API', error, watchdog, options.signal)
+      throw mapFetchFailure('copilot API', error, watchdog, options.signal);
     } finally {
-      watchdog.stop()
+      watchdog.stop();
     }
   }
 
@@ -1055,26 +1334,46 @@ export class CopilotAdapter extends LlmAdapter {
     wire: CopilotWire,
     replayScopeKey: string | undefined,
   ): Promise<Response> {
-    const messages = await resolveImages(options.messages, this.options.resolveAttachments?.(), signal)
-    const hasVision = messages.some(message => message.content.some(block => block.type === 'image'))
-    // Captured completed reasoning replays ahead of its tool call.
-    const body = wire === 'responses'
-      ? copilotResponsesRequestBody(options, toResponsesInput(
-        messages,
-        options.system,
-        callId => this.replayFor(replayScopeKey, callId),
-      ))
-      : copilotChatRequestBody(options, toChatMessages(messages, options.system))
-    return proxiedFetch(wire === 'responses' ? COPILOT_RESPONSES_URL : COPILOT_API_URL, {
-      method: 'POST',
-      headers: {
-        'authorization': `Bearer ${session.accessToken}`,
-        'accept': 'text/event-stream',
-        'content-type': 'application/json',
-        ...copilotHeaders(hasVision, await withAbortSignal(() => latestVsCodeVersion(this.options.fetchFn ?? proxiedFetch), signal)),
-      },
-      body: JSON.stringify(body),
+    const messages = await resolveImages(
+      options.messages,
+      this.options.resolveAttachments?.(),
       signal,
-    })
+    );
+    const hasVision = messages.some((message) =>
+      message.content.some((block) => block.type === 'image'),
+    );
+    // Captured completed reasoning replays ahead of its tool call.
+    const body =
+      wire === 'responses'
+        ? copilotResponsesRequestBody(
+            options,
+            toResponsesInput(messages, options.system, (callId) =>
+              this.replayFor(replayScopeKey, callId),
+            ),
+          )
+        : copilotChatRequestBody(
+            options,
+            toChatMessages(messages, options.system),
+          );
+    return proxiedFetch(
+      wire === 'responses' ? COPILOT_RESPONSES_URL : COPILOT_API_URL,
+      {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${session.accessToken}`,
+          accept: 'text/event-stream',
+          'content-type': 'application/json',
+          ...copilotHeaders(
+            hasVision,
+            await withAbortSignal(
+              () => latestVsCodeVersion(this.options.fetchFn ?? proxiedFetch),
+              signal,
+            ),
+          ),
+        },
+        body: JSON.stringify(body),
+        signal,
+      },
+    );
   }
 }

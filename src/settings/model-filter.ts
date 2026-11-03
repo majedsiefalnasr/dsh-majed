@@ -1,8 +1,8 @@
-import type { AccountCatalogRow } from './account-preferences.js'
-import type { SubagentSpeedTier } from '../provider-settings.js'
+import type { AccountCatalogRow } from './account-preferences.js';
+import type { SubagentSpeedTier } from '../provider-settings.js';
 
 /** What the model editor shows for the current filter state. */
-export type ModelListState = 'provider-empty' | 'filter-empty' | 'rows'
+export type ModelListState = 'provider-empty' | 'filter-empty' | 'rows';
 
 /**
  * Which empty state the model list is in.
@@ -15,8 +15,8 @@ export type ModelListState = 'provider-empty' | 'filter-empty' | 'rows'
  * provider that does have rows.
  */
 export function modelListState(total: number, matched: number): ModelListState {
-  if (total === 0) return 'provider-empty'
-  return matched === 0 ? 'filter-empty' : 'rows'
+  if (total === 0) return 'provider-empty';
+  return matched === 0 ? 'filter-empty' : 'rows';
 }
 
 /**
@@ -27,13 +27,21 @@ export function modelListState(total: number, matched: number): ModelListState {
 export function savedModelIds(
   visibleModels: readonly string[] | undefined,
   displayNames: Readonly<Record<string, string>> | undefined,
-  subagentSpeeds: Readonly<Record<string, SubagentSpeedTier>> | undefined = undefined,
+  subagentSpeeds:
+    | Readonly<Record<string, SubagentSpeedTier>>
+    | undefined = undefined,
 ): string[] {
-  return [...new Set([...(visibleModels ?? []), ...Object.keys(displayNames ?? {}), ...Object.keys(subagentSpeeds ?? {})])]
+  return [
+    ...new Set([
+      ...(visibleModels ?? []),
+      ...Object.keys(displayNames ?? {}),
+      ...Object.keys(subagentSpeeds ?? {}),
+    ]),
+  ];
 }
 
 /** Which notice the editor shows instead of the (inert) model controls. */
-export type ModelEditorNotice = 'noAccount' | 'discoveryFailed' | 'noModels'
+export type ModelEditorNotice = 'noAccount' | 'discoveryFailed' | 'noModels';
 
 /**
  * Why the provider has no models — read from the data the host already sends.
@@ -47,16 +55,20 @@ export type ModelEditorNotice = 'noAccount' | 'discoveryFailed' | 'noModels'
  *  · accounts exist, every discovery failed  → `discoveryFailed` (retry, not log in);
  *  · a connected account answered (possibly with an empty catalog) → `noModels`.
  */
-export function modelEditorNotice(accounts: readonly AccountCatalogRow[]): ModelEditorNotice {
-  if (accounts.length === 0) return 'noAccount'
-  return accounts.every((account) => account.unavailable === true) ? 'discoveryFailed' : 'noModels'
+export function modelEditorNotice(
+  accounts: readonly AccountCatalogRow[],
+): ModelEditorNotice {
+  if (accounts.length === 0) return 'noAccount';
+  return accounts.every((account) => account.unavailable === true)
+    ? 'discoveryFailed'
+    : 'noModels';
 }
 
 /** Everything the component needs to decide between rows and one honest notice. */
 export interface ModelEditorState {
-  listState: ModelListState
+  listState: ModelListState;
   /** Locale key for the empty state; only rendered when `listState` is provider-empty. */
-  noticeKey: (typeof NOTICE_KEYS)[ModelEditorNotice]
+  noticeKey: (typeof NOTICE_KEYS)[ModelEditorNotice];
 }
 
 /** Locale keys for the three honest empty states. */
@@ -64,7 +76,7 @@ export const NOTICE_KEYS = {
   noAccount: 'modelDefaultsNoAccount',
   discoveryFailed: 'modelDefaultsDiscoveryFailed',
   noModels: 'modelDefaultsNoModels',
-} as const
+} as const;
 
 /**
  * The editor's whole empty-state decision, in one testable place: how many rows exist
@@ -72,13 +84,13 @@ export const NOTICE_KEYS = {
  * notice to show when there are none.
  */
 export function modelEditorState(input: {
-  discovered: number
-  saved: number
-  matched: number
-  accounts: readonly AccountCatalogRow[]
+  discovered: number;
+  saved: number;
+  matched: number;
+  accounts: readonly AccountCatalogRow[];
 }): ModelEditorState {
   return {
     listState: modelListState(input.discovered + input.saved, input.matched),
     noticeKey: NOTICE_KEYS[modelEditorNotice(input.accounts)],
-  }
+  };
 }

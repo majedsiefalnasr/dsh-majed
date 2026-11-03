@@ -6,21 +6,26 @@
  * translator, so tests need no streams.
  */
 
-import { EMPTY_RESPONSE_CODE, LlmError } from '@deepseek-ai/dsh-llm'
-import { ToolCallId } from '../compat.js'
+import { EMPTY_RESPONSE_CODE, LlmError } from '@deepseek-ai/dsh-llm';
+import { ToolCallId } from '../compat.js';
 import type {
   ContentBlock,
   StreamChunk,
   TokenUsage,
   ToolSchema,
-} from '@deepseek-ai/dsh-llm'
-import { parseSse } from './sse.js'
-import { withToolResultImages } from './resolved.js'
-import type { ResolvedToolResultBlock, TranslatableMessage } from './resolved.js'
+} from '@deepseek-ai/dsh-llm';
+import { parseSse } from './sse.js';
+import { withToolResultImages } from './resolved.js';
+import type {
+  ResolvedToolResultBlock,
+  TranslatableMessage,
+} from './resolved.js';
 
 /** Flatten a tool result's content to plain text for a `tool` message. */
 function toolResultText(block: ResolvedToolResultBlock): string {
-  return block.content.map(part => (part.type === 'text' ? part.text : '')).join('')
+  return block.content
+    .map((part) => (part.type === 'text' ? part.text : ''))
+    .join('');
 }
 
 /**
@@ -39,101 +44,121 @@ export function toChatMessages(
   messages: readonly TranslatableMessage[],
   system?: string,
 ): Record<string, unknown>[] {
-  const out: Record<string, unknown>[] = []
-  const systemTexts: string[] = []
+  const out: Record<string, unknown>[] = [];
+  const systemTexts: string[] = [];
   for (const message of withToolResultImages(messages)) {
     if (message.role === 'system') {
       for (const block of message.content) {
-        if (block.type === 'text') systemTexts.push(block.text)
+        if (block.type === 'text') systemTexts.push(block.text);
       }
-      continue
+      continue;
     }
     if (message.role === 'tool') {
-      const callId = message.toolCallId ?? message.tool_call_id
-        ?? (message.source?.kind === 'tool' ? String(message.source.callId) : undefined)
-      if (callId === undefined) throw new LlmError('tool result has no call id', 'INVALID_REQUEST')
-      out.push({ role: 'tool', tool_call_id: callId, content: message.content.map(block => block.type === 'text' ? block.text : '').join('') })
-      continue
+      const callId =
+        message.toolCallId ??
+        message.tool_call_id ??
+        (message.source?.kind === 'tool'
+          ? String(message.source.callId)
+          : undefined);
+      if (callId === undefined)
+        throw new LlmError('tool result has no call id', 'INVALID_REQUEST');
+      out.push({
+        role: 'tool',
+        tool_call_id: callId,
+        content: message.content
+          .map((block) => (block.type === 'text' ? block.text : ''))
+          .join(''),
+      });
+      continue;
     }
     if (message.role === 'developer') {
-      const content = message.content.filter(block => block.type === 'text').map(block => block.text).join('')
-      if (content.length > 0) out.push({ role: 'developer', content })
-      continue
+      const content = message.content
+        .filter((block) => block.type === 'text')
+        .map((block) => block.text)
+        .join('');
+      if (content.length > 0) out.push({ role: 'developer', content });
+      continue;
     }
     if (message.role === 'user') {
       // Tool results ride inside user-role messages; they become their own
       // `tool` messages while ordinary blocks accumulate into one user entry.
-      let texts: string[] = []
-      let parts: Record<string, unknown>[] = []
+      let texts: string[] = [];
+      let parts: Record<string, unknown>[] = [];
       const flushUser = (): void => {
         if (parts.length > 0) {
-          if (texts.length > 0) parts.unshift({ type: 'text', text: texts.join('\n') })
-          out.push({ role: 'user', content: parts })
+          if (texts.length > 0)
+            parts.unshift({ type: 'text', text: texts.join('\n') });
+          out.push({ role: 'user', content: parts });
         } else if (texts.length > 0) {
-          out.push({ role: 'user', content: texts.join('\n') })
+          out.push({ role: 'user', content: texts.join('\n') });
         }
-        texts = []
-        parts = []
-      }
+        texts = [];
+        parts = [];
+      };
       for (const block of message.content) {
         switch (block.type) {
           case 'text':
-            if (parts.length > 0) parts.push({ type: 'text', text: block.text })
-            else texts.push(block.text)
-            break
+            if (parts.length > 0)
+              parts.push({ type: 'text', text: block.text });
+            else texts.push(block.text);
+            break;
           case 'image':
             if ('dataBase64' in block) {
               parts.push({
                 type: 'image_url',
-                image_url: { url: `data:${block.mediaType};base64,${block.dataBase64}` },
-              })
+                image_url: {
+                  url: `data:${block.mediaType};base64,${block.dataBase64}`,
+                },
+              });
             }
-            break
+            break;
           case 'tool-result':
-            flushUser()
+            flushUser();
             out.push({
               role: 'tool',
               tool_call_id: String(block.toolCallId),
               content: toolResultText(block),
-            })
-            break
+            });
+            break;
           default:
-            break
+            break;
         }
       }
-      flushUser()
-      continue
+      flushUser();
+      continue;
     }
     // assistant: text becomes content, tool calls become the tool_calls array.
-    const texts: string[] = []
-    const toolCalls: Record<string, unknown>[] = []
+    const texts: string[] = [];
+    const toolCalls: Record<string, unknown>[] = [];
     for (const block of message.content) {
       switch (block.type) {
         case 'text':
-          texts.push(block.text)
-          break
+          texts.push(block.text);
+          break;
         case 'tool-call':
           toolCalls.push({
             id: String(block.id),
             type: 'function',
             function: { name: block.name, arguments: block.arguments },
-          })
-          break
+          });
+          break;
         default:
           // reasoning (not replayed), unknown blocks.
-          break
+          break;
       }
     }
-    if (texts.length === 0 && toolCalls.length === 0) continue
+    if (texts.length === 0 && toolCalls.length === 0) continue;
     out.push({
       role: 'assistant',
       content: texts.join('\n'),
-      ...toolCalls.length > 0 ? { tool_calls: toolCalls } : {},
-    })
+      ...(toolCalls.length > 0 ? { tool_calls: toolCalls } : {}),
+    });
   }
-  const systemText = system ?? (systemTexts.length > 0 ? systemTexts.join('\n\n') : undefined)
-  if (systemText !== undefined) out.unshift({ role: 'system', content: systemText })
-  return out
+  const systemText =
+    system ?? (systemTexts.length > 0 ? systemTexts.join('\n\n') : undefined);
+  if (systemText !== undefined)
+    out.unshift({ role: 'system', content: systemText });
+  return out;
 }
 
 /**
@@ -141,44 +166,46 @@ export function toChatMessages(
  * @param tools - tool schemas from the request.
  * @returns the wire `tools` array.
  */
-export function toChatTools(tools: readonly ToolSchema[]): Record<string, unknown>[] {
-  return tools.map(tool => ({
+export function toChatTools(
+  tools: readonly ToolSchema[],
+): Record<string, unknown>[] {
+  return tools.map((tool) => ({
     type: 'function',
     function: {
       name: tool.name,
       description: tool.description,
       parameters: tool.parameters,
     },
-  }))
+  }));
 }
 
 /** The subset of chat-completion chunk shapes this translator reads. */
 export interface ChatCompletionsStreamEvent {
   choices?: {
-    index?: number
+    index?: number;
     delta?: {
-      content?: string | null
-      role?: string
-      reasoning_content?: string | null
+      content?: string | null;
+      role?: string;
+      reasoning_content?: string | null;
       /** Copilot's Gemini models stream thinking as `reasoning_text`. */
-      reasoning_text?: string | null
+      reasoning_text?: string | null;
       tool_calls?: {
-        index?: number
-        id?: string
-        function?: { name?: string; arguments?: string }
-      }[]
-    }
-    finish_reason?: string | null
-  }[]
-  usage?: ChatCompletionsUsage | null
+        index?: number;
+        id?: string;
+        function?: { name?: string; arguments?: string };
+      }[];
+    };
+    finish_reason?: string | null;
+  }[];
+  usage?: ChatCompletionsUsage | null;
 }
 
 /** Chat completions `usage` object shape. */
 export interface ChatCompletionsUsage {
-  prompt_tokens: number
-  completion_tokens: number
-  prompt_tokens_details?: { cached_tokens?: number }
-  completion_tokens_details?: { reasoning_tokens?: number }
+  prompt_tokens: number;
+  completion_tokens: number;
+  prompt_tokens_details?: { cached_tokens?: number };
+  completion_tokens_details?: { reasoning_tokens?: number };
 }
 
 /**
@@ -187,40 +214,42 @@ export interface ChatCompletionsUsage {
  * @param usage - wire usage from the terminal chunk.
  * @returns harness token usage.
  */
-export function mapChatCompletionsUsage(usage: ChatCompletionsUsage): TokenUsage {
-  const cached = usage.prompt_tokens_details?.cached_tokens
-  const reasoning = usage.completion_tokens_details?.reasoning_tokens
+export function mapChatCompletionsUsage(
+  usage: ChatCompletionsUsage,
+): TokenUsage {
+  const cached = usage.prompt_tokens_details?.cached_tokens;
+  const reasoning = usage.completion_tokens_details?.reasoning_tokens;
   return {
     inputTokens: usage.prompt_tokens - (cached ?? 0),
     outputTokens: usage.completion_tokens,
-    ...cached !== undefined ? { cacheReadTokens: cached } : {},
-    ...reasoning !== undefined ? { reasoningTokens: reasoning } : {},
-  }
+    ...(cached !== undefined ? { cacheReadTokens: cached } : {}),
+    ...(reasoning !== undefined ? { reasoningTokens: reasoning } : {}),
+  };
 }
 
 /** One open harness block under assembly. */
 interface OpenBlock {
-  index: number
-  kind: 'text' | 'reasoning' | 'tool-call'
-  text: string
-  callId: string
-  name?: string
+  index: number;
+  kind: 'text' | 'reasoning' | 'tool-call';
+  text: string;
+  callId: string;
+  name?: string;
 }
 
 /** Assemble the final ContentBlock for one open block. */
 function closeBlock(block: OpenBlock): ContentBlock {
   switch (block.kind) {
     case 'text':
-      return { type: 'text', text: block.text }
+      return { type: 'text', text: block.text };
     case 'reasoning':
-      return { type: 'reasoning', text: block.text }
+      return { type: 'reasoning', text: block.text };
     case 'tool-call':
       return {
         type: 'tool-call',
         id: ToolCallId(block.callId),
         name: block.name ?? '',
         arguments: block.text,
-      }
+      };
   }
 }
 
@@ -240,38 +269,48 @@ function closeBlock(block: OpenBlock): ContentBlock {
  */
 export class ChatCompletionsStreamTranslator {
   /** Text/reasoning blocks keyed by kind; tool calls keyed by their wire index. */
-  private blocks = new Map<string, OpenBlock>()
-  private order: OpenBlock[] = []
-  private nextIndex = 0
-  private sawToolCall = false
-  private pendingUsage: ChatCompletionsUsage | undefined
-  private armedFinish: StreamChunk | undefined
+  private blocks = new Map<string, OpenBlock>();
+  private order: OpenBlock[] = [];
+  private nextIndex = 0;
+  private sawToolCall = false;
+  private pendingUsage: ChatCompletionsUsage | undefined;
+  private armedFinish: StreamChunk | undefined;
   /** Set once the terminal finish chunk was emitted. */
-  terminated = false
+  terminated = false;
 
-  private open(key: string, kind: OpenBlock['kind'], chunks: StreamChunk[], callId = '', name?: string): OpenBlock {
+  private open(
+    key: string,
+    kind: OpenBlock['kind'],
+    chunks: StreamChunk[],
+    callId = '',
+    name?: string,
+  ): OpenBlock {
     const block: OpenBlock = {
       index: this.nextIndex++,
       kind,
       text: '',
       callId,
-      ...name === undefined ? {} : { name },
-    }
-    this.blocks.set(key, block)
-    this.order.push(block)
-    chunks.push({ type: 'block-start', index: block.index, blockType: kind })
-    return block
+      ...(name === undefined ? {} : { name }),
+    };
+    this.blocks.set(key, block);
+    this.order.push(block);
+    chunks.push({ type: 'block-start', index: block.index, blockType: kind });
+    return block;
   }
 
   private close(key: string, chunks: StreamChunk[]): void {
-    const block = this.blocks.get(key)
-    if (block === undefined) return
-    this.blocks.delete(key)
-    chunks.push({ type: 'block-end', index: block.index, block: closeBlock(block) })
+    const block = this.blocks.get(key);
+    if (block === undefined) return;
+    this.blocks.delete(key);
+    chunks.push({
+      type: 'block-end',
+      index: block.index,
+      block: closeBlock(block),
+    });
   }
 
   private closeAll(chunks: StreamChunk[]): void {
-    for (const key of [...this.blocks.keys()]) this.close(key, chunks)
+    for (const key of [...this.blocks.keys()]) this.close(key, chunks);
   }
 
   /** Build the terminal finish chunk for one wire finish reason. */
@@ -281,38 +320,51 @@ export class ChatCompletionsStreamTranslator {
         type: 'finish',
         reason: {
           kind: 'error',
-          failure: { message: 'model returned a completed response with no content', code: EMPTY_RESPONSE_CODE },
+          failure: {
+            message: 'model returned a completed response with no content',
+            code: EMPTY_RESPONSE_CODE,
+          },
         },
-      }
+      };
     }
     switch (finishReason) {
       case 'tool_calls':
-        return { type: 'finish', reason: { kind: 'tool-calls' } }
+        return { type: 'finish', reason: { kind: 'tool-calls' } };
       case 'length':
-        return { type: 'finish', reason: { kind: 'max-tokens' } }
+        return { type: 'finish', reason: { kind: 'max-tokens' } };
       case 'content_filter':
         return {
           type: 'finish',
           reason: {
             kind: 'error',
-            failure: { message: 'the response was blocked by the provider content filter', code: 'CONTENT_FILTER' },
+            failure: {
+              message:
+                'the response was blocked by the provider content filter',
+              code: 'CONTENT_FILTER',
+            },
           },
-        }
+        };
       default:
-        return { type: 'finish', reason: { kind: this.sawToolCall ? 'tool-calls' : 'stop' } }
+        return {
+          type: 'finish',
+          reason: { kind: this.sawToolCall ? 'tool-calls' : 'stop' },
+        };
     }
   }
 
   /** Usage, then the armed finish: the only order the harness accepts. */
   private drainTerminal(chunks: StreamChunk[]): void {
     if (this.pendingUsage !== undefined) {
-      chunks.push({ type: 'usage', usage: mapChatCompletionsUsage(this.pendingUsage) })
-      this.pendingUsage = undefined
+      chunks.push({
+        type: 'usage',
+        usage: mapChatCompletionsUsage(this.pendingUsage),
+      });
+      this.pendingUsage = undefined;
     }
     if (this.armedFinish !== undefined) {
-      chunks.push(this.armedFinish)
-      this.armedFinish = undefined
-      this.terminated = true
+      chunks.push(this.armedFinish);
+      this.armedFinish = undefined;
+      this.terminated = true;
     }
   }
 
@@ -322,59 +374,83 @@ export class ChatCompletionsStreamTranslator {
    * @returns the StreamChunks this event produced (possibly none).
    */
   push(event: ChatCompletionsStreamEvent): StreamChunk[] {
-    if (this.terminated) return []
-    const chunks: StreamChunk[] = []
-    const usage = event.usage
-    const hasUsage = usage !== undefined && usage !== null
-    if (hasUsage) this.pendingUsage = usage
-    const choice = event.choices?.[0]
-    const delta = choice?.delta
+    if (this.terminated) return [];
+    const chunks: StreamChunk[] = [];
+    const usage = event.usage;
+    const hasUsage = usage !== undefined && usage !== null;
+    if (hasUsage) this.pendingUsage = usage;
+    const choice = event.choices?.[0];
+    const delta = choice?.delta;
     if (delta !== undefined) {
       if (typeof delta.content === 'string' && delta.content.length > 0) {
-        const block = this.blocks.get('content') ?? this.open('content', 'text', chunks)
-        block.text += delta.content
-        chunks.push({ type: 'text-delta', index: block.index, text: delta.content })
+        const block =
+          this.blocks.get('content') ?? this.open('content', 'text', chunks);
+        block.text += delta.content;
+        chunks.push({
+          type: 'text-delta',
+          index: block.index,
+          text: delta.content,
+        });
       }
-      const reasoning = typeof delta.reasoning_content === 'string' ? delta.reasoning_content
-        : typeof delta.reasoning_text === 'string' ? delta.reasoning_text
-        : undefined
+      const reasoning =
+        typeof delta.reasoning_content === 'string'
+          ? delta.reasoning_content
+          : typeof delta.reasoning_text === 'string'
+            ? delta.reasoning_text
+            : undefined;
       if (reasoning !== undefined && reasoning.length > 0) {
-        const block = this.blocks.get('reasoning') ?? this.open('reasoning', 'reasoning', chunks)
-        block.text += reasoning
-        chunks.push({ type: 'reasoning-delta', index: block.index, text: reasoning })
+        const block =
+          this.blocks.get('reasoning') ??
+          this.open('reasoning', 'reasoning', chunks);
+        block.text += reasoning;
+        chunks.push({
+          type: 'reasoning-delta',
+          index: block.index,
+          text: reasoning,
+        });
       }
       for (const call of delta.tool_calls ?? []) {
-        const key = `call:${String(call.index ?? 0)}`
-        let block = this.blocks.get(key)
+        const key = `call:${String(call.index ?? 0)}`;
+        let block = this.blocks.get(key);
         if (block === undefined) {
-          this.sawToolCall = true
-          block = this.open(key, 'tool-call', chunks, call.id ?? '', call.function?.name)
+          this.sawToolCall = true;
+          block = this.open(
+            key,
+            'tool-call',
+            chunks,
+            call.id ?? '',
+            call.function?.name,
+          );
           chunks.push({
             type: 'tool-call-delta',
             index: block.index,
             id: ToolCallId(block.callId),
-            ...block.name === undefined ? {} : { name: block.name },
+            ...(block.name === undefined ? {} : { name: block.name }),
             argumentsDelta: '',
-          })
+          });
         }
-        if (call.function?.arguments !== undefined && call.function.arguments.length > 0) {
-          block.text += call.function.arguments
+        if (
+          call.function?.arguments !== undefined &&
+          call.function.arguments.length > 0
+        ) {
+          block.text += call.function.arguments;
           chunks.push({
             type: 'tool-call-delta',
             index: block.index,
             id: ToolCallId(block.callId),
             argumentsDelta: call.function.arguments,
-          })
+          });
         }
       }
     }
     if (choice?.finish_reason !== undefined && choice.finish_reason !== null) {
-      this.closeAll(chunks)
+      this.closeAll(chunks);
       // Only arm: usage must be emitted before the terminal finish, and it
       // may still arrive (OpenAI's trailing usage-only chunk) or may have
       // arrived in this very chunk (Gemini folds it in). The drain below or
       // flush() releases the pair.
-      if (this.armedFinish === undefined) this.armedFinish = this.finishChunk(choice.finish_reason)
+      if (this.armedFinish === undefined)
+        this.armedFinish = this.finishChunk(choice.finish_reason);
     }
     // Drain at the terminal point: this chunk carried usage AND either the
     // finish is armed (usage + finish pair complete — same chunk for Gemini,
@@ -383,9 +459,9 @@ export class ChatCompletionsStreamTranslator {
     // their pendingUsage for a later drain; only the final real usage is
     // emitted.
     if (hasUsage && (this.armedFinish !== undefined || choice === undefined)) {
-      this.drainTerminal(chunks)
+      this.drainTerminal(chunks);
     }
-    return chunks
+    return chunks;
   }
 
   /**
@@ -394,9 +470,9 @@ export class ChatCompletionsStreamTranslator {
    * @returns the remaining terminal chunks.
    */
   flush(): StreamChunk[] {
-    const chunks: StreamChunk[] = []
-    this.drainTerminal(chunks)
-    return chunks
+    const chunks: StreamChunk[] = [];
+    this.drainTerminal(chunks);
+    return chunks;
   }
 }
 
@@ -410,23 +486,29 @@ export async function* streamChatCompletions(
   stream: ReadableStream<Uint8Array>,
   onActivity?: () => void,
 ): AsyncGenerator<StreamChunk> {
-  const translator = new ChatCompletionsStreamTranslator()
+  const translator = new ChatCompletionsStreamTranslator();
   for await (const sseEvent of parseSse(stream, onActivity)) {
     if (sseEvent.data === '[DONE]') {
-      yield* translator.flush()
-      return
+      yield* translator.flush();
+      return;
     }
-    let event: ChatCompletionsStreamEvent
+    let event: ChatCompletionsStreamEvent;
     try {
-      event = JSON.parse(sseEvent.data) as ChatCompletionsStreamEvent
+      event = JSON.parse(sseEvent.data) as ChatCompletionsStreamEvent;
     } catch {
-      throw new LlmError(`malformed SSE payload: ${sseEvent.data.slice(0, 120)}`, 'MALFORMED_RESPONSE')
+      throw new LlmError(
+        `malformed SSE payload: ${sseEvent.data.slice(0, 120)}`,
+        'MALFORMED_RESPONSE',
+      );
     }
-    yield* translator.push(event)
-    if (translator.terminated) return
+    yield* translator.push(event);
+    if (translator.terminated) return;
   }
-  yield* translator.flush()
+  yield* translator.flush();
   if (!translator.terminated) {
-    throw new LlmError('chat completions SSE stream ended before a finish chunk', 'STREAM_CLOSED')
+    throw new LlmError(
+      'chat completions SSE stream ended before a finish chunk',
+      'STREAM_CLOSED',
+    );
   }
 }

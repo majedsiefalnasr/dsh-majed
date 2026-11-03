@@ -5,7 +5,7 @@ export const TOOL_ALIASES = {
     image_generate: 'dsh_majed_image_generate',
 };
 /** Register a tool under its canonical name, then a plugin-scoped alias. */
-export function registerWithAlias(registry, definition, warn = message => console.warn(message)) {
+export function registerWithAlias(registry, definition, warn = (message) => console.warn(message)) {
     try {
         return { name: definition.name, dispose: registry.register(definition) };
     }
@@ -14,7 +14,10 @@ export function registerWithAlias(registry, definition, warn = message => consol
         if (alias === undefined)
             throw error;
         try {
-            return { name: alias, dispose: registry.register({ ...definition, name: alias }) };
+            return {
+                name: alias,
+                dispose: registry.register({ ...definition, name: alias }),
+            };
         }
         catch (aliasError) {
             warn(`dsh-majed: tool ${JSON.stringify(definition.name)} and alias ${JSON.stringify(alias)} are already registered; skipping (${aliasError instanceof Error ? aliasError.message : String(aliasError)})`);

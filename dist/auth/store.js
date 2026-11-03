@@ -14,11 +14,17 @@
  */
 import { createHash } from 'node:crypto';
 import { decodeJwtPayload } from './jwt.js';
-import { chmod, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, readFile, rename, rm, writeFile, } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths';
 /** Every provider route, in display order. */
-export const PROVIDER_IDS = ['codex', 'claude', 'grok', 'copilot', 'antigravity'];
+export const PROVIDER_IDS = [
+    'codex',
+    'claude',
+    'grok',
+    'copilot',
+    'antigravity',
+];
 /**
  * The stable identity of one session's account: Codex keys on workspace AND
  * user (email fallback, workspace-only for unidentified legacy sessions),
@@ -37,40 +43,53 @@ export function accountKeyOf(provider, session) {
     switch (provider) {
         case 'codex': {
             const codex = session;
-            const payload = typeof codex.idToken === 'string' ? decodeJwtPayload(codex.idToken) : undefined;
+            const payload = typeof codex.idToken === 'string'
+                ? decodeJwtPayload(codex.idToken)
+                : undefined;
             const auth = claimObject(payload?.['https://api.openai.com/auth']);
             const user = nonEmpty(auth?.chatgpt_user_id) ?? nonEmpty(auth?.user_id);
             const profile = claimObject(payload?.['https://api.openai.com/profile']);
-            const email = nonEmpty(codex.emailAddress) ?? nonEmpty(payload?.email) ?? nonEmpty(profile?.email);
+            const email = nonEmpty(codex.emailAddress) ??
+                nonEmpty(payload?.email) ??
+                nonEmpty(profile?.email);
             if (user === undefined && email === undefined)
                 return codex.accountId;
             // JSON tuple encoding avoids separator collisions and distinguishes IDs from emails.
-            return JSON.stringify([codex.accountId, user === undefined ? 'email' : 'user', user ?? email.toLowerCase()]);
+            return JSON.stringify([
+                codex.accountId,
+                user === undefined ? 'email' : 'user',
+                user ?? email.toLowerCase(),
+            ]);
         }
         case 'claude':
-            return session.emailAddress ?? tokenHash(session.refreshToken);
+            return (session.emailAddress ??
+                tokenHash(session.refreshToken));
         case 'grok':
-            return session.account ?? tokenHash(session.refreshToken);
+            return (session.account ?? tokenHash(session.refreshToken));
         case 'antigravity':
-            return session.account ?? tokenHash(session.refreshToken);
+            return (session.account ??
+                tokenHash(session.refreshToken));
         case 'copilot':
-            return session.account ?? tokenHash(session.refreshToken);
+            return (session.account ?? tokenHash(session.refreshToken));
     }
 }
 function nonEmpty(value) {
-    return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
+    return typeof value === 'string' && value.trim().length > 0
+        ? value.trim()
+        : undefined;
 }
 function claimObject(value) {
     return typeof value === 'object' && value !== null && !Array.isArray(value)
-        ? value : undefined;
+        ? value
+        : undefined;
 }
 /** Resolve only recorded aliases, not an ambiguous workspace-wide match. */
 function resolveAccount(entry, key) {
     const seen = new Set();
-    while (!Object.hasOwn(entry.accounts, key)
-        && entry.aliases !== undefined
-        && Object.hasOwn(entry.aliases, key)
-        && !seen.has(key)) {
+    while (!Object.hasOwn(entry.accounts, key) &&
+        entry.aliases !== undefined &&
+        Object.hasOwn(entry.aliases, key) &&
+        !seen.has(key)) {
         seen.add(key);
         key = entry.aliases[key];
     }
@@ -107,9 +126,13 @@ export async function resolveAccountKey(provider, account, path = authFilePath()
 }
 /** Migrate workspace-only keys once; retain collisions rather than discard credentials. */
 function codexEmail(session) {
-    const payload = typeof session.idToken === 'string' ? decodeJwtPayload(session.idToken) : undefined;
+    const payload = typeof session.idToken === 'string'
+        ? decodeJwtPayload(session.idToken)
+        : undefined;
     const profile = claimObject(payload?.['https://api.openai.com/profile']);
-    return (nonEmpty(session.emailAddress) ?? nonEmpty(payload?.email) ?? nonEmpty(profile?.email))?.toLowerCase();
+    return (nonEmpty(session.emailAddress) ??
+        nonEmpty(payload?.email) ??
+        nonEmpty(profile?.email))?.toLowerCase();
 }
 function codexUserKey(session) {
     const key = accountKeyOf('codex', session);
@@ -175,13 +198,16 @@ function assertSessionShape(provider, account, value) {
         throw new Error(`subscriptions auth store: entry "${provider}/${account}" is not an object; fix or delete the store file`);
     }
     const entry = value;
-    if (typeof entry.accessToken !== 'string' || entry.accessToken.length === 0
-        || typeof entry.refreshToken !== 'string' || entry.refreshToken.length === 0
-        || typeof entry.expiresAt !== 'number' || !Number.isFinite(entry.expiresAt)) {
+    if (typeof entry.accessToken !== 'string' ||
+        entry.accessToken.length === 0 ||
+        typeof entry.refreshToken !== 'string' ||
+        entry.refreshToken.length === 0 ||
+        typeof entry.expiresAt !== 'number' ||
+        !Number.isFinite(entry.expiresAt)) {
         throw new Error(`subscriptions auth store: entry "${provider}/${account}" is missing accessToken/refreshToken/expiresAt; fix or delete the store file`);
     }
-    if (provider === 'antigravity'
-        && (typeof entry.projectId !== 'string' || entry.projectId.length === 0)) {
+    if (provider === 'antigravity' &&
+        (typeof entry.projectId !== 'string' || entry.projectId.length === 0)) {
         throw new Error('subscriptions auth store: entry "antigravity" is missing projectId; log out and complete Antigravity login again');
     }
 }
@@ -243,12 +269,19 @@ function parseStore(text, path) {
                 continue;
             }
             const session = record;
-            const key = provider === 'codex' ? session.accountId : accountKeyOf(provider, session);
-            store[provider] = { default: key, accounts: { [key]: session } };
+            const key = provider === 'codex'
+                ? session.accountId
+                : accountKeyOf(provider, session);
+            store[provider] = {
+                default: key,
+                accounts: { [key]: session },
+            };
             continue;
         }
         const accounts = record.accounts;
-        if (typeof accounts !== 'object' || accounts === null || Array.isArray(accounts)) {
+        if (typeof accounts !== 'object' ||
+            accounts === null ||
+            Array.isArray(accounts)) {
             console.warn(`subscriptions auth store: entry "${provider}" has no accounts map; skipped`);
             continue;
         }
@@ -270,7 +303,11 @@ function parseStore(text, path) {
         const validDefault = record.default === undefined || record.default in kept
             ? record.default
             : Object.keys(kept)[0];
-        store[provider] = { ...record, default: validDefault, accounts: kept };
+        store[provider] = {
+            ...record,
+            default: validDefault,
+            accounts: kept,
+        };
     }
     if (store.codex !== undefined)
         migrateCodex(store.codex);
@@ -281,9 +318,12 @@ function isValidSessionShape(value) {
     if (typeof value !== 'object' || value === null)
         return false;
     const entry = value;
-    return typeof entry.accessToken === 'string' && entry.accessToken.length > 0
-        && typeof entry.refreshToken === 'string' && entry.refreshToken.length > 0
-        && typeof entry.expiresAt === 'number' && Number.isFinite(entry.expiresAt);
+    return (typeof entry.accessToken === 'string' &&
+        entry.accessToken.length > 0 &&
+        typeof entry.refreshToken === 'string' &&
+        entry.refreshToken.length > 0 &&
+        typeof entry.expiresAt === 'number' &&
+        Number.isFinite(entry.expiresAt));
 }
 /** Persist the whole store atomically with owner-only permissions. */
 async function writeStore(store, path) {
@@ -344,7 +384,10 @@ export async function listAccounts(provider, path = authFilePath()) {
     const entry = (await loadStore(path))[provider];
     if (entry === undefined)
         return [];
-    const accounts = Object.entries(entry.accounts).map(([key, session]) => ({ key, session }));
+    const accounts = Object.entries(entry.accounts).map(([key, session]) => ({
+        key,
+        session,
+    }));
     accounts.sort((a, b) => Number(b.key === entry.default) - Number(a.key === entry.default));
     return accounts;
 }
@@ -385,10 +428,10 @@ export async function saveAccountSession(provider, account, session, path = auth
         if (entry !== undefined) {
             account = resolveAccount(entry, account);
             if (provider === 'codex') {
-                account = reconcileCodexIdentity(entry, session) ?? accountKeyOf('codex', session);
+                account =
+                    reconcileCodexIdentity(entry, session) ?? accountKeyOf('codex', session);
             }
         }
-        ;
         store[provider] = {
             ...entry,
             default: entry?.default ?? account,
@@ -419,10 +462,11 @@ export async function deleteAccountSession(provider, account, path = authFilePat
             delete store[provider];
         }
         else {
-            ;
             store[provider] = {
                 ...entry,
-                ...entry.default === account ? { default: Object.keys(accounts)[0] } : { default: entry.default },
+                ...(entry.default === account
+                    ? { default: Object.keys(accounts)[0] }
+                    : { default: entry.default }),
                 accounts,
             };
         }
@@ -444,8 +488,10 @@ export async function setDefaultAccount(provider, account, path = authFilePath()
         if (entry === undefined || !Object.hasOwn(entry.accounts, account)) {
             throw new Error(`no ${provider} account "${account}" is logged in`);
         }
-        ;
-        store[provider] = { ...entry, default: account };
+        store[provider] = {
+            ...entry,
+            default: account,
+        };
         await writeStore(store, path);
     });
 }

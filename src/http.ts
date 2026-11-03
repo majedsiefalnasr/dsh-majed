@@ -13,11 +13,18 @@
  * The OAuth authorize step opens in the user's browser, which uses the
  * browser/system proxy and is outside this module's reach.
  */
-import { ProxyAgent, fetch as undiciFetch } from 'undici'
-import { chmod, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
-import { dirname } from 'node:path'
-import { DIAGNOSTIC_INPUT_LIMIT, sanitizeDiagnostic } from './diagnostic.js'
-import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
+import { ProxyAgent, fetch as undiciFetch } from 'undici';
+import {
+  chmod,
+  mkdir,
+  readFile,
+  rename,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
+import { dirname } from 'node:path';
+import { DIAGNOSTIC_INPUT_LIMIT, sanitizeDiagnostic } from './diagnostic.js';
+import { dshHomePath } from '@deepseek-ai/dsh-home-paths';
 
 /**
  * undici's own fetch, typed to the DOM fetch signature: its bundled types are
@@ -25,102 +32,104 @@ import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
  * incompatible with the DOM shapes the provider code passes. The runtime
  * object is the same Web-fetch implementation Node uses.
  */
-const dispatchFetch = undiciFetch as unknown as typeof fetch
+const dispatchFetch = undiciFetch as unknown as typeof fetch;
 
 /** Stored proxy configuration (the proxy.json shape). */
 export interface ProxyConfig {
   /** Whether outbound subscription requests route through {@link url}. */
-  enabled: boolean
+  enabled: boolean;
   /** Proxy origin: `http://host:port` or `https://host:port`. */
-  url: string
+  url: string;
   /** Optional proxy user for basic auth. */
-  username?: string
+  username?: string;
   /** Optional proxy password for basic auth; never sent back to the client. */
-  password?: string
+  password?: string;
   /** Hostnames (exact, suffix, or `*.example.com`) that use host routing instead. */
-  bypass: string[]
+  bypass: string[];
 }
 
 /** The proxy config as served to the client: secrets replaced by a flag. */
 export interface ProxyConfigView {
-  enabled: boolean
-  url: string
-  username?: string
+  enabled: boolean;
+  url: string;
+  username?: string;
   /** Whether a password is stored (the password itself never leaves the host). */
-  passwordSet: boolean
-  bypass: string[]
+  passwordSet: boolean;
+  bypass: string[];
   /** Last load/apply failure, when the stored config is unusable. */
-  error?: string
+  error?: string;
 }
 
 /** One `proxySet` payload. */
 export interface ProxyInput {
-  enabled: boolean
-  url: string
-  username?: string
+  enabled: boolean;
+  url: string;
+  username?: string;
   /** `undefined` keeps the stored password, `null`/`''` clears it. */
-  password?: string | null
-  bypass?: string[]
+  password?: string | null;
+  bypass?: string[];
 }
 
 /** One `proxyTest` result. */
 export interface ProxyTestResult {
   /** Whether the destination answered with an HTTP status. */
-  ok: boolean
+  ok: boolean;
   /** Whether the plugin proxy was used; false means host routing, not necessarily direct. */
-  viaProxy: boolean
+  viaProxy: boolean;
   /** Status of the answered request, when one was received. */
-  status?: number
+  status?: number;
   /** Round-trip latency in milliseconds. */
-  latencyMs?: number
+  latencyMs?: number;
   /** Failure message, when no response was received. */
-  error?: string
+  error?: string;
 }
 
 /** A draft proxy for one test probe (never persisted). */
 export interface ProxyDraft {
-  enabled?: boolean
-  url: string
-  username?: string
-  password?: string | null
-  bypass?: string[]
+  enabled?: boolean;
+  url: string;
+  username?: string;
+  password?: string | null;
+  bypass?: string[];
 }
 
 /** Destination the `proxyTest` endpoint probes when none is given. */
-export const DEFAULT_PROXY_TEST_URL = 'https://api.x.ai/v1/models'
+export const DEFAULT_PROXY_TEST_URL = 'https://api.x.ai/v1/models';
 /** Probe deadline; a hung proxy must not pin the Settings dialog forever. */
-export const DEFAULT_PROXY_TEST_TIMEOUT_MS = 15_000
+export const DEFAULT_PROXY_TEST_TIMEOUT_MS = 15_000;
 
 /** Disabled configuration: the module state before the first load. */
-const DISABLED: ProxyConfig = { enabled: false, url: '', bypass: [] }
+const DISABLED: ProxyConfig = { enabled: false, url: '', bypass: [] };
 
 /** Current config; updated by every load/apply/save. */
-let current: ProxyConfig = DISABLED
+let current: ProxyConfig = DISABLED;
 /** The live dispatcher, or undefined when proxies are off/errored. */
-let agent: ProxyAgent | undefined
+let agent: ProxyAgent | undefined;
 /** Last load/apply failure, surfaced by the config view. */
-let configError: string | undefined
+let configError: string | undefined;
 /** One lazy load of the on-disk config (module-import cheap; file read once). */
-let ready: Promise<ProxyConfig> | undefined
+let ready: Promise<ProxyConfig> | undefined;
 /** Bumped by every disposal so a load that was in flight cannot repopulate released state. */
-let epoch = 0
+let epoch = 0;
 /** Tail of the serialized `proxySetConfig` write chain. */
-let proxyWrites: Promise<void> = Promise.resolve()
+let proxyWrites: Promise<void> = Promise.resolve();
 /** In-flight `proxyTestConnection` probes, aborted on disposal. */
-const probes = new Set<AbortController>()
+const probes = new Set<AbortController>();
 
 /** Absolute path of the proxy config file. */
 export function proxyFilePath(): string {
-  return dshHomePath('plugins', 'majed', 'subscriptions', 'proxy.json')
+  return dshHomePath('plugins', 'majed', 'subscriptions', 'proxy.json');
 }
 
 /** Render any thrown value as bounded text; hostile `toString`/`message` getters never throw out. */
 function boundedText(value: unknown): string {
   try {
-    const text = value instanceof Error ? value.message : String(value)
-    return typeof text === 'string' ? text.slice(0, DIAGNOSTIC_INPUT_LIMIT) : ''
+    const text = value instanceof Error ? value.message : String(value);
+    return typeof text === 'string'
+      ? text.slice(0, DIAGNOSTIC_INPUT_LIMIT)
+      : '';
   } catch {
-    return ''
+    return '';
   }
 }
 
@@ -133,11 +142,19 @@ function boundedText(value: unknown): string {
  * algorithm and its limits: unknown secrets in free text with no recognisable shape cannot be detected.
  * Only the rendered text changes; credentials and transport are never altered.
  */
-export function safeDiagnostic(error: unknown, secrets: readonly unknown[] = [], usernames: readonly unknown[] = []): string {
-  return sanitizeDiagnostic(boundedText(error), [current.password, ...secrets], [current.username, ...usernames])
+export function safeDiagnostic(
+  error: unknown,
+  secrets: readonly unknown[] = [],
+  usernames: readonly unknown[] = [],
+): string {
+  return sanitizeDiagnostic(
+    boundedText(error),
+    [current.password, ...secrets],
+    [current.username, ...usernames],
+  );
 }
 function errorMessage(error: unknown): string {
-  return safeDiagnostic(error)
+  return safeDiagnostic(error);
 }
 
 /**
@@ -148,33 +165,51 @@ function errorMessage(error: unknown): string {
  * 127.0.0.1) fails as an `AggregateError` with an empty message, so its
  * per-address `errors` entries are folded in too.
  */
-export function describeFetchError(error: unknown, secrets: readonly unknown[] = [], usernames: readonly unknown[] = []): string {
-  const parts: string[] = []
-  let node: unknown = error
-  for (let depth = 0; depth < 4 && node !== undefined && node !== null; depth += 1) {
-    const layer = node as { errors?: unknown[]; code?: unknown; cause?: unknown; message?: unknown }
+export function describeFetchError(
+  error: unknown,
+  secrets: readonly unknown[] = [],
+  usernames: readonly unknown[] = [],
+): string {
+  const parts: string[] = [];
+  let node: unknown = error;
+  for (
+    let depth = 0;
+    depth < 4 && node !== undefined && node !== null;
+    depth += 1
+  ) {
+    const layer = node as {
+      errors?: unknown[];
+      code?: unknown;
+      cause?: unknown;
+      message?: unknown;
+    };
     if (Array.isArray(layer.errors)) {
       for (const child of layer.errors.slice(0, 8)) {
-        const childText = boundedText(child)
-        if (childText !== '' && !parts.includes(childText)) parts.push(childText)
+        const childText = boundedText(child);
+        if (childText !== '' && !parts.includes(childText))
+          parts.push(childText);
       }
     }
-    let text = boundedText(node)
-    const code = layer.code
+    let text = boundedText(node);
+    const code = layer.code;
     if (typeof code === 'string' && code !== '') {
-      if (text === '') text = code
-      else if (!text.includes(code)) text = `${text} (${code})`
+      if (text === '') text = code;
+      else if (!text.includes(code)) text = `${text} (${code})`;
     }
-    if (text !== '' && !parts.includes(text)) parts.push(text)
-    const next = layer.cause
-    if (next === undefined || next === null || next === node) break
-    node = next
+    if (text !== '' && !parts.includes(text)) parts.push(text);
+    const next = layer.cause;
+    if (next === undefined || next === null || next === node) break;
+    node = next;
   }
-  return safeDiagnostic(parts.join(' → ').slice(0, DIAGNOSTIC_INPUT_LIMIT), secrets, usernames)
+  return safeDiagnostic(
+    parts.join(' → ').slice(0, DIAGNOSTIC_INPUT_LIMIT),
+    secrets,
+    usernames,
+  );
 }
 
 function withError(error: unknown): void {
-  configError = errorMessage(error)
+  configError = errorMessage(error);
 }
 
 /**
@@ -184,18 +219,19 @@ function withError(error: unknown): void {
  * @returns the parsed URL (credentials attached by the caller).
  */
 export function parseProxyUrl(raw: string): URL {
-  let url: URL
+  let url: URL;
   try {
-    url = new URL(raw)
+    url = new URL(raw);
   } catch {
-    throw new Error("proxy URL is not a valid URL")
+    throw new Error('proxy URL is not a valid URL');
   }
   if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-    throw new Error("proxy URL must use the http:// or https:// scheme")
+    throw new Error('proxy URL must use the http:// or https:// scheme');
   }
-  if (url.hostname === '') throw new Error('proxy URL must include a host')
-  if (url.username || url.password) throw new Error('use the separate proxy credential fields')
-  return url
+  if (url.hostname === '') throw new Error('proxy URL must include a host');
+  if (url.username || url.password)
+    throw new Error('use the separate proxy credential fields');
+  return url;
 }
 
 /**
@@ -204,137 +240,160 @@ export function parseProxyUrl(raw: string): URL {
  * @param entries - configured bypass entries: exact host, plain suffix
  *   (`example.com` also matches `api.example.com`), or `*.example.com`.
  */
-export function matchesBypass(hostname: string, entries: readonly string[]): boolean {
-  const host = hostname.toLowerCase()
+export function matchesBypass(
+  hostname: string,
+  entries: readonly string[],
+): boolean {
+  const host = hostname.toLowerCase();
   for (const raw of entries) {
-    let entry = raw.trim().toLowerCase()
-    if (entry === '') continue
+    let entry = raw.trim().toLowerCase();
+    if (entry === '') continue;
     if (entry.includes('://')) {
       try {
-        entry = new URL(entry).hostname
+        entry = new URL(entry).hostname;
       } catch {
-        continue
+        continue;
       }
     }
-    entry = entry.replace(/:\d+$/, '')
-    if (entry === '' || entry === '*') continue
+    entry = entry.replace(/:\d+$/, '');
+    if (entry === '' || entry === '*') continue;
     if (entry.startsWith('*.')) {
-      if (host.endsWith(entry.slice(1))) return true
+      if (host.endsWith(entry.slice(1))) return true;
     } else if (host === entry || host.endsWith(`.${entry}`)) {
-      return true
+      return true;
     }
   }
-  return false
+  return false;
 }
 
 /** Validate and normalize one config (throws with a user-facing message). */
 function normalizeConfig(input: ProxyInput): ProxyConfig {
-  const url = input.url.trim()
+  const url = input.url.trim();
   if (input.enabled && url === '') {
-    throw new Error('a proxy URL is required when the proxy is enabled')
+    throw new Error('a proxy URL is required when the proxy is enabled');
   }
-  if (url !== '') parseProxyUrl(url)
-  const bypass = Array.from(new Set((input.bypass ?? [])
-    .map(entry => entry.trim())
-    .filter(entry => entry !== '')))
+  if (url !== '') parseProxyUrl(url);
+  const bypass = Array.from(
+    new Set(
+      (input.bypass ?? [])
+        .map((entry) => entry.trim())
+        .filter((entry) => entry !== ''),
+    ),
+  );
   return {
     enabled: input.enabled,
     url,
-    ...input.username !== undefined && input.username !== '' ? { username: input.username.trim() } : {},
-    ...input.password !== undefined && input.password !== '' && input.password !== null ? { password: input.password } : {},
+    ...(input.username !== undefined && input.username !== ''
+      ? { username: input.username.trim() }
+      : {}),
+    ...(input.password !== undefined &&
+    input.password !== '' &&
+    input.password !== null
+      ? { password: input.password }
+      : {}),
     bypass,
-  }
+  };
 }
 
 /** Build the undici agent for a config (throws on an unusable URL). */
 function buildAgent(cfg: ProxyConfig): ProxyAgent | undefined {
-  if (!cfg.enabled || cfg.url === '') return undefined
-  const url = parseProxyUrl(cfg.url)
-  if (cfg.username !== undefined) url.username = cfg.username
-  if (cfg.password !== undefined) url.password = cfg.password
-  return new ProxyAgent(url.toString())
+  if (!cfg.enabled || cfg.url === '') return undefined;
+  const url = parseProxyUrl(cfg.url);
+  if (cfg.username !== undefined) url.username = cfg.username;
+  if (cfg.password !== undefined) url.password = cfg.password;
+  return new ProxyAgent(url.toString());
 }
 
 /** Swap in a config and its agent; a failed agent falls back to host routing. */
 async function applyConfig(cfg: ProxyConfig | undefined): Promise<void> {
-  let next: ProxyAgent | undefined
+  let next: ProxyAgent | undefined;
   if (cfg !== undefined) {
-    configError = undefined
+    configError = undefined;
     try {
-      next = buildAgent(cfg)
+      next = buildAgent(cfg);
     } catch (error) {
-      withError(error)
-      next = undefined
+      withError(error);
+      next = undefined;
     }
-    current = cfg
+    current = cfg;
   }
-  const previous = agent
-  agent = next
-  if (previous !== undefined) void previous.close().catch(() => undefined)
+  const previous = agent;
+  agent = next;
+  if (previous !== undefined) void previous.close().catch(() => undefined);
 }
 
 /** Read the on-disk config. A missing file is the disabled default. */
 async function loadConfigFile(path: string): Promise<ProxyConfig> {
-  let text: string
+  let text: string;
   try {
-    text = await readFile(path, 'utf8')
+    text = await readFile(path, 'utf8');
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { ...DISABLED, bypass: [] }
-    throw error
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT')
+      return { ...DISABLED, bypass: [] };
+    throw error;
   }
-  let parsed: unknown
+  let parsed: unknown;
   try {
-    parsed = JSON.parse(text)
+    parsed = JSON.parse(text);
   } catch {
-    throw new Error(`subscriptions proxy config at ${path} is not valid JSON; fix or delete the file`)
+    throw new Error(
+      `subscriptions proxy config at ${path} is not valid JSON; fix or delete the file`,
+    );
   }
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-    throw new Error('subscriptions proxy config must be a JSON object')
+    throw new Error('subscriptions proxy config must be a JSON object');
   }
-  const record = parsed as Record<string, unknown>
-  const enabled = record.enabled === true
-  const url = typeof record.url === 'string' ? record.url : ''
-  const username = typeof record.username === 'string' ? record.username : undefined
-  const password = typeof record.password === 'string' ? record.password : undefined
+  const record = parsed as Record<string, unknown>;
+  const enabled = record.enabled === true;
+  const url = typeof record.url === 'string' ? record.url : '';
+  const username =
+    typeof record.username === 'string' ? record.username : undefined;
+  const password =
+    typeof record.password === 'string' ? record.password : undefined;
   const bypass = Array.isArray(record.bypass)
-    ? record.bypass.filter((entry): entry is string => typeof entry === 'string')
-    : []
+    ? record.bypass.filter(
+        (entry): entry is string => typeof entry === 'string',
+      )
+    : [];
   return normalizeConfig({
     enabled,
     url,
-    ...username === undefined ? {} : { username },
-    ...password === undefined ? {} : { password },
+    ...(username === undefined ? {} : { username }),
+    ...(password === undefined ? {} : { password }),
     bypass,
-  })
+  });
 }
 
 /** Resolve the module state once from disk; failures disable the proxy. */
 async function ensureReady(): Promise<ProxyConfig> {
-  const mine = epoch
-  ready ??= loadConfigFile(proxyFilePath()).then(async (cfg) => {
-    if (mine !== epoch) return { ...DISABLED, bypass: [] }
-    await applyConfig(cfg)
-    return current
-  }, async (error) => {
-    if (mine !== epoch) return { ...DISABLED, bypass: [] }
-    withError(error)
-    await applyConfig(undefined)
-    return current
-  })
-  return ready
+  const mine = epoch;
+  ready ??= loadConfigFile(proxyFilePath()).then(
+    async (cfg) => {
+      if (mine !== epoch) return { ...DISABLED, bypass: [] };
+      await applyConfig(cfg);
+      return current;
+    },
+    async (error) => {
+      if (mine !== epoch) return { ...DISABLED, bypass: [] };
+      withError(error);
+      await applyConfig(undefined);
+      return current;
+    },
+  );
+  return ready;
 }
 
 /** Persist a config atomically with owner-only permissions, then apply it. */
 async function persistConfig(cfg: ProxyConfig, path: string): Promise<void> {
-  await mkdir(dirname(path), { recursive: true, mode: 0o700 })
-  const tmp = `${path}.tmp-${process.pid}-${Math.random().toString(36).slice(2)}`
+  await mkdir(dirname(path), { recursive: true, mode: 0o700 });
+  const tmp = `${path}.tmp-${process.pid}-${Math.random().toString(36).slice(2)}`;
   try {
-    await writeFile(tmp, JSON.stringify(cfg, null, 2), { mode: 0o600 })
-    await chmod(tmp, 0o600)
-    await rename(tmp, path)
+    await writeFile(tmp, JSON.stringify(cfg, null, 2), { mode: 0o600 });
+    await chmod(tmp, 0o600);
+    await rename(tmp, path);
   } catch (error) {
-    await rm(tmp, { force: true })
-    throw error
+    await rm(tmp, { force: true });
+    throw error;
   }
 }
 
@@ -344,15 +403,16 @@ async function persistConfig(cfg: ProxyConfig, path: string): Promise<void> {
  * the file. Called when the component is disposed so nothing secret outlives it.
  */
 export async function disposeProxyTransport(): Promise<void> {
-  epoch += 1
-  for (const probe of probes) probe.abort(new Error('proxy transport disposed'))
-  probes.clear()
-  const previous = agent
-  agent = undefined
-  ready = undefined
-  current = { ...DISABLED, bypass: [] }
-  configError = undefined
-  if (previous !== undefined) await previous.close().catch(() => undefined)
+  epoch += 1;
+  for (const probe of probes)
+    probe.abort(new Error('proxy transport disposed'));
+  probes.clear();
+  const previous = agent;
+  agent = undefined;
+  ready = undefined;
+  current = { ...DISABLED, bypass: [] };
+  configError = undefined;
+  if (previous !== undefined) await previous.close().catch(() => undefined);
 }
 
 /**
@@ -360,13 +420,13 @@ export async function disposeProxyTransport(): Promise<void> {
  * @internal Exported for tests only; not part of the plugin's public surface.
  */
 export async function resetProxyForTests(): Promise<void> {
-  await disposeProxyTransport()
-  const previous = agent
-  agent = undefined
-  current = { ...DISABLED, bypass: [] }
-  ready = undefined
-  configError = undefined
-  if (previous !== undefined) await previous.close().catch(() => undefined)
+  await disposeProxyTransport();
+  const previous = agent;
+  agent = undefined;
+  current = { ...DISABLED, bypass: [] };
+  ready = undefined;
+  configError = undefined;
+  if (previous !== undefined) await previous.close().catch(() => undefined);
 }
 
 /**
@@ -375,15 +435,15 @@ export async function resetProxyForTests(): Promise<void> {
  *   load/apply failure when the stored config is unusable.
  */
 export async function proxyGetConfig(): Promise<ProxyConfigView> {
-  await ensureReady()
+  await ensureReady();
   return {
     enabled: current.enabled,
     url: current.url,
-    ...current.username === undefined ? {} : { username: current.username },
+    ...(current.username === undefined ? {} : { username: current.username }),
     passwordSet: current.password !== undefined && current.password !== '',
     bypass: [...current.bypass],
-    ...configError === undefined ? {} : { error: configError },
-  }
+    ...(configError === undefined ? {} : { error: configError }),
+  };
 }
 
 /**
@@ -395,28 +455,32 @@ export async function proxyGetConfig(): Promise<ProxyConfigView> {
 export function proxySetConfig(input: ProxyInput): Promise<ProxyConfigView> {
   // Serialized: each write reads the stored password/bypass it keeps ("omitted = keep") only after every
   // earlier write has landed, so two clients can never lose each other's credential or list.
-  const run = proxyWrites.then(() => writeProxyConfig(input))
-  proxyWrites = run.then(() => undefined, () => undefined)
-  return run
+  const run = proxyWrites.then(() => writeProxyConfig(input));
+  proxyWrites = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
 }
 
 async function writeProxyConfig(input: ProxyInput): Promise<ProxyConfigView> {
-  await ensureReady()
-  const password = input.password === undefined
-    ? current.password
-    : input.password === null || input.password === ''
-      ? undefined
-      : input.password
+  await ensureReady();
+  const password =
+    input.password === undefined
+      ? current.password
+      : input.password === null || input.password === ''
+        ? undefined
+        : input.password;
   const next = normalizeConfig({
     enabled: input.enabled,
     url: input.url,
-    ...input.username === undefined ? {} : { username: input.username },
-    ...password === undefined ? {} : { password },
+    ...(input.username === undefined ? {} : { username: input.username }),
+    ...(password === undefined ? {} : { password }),
     bypass: input.bypass ?? current.bypass,
-  })
-  await persistConfig(next, proxyFilePath())
-  await applyConfig(next)
-  return proxyGetConfig()
+  });
+  await persistConfig(next, proxyFilePath());
+  await applyConfig(next);
+  return proxyGetConfig();
 }
 
 /**
@@ -429,22 +493,30 @@ async function writeProxyConfig(input: ProxyInput): Promise<ProxyConfigView> {
  * is issued with — a mismatched dispatcher can be silently ignored by the
  * host's global fetch.
  */
-export async function proxiedFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
-  await ensureReady()
-  let dispatcher: ProxyAgent | undefined
+export async function proxiedFetch(
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+): Promise<Response> {
+  await ensureReady();
+  let dispatcher: ProxyAgent | undefined;
   if (current.enabled && agent !== undefined) {
-    let hostname = ''
+    let hostname = '';
     try {
-      const url = typeof input === 'string' ? new URL(input) : input instanceof URL ? input : new URL(input.url)
-      hostname = url.hostname
+      const url =
+        typeof input === 'string'
+          ? new URL(input)
+          : input instanceof URL
+            ? input
+            : new URL(input.url);
+      hostname = url.hostname;
     } catch {
-      hostname = ''
+      hostname = '';
     }
-    if (!matchesBypass(hostname, current.bypass)) dispatcher = agent
+    if (!matchesBypass(hostname, current.bypass)) dispatcher = agent;
   }
-  if (dispatcher === undefined) return fetch(input, init)
-  const proxied = { ...init, dispatcher } as RequestInit
-  return dispatchFetch(input, proxied)
+  if (dispatcher === undefined) return fetch(input, init);
+  const proxied = { ...init, dispatcher } as RequestInit;
+  return dispatchFetch(input, proxied);
 }
 
 /**
@@ -457,22 +529,34 @@ export async function proxiedFetch(input: RequestInfo | URL, init: RequestInit =
  * @returns the result; any HTTP status counts as a successful connection,
  *   only a transport failure is an error.
  */
-export async function proxyTestConnection(target = DEFAULT_PROXY_TEST_URL, draft?: ProxyDraft, signal?: AbortSignal): Promise<ProxyTestResult> {
-  const secrets = [draft?.password]
-  const usernames = [draft?.username]
-  let parsed: URL
+export async function proxyTestConnection(
+  target = DEFAULT_PROXY_TEST_URL,
+  draft?: ProxyDraft,
+  signal?: AbortSignal,
+): Promise<ProxyTestResult> {
+  const secrets = [draft?.password];
+  const usernames = [draft?.username];
+  let parsed: URL;
   try {
-    parsed = new URL(target)
+    parsed = new URL(target);
     if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
-      return { ok: false, viaProxy: false, error: `test destination must be http or https (got "${parsed.protocol}//")` }
+      return {
+        ok: false,
+        viaProxy: false,
+        error: `test destination must be http or https (got "${parsed.protocol}//")`,
+      };
     }
   } catch (error) {
-    return { ok: false, viaProxy: false, error: safeDiagnostic(error, secrets, usernames) }
+    return {
+      ok: false,
+      viaProxy: false,
+      error: safeDiagnostic(error, secrets, usernames),
+    };
   }
-  await ensureReady()
-  let probeAgent: ProxyAgent | undefined
-  let viaProxy: boolean
-  let closeProbe = false
+  await ensureReady();
+  let probeAgent: ProxyAgent | undefined;
+  let viaProxy: boolean;
+  let closeProbe = false;
   if (draft !== undefined) {
     // Test the typed values: a throw here is a config problem, not a route one.
     try {
@@ -480,39 +564,65 @@ export async function proxyTestConnection(target = DEFAULT_PROXY_TEST_URL, draft
         enabled: draft.enabled ?? true,
         url: draft.url,
         username: draft.username,
-        password: draft.password === undefined ? current.password : draft.password,
+        password:
+          draft.password === undefined ? current.password : draft.password,
         bypass: draft.bypass ?? current.bypass,
-      })
-      probeAgent = matchesBypass(parsed.hostname, cfg.bypass) ? undefined : buildAgent(cfg)
-      viaProxy = probeAgent !== undefined
-      closeProbe = true
+      });
+      probeAgent = matchesBypass(parsed.hostname, cfg.bypass)
+        ? undefined
+        : buildAgent(cfg);
+      viaProxy = probeAgent !== undefined;
+      closeProbe = true;
     } catch (error) {
-      return { ok: false, viaProxy: false, error: safeDiagnostic(error, secrets, usernames) }
+      return {
+        ok: false,
+        viaProxy: false,
+        error: safeDiagnostic(error, secrets, usernames),
+      };
     }
   } else {
-    viaProxy = current.enabled && agent !== undefined && !matchesBypass(parsed.hostname, current.bypass)
-    probeAgent = viaProxy ? agent : undefined
+    viaProxy =
+      current.enabled &&
+      agent !== undefined &&
+      !matchesBypass(parsed.hostname, current.bypass);
+    probeAgent = viaProxy ? agent : undefined;
   }
-  const started = Date.now()
-  const controller = new AbortController()
-  probes.add(controller)
-  const probeSignal = AbortSignal.any([AbortSignal.timeout(DEFAULT_PROXY_TEST_TIMEOUT_MS), controller.signal, ...signal === undefined ? [] : [signal]])
+  const started = Date.now();
+  const controller = new AbortController();
+  probes.add(controller);
+  const probeSignal = AbortSignal.any([
+    AbortSignal.timeout(DEFAULT_PROXY_TEST_TIMEOUT_MS),
+    controller.signal,
+    ...(signal === undefined ? [] : [signal]),
+  ]);
   try {
-    const init = probeAgent !== undefined
-      ? { method: 'GET', dispatcher: probeAgent, signal: probeSignal }
-      : { method: 'GET', signal: probeSignal }
-    const response = probeAgent !== undefined
-      ? await dispatchFetch(parsed.toString(), init as RequestInit)
-      : await fetch(parsed.toString(), init)
+    const init =
+      probeAgent !== undefined
+        ? { method: 'GET', dispatcher: probeAgent, signal: probeSignal }
+        : { method: 'GET', signal: probeSignal };
+    const response =
+      probeAgent !== undefined
+        ? await dispatchFetch(parsed.toString(), init as RequestInit)
+        : await fetch(parsed.toString(), init);
     // Drain so the connection can be released; the body is irrelevant.
-    void response.arrayBuffer().catch(() => undefined)
-    return { ok: true, viaProxy, status: response.status, latencyMs: Date.now() - started }
+    void response.arrayBuffer().catch(() => undefined);
+    return {
+      ok: true,
+      viaProxy,
+      status: response.status,
+      latencyMs: Date.now() - started,
+    };
   } catch (error) {
-    return { ok: false, viaProxy, latencyMs: Date.now() - started, error: describeFetchError(error, secrets, usernames) }
+    return {
+      ok: false,
+      viaProxy,
+      latencyMs: Date.now() - started,
+      error: describeFetchError(error, secrets, usernames),
+    };
   } finally {
-    probes.delete(controller)
+    probes.delete(controller);
     if (closeProbe && probeAgent !== undefined) {
-      await probeAgent.close().catch(() => undefined)
+      await probeAgent.close().catch(() => undefined);
     }
   }
 }

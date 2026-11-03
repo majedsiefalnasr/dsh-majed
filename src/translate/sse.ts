@@ -6,14 +6,14 @@
  * spec-strict framing the harness's own adapters use.
  */
 
-import { withAbortSignal } from '../providers/common.js'
+import { withAbortSignal } from '../providers/common.js';
 
 /** One parsed SSE event. */
 export interface SseEvent {
   /** Joined `data:` lines of the event. */
-  data: string
+  data: string;
   /** The `event:` field, when present. */
-  event?: string
+  event?: string;
 }
 
 /**
@@ -27,48 +27,61 @@ export async function* parseSse(
   onActivity?: () => void,
   signal?: AbortSignal,
 ): AsyncGenerator<SseEvent> {
-  const reader = stream.getReader()
-  const cancel = () => { void reader.cancel(signal?.reason).catch(() => {}) }
-  signal?.addEventListener('abort', cancel, { once: true })
-  const decoder = new TextDecoder()
-  let pending = ''
-  let dataLines: string[] = []
-  let eventName: string | undefined
+  const reader = stream.getReader();
+  const cancel = () => {
+    void reader.cancel(signal?.reason).catch(() => {});
+  };
+  signal?.addEventListener('abort', cancel, { once: true });
+  const decoder = new TextDecoder();
+  let pending = '';
+  let dataLines: string[] = [];
+  let eventName: string | undefined;
   try {
     while (true) {
-      const { done, value } = await withAbortSignal(() => reader.read(), signal)
-      signal?.throwIfAborted()
-      if (done) return
-      onActivity?.()
-      pending += decoder.decode(value, { stream: true })
-      let newline = pending.indexOf('\n')
+      const { done, value } = await withAbortSignal(
+        () => reader.read(),
+        signal,
+      );
+      signal?.throwIfAborted();
+      if (done) return;
+      onActivity?.();
+      pending += decoder.decode(value, { stream: true });
+      let newline = pending.indexOf('\n');
       while (newline >= 0) {
-        let line = pending.slice(0, newline)
-        pending = pending.slice(newline + 1)
-        newline = pending.indexOf('\n')
-        if (line.endsWith('\r')) line = line.slice(0, -1)
+        let line = pending.slice(0, newline);
+        pending = pending.slice(newline + 1);
+        newline = pending.indexOf('\n');
+        if (line.endsWith('\r')) line = line.slice(0, -1);
         if (line.length === 0) {
           if (dataLines.length > 0) {
-            yield { data: dataLines.join('\n'), ...eventName === undefined ? {} : { event: eventName } }
+            yield {
+              data: dataLines.join('\n'),
+              ...(eventName === undefined ? {} : { event: eventName }),
+            };
           }
-          dataLines = []
-          eventName = undefined
+          dataLines = [];
+          eventName = undefined;
         } else if (line.startsWith(':')) {
-          onActivity?.()
+          onActivity?.();
         } else if (line.startsWith('data:')) {
-          dataLines.push(line.slice(5).replace(/^ /, ''))
+          dataLines.push(line.slice(5).replace(/^ /, ''));
         } else if (line.startsWith('event:')) {
-          eventName = line.slice(6).replace(/^ /, '')
+          eventName = line.slice(6).replace(/^ /, '');
         }
       }
     }
   } finally {
     // A terminal SSE frame can precede HTTP EOF; returning or decoding failure
     // must close the remaining body rather than leave the connection reading.
-    signal?.removeEventListener('abort', cancel)
+    signal?.removeEventListener('abort', cancel);
     // Signal-aware owners must not await an uncooperative transport's cancel.
-    if (signal !== undefined) cancel()
-    else try { await reader.cancel() } catch { /* preserve the original stream outcome */ }
-    reader.releaseLock()
+    if (signal !== undefined) cancel();
+    else
+      try {
+        await reader.cancel();
+      } catch {
+        /* preserve the original stream outcome */
+      }
+    reader.releaseLock();
   }
 }

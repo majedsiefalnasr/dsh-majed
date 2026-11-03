@@ -9,7 +9,7 @@
  */
 import { EMPTY_RESPONSE_CODE, LlmAdapter, LlmError, QUOTA_EXCEEDED_CODE, } from '@deepseek-ai/dsh-llm';
 import { poolKey } from './pool-family.js';
-import { accountKey, classifyPoolFailure, memberKey } from './pool-health.js';
+import { accountKey, classifyPoolFailure, memberKey, } from './pool-health.js';
 import { withAbortSignal } from './common.js';
 import { streamAccountWithReplay } from './replay.js';
 /** Bound on sticky-session memory; oldest entries evict past it. */
@@ -58,7 +58,7 @@ export class PoolAdapter extends LlmAdapter {
     usable(pools) {
         const result = new Map(pools);
         for (const [id, definition] of [...result]) {
-            const kept = definition.members.filter(member => this.options.adapters[member.provider] !== undefined);
+            const kept = definition.members.filter((member) => this.options.adapters[member.provider] !== undefined);
             if (kept.length === 0)
                 result.delete(id);
             else if (kept.length < definition.members.length)
@@ -119,7 +119,9 @@ export class PoolAdapter extends LlmAdapter {
                 provider,
                 id,
                 name: definition.name ?? id,
-                ...definition.description === undefined ? {} : { description: definition.description },
+                ...(definition.description === undefined
+                    ? {}
+                    : { description: definition.description }),
             });
         }
         return models;
@@ -140,7 +142,7 @@ export class PoolAdapter extends LlmAdapter {
         const seen = new Set();
         const resolved = [];
         for (const member of members) {
-            const requested = member.account ?? await this.options.defaultAccount(member.provider);
+            const requested = member.account ?? (await this.options.defaultAccount(member.provider));
             if (requested === undefined)
                 continue;
             const account = await (this.options.resolveAccount?.(member.provider, requested) ?? Promise.resolve(requested));
@@ -148,7 +150,11 @@ export class PoolAdapter extends LlmAdapter {
             if (seen.has(key))
                 continue;
             seen.add(key);
-            resolved.push({ provider: member.provider, account, model: member.model });
+            resolved.push({
+                provider: member.provider,
+                account,
+                model: member.model,
+            });
         }
         return resolved;
     }
@@ -184,30 +190,43 @@ export class PoolAdapter extends LlmAdapter {
             catch (error) {
                 signal?.throwIfAborted();
                 lastFailure = error;
-                this.warnOnce(`pool "${model}": member ${memberLabel(member)} failed to resolve`
-                    + ` (${error instanceof Error ? error.message : String(error)}); excluding it`);
+                this.warnOnce(`pool "${model}": member ${memberLabel(member)} failed to resolve` +
+                    ` (${error instanceof Error ? error.message : String(error)}); excluding it`);
             }
         }
         if (resolved.length === 0) {
             throw new LlmError(`pool "${model}" has no usable member`, 'NO_ADAPTER', {
-                ...lastFailure === undefined ? {} : { cause: lastFailure },
+                ...(lastFailure === undefined ? {} : { cause: lastFailure }),
             });
         }
-        const contextWindows = resolved.map(info => info.context?.contextWindow).filter(isNumber);
-        const maxTokens = resolved.map(info => info.defaultMaxTokens).filter(isNumber);
+        const contextWindows = resolved
+            .map((info) => info.context?.contextWindow)
+            .filter(isNumber);
+        const maxTokens = resolved
+            .map((info) => info.defaultMaxTokens)
+            .filter(isNumber);
         const reasoning = intersectReasoning(resolved);
         const modalities = intersectModalities(resolved);
         const info = {
             provider,
             id: model,
             name: definition.name ?? model,
-            ...definition.description === undefined ? {} : { description: definition.description },
-            ...contextWindows.length > 0 ? { context: { contextWindow: Math.min(...contextWindows) } } : {},
-            ...maxTokens.length > 0 ? { defaultMaxTokens: Math.min(...maxTokens) } : {},
-            ...reasoning === undefined ? {} : { reasoning },
-            ...modalities === undefined ? {} : { inputModalities: modalities },
+            ...(definition.description === undefined
+                ? {}
+                : { description: definition.description }),
+            ...(contextWindows.length > 0
+                ? { context: { contextWindow: Math.min(...contextWindows) } }
+                : {}),
+            ...(maxTokens.length > 0
+                ? { defaultMaxTokens: Math.min(...maxTokens) }
+                : {}),
+            ...(reasoning === undefined ? {} : { reasoning }),
+            ...(modalities === undefined ? {} : { inputModalities: modalities }),
         };
-        return { model: info, stream: options => this.streamMembers(options, eligible) };
+        return {
+            model: info,
+            stream: (options) => this.streamMembers(options, eligible),
+        };
     }
     async *stream(options) {
         const definition = (await withAbortSignal(() => this.pools(), options.signal)).get(poolKey(options.provider, options.model));
@@ -242,7 +261,8 @@ export class PoolAdapter extends LlmAdapter {
                 if (first.done === true) {
                     throw new LlmError(`${memberLabel(member)} returned an empty stream`, EMPTY_RESPONSE_CODE);
                 }
-                if (first.value.type === 'finish' && first.value.reason.kind === 'error') {
+                if (first.value.type === 'finish' &&
+                    first.value.reason.kind === 'error') {
                     const failure = first.value.reason.failure;
                     throw new LlmError(failure.message, failure.code, failure);
                 }
@@ -251,7 +271,9 @@ export class PoolAdapter extends LlmAdapter {
                 try {
                     await iterator.return?.();
                 }
-                catch { /* preserve the attempt failure */ }
+                catch {
+                    /* preserve the attempt failure */
+                }
                 options.signal?.throwIfAborted();
                 const classification = classifyPoolFailure(error, member.provider);
                 if (classification.action === 'throw')
@@ -263,12 +285,13 @@ export class PoolAdapter extends LlmAdapter {
                     // A quota failure invalidates the cached usage snapshot so the NEXT
                     // selection re-polls instead of trusting minutes-old percentages.
                     // Transient/auth failures say nothing about quota — keep the cache.
-                    if (classification.reason === QUOTA_EXCEEDED_CODE || classification.reason === 'RATE_LIMIT') {
+                    if (classification.reason === QUOTA_EXCEEDED_CODE ||
+                        classification.reason === 'RATE_LIMIT') {
                         this.options.usage.invalidate(member.provider, member.account);
                     }
                 }
-                this.options.onWarn(`pool "${options.model}": ${memberLabel(member)} failed before any output`
-                    + ` (${describeFailure(error)}); trying the next member`);
+                this.options.onWarn(`pool "${options.model}": ${memberLabel(member)} failed before any output` +
+                    ` (${describeFailure(error)}); trying the next member`);
                 lastFailure = { member, error };
                 continue;
             }
@@ -307,27 +330,29 @@ export class PoolAdapter extends LlmAdapter {
      * `switchMargin`.
      */
     async select(poolId, members, sessionId) {
-        const usable = members.filter(member => this.options.adapters[member.provider] !== undefined
-            && this.options.health.isMemberAvailable(member.provider, member.account, member.model));
+        const usable = members.filter((member) => this.options.adapters[member.provider] !== undefined &&
+            this.options.health.isMemberAvailable(member.provider, member.account, member.model));
         if (usable.length === 0)
             return [];
         const stickyMember = sessionId === undefined
             ? undefined
-            : usable.find(member => memberKey(member.provider, member.account, member.model) === this.sticky.get(stickyKey(poolId, sessionId)));
+            : usable.find((member) => memberKey(member.provider, member.account, member.model) ===
+                this.sticky.get(stickyKey(poolId, sessionId)));
         if (this.options.strategy === 'priority') {
             return stickyMember === undefined
                 ? usable
-                : [stickyMember, ...usable.filter(member => member !== stickyMember)];
+                : [stickyMember, ...usable.filter((member) => member !== stickyMember)];
         }
         const quotas = new Map(await Promise.all(usable.map(async (member) => [member, await this.options.usage.quotaFor(member)])));
-        const scored = usable.filter(member => quotas.get(member)?.available === true);
-        const quotaFull = usable.filter(member => quotas.get(member)?.available === false);
+        const scored = usable.filter((member) => quotas.get(member)?.available === true);
+        const quotaFull = usable.filter((member) => quotas.get(member)?.available === false);
         scored.sort((a, b) => (quotas.get(b)?.urgency ?? 0) - (quotas.get(a)?.urgency ?? 0));
         if (stickyMember !== undefined && scored.includes(stickyMember)) {
             const best = scored[0];
             const stickyUrgency = quotas.get(stickyMember)?.urgency ?? 0;
             const bestUrgency = quotas.get(best)?.urgency ?? 0;
-            if (best === stickyMember || bestUrgency <= stickyUrgency * this.options.switchMargin) {
+            if (best === stickyMember ||
+                bestUrgency <= stickyUrgency * this.options.switchMargin) {
                 // Sticky holds (no challenger beats it by the margin): lead with it.
                 scored.splice(scored.indexOf(stickyMember), 1);
                 scored.unshift(stickyMember);
@@ -365,21 +390,27 @@ export class PoolAdapter extends LlmAdapter {
         }
         const now = Date.now();
         const cooling = this.options.health.earliestRecoveryRecord(keys, now);
-        const retryAfterMs = cooling === undefined ? undefined : Math.max(cooling.unavailableUntil - now, 1);
-        const recovers = retryAfterMs === undefined ? '' : ` recovers in ${formatDuration(retryAfterMs)}`;
+        const retryAfterMs = cooling === undefined
+            ? undefined
+            : Math.max(cooling.unavailableUntil - now, 1);
+        const recovers = retryAfterMs === undefined
+            ? ''
+            : ` recovers in ${formatDuration(retryAfterMs)}`;
         let message;
         let code;
         if (last !== undefined) {
             const { member, error } = last;
             code = error instanceof LlmError ? error.code : 'TRANSPORT';
-            message = `pool "${model}" exhausted: ${tried} of ${pool.length} member(s) failed;`
-                + ` last ${memberLabel(member)} (${describeFailure(error)})`
-                + (cooling === undefined ? '' : `; earliest member${recovers}`);
+            message =
+                `pool "${model}" exhausted: ${tried} of ${pool.length} member(s) failed;` +
+                    ` last ${memberLabel(member)} (${describeFailure(error)})` +
+                    (cooling === undefined ? '' : `; earliest member${recovers}`);
         }
         else if (cooling !== undefined) {
             code = cooling.reason;
-            message = `pool "${model}" exhausted: every member is cooling down;`
-                + ` ${cooling.key} (${cooling.reason})${recovers}`;
+            message =
+                `pool "${model}" exhausted: every member is cooling down;` +
+                    ` ${cooling.key} (${cooling.reason})${recovers}`;
         }
         else {
             code = 'NO_ADAPTER';
@@ -388,10 +419,14 @@ export class PoolAdapter extends LlmAdapter {
         const failure = last?.error instanceof LlmError ? last.error.failure : undefined;
         this.options.onWarn(message);
         return new LlmError(message, code, {
-            ...retryAfterMs === undefined ? {} : { providerRetryAfterMs: retryAfterMs },
-            ...failure?.status === undefined ? {} : { status: failure.status },
-            ...failure?.requestId === undefined ? {} : { requestId: failure.requestId },
-            ...last === undefined ? {} : { cause: last.error },
+            ...(retryAfterMs === undefined
+                ? {}
+                : { providerRetryAfterMs: retryAfterMs }),
+            ...(failure?.status === undefined ? {} : { status: failure.status }),
+            ...(failure?.requestId === undefined
+                ? {}
+                : { requestId: failure.requestId }),
+            ...(last === undefined ? {} : { cause: last.error }),
         });
     }
 }
@@ -424,21 +459,22 @@ function intersectReasoning(resolved) {
     const [first, ...rest] = resolved;
     if (first?.reasoning === undefined)
         return undefined;
-    const efforts = first.reasoning.efforts.filter(effort => rest.every(info => info.reasoning?.efforts.some(other => other.id === effort.id) === true));
+    const efforts = first.reasoning.efforts.filter((effort) => rest.every((info) => info.reasoning?.efforts.some((other) => other.id === effort.id) ===
+        true));
     if (efforts.length === 0)
         return undefined;
-    const defaultEffort = first.reasoning.defaultEffort !== undefined
-        && efforts.some(effort => effort.id === first.reasoning?.defaultEffort)
+    const defaultEffort = first.reasoning.defaultEffort !== undefined &&
+        efforts.some((effort) => effort.id === first.reasoning?.defaultEffort)
         ? first.reasoning.defaultEffort
         : undefined;
-    return { efforts, ...defaultEffort === undefined ? {} : { defaultEffort } };
+    return { efforts, ...(defaultEffort === undefined ? {} : { defaultEffort }) };
 }
 /** Modalities all members accept; undefined when any member leaves it unknown. */
 function intersectModalities(resolved) {
     const [first, ...rest] = resolved;
     if (first?.inputModalities === undefined)
         return undefined;
-    const modalities = first.inputModalities.filter(modality => rest.every(info => info.inputModalities?.includes(modality) === true));
+    const modalities = first.inputModalities.filter((modality) => rest.every((info) => info.inputModalities?.includes(modality) === true));
     // An empty intersection would declare negative capability ("accepts
     // nothing"); report unknown instead — the serving member enforces its own
     // limits at request time.

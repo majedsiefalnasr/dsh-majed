@@ -1,5 +1,5 @@
-import { accountKeyOf, deleteAccountSession, listAccounts, saveAccountSession, setDefaultAccount } from './store.js';
-import { codexFlow, codexProfileClaims, exchangeCodexCode } from '../providers/codex.js';
+import { accountKeyOf, deleteAccountSession, listAccounts, saveAccountSession, setDefaultAccount, } from './store.js';
+import { codexFlow, codexProfileClaims, exchangeCodexCode, } from '../providers/codex.js';
 export class CodexAuthController {
     flows;
     changed;
@@ -9,18 +9,28 @@ export class CodexAuthController {
     finalizing = 0;
     lastError;
     disposed = false;
-    constructor(flows, changed, describe = error => error instanceof Error ? error.message : String(error)) {
+    constructor(flows, changed, describe = (error) => error instanceof Error ? error.message : String(error)) {
         this.flows = flows;
         this.changed = changed;
         this.describe = describe;
     }
     async status() {
         const pending = this.flows.pending('codex');
-        return { authRevision: this.authRevision, busy: this.flows.isBusy('codex') || this.finalizing > 0,
+        return {
+            authRevision: this.authRevision,
+            busy: this.flows.isBusy('codex') || this.finalizing > 0,
             pendingAuth: pending ? { authorizeUrl: pending.authorizeUrl } : undefined,
-            accounts: (await listAccounts('codex')).map(({ key, session }, index) => ({ key, isDefault: index === 0,
-                account: session.emailAddress ?? codexProfileClaims(session.idToken).emailAddress ?? session.accountId,
-                plan: session.planType, expiresAt: session.expiresAt })), detail: this.lastError };
+            accounts: (await listAccounts('codex')).map(({ key, session }, index) => ({
+                key,
+                isDefault: index === 0,
+                account: session.emailAddress ??
+                    codexProfileClaims(session.idToken).emailAddress ??
+                    session.accountId,
+                plan: session.planType,
+                expiresAt: session.expiresAt,
+            })),
+            detail: this.lastError,
+        };
     }
     async login() {
         if (this.disposed)
@@ -51,7 +61,8 @@ export class CodexAuthController {
             this.changed(account);
         }
         catch (error) {
-            if (this.claim === claim && !(error instanceof Error && error.message === 'login cancelled')) {
+            if (this.claim === claim &&
+                !(error instanceof Error && error.message === 'login cancelled')) {
                 this.lastError = this.describe(error);
             }
         }
@@ -65,13 +76,22 @@ export class CodexAuthController {
             throw new Error('no codex login attempt is in progress');
         attempt.manual(input);
     }
-    cancel() { this.claim++; this.flows.pending('codex')?.cancel(); }
+    cancel() {
+        this.claim++;
+        this.flows.pending('codex')?.cancel();
+    }
     async logout(account) {
         this.cancel();
         await deleteAccountSession('codex', account);
         this.lastError = undefined;
         this.changed(account);
     }
-    async setDefault(account) { await setDefaultAccount('codex', account); this.changed(account); }
-    dispose() { this.disposed = true; this.cancel(); }
+    async setDefault(account) {
+        await setDefaultAccount('codex', account);
+        this.changed(account);
+    }
+    dispose() {
+        this.disposed = true;
+        this.cancel();
+    }
 }

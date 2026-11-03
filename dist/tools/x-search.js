@@ -46,7 +46,9 @@ export function buildXSearchRequest(args) {
 function normalizeHandles(value, field) {
     if (value === undefined)
         return [];
-    const handles = value.map(handle => handle.trim().replace(/^@+/, '')).filter(handle => handle.length > 0);
+    const handles = value
+        .map((handle) => handle.trim().replace(/^@+/, ''))
+        .filter((handle) => handle.length > 0);
     if (handles.length > MAX_HANDLES)
         throw new Error(`x_search: ${field} supports at most ${MAX_HANDLES} handles`);
     return handles;
@@ -74,13 +76,16 @@ export function parseXSearchResponse(payload) {
     const parts = [];
     if (Array.isArray(body.output)) {
         for (const item of body.output) {
-            if (!isRecord(item) || item.type !== 'message' || !Array.isArray(item.content))
+            if (!isRecord(item) ||
+                item.type !== 'message' ||
+                !Array.isArray(item.content))
                 continue;
             for (const part of item.content) {
                 if (!isRecord(part))
                     continue;
-                if ((part.type === 'output_text' || part.type === 'text')
-                    && typeof part.text === 'string' && part.text.trim().length > 0) {
+                if ((part.type === 'output_text' || part.type === 'text') &&
+                    typeof part.text === 'string' &&
+                    part.text.trim().length > 0) {
                     parts.push(part.text.trim());
                 }
                 if (Array.isArray(part.annotations)) {
@@ -108,10 +113,14 @@ function truncate(text, max = 60) {
 export function createXSearchTool(options) {
     return defineTool({
         name: 'x_search',
-        description: "Search X (Twitter) posts, profiles, and threads using the grok subscription's hosted xAI x_search. "
-            + 'Use this for current discussion, reactions, or claims on X rather than general web pages.',
+        description: "Search X (Twitter) posts, profiles, and threads using the grok subscription's hosted xAI x_search. " +
+            'Use this for current discussion, reactions, or claims on X rather than general web pages.',
         parameters: {
-            query: { type: 'string', required: true, description: 'What to look up on X.' },
+            query: {
+                type: 'string',
+                required: true,
+                description: 'What to look up on X.',
+            },
             allowed_x_handles: {
                 type: 'array',
                 items: { type: 'string' },
@@ -122,8 +131,14 @@ export function createXSearchTool(options) {
                 items: { type: 'string' },
                 description: 'X handles to exclude (max 10).',
             },
-            from_date: { type: 'string', description: 'Optional start date in YYYY-MM-DD format.' },
-            to_date: { type: 'string', description: 'Optional end date in YYYY-MM-DD format.' },
+            from_date: {
+                type: 'string',
+                description: 'Optional start date in YYYY-MM-DD format.',
+            },
+            to_date: {
+                type: 'string',
+                description: 'Optional end date in YYYY-MM-DD format.',
+            },
             enable_image_understanding: {
                 type: 'boolean',
                 description: 'Whether xAI should analyze images attached to matching posts.',
@@ -138,19 +153,28 @@ export function createXSearchTool(options) {
                 type: 'object',
                 properties: {
                     answer: { type: 'string', required: true },
-                    citations: { type: 'array', items: { type: 'string' }, required: true },
+                    citations: {
+                        type: 'array',
+                        items: { type: 'string' },
+                        required: true,
+                    },
                 },
                 additionalProperties: false,
             },
-            render: (_args, value) => [{
+            render: (_args, value) => [
+                {
                     type: 'text',
                     text: value.citations.length > 0
-                        ? `${value.answer}\n\nSources:\n${value.citations.map(citation => `- ${citation}`).join('\n')}`
+                        ? `${value.answer}\n\nSources:\n${value.citations.map((citation) => `- ${citation}`).join('\n')}`
                         : value.answer,
-                }],
-            presentationMeta: (_args, value) => ({ answer: value.answer, citations: value.citations }),
+                },
+            ],
+            presentationMeta: (_args, value) => ({
+                answer: value.answer,
+                citations: value.citations,
+            }),
         },
-        presentCall: args => ({
+        presentCall: (args) => ({
             card: 'generic',
             title: `x_search: ${truncate(args.query)}`,
             kind: 'search',
@@ -158,15 +182,19 @@ export function createXSearchTool(options) {
         presentResult: (_args, result) => {
             if (result.isError || !isRecord(result.meta))
                 return undefined;
-            const citations = Array.isArray(result.meta.citations) ? result.meta.citations : [];
+            const citations = Array.isArray(result.meta.citations)
+                ? result.meta.citations
+                : [];
             return {
                 card: 'web',
                 kind: 'search',
-                sources: citations.filter((citation) => typeof citation === 'string')
-                    .map(url => ({ url })),
-                ...typeof result.meta.answer === 'string' && result.meta.answer.length > 0
+                sources: citations
+                    .filter((citation) => typeof citation === 'string')
+                    .map((url) => ({ url })),
+                ...(typeof result.meta.answer === 'string' &&
+                    result.meta.answer.length > 0
                     ? { answer: result.meta.answer }
-                    : {},
+                    : {}),
                 truncated: false,
             };
         },
@@ -176,9 +204,9 @@ export function createXSearchTool(options) {
             const response = await (options.fetchFn ?? proxiedFetch)(X_SEARCH_URL, {
                 method: 'POST',
                 headers: {
-                    'authorization': `Bearer ${session.accessToken}`,
+                    authorization: `Bearer ${session.accessToken}`,
                     'content-type': 'application/json',
-                    'accept': 'application/json',
+                    accept: 'application/json',
                 },
                 body: JSON.stringify({
                     model: X_SEARCH_MODEL,

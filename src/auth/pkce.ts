@@ -1,13 +1,13 @@
 /** PKCE (RFC 7636) and random-token helpers for the OAuth login flows. */
 
-import { createHash, randomBytes } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto';
 
 /** One PKCE verifier/challenge pair; the verifier stays local until the token exchange. */
 export interface PkcePair {
   /** High-entropy secret sent as `code_verifier` at the token endpoint. */
-  verifier: string
+  verifier: string;
   /** S256 digest of the verifier, sent as `code_challenge` at the authorize endpoint. */
-  challenge: string
+  challenge: string;
 }
 
 /**
@@ -16,7 +16,7 @@ export interface PkcePair {
  * @returns the RFC 4648 §5 encoding.
  */
 export function base64url(buffer: Buffer): string {
-  return buffer.toString('base64url')
+  return buffer.toString('base64url');
 }
 
 /**
@@ -24,9 +24,9 @@ export function base64url(buffer: Buffer): string {
  * @returns the pair for one authorization attempt.
  */
 export function createPkce(): PkcePair {
-  const verifier = base64url(randomBytes(32))
-  const challenge = base64url(createHash('sha256').update(verifier).digest())
-  return { verifier, challenge }
+  const verifier = base64url(randomBytes(32));
+  const challenge = base64url(createHash('sha256').update(verifier).digest());
+  return { verifier, challenge };
 }
 
 /**
@@ -35,7 +35,7 @@ export function createPkce(): PkcePair {
  * @returns base64url-encoded random bytes.
  */
 export function randomToken(bytes = 32): string {
-  return base64url(randomBytes(bytes))
+  return base64url(randomBytes(bytes));
 }
 
 /**
@@ -44,5 +44,5 @@ export function randomToken(bytes = 32): string {
  * @returns hex-encoded random bytes.
  */
 export function randomHex(bytes = 8): string {
-  return randomBytes(bytes).toString('hex')
+  return randomBytes(bytes).toString('hex');
 }

@@ -7,7 +7,7 @@
  * of an account imported that way (its `keychainBound` flag).
  */
 import { execFileSync } from 'node:child_process';
-import { chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, writeFileSync, } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 const PRIMARY_SERVICE = 'Claude Code-credentials';
@@ -15,19 +15,30 @@ const DEFAULT_SCOPES = 'user:profile user:inference user:sessions:claude_code us
 function toSession(data) {
     // Empty-string tokens (seen from a corrupted Keychain item left by a Claude Code logout) pass the typeof gate
     // but are useless and would poison the auth store, so they are rejected here.
-    if (typeof data.accessToken !== 'string' || data.accessToken.length === 0
-        || typeof data.refreshToken !== 'string' || data.refreshToken.length === 0
-        || typeof data.expiresAt !== 'number' || !Number.isFinite(data.expiresAt)) {
+    if (typeof data.accessToken !== 'string' ||
+        data.accessToken.length === 0 ||
+        typeof data.refreshToken !== 'string' ||
+        data.refreshToken.length === 0 ||
+        typeof data.expiresAt !== 'number' ||
+        !Number.isFinite(data.expiresAt)) {
         return undefined;
     }
-    const scopes = Array.isArray(data.scopes) ? data.scopes.join(' ') : typeof data.scopes === 'string' ? data.scopes : DEFAULT_SCOPES;
+    const scopes = Array.isArray(data.scopes)
+        ? data.scopes.join(' ')
+        : typeof data.scopes === 'string'
+            ? data.scopes
+            : DEFAULT_SCOPES;
     return {
         accessToken: data.accessToken,
         refreshToken: data.refreshToken,
         expiresAt: Math.trunc(data.expiresAt),
         scopes,
-        ...typeof data.emailAddress === 'string' ? { emailAddress: data.emailAddress } : {},
-        ...typeof data.subscriptionType === 'string' ? { subscriptionType: data.subscriptionType } : {},
+        ...(typeof data.emailAddress === 'string'
+            ? { emailAddress: data.emailAddress }
+            : {}),
+        ...(typeof data.subscriptionType === 'string'
+            ? { subscriptionType: data.subscriptionType }
+            : {}),
     };
 }
 function parseBlob(raw) {
@@ -70,7 +81,16 @@ export const SYSTEM_CLAUDE_CREDS_IO = {
     },
     writeKeychainRaw(account, raw) {
         try {
-            execFileSync('/usr/bin/security', ['add-generic-password', '-s', PRIMARY_SERVICE, '-a', account, '-w', raw, '-U'], {
+            execFileSync('/usr/bin/security', [
+                'add-generic-password',
+                '-s',
+                PRIMARY_SERVICE,
+                '-a',
+                account,
+                '-w',
+                raw,
+                '-U',
+            ], {
                 timeout: 2000,
                 stdio: 'ignore',
             });
@@ -172,7 +192,9 @@ export function writeBackClaudeCodeCredentials(next, expectedPriorAccessToken, i
 export const CLAUDE_PROFILE_LOOKUP_TIMEOUT_MS = 5_000;
 /** Same normalization as the Codex store (`trim().toLowerCase()`); undefined for a missing or blank email. */
 export function normalizeEmail(value) {
-    return typeof value === 'string' && value.trim().length > 0 ? value.trim().toLowerCase() : undefined;
+    return typeof value === 'string' && value.trim().length > 0
+        ? value.trim().toLowerCase()
+        : undefined;
 }
 /**
  * Look an account's email up through the profile endpoint with one access token. Bounded by a timeout and by the
@@ -188,10 +210,19 @@ async function lookupEmail(accessToken, options, signal) {
     signal?.addEventListener('abort', stop, { once: true });
     const timer = setTimeout(stop, options.profileTimeoutMs ?? CLAUDE_PROFILE_LOOKUP_TIMEOUT_MS);
     // A lookup that ignores its signal must not hold the refresh hostage either.
-    const stopped = new Promise(resolve => { bounded.signal.addEventListener('abort', () => resolve(undefined), { once: true }); });
+    const stopped = new Promise((resolve) => {
+        bounded.signal.addEventListener('abort', () => resolve(undefined), {
+            once: true,
+        });
+    });
     try {
-        const profile = await Promise.race([(async () => lookup(accessToken, bounded.signal))().catch(() => undefined), stopped]);
-        return normalizeEmail(profile?.emailAddress) === undefined ? undefined : profile.emailAddress.trim();
+        const profile = await Promise.race([
+            (async () => lookup(accessToken, bounded.signal))().catch(() => undefined),
+            stopped,
+        ]);
+        return normalizeEmail(profile?.emailAddress) === undefined
+            ? undefined
+            : profile.emailAddress.trim();
     }
     finally {
         clearTimeout(timer);
@@ -228,8 +259,12 @@ async function resolveIdentity(stored, source, options, signal) {
     let sourceRaw = source.emailAddress?.trim();
     if (storedEmail === undefined || sourceEmail === undefined) {
         const [fromStored, fromSource] = await Promise.all([
-            storedEmail === undefined ? lookupEmail(stored.accessToken, options, signal) : undefined,
-            sourceEmail === undefined ? lookupEmail(source.accessToken, options, signal) : undefined,
+            storedEmail === undefined
+                ? lookupEmail(stored.accessToken, options, signal)
+                : undefined,
+            sourceEmail === undefined
+                ? lookupEmail(source.accessToken, options, signal)
+                : undefined,
         ]);
         if (fromStored !== undefined) {
             known = { ...stored, emailAddress: fromStored };
@@ -242,9 +277,11 @@ async function resolveIdentity(stored, source, options, signal) {
     }
     const same = storedEmail !== undefined && sourceEmail !== undefined
         ? storedEmail === sourceEmail
-        : storedEmail === undefined && sourceEmail === undefined && stored.refreshToken === source.refreshToken;
+        : storedEmail === undefined &&
+            sourceEmail === undefined &&
+            stored.refreshToken === source.refreshToken;
     const email = known.emailAddress ?? sourceRaw;
-    return { same, stored: known, ...email === undefined ? {} : { email } };
+    return { same, stored: known, ...(email === undefined ? {} : { email }) };
 }
 /**
  * Refresh a Claude session, first checking whether Claude Code's own store already holds a fresher token (rotated by
@@ -272,14 +309,18 @@ export async function refreshClaudeSynced(session, doRefresh, io = SYSTEM_CLAUDE
     let base = session;
     // True when the store holds a login that is not this account (or not provably so): never written back.
     let foreign = false;
-    if (fromSource !== undefined && fromSource.accessToken !== session.accessToken) {
+    if (fromSource !== undefined &&
+        fromSource.accessToken !== session.accessToken) {
         const verdict = await resolveIdentity(session, fromSource, identity, signal);
         signal?.throwIfAborted();
         if (verdict.same) {
             base = {
                 ...fromSource,
-                ...verdict.email === undefined ? {} : { emailAddress: verdict.email },
-                ...fromSource.subscriptionType === undefined && session.subscriptionType !== undefined ? { subscriptionType: session.subscriptionType } : {},
+                ...(verdict.email === undefined ? {} : { emailAddress: verdict.email }),
+                ...(fromSource.subscriptionType === undefined &&
+                    session.subscriptionType !== undefined
+                    ? { subscriptionType: session.subscriptionType }
+                    : {}),
                 keychainBound: true,
             };
         }
@@ -290,7 +331,10 @@ export async function refreshClaudeSynced(session, doRefresh, io = SYSTEM_CLAUDE
     }
     if (base.expiresAt > Date.now() + 60_000)
         return { ...base, keychainBound: true };
-    const next = { ...await doRefresh(base), keychainBound: true };
+    const next = {
+        ...(await doRefresh(base)),
+        keychainBound: true,
+    };
     signal?.throwIfAborted();
     if (!foreign)
         writeBackClaudeCodeCredentials(next, base.accessToken, io);

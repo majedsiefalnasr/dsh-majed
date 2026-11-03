@@ -16,9 +16,9 @@ export class ClaudeCliVersionCache extends NpmCliVersionCache {
             url: CLAUDE_CLI_VERSION_URL,
             label: 'Claude Code',
             floor: () => claudeCliVersionFloor(detect),
-            ...fetchFn === undefined ? {} : { fetchFn },
-            ...now === undefined ? {} : { now },
-            ...timeoutMs === undefined ? {} : { timeoutMs },
+            ...(fetchFn === undefined ? {} : { fetchFn }),
+            ...(now === undefined ? {} : { now }),
+            ...(timeoutMs === undefined ? {} : { timeoutMs }),
         });
     }
 }

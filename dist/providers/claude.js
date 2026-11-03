@@ -4,11 +4,11 @@
  * the Anthropic Messages API with the Claude Code identity headers.
  */
 import { execFileSync } from 'node:child_process';
-import { EMPTY_RESPONSE_CODE, errorChain, LlmAdapter, LlmError, ReasoningEffortId } from '@deepseek-ai/dsh-llm';
-import { hostSupportsImageOffload, IMAGE_OFFLOAD_REQUIRED, requiredImageOffloadCount, resolveImages } from '../translate/resolved.js';
+import { EMPTY_RESPONSE_CODE, errorChain, LlmAdapter, LlmError, ReasoningEffortId, } from '@deepseek-ai/dsh-llm';
+import { hostSupportsImageOffload, IMAGE_OFFLOAD_REQUIRED, requiredImageOffloadCount, resolveImages, } from '../translate/resolved.js';
 import { markMessageCache, streamAnthropic, toAnthropicMessages, toAnthropicSystem, toAnthropicTools, } from '../translate/anthropic.js';
 import { httpLlmError, idleWatchdog, mapFetchFailure, mergeReasoning, ModelCatalogCache, discoverAcrossAccounts, discoverOrRetryAuth, isDiscoveryAborted, isMissingOrInvalidCredential, oauthEndpointError, OAuthEndpointError, } from './common.js';
-import { DISCOVERY_TIMEOUT_MS, unionAccountCatalogs } from './accounts.js';
+import { DISCOVERY_TIMEOUT_MS, unionAccountCatalogs, } from './accounts.js';
 import { proxiedFetch } from '../http.js';
 import { compareVersions } from './npm-cli-version.js';
 import { DEFAULT_RATE_LIMIT_WAIT, DEFAULT_RETRY, earliestReset, jsonBody, resetFromFields, resetInstantFromHeader, subscriptionRetryPolicy, } from './rate-limit.js';
@@ -29,7 +29,12 @@ export const CLAUDE_PREEMPT_MS = 5 * 60_000;
  * Body fields Anthropic uses to name a reset instant, read when the unified
  * headers are absent.
  */
-const CLAUDE_RESET_FIELDS = ['resets_at', 'resetsAt', 'reset_at', 'retry_after'];
+const CLAUDE_RESET_FIELDS = [
+    'resets_at',
+    'resetsAt',
+    'reset_at',
+    'retry_after',
+];
 /**
  * Reads the reset instant of the Anthropic window that rejected a request.
  *
@@ -149,20 +154,29 @@ export const claudeFlow = {
 export async function fetchClaudeProfile(accessToken, signal) {
     try {
         const response = await proxiedFetch(CLAUDE_PROFILE_URL, {
-            ...signal === undefined ? {} : { signal },
+            ...(signal === undefined ? {} : { signal }),
             headers: { authorization: `Bearer ${accessToken}` },
         });
         if (!response.ok)
             return {};
-        const profile = await response.json();
+        const profile = (await response.json());
         const account = typeof profile.account === 'object' && profile.account !== null
             ? profile.account
             : {};
-        const email = profile.emailAddress ?? profile.email ?? account.email_address ?? account.email;
-        const subscription = profile.subscriptionType ?? profile.subscription_type ?? account.subscription_type;
+        const email = profile.emailAddress ??
+            profile.email ??
+            account.email_address ??
+            account.email;
+        const subscription = profile.subscriptionType ??
+            profile.subscription_type ??
+            account.subscription_type;
         return {
-            ...typeof email === 'string' && email.length > 0 ? { emailAddress: email } : {},
-            ...typeof subscription === 'string' && subscription.length > 0 ? { subscriptionType: subscription } : {},
+            ...(typeof email === 'string' && email.length > 0
+                ? { emailAddress: email }
+                : {}),
+            ...(typeof subscription === 'string' && subscription.length > 0
+                ? { subscriptionType: subscription }
+                : {}),
         };
     }
     catch {
@@ -172,7 +186,8 @@ export async function fetchClaudeProfile(accessToken, signal) {
 }
 /** Build a session from a token response. */
 async function claudeSession(tokens, fallbackRefreshToken, withProfile) {
-    if (typeof tokens.access_token !== 'string' || tokens.access_token.length === 0) {
+    if (typeof tokens.access_token !== 'string' ||
+        tokens.access_token.length === 0) {
         throw new Error('claude token endpoint returned no access token');
     }
     const refreshToken = tokens.refresh_token ?? fallbackRefreshToken;
@@ -181,7 +196,9 @@ async function claudeSession(tokens, fallbackRefreshToken, withProfile) {
     if (typeof tokens.expires_in !== 'number' || tokens.expires_in <= 0) {
         throw new Error('claude token endpoint returned no usable expiry');
     }
-    const profile = withProfile ? await fetchClaudeProfile(tokens.access_token) : {};
+    const profile = withProfile
+        ? await fetchClaudeProfile(tokens.access_token)
+        : {};
     return {
         accessToken: tokens.access_token,
         refreshToken,
@@ -213,7 +230,7 @@ export async function exchangeClaudeCode(code, verifier, redirectUri, state) {
     });
     if (!response.ok)
         throw await oauthEndpointError(response, 'claude');
-    return claudeSession(await response.json(), undefined, true);
+    return claudeSession((await response.json()), undefined, true);
 }
 /**
  * Refresh a claude session (JSON grant echoing the issued scope).
@@ -224,7 +241,7 @@ export async function exchangeClaudeCode(code, verifier, redirectUri, state) {
 export async function refreshClaude(session, signal) {
     const response = await proxiedFetch(CLAUDE_TOKEN_URL, {
         method: 'POST',
-        ...signal === undefined ? {} : { signal },
+        ...(signal === undefined ? {} : { signal }),
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
             grant_type: 'refresh_token',
@@ -235,12 +252,16 @@ export async function refreshClaude(session, signal) {
     });
     if (!response.ok)
         throw await oauthEndpointError(response, 'claude');
-    const next = await claudeSession(await response.json(), session.refreshToken, false);
+    const next = await claudeSession((await response.json()), session.refreshToken, false);
     return {
         ...next,
-        ...session.emailAddress === undefined ? {} : { emailAddress: session.emailAddress },
-        ...session.subscriptionType === undefined ? {} : { subscriptionType: session.subscriptionType },
-        ...session.keychainBound === true ? { keychainBound: true } : {},
+        ...(session.emailAddress === undefined
+            ? {}
+            : { emailAddress: session.emailAddress }),
+        ...(session.subscriptionType === undefined
+            ? {}
+            : { subscriptionType: session.subscriptionType }),
+        ...(session.keychainBound === true ? { keychainBound: true } : {}),
     };
 }
 /**
@@ -249,8 +270,8 @@ export async function refreshClaude(session, signal) {
  * @returns true when re-login is the only fix.
  */
 export function isClaudePermanentRefreshError(error) {
-    return error instanceof OAuthEndpointError
-        && (error.oauthCode === 'invalid_grant' || error.oauthCode === 'invalid_token');
+    return (error instanceof OAuthEndpointError &&
+        (error.oauthCode === 'invalid_grant' || error.oauthCode === 'invalid_token'));
 }
 export const CLAUDE_USAGE_URL = 'https://api.anthropic.com/api/oauth/usage';
 /** RFC3339 `resets_at` value → epoch ms, or undefined when absent/unparsable. */
@@ -265,14 +286,15 @@ function claudeLegacyWindow(value, kind, scope) {
     if (typeof value !== 'object' || value === null)
         return undefined;
     const bucket = value;
-    if (typeof bucket.utilization !== 'number' || !Number.isFinite(bucket.utilization))
+    if (typeof bucket.utilization !== 'number' ||
+        !Number.isFinite(bucket.utilization))
         return undefined;
     const resetsAt = claudeResetsAt(bucket.resets_at);
     return {
         kind,
-        ...scope === undefined ? {} : { scope },
+        ...(scope === undefined ? {} : { scope }),
         usedPercent: bucket.utilization,
-        ...resetsAt === undefined ? {} : { resetsAt },
+        ...(resetsAt === undefined ? {} : { resetsAt }),
     };
 }
 /** Map the modern `limits` array; empty when absent or carrying nothing usable. */
@@ -288,14 +310,16 @@ function claudeLimitsWindows(value) {
             continue;
         const kind = entry.kind === 'session'
             ? 'session'
-            : entry.kind === 'weekly_all' || entry.kind === 'weekly_scoped' ? 'weekly' : 'other';
+            : entry.kind === 'weekly_all' || entry.kind === 'weekly_scoped'
+                ? 'weekly'
+                : 'other';
         const scope = entry.scope?.model?.display_name;
         const resetsAt = claudeResetsAt(entry.resets_at);
         windows.push({
             kind,
-            ...typeof scope === 'string' && scope.length > 0 ? { scope } : {},
+            ...(typeof scope === 'string' && scope.length > 0 ? { scope } : {}),
             usedPercent: entry.percent,
-            ...resetsAt === undefined ? {} : { resetsAt },
+            ...(resetsAt === undefined ? {} : { resetsAt }),
         });
     }
     return windows;
@@ -315,18 +339,18 @@ export async function fetchClaudeUsage(session, fetchFn = proxiedFetch, signal, 
     const userAgent = claudeCliUserAgent(await cliVersion());
     const response = await fetchFn(CLAUDE_USAGE_URL, {
         headers: {
-            'authorization': `Bearer ${session.accessToken}`,
+            authorization: `Bearer ${session.accessToken}`,
             'anthropic-beta': 'oauth-2025-04-20',
             // Unrecognized clients are aggressively rate-limited on this endpoint,
             // so it presents as the CLI like every other subscription request.
             'user-agent': userAgent,
-            'accept': 'application/json',
+            accept: 'application/json',
         },
-        ...signal === undefined ? {} : { signal },
+        ...(signal === undefined ? {} : { signal }),
     });
     if (!response.ok)
         throw await oauthEndpointError(response, 'claude usage');
-    const payload = await response.json();
+    const payload = (await response.json());
     const modern = claudeLimitsWindows(payload.limits);
     if (modern.length > 0)
         return { supported: true, windows: modern };
@@ -357,14 +381,17 @@ function claudeReasoning(capabilities) {
     const effort = capabilities?.effort;
     if (effort?.supported !== true)
         return undefined;
-    const efforts = CLAUDE_EFFORT_LEVELS
-        .filter(level => effort[level]?.supported === true)
-        .map(level => ({ id: ReasoningEffortId(level), name: level[0].toUpperCase() + level.slice(1) }));
+    const efforts = CLAUDE_EFFORT_LEVELS.filter((level) => effort[level]?.supported === true).map((level) => ({
+        id: ReasoningEffortId(level),
+        name: level[0].toUpperCase() + level.slice(1),
+    }));
     return efforts.length > 0 ? { efforts } : undefined;
 }
 /** A token limit the endpoint disclosed, or undefined when absent or malformed. */
 function positiveTokenCount(value) {
-    return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : undefined;
+    return typeof value === 'number' && Number.isSafeInteger(value) && value > 0
+        ? value
+        : undefined;
 }
 /**
  * Fetch the live model catalog from the subscription endpoint. `signal`
@@ -375,17 +402,17 @@ export async function fetchClaudeModels(session, fetchFn = proxiedFetch, signal,
     const userAgent = claudeCliUserAgent(await cliVersion());
     const response = await fetchFn(CLAUDE_MODELS_URL, {
         headers: {
-            'authorization': `Bearer ${session.accessToken}`,
+            authorization: `Bearer ${session.accessToken}`,
             'anthropic-version': '2023-06-01',
             'user-agent': userAgent,
             'anthropic-dangerous-direct-browser-access': 'true',
-            'accept': 'application/json',
+            accept: 'application/json',
         },
-        ...signal === undefined ? {} : { signal },
+        ...(signal === undefined ? {} : { signal }),
     });
     if (!response.ok)
         throw await httpLlmError(response, 'claude models API');
-    const payload = await response.json();
+    const payload = (await response.json());
     if (!Array.isArray(payload.data)) {
         throw new Error('claude models API returned an invalid catalog');
     }
@@ -401,10 +428,10 @@ export async function fetchClaudeModels(session, fetchFn = proxiedFetch, signal,
         return {
             id: m.id,
             name: m.display_name ?? m.id,
-            ...contextWindow === undefined ? {} : { contextWindow },
-            ...maxOutputTokens === undefined ? {} : { maxOutputTokens },
-            ...thinkingType === undefined ? {} : { thinkingType },
-            ...reasoning === undefined ? {} : { reasoning },
+            ...(contextWindow === undefined ? {} : { contextWindow }),
+            ...(maxOutputTokens === undefined ? {} : { maxOutputTokens }),
+            ...(thinkingType === undefined ? {} : { thinkingType }),
+            ...(reasoning === undefined ? {} : { reasoning }),
         };
     });
     if (models.length === 0) {
@@ -419,7 +446,9 @@ export async function fetchClaudeModels(session, fetchFn = proxiedFetch, signal,
 function claudeMaxTokens(configured, disc) {
     const outputLimit = disc?.maxOutputTokens;
     const preferred = configured?.maxTokens ?? outputLimit ?? CLAUDE_DEFAULT_MAX_TOKENS;
-    return outputLimit === undefined ? preferred : Math.min(preferred, outputLimit);
+    return outputLimit === undefined
+        ? preferred
+        : Math.min(preferred, outputLimit);
 }
 /**
  * Anthropic rejects any image edge over 2000px once a request carries many
@@ -466,13 +495,15 @@ export function claudeRequestBody(options, messages, maxTokens, thinking, effort
         max_tokens: maxTokens,
         system: toAnthropicSystem(options.system, messages, ttl),
         messages: anthropicMessages,
-        ...options.tools !== undefined && options.tools.length > 0
+        ...(options.tools !== undefined && options.tools.length > 0
             ? { tools: toAnthropicTools(options.tools) }
-            : {},
-        ...thinking === undefined ? {} : { thinking },
-        ...effort === undefined ? {} : { output_config: { effort } },
+            : {}),
+        ...(thinking === undefined ? {} : { thinking }),
+        ...(effort === undefined ? {} : { output_config: { effort } }),
         stream: true,
-        ...options.sessionId !== undefined ? { metadata: { user_id: String(options.sessionId) } } : {},
+        ...(options.sessionId !== undefined
+            ? { metadata: { user_id: String(options.sessionId) } }
+            : {}),
     };
 }
 /** Claude wire adapter: one instance serves the `claude` provider route. */
@@ -510,7 +541,9 @@ export class ClaudeAdapter extends LlmAdapter {
             this.accountCatalogs.get(account)?.invalidate();
             this.accountCatalogs.delete(account);
         }
-        if (account === undefined || this.catalogOwner === account || this.catalogOwner === undefined) {
+        if (account === undefined ||
+            this.catalogOwner === account ||
+            this.catalogOwner === undefined) {
             this.catalogOwner = undefined;
             this.catalog.invalidate();
         }
@@ -539,15 +572,15 @@ export class ClaudeAdapter extends LlmAdapter {
     async discovered(model) {
         if (!this.options.discovery)
             return undefined;
-        const accounts = (await this.options.tokens.list()).map(entry => entry.key);
+        const accounts = (await this.options.tokens.list()).map((entry) => entry.key);
         return discoverAcrossAccounts(accounts, async (account) => {
             const catalog = await this.catalogFor(account);
             const models = await catalog.resolve(() => this.fetchCatalog(account));
-            return models?.find(entry => entry.id === model);
+            return models?.find((entry) => entry.id === model);
         });
     }
     staticModels(provider) {
-        return this.options.models.map(model => ({
+        return this.options.models.map((model) => ({
             provider,
             id: model.id,
             name: model.name ?? model.id,
@@ -566,27 +599,30 @@ export class ClaudeAdapter extends LlmAdapter {
         if (pool === undefined)
             return own;
         const extra = await pool.modelsForProvider(provider);
-        const seen = new Set(own.map(model => model.id));
+        const seen = new Set(own.map((model) => model.id));
         // Account pools reuse the catalog row; only configured tiers are extra.
-        return [...own, ...extra.filter(model => !seen.has(model.id))];
+        return [...own, ...extra.filter((model) => !seen.has(model.id))];
     }
     /** The provider's own catalog: union of every account, or one account when named. */
     async listOwnModels(provider, account, signal, preferCached = false) {
         if (account === undefined) {
-            const accounts = (await this.options.tokens.list()).map(entry => entry.key);
+            const accounts = (await this.options.tokens.list()).map((entry) => entry.key);
             if (accounts.length === 0)
                 return [];
-            return unionAccountCatalogs(accounts, (key, accountSignal) => this.listOwnModels(provider, key, accountSignal, preferCached), { timeoutMs: DISCOVERY_TIMEOUT_MS, ...signal === undefined ? {} : { signal } });
+            return unionAccountCatalogs(accounts, (key, accountSignal) => this.listOwnModels(provider, key, accountSignal, preferCached), {
+                timeoutMs: DISCOVERY_TIMEOUT_MS,
+                ...(signal === undefined ? {} : { signal }),
+            });
         }
-        if (!await this.options.tokens.hasSession(account)) {
+        if (!(await this.options.tokens.hasSession(account))) {
             return [];
         }
         if (!this.options.discovery)
             return this.staticModels(provider);
         const catalog = await this.catalogFor(account);
         try {
-            const models = await catalog.get(() => discoverOrRetryAuth(force => this.options.tokens.session(account, force), catalog, () => this.fetchCatalog(account, signal)), preferCached);
-            return models.map(model => ({
+            const models = await catalog.get(() => discoverOrRetryAuth((force) => this.options.tokens.session(account, force), catalog, () => this.fetchCatalog(account, signal)), preferCached);
+            return models.map((model) => ({
                 provider,
                 id: model.id,
                 name: model.name,
@@ -604,7 +640,8 @@ export class ClaudeAdapter extends LlmAdapter {
     }
     async resolveModel(provider, model) {
         const pool = this.options.pool?.();
-        if (pool !== undefined && await pool.owns(provider, model)) {
+        if (pool !== undefined &&
+            (await pool.owns(provider, model))) {
             return pool.resolveModel(provider, model);
         }
         return this.resolveOwnModel(provider, model);
@@ -612,7 +649,7 @@ export class ClaudeAdapter extends LlmAdapter {
     /** Capability resolution of the provider's own models (the pool resolves members here). */
     async resolveOwnModel(provider, model) {
         const disc = await this.discovered(model);
-        const configured = this.options.models.find(entry => entry.id === model);
+        const configured = this.options.models.find((entry) => entry.id === model);
         const reasoning = mergeReasoning(this.options.defaultEffortOf?.(model), disc?.reasoning);
         return {
             provider,
@@ -620,7 +657,9 @@ export class ClaudeAdapter extends LlmAdapter {
             name: disc?.name ?? configured?.name ?? model,
             inputModalities: configured?.inputModalities ?? CLAUDE_MODALITIES,
             context: {
-                contextWindow: disc?.contextWindow ?? configured?.contextWindow ?? CLAUDE_CONTEXT_WINDOW,
+                contextWindow: disc?.contextWindow ??
+                    configured?.contextWindow ??
+                    CLAUDE_CONTEXT_WINDOW,
             },
             defaultMaxTokens: claudeMaxTokens(configured, disc),
             ...(reasoning === undefined ? {} : { reasoning }),
@@ -628,7 +667,8 @@ export class ClaudeAdapter extends LlmAdapter {
     }
     async *stream(options) {
         const pool = this.options.pool?.();
-        if (pool !== undefined && await pool.owns(options.provider, options.model)) {
+        if (pool !== undefined &&
+            (await pool.owns(options.provider, options.model))) {
             yield* pool.stream(options);
             return;
         }
@@ -650,13 +690,17 @@ export class ClaudeAdapter extends LlmAdapter {
             if (!response.ok) {
                 throw await httpLlmError(response, 'claude API', {
                     rateLimitReset: claudeRateLimitReset,
-                    ...this.options.onWarn === undefined ? {} : { onWarn: this.options.onWarn },
+                    ...(this.options.onWarn === undefined
+                        ? {}
+                        : { onWarn: this.options.onWarn }),
                 });
             }
             if (response.body === null) {
                 throw new LlmError('claude API returned no response body', EMPTY_RESPONSE_CODE);
             }
-            yield* streamAnthropic(response.body, () => { watchdog.pulse(); });
+            yield* streamAnthropic(response.body, () => {
+                watchdog.pulse();
+            });
         }
         catch (error) {
             throw mapFetchFailure('claude API', error, watchdog, options.signal);
@@ -689,13 +733,13 @@ export class ClaudeAdapter extends LlmAdapter {
             const offloadImages = requiredImageOffloadCount(messages, CLAUDE_REQUEST_IMAGE_BUDGET);
             if (offloadImages > 0) {
                 // Older dsh-llm option types lack `offloadImages`; 0.2+ hosts read it.
-                throw new LlmError(`claude request images exceed the ${CLAUDE_REQUEST_IMAGE_BUDGET}-byte base64 budget; `
-                    + `${offloadImages} more oldest image(s) must be offloaded`, IMAGE_OFFLOAD_REQUIRED, { offloadImages });
+                throw new LlmError(`claude request images exceed the ${CLAUDE_REQUEST_IMAGE_BUDGET}-byte base64 budget; ` +
+                    `${offloadImages} more oldest image(s) must be offloaded`, IMAGE_OFFLOAD_REQUIRED, { offloadImages });
             }
         }
         const disc = await this.discovered(options.model);
-        const maxTokens = options.maxTokens
-            ?? claudeMaxTokens(this.options.models.find(entry => entry.id === options.model), disc);
+        const maxTokens = options.maxTokens ??
+            claudeMaxTokens(this.options.models.find((entry) => entry.id === options.model), disc);
         const thinking = this.thinkingParam(disc?.thinkingType, maxTokens);
         const effort = options.reasoningEffort !== undefined && disc?.reasoning !== undefined
             ? String(options.reasoningEffort)
@@ -706,13 +750,13 @@ export class ClaudeAdapter extends LlmAdapter {
         return proxiedFetch(CLAUDE_API_URL, {
             method: 'POST',
             headers: {
-                'authorization': `Bearer ${session.accessToken}`,
+                authorization: `Bearer ${session.accessToken}`,
                 'anthropic-version': '2023-06-01',
                 'anthropic-beta': CLAUDE_BETA_FLAGS,
                 'user-agent': claudeCliUserAgent(cliVersion),
                 'x-app': 'cli',
                 'anthropic-dangerous-direct-browser-access': 'true',
-                'accept': 'text/event-stream',
+                accept: 'text/event-stream',
                 'content-type': 'application/json',
             },
             body: JSON.stringify(body),

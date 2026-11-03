@@ -9,7 +9,14 @@
  */
 import { OAuthFlowManager, type OAuthAttempt } from './oauth-flow.js';
 import { readClaudeCodeCredentials } from './claude-code-creds.js';
-import { accountKeyOf, deleteAccountSession, listAccounts, saveAccountSession, setDefaultAccount, type ClaudeSession } from './store.js';
+import {
+  accountKeyOf,
+  deleteAccountSession,
+  listAccounts,
+  saveAccountSession,
+  setDefaultAccount,
+  type ClaudeSession,
+} from './store.js';
 import { claudeFlow, exchangeClaudeCode } from '../providers/claude.js';
 
 /** The two Claude login routes; an omitted method prefers the import when Claude Code is logged in. */
@@ -21,18 +28,36 @@ export class ClaudeAuthController {
   private finalizing = 0;
   private lastError?: string;
   private disposed = false;
-  constructor(private flows: OAuthFlowManager, private changed: (account?: string) => void,
-    private describe: (error: unknown) => string = error => error instanceof Error ? error.message : String(error),
-    private readImported: () => ClaudeSession | undefined = () => readClaudeCodeCredentials(),
-    /** Adds the account email to an imported session (profile lookup, best effort); identity by default. */
-    private identify: (session: ClaudeSession) => Promise<ClaudeSession> = async session => session) {}
+  /** The identify callback adds the account email by best-effort lookup; identity by default. */
+  constructor(
+    private flows: OAuthFlowManager,
+    private changed: (account?: string) => void,
+    private describe: (error: unknown) => string = (error) =>
+      error instanceof Error ? error.message : String(error),
+    private readImported: () => ClaudeSession | undefined = () =>
+      readClaudeCodeCredentials(),
+    private identify: (
+      session: ClaudeSession,
+    ) => Promise<ClaudeSession> = async (session) => session,
+  ) {}
 
   async status() {
     const pending = this.flows.pending('claude');
-    return { authRevision: this.authRevision, busy: this.flows.isBusy('claude') || this.finalizing > 0,
+    return {
+      authRevision: this.authRevision,
+      busy: this.flows.isBusy('claude') || this.finalizing > 0,
       pendingAuth: pending ? { authorizeUrl: pending.authorizeUrl } : undefined,
-      accounts: (await listAccounts('claude')).map(({ key, session }, index) => ({ key, isDefault: index === 0,
-        account: session.emailAddress ?? key, plan: session.subscriptionType, expiresAt: session.expiresAt })), detail: this.lastError };
+      accounts: (await listAccounts('claude')).map(
+        ({ key, session }, index) => ({
+          key,
+          isDefault: index === 0,
+          account: session.emailAddress ?? key,
+          plan: session.subscriptionType,
+          expiresAt: session.expiresAt,
+        }),
+      ),
+      detail: this.lastError,
+    };
   }
 
   /**
@@ -51,7 +76,10 @@ export class ClaudeAuthController {
         // Imported accounts are bound: only they sync refreshes back to Claude Code's credential store. The email is
         // recorded on the stored session (lookup is bounded); a cancel, logout or disposal meanwhile supersedes the
         // import, exactly as it supersedes an OAuth attempt.
-        const session: ClaudeSession = { ...await this.identify({ ...imported, keychainBound: true }), keychainBound: true };
+        const session: ClaudeSession = {
+          ...(await this.identify({ ...imported, keychainBound: true })),
+          keychainBound: true,
+        };
         // Superseded meanwhile (logout, cancel, a newer login or disposal): nothing is persisted, as before the lookup existed.
         if (this.disposed || this.claim !== claim) return { authorizeUrl: '' };
         const account = accountKeyOf('claude', session);
@@ -61,12 +89,20 @@ export class ClaudeAuthController {
         this.changed(account);
         return { authorizeUrl: '' };
       }
-      if (method === 'keychain') throw new Error('no Claude Code credentials found; run `claude` and log in first, or choose the browser flow');
+      if (method === 'keychain')
+        throw new Error(
+          'no Claude Code credentials found; run `claude` and log in first, or choose the browser flow',
+        );
     }
-    if (this.finalizing) throw new Error('a claude login attempt is already in progress');
+    if (this.finalizing)
+      throw new Error('a claude login attempt is already in progress');
     const claim = ++this.claim;
     const attempt = await this.flows.start('claude', claudeFlow);
-    if (this.disposed || claim !== this.claim) { attempt.cancel(); void attempt.waitCode().catch(() => {}); throw new Error('login cancelled'); }
+    if (this.disposed || claim !== this.claim) {
+      attempt.cancel();
+      void attempt.waitCode().catch(() => {});
+      throw new Error('login cancelled');
+    }
     this.finalizing++;
     void this.complete(attempt, claim);
     return { authorizeUrl: attempt.authorizeUrl };
@@ -75,7 +111,12 @@ export class ClaudeAuthController {
   private async complete(attempt: OAuthAttempt, claim: number) {
     try {
       const code = await attempt.waitCode();
-      const session = await exchangeClaudeCode(code, attempt.pkce.verifier, attempt.redirectUri, attempt.state);
+      const session = await exchangeClaudeCode(
+        code,
+        attempt.pkce.verifier,
+        attempt.redirectUri,
+        attempt.state,
+      );
       // Whoever claimed the session while the exchange ran owns it now. The check and the store call sit in one
       // synchronous stretch, so a later claim is ordered after this write.
       if (this.claim !== claim) return;
@@ -86,10 +127,15 @@ export class ClaudeAuthController {
       this.changed(account);
     } catch (error) {
       // A superseded attempt must not put an error on a provider that has since been imported or logged out.
-      if (this.claim === claim && !(error instanceof Error && error.message === 'login cancelled')) {
+      if (
+        this.claim === claim &&
+        !(error instanceof Error && error.message === 'login cancelled')
+      ) {
         this.lastError = this.describe(error);
       }
-    } finally { this.finalizing--; }
+    } finally {
+      this.finalizing--;
+    }
   }
 
   manual(input: string) {
@@ -98,7 +144,10 @@ export class ClaudeAuthController {
     attempt.manual(input);
   }
 
-  cancel() { this.claim++; this.flows.pending('claude')?.cancel(); }
+  cancel() {
+    this.claim++;
+    this.flows.pending('claude')?.cancel();
+  }
 
   async logout(account: string) {
     this.cancel();
@@ -107,7 +156,13 @@ export class ClaudeAuthController {
     this.changed(account);
   }
 
-  async setDefault(account: string) { await setDefaultAccount('claude', account); this.changed(account); }
+  async setDefault(account: string) {
+    await setDefaultAccount('claude', account);
+    this.changed(account);
+  }
 
-  dispose() { this.disposed = true; this.cancel(); }
+  dispose() {
+    this.disposed = true;
+    this.cancel();
+  }
 }
