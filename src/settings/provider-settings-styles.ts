@@ -186,7 +186,22 @@ ${formScope} summary:hover {
 
 /** Composer controls retain their own geometry, separate from settings forms. */
 export const subscriptionChromeCss = `
-.majed-subscription-usage-pill { corner-shape: round; }
+.majed-subscription-usage-pill { corner-shape: round; touch-action: manipulation; }
+.majed-subscription-usage-pill>svg { flex-shrink: 0; }
+.majed-subscription-usage-close {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  inline-size: 28px; block-size: 28px; padding: 0; border: 0; border-radius: var(--dsw-radius-sm, 8px);
+  color: var(--dsw-alias-label-secondary); background: transparent; cursor: pointer;
+}
+.majed-subscription-usage-close:hover { background: var(--dsw-alias-interactive-bg-hover); }
+.majed-subscription-usage-close:focus-visible {
+  outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px;
+}
+@media (max-width: 480px) {
+  .majed-subscription-usage-pill { max-inline-size: min(220px, calc(100vw - 24px)); }
+  .majed-subscription-usage-panel { padding: 12px !important; }
+}
+.majed-subscription-usage-tooltip,
 .majed-subscription-usage-panel {
   --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
   backdrop-filter: var(--dsw-menu-backdrop-filter, none);

@@ -53,6 +53,11 @@ async function text(response, signal) {
     }
 }
 export class ZenAdapter extends LlmAdapter {
+    enabled;
+    constructor(enabled = () => true) {
+        super();
+        this.enabled = enabled;
+    }
     models = [...STATIC];
     metadata = {};
     checkedAt = 0;
@@ -62,6 +67,8 @@ export class ZenAdapter extends LlmAdapter {
     dispose() { this.lifecycle.abort(); }
     providerInfo(provider) { return { id: provider, name: 'OpenCode Zen' }; }
     async listModels(provider, signal) {
+        if (!this.enabled())
+            return [];
         if (Date.now() - this.checkedAt >= 5 * 60_000) {
             const budget = deadlineSignal(10_000, signal ? AbortSignal.any([signal, this.lifecycle.signal]) : this.lifecycle.signal);
             try {
@@ -108,9 +115,11 @@ export class ZenAdapter extends LlmAdapter {
         }
         signal?.throwIfAborted();
         this.lifecycle.signal.throwIfAborted();
+        if (!this.enabled())
+            return [];
         return this.models.map(id => ({ provider, id, name: id, inputModalities: ['text'] }));
     }
-    snapshot() { return { reachable: this.reachable, modelCount: this.models.length, source: this.source }; }
+    snapshot() { return { enabled: this.enabled(), reachable: this.reachable, modelCount: this.models.length, source: this.source }; }
     async status(signal) { await this.listModels('opencode-zen', signal); return this.snapshot(); }
     async resolveModel(provider, model, signal) {
         if (!(await this.listModels(provider, signal)).some(entry => entry.id === model))
@@ -118,6 +127,8 @@ export class ZenAdapter extends LlmAdapter {
         return { provider, id: model, name: model, inputModalities: ['text'], context: { contextWindow: 262144 }, defaultMaxTokens: 32768 };
     }
     async *stream(options) {
+        if (!this.enabled())
+            throw new LlmError('OpenCode Zen is disabled.', 'INVALID_REQUEST');
         const budget = deadlineSignal(300_000, options.signal ? AbortSignal.any([options.signal, this.lifecycle.signal]) : this.lifecycle.signal);
         let response;
         try {

@@ -119,15 +119,15 @@ async function fixture(provider) {
   await until(() => live.has('majed-subscriptions'), 'section registration');
   await act(async () => { renderer = create(React.createElement(live.get('majed-subscriptions')), { createNodeMock: node => node.type === 'button' ? { focus() { focused++; } } : null }); await turn(); });
   await settle();
-  const buttons = key => renderer.root.findAll(n => n.type === 'button' && n.children.join('') === dict[key]);
+  const buttons = key => renderer.root.findAll(n => n.type === 'button' && (key === 'subscriptionAdd' ? n.props.className === 'majed-subscription-add-trigger' : n.children.join('') === dict[key === 'apiCancel' ? 'cancel' : key]));
   const click = async key => { const button = buttons(key).at(-1); assert.ok(button, key); assert.equal(!!button.props.disabled, false, key); await act(async () => { button.props.onClick(); await turn(); }); await settle(); };
   const tick = async () => { await act(async () => { for (const fn of [...timers]) fn(); }); await settle(); };
   const group = () => renderer.root.findAll(n => n.type === 'li' && n.props['data-majed-subscription-row'] === provider);
   return { calls, denied, status, until, tick, click, buttons, group, get renderer() { return renderer; }, get focused() { return focused; }, get importReads() { return importReads; },
     set identity(value) { identity = value; }, set mode(value) { mode = value; },
     importCredentials() { imported = JSON.stringify({ claudeAiOauth: { accessToken: 'dummy-import', refreshToken: 'dummy-refresh', expiresAt: 4000000000000, emailAddress: `${identity}@example.invalid`, scopes: ['user:inference'] } }); },
-    async open() { await click('apiAdd'); await click('apiSubscription'); const select = renderer.root.findAllByType('select').find(n => n.props['aria-label'] === dict.apiSubscription); await act(async () => select.props.onChange({ target: { value: provider } })); await settle(); },
-    async start(key) { await click(key ?? 'login'); await until(async () => (await status()).busy || buttons('apiAdd').length === 1, 'login reached controller'); },
+    async open() { await click('subscriptionAdd'); const select = renderer.root.findAllByType('select').find(n => n.props['aria-label'] === dict.apiSubscription); await act(async () => select.props.onChange({ target: { value: provider } })); await settle(); },
+    async start(key) { await click(key ?? 'login'); await until(async () => (await status()).busy || buttons('subscriptionAdd').length === 1, 'login reached controller'); },
     async submit(input) { const field = renderer.root.findAllByType('input').find(n => n.props['aria-label'] === dict.pasteCallback); assert.ok(field, 'manual callback reachable'); await act(async () => field.props.onChange({ target: { value: input } })); await click('submitCallback'); },
     async complete() {
       if (provider === 'copilot') { await until(() => !!release, 'device poll'); release(); release = undefined; }
@@ -162,9 +162,9 @@ for (const provider of ['codex', 'claude', 'grok', 'antigravity', 'copilot']) {
         const status = await f.status();
         assert.equal(status.accounts.length, count, 'real persisted admission, including same-identity replacement');
         assert.equal(status.authRevision, prior.authRevision + 1, 'controller supplies successful outcome');
-        assert.equal(f.buttons('apiAdd').length, 1, 'real status closes Add');
+        assert.equal(f.buttons('subscriptionAdd').length, 1, 'real status closes Add');
         assert.equal(f.group().length, 1, 'one configured group');
-        assert.ok(f.group()[0].findAllByType('button').some(n => n.children.join('') === `${count} ${dict.connected}`), 'existing group refreshes without remount');
+        assert.ok(f.group()[0].findAllByType('span').some(n => n.children.join('') === `${count} ${dict.accountCount}`), 'existing group refreshes without remount');
         assert.equal(f.group()[0].findAllByType('input').length, 0, 'callback exists only in Add');
       }
       assert.ok(f.focused >= 3, 'completion invokes Add focus callback (not DOM focus proof)');
@@ -185,7 +185,7 @@ for (const provider of ['codex', 'claude', 'grok', 'antigravity', 'copilot']) {
       if (provider === 'copilot') await f.releaseLate();
       await f.until(async () => !(await f.status()).busy, 'cancel settles controller');
       assert.ok(f.calls.some(c => c.method.endsWith('.cancel') && c.payload.provider === provider), 'Add invokes real cancel route');
-      assert.equal(f.buttons('apiAdd').length, 1, 'cancel restores Add');
+      assert.equal(f.buttons('subscriptionAdd').length, 1, 'cancel restores Add');
       assert.equal((await f.status()).accounts.length, 0);
       assert.equal((await f.status()).authRevision, prior.authRevision);
 
@@ -199,7 +199,7 @@ for (const provider of ['codex', 'claude', 'grok', 'antigravity', 'copilot']) {
       assert.equal(failed.accounts.length, 0, 'token failure never admits');
       assert.equal(failed.authRevision, prior.authRevision);
       assert.ok(failed.detail, 'real controller exposes failure');
-      assert.equal(f.buttons('apiAdd').length, 0, 'failure retains Add flow');
+      assert.equal(f.buttons('subscriptionAdd').length, 0, 'failure retains Add flow');
       assert.equal(f.group().length, 0);
 
       f.mode = 'success';
@@ -211,7 +211,7 @@ for (const provider of ['codex', 'claude', 'grok', 'antigravity', 'copilot']) {
       assert.equal(recovered.accounts.length, 1);
       assert.equal(recovered.authRevision, prior.authRevision + 1);
       assert.ok(!recovered.detail, 'successful retry clears failure');
-      assert.equal(f.buttons('apiAdd').length, 1);
+      assert.equal(f.buttons('subscriptionAdd').length, 1);
       assert.equal(f.group().length, 1);
       assert.deepEqual(f.denied, []);
     } finally { await f.dispose(); }
@@ -225,7 +225,7 @@ for (const provider of ['codex', 'claude', 'grok', 'antigravity', 'copilot']) {
       await f.start();
       await f.holdExchange();
       await f.click('apiCancel');
-      assert.equal(f.buttons('apiAdd').length, 1);
+      assert.equal(f.buttons('subscriptionAdd').length, 1);
       await f.open();
       const focused = f.focused;
       await f.releaseLate();
@@ -235,11 +235,11 @@ for (const provider of ['codex', 'claude', 'grok', 'antigravity', 'copilot']) {
       assert.equal(late.accounts.length, 0, 'late token cannot persist admission');
       assert.equal(late.authRevision, prior.authRevision);
       assert.equal(f.group().length, 0);
-      assert.equal(f.buttons('apiAdd').length, 0, 'late completion cannot close new Add flow');
+      assert.equal(f.buttons('subscriptionAdd').length, 0, 'late completion cannot close new Add flow');
       assert.equal(f.focused, focused, 'late completion cannot invoke success focus callback');
       assert.equal(f.renderer.root.findAllByType('input').filter(n => n.props['aria-label'] === dict.pasteCallback).length, 0, 'no stale callback UI');
       await f.click('apiCancel');
-      assert.equal(f.buttons('apiAdd').length, 1);
+      assert.equal(f.buttons('subscriptionAdd').length, 1);
       assert.deepEqual(f.denied, []);
     } finally { await f.dispose(); }
   });
@@ -257,9 +257,9 @@ test('claude: actual Add imports existing CLI credentials through injected IO, i
       assert.equal(imported.accounts.length, 1);
       assert.equal(imported.authRevision, revision);
       assert.equal(imported.busy, false);
-      assert.equal(f.buttons('apiAdd').length, 1);
+      assert.equal(f.buttons('subscriptionAdd').length, 1);
       assert.equal(f.group().length, 1);
-      assert.ok(f.group()[0].findAllByType('button').some(n => n.children.join('') === `1 ${dict.connected}`));
+      assert.ok(f.group()[0].findAllByType('span').some(n => n.children.join('') === `1 ${dict.accountCount}`));
     }
     assert.ok(f.importReads >= 2, 'genuine injected credential IO read');
     assert.ok(f.calls.some(c => c.method.endsWith('.login') && c.payload.method === 'keychain'));

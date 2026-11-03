@@ -4,6 +4,8 @@
 
 #136's native API-provider UI narrowly adapts ModelsSection structure and styles from DeepSeek Harness `dsh-client-ui-settings-models` `0.2.1-rc.3`, https://github.com/deepseek-ai/deepseek-harness, under MIT. The precise source ranges and local adaptations are recorded in `src/PROVENANCE.md`. Controlled tests and public-remotes composition are locally authored.
 
+#138 copies the general modules/addition icon (`icon.svg`) from `@deepseek-ai/dsh-experimental-plugin-market-bundle` `0.2.1-rc.5` in DeepSeek Harness (https://github.com/deepseek-ai/deepseek-harness). The DeepSeek MIT copyright, permission and disclaimer below apply to this asset. Source and local usage are recorded in `src/PROVENANCE.md`.
+
 MIT License
 
 Copyright (c) 2026 DeepSeek

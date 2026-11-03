@@ -1,6 +1,18 @@
 # Spec: Subscriptions component
 
-Status: draft for Owner review (2026-10-29). Published as a GitHub issue only after approval.
+Status: accepted by Owner 2026-11-03; approved for integration merge and closure. Historical requirements below remain a record of the original component scope. The following approved #138 disposition supersedes conflicting layout requirements, not unrelated acceptance gates.
+
+## Approved final #138 scope (2026-11-03)
+
+The Owner approved the iterated installed candidate as the final design scope and authorized review/publication, then merge and closure only if acceptance passes. The owned settings section is named **AI Providers** (localized); host navigation retains its gear because the public settings slot exposes no custom-icon contract. An owned provider-network icon identifies the page; the package uses the attributed native general modules/addition icon rather than the rejected Git/worktree icon.
+
+Settings (existing Proxy and usage-display controls) are always visible above grouped configured subscription providers. Provider headers retain truthful status, one account count, CLI provenance, compact Manage and a trailing disclosure; configured account quotas/actions remain reachable. One Add entry below the subscription groups opens provider selection and the existing inline authorization controls; redundant provider summaries are hidden during Add, and Cancel returns to the trigger. OpenCode Zen appears after Add in a separate Free providers group with independent disclosure and a persisted enabled switch. Disabled Zen exposes no catalog/new requests; already admitted requests finish. No account or quota is synthesized for Zen.
+
+The original mixed API/subscription inventory and three-mode Add are superseded for this owned page by the Owner's subscription-only choice. Native Settings > Models remains the API-management surface; existing API controller implementation/tests are retained, not deleted or exposed as a second store. No new global Pool editor is included.
+
+Composer usage uses compact localized quota labels, an owned chart icon and small-radius hover styling. The compact tooltip shows circular quota indicators and reset details; the opened account menu retains linear accessible progress bars and complete account/window information. Preserve polling, account/model selection, defaults and usage calculations. Responsive/RTL presentation, Proxy's Manage-style dialog and all supported authentication/account operations remain in scope. No DSH core patch, reference-plugin dependency or paid/account acceptance is implied.
+
+Final Standards/Spec review corrections are resolved with 117/117 affected tests passing and fresh-build byte equality. The corrected candidate was installed with all 99 files byte-verified. On 2026-11-03 the Owner reported everything working correctly and explicitly approved closure and merge. This is Owner-reported installed acceptance, not an automated claim of exhaustive visual coverage. Other component tickets 128–137 were already closed; parent component closure follows this final accepted delivery.
 
 ## Problem Statement
 

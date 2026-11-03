@@ -50,7 +50,7 @@ async function fixture(locale, { omitCredentialMetadata = false, includeAccountP
   let renderer, focusCount = 0;
   await act(async () => { renderer = create(React.createElement(Card, { subscriptions }), { createNodeMock: node => node.type === 'button' ? { focus() { focusCount++; } } : null }); });
   const textNode = node => typeof node === 'string' ? node : (node.children ?? []).map(textNode).join('');
-  const buttons = (key, root = renderer.root) => root.findAll(n => n.type === 'button' && textNode(n) === dict[key]);
+  const buttons = (key, root = renderer.root) => root.findAll(n => n.type === 'button' && textNode(n) === dict[key === 'subscriptionAdd' ? 'addAccount' : key === 'apiCancel' && root.findAll(n => n.props.className === 'majed-subscription-add-actions').length ? 'cancel' : key]);
   const click = async (key, root) => { const button = buttons(key, root)[0]; assert.ok(button, key); assert.equal(button.props.disabled, false); await act(async () => { button.props.onClick(); }); };
   const field = async (key, value) => { const input = renderer.root.find(n => n.props['aria-label'] === dict[key] && ['input', 'select', 'textarea'].includes(n.type)); await act(async () => { input.props.onChange({ target: { value } }); }); };
   const row = id => renderer.root.find(n => n.props['data-majed-api-provider'] === id);
@@ -95,13 +95,13 @@ for (const locale of ['en', 'ar']) {
     });
   }
 }
-test('shared Add owns subscription selection and mixed configured list (#138)', async () => {
+test('separate Add entries own subscription and API groups (#138)', async () => {
   let selected;
   const subscriptions = { rows: [React.createElement('li', { key: 'subscription', 'data-majed-subscription-row': 'codex' }, 'Codex')], providers: [{ id: 'codex', name: 'Codex' }], renderAuth: (id, done) => { selected = id; return React.createElement('button', { onClick: done }, 'Finish fixture'); } };
   const p = await fixture('en', { subscriptions });
   try {
     assert.equal(p.renderer.root.findByProps({ 'data-majed-subscription-row': 'codex' }).parent.props.className, 'majed-api-rows');
-    await p.click('apiAdd'); await p.click('apiSubscription');
+    await p.click('subscriptionAdd');
     assert.equal(selected, 'codex');
     assert.equal(p.renderer.root.findAll(n => n.props['aria-label'] === p.dict.apiEditor).length, 0);
     await act(async () => p.renderer.root.findAllByType('button').find(n => n.children.includes('Finish fixture')).props.onClick());
@@ -118,10 +118,11 @@ test('subscription authorization locks modes and awaits cancellation before clos
   const subscriptions = { rows: [], providers: [{ id: 'codex', name: 'Codex' }], renderAuth: (_id, _done, report) => React.createElement(Auth, { report }) };
   const p = await fixture('en', { subscriptions });
   try {
-    await p.click('apiAdd'); await p.click('apiSubscription');
-    assert.equal(p.buttons('apiCatalog')[0].props.disabled, true);
+    await p.click('subscriptionAdd');
+    assert.equal(p.buttons('apiCatalog').length, 0, 'subscription flow has no API mode tabs');
+    assert.equal(p.buttons('apiAdd')[0].props.disabled, true);
     await act(async () => { p.buttons('apiCancel')[0].props.onClick(); });
-    assert.equal(cancel, true); assert.equal(p.buttons('apiAdd').length, 0);
+    assert.equal(cancel, true); assert.equal(p.buttons('subscriptionAdd').length, 0);
     await act(async () => resolveCancel(true));
     assert.equal(p.buttons('apiAdd').length, 1);
     assert.equal(p.buttons('apiAdd')[0].props.disabled, false, 'completed cancellation releases Add');

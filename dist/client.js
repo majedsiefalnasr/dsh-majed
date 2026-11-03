@@ -299,7 +299,12 @@ async function callSubscriptionsAuth$1(rpc, endpoint, payload) {
 //#region locale/en.json
 var subscriptions$1 = {
 	"pageSettings": "Settings",
+	"providerConfigured": "Account configured (inference not verified)",
+	"providerAttention": "Provider needs attention",
+	"freeProviders": "Free providers",
 	"apiSubscription": "Subscription",
+	"zenEnabled": "Enable OpenCode Zen",
+	"zenDisabled": "Disabled — new requests are blocked",
 	"zenRefresh": "Refresh status",
 	"zenNoLogin": "Free models · no login required",
 	"zenUnavailable": "OpenCode Zen is unavailable.",
@@ -351,9 +356,15 @@ var subscriptions$1 = {
 	"copilotDeviceHint": "Enter this code on the GitHub verification page.",
 	"copyDeviceCode": "Copy code",
 	"copilotProviderUnavailable": "Copilot is unavailable. Disable the reference component first.",
-	"title": "Subscriptions (Majed)",
+	"title": "AI Providers",
 	"accounts": "Subscription accounts",
-	"providers": "API providers",
+	"providers": "Model providers",
+	"subscriptionProviders": "Subscription providers",
+	"apiProviders": "API providers",
+	"subscriptionAdd": "Add subscription provider",
+	"accountCount": "account(s)",
+	"subscriptionDetails": "Provider details",
+	"providersHint": "Manage subscription accounts and usage. Use Add account below to sign in.",
 	"accountsEmpty": "No subscription accounts yet.",
 	"providersEmpty": "No API providers yet.",
 	"unreachable": "The Subscriptions host component cannot be reached. Reconnect or check the component on the Plugins page.",
@@ -506,6 +517,11 @@ var subscriptions$1 = {
 	"speedFastDescription": "1.5x speed, more usage",
 	"commandFast": "Switch the Codex speed tier (Standard/Fast)",
 	"commandFastUnavailable": "The current model has no fast tier; /fast only works on Codex models whose catalog advertises one",
+	"usageSessionShort": "5h",
+	"usageWeeklyShort": "Wk",
+	"usageBadgeReset": "Resets in {time}",
+	"usageBadgeOpenDetails": "Open all accounts and quotas",
+	"usageBadgeClose": "Close usage details",
 	"usageBadgeTitle": "Subscription usage",
 	"usageBadgeCurrent": "current",
 	"usageBadgeMoreWindows": "More quota windows ({count})",
@@ -933,7 +949,12 @@ function VideoGenerateToolview(props) {
 //#region locale/ar.json
 var subscriptions = {
 	"pageSettings": "الإعدادات",
+	"providerConfigured": "الحساب مُعدّ (لم يُتحقق من التوليد)",
+	"providerAttention": "الموفّر يحتاج إلى المراجعة",
+	"freeProviders": "الموفّرون المجانيون",
 	"apiSubscription": "اشتراك",
+	"zenEnabled": "تفعيل OpenCode Zen",
+	"zenDisabled": "معطّل — لا تُقبل طلبات جديدة",
 	"zenRefresh": "تحديث الحالة",
 	"zenNoLogin": "نماذج مجانية · لا يلزم تسجيل الدخول",
 	"zenUnavailable": "خدمة OpenCode Zen غير متاحة.",
@@ -985,9 +1006,15 @@ var subscriptions = {
 	"copilotDeviceHint": "أدخل هذا الرمز في صفحة التحقق من GitHub.",
 	"copyDeviceCode": "نسخ الرمز",
 	"copilotProviderUnavailable": "Copilot غير متاح. أوقف المكوّن المرجعي أولًا.",
-	"title": "الاشتراكات (Majed)",
+	"title": "موفّرو الذكاء الاصطناعي",
 	"accounts": "حسابات الاشتراك",
-	"providers": "موفرو API",
+	"providers": "موفّرو النماذج",
+	"subscriptionProviders": "موفّرو الاشتراكات",
+	"apiProviders": "موفّرو API",
+	"subscriptionAdd": "إضافة موفّر اشتراك",
+	"accountCount": "حساب",
+	"subscriptionDetails": "تفاصيل الموفّر",
+	"providersHint": "أدِر حسابات الاشتراك والاستخدام. استخدم إضافة حساب أدناه لتسجيل الدخول.",
 	"accountsEmpty": "لا توجد حسابات اشتراك بعد.",
 	"providersEmpty": "لا يوجد موفرو API بعد.",
 	"unreachable": "يتعذر الوصول إلى مكوّن الاشتراكات على المضيف. أعد الاتصال أو تحقق من المكوّن في صفحة الإضافات.",
@@ -1140,6 +1167,11 @@ var subscriptions = {
 	"speedFastDescription": "سرعة 1.5 ضعف، واستهلاك أكبر",
 	"commandFast": "تبديل مستوى سرعة Codex (عادية/سريعة)",
 	"commandFastUnavailable": "لا يدعم النموذج الحالي المستوى السريع؛ يعمل الأمر /fast فقط مع نماذج Codex التي يعلن كتالوجها عن مستوى سريع",
+	"usageSessionShort": "5س",
+	"usageWeeklyShort": "أسبوع",
+	"usageBadgeReset": "إعادة التعيين خلال {time}",
+	"usageBadgeOpenDetails": "عرض جميع الحسابات والحصص",
+	"usageBadgeClose": "إغلاق تفاصيل الاستهلاك",
 	"usageBadgeTitle": "استهلاك الاشتراك",
 	"usageBadgeCurrent": "الحالي",
 	"usageBadgeMoreWindows": "المزيد من نوافذ الحصة ({count})",
@@ -1907,7 +1939,22 @@ ${formScope} summary:hover {
 `;
 /** Composer controls retain their own geometry, separate from settings forms. */
 const subscriptionChromeCss = `
-.majed-subscription-usage-pill { corner-shape: round; }
+.majed-subscription-usage-pill { corner-shape: round; touch-action: manipulation; }
+.majed-subscription-usage-pill>svg { flex-shrink: 0; }
+.majed-subscription-usage-close {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  inline-size: 28px; block-size: 28px; padding: 0; border: 0; border-radius: var(--dsw-radius-sm, 8px);
+  color: var(--dsw-alias-label-secondary); background: transparent; cursor: pointer;
+}
+.majed-subscription-usage-close:hover { background: var(--dsw-alias-interactive-bg-hover); }
+.majed-subscription-usage-close:focus-visible {
+  outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px;
+}
+@media (max-width: 480px) {
+  .majed-subscription-usage-pill { max-inline-size: min(220px, calc(100vw - 24px)); }
+  .majed-subscription-usage-panel { padding: 12px !important; }
+}
+.majed-subscription-usage-tooltip,
 .majed-subscription-usage-panel {
   --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
   backdrop-filter: var(--dsw-menu-backdrop-filter, none);
@@ -2418,21 +2465,25 @@ const styles$3 = {
 		flexDirection: "column",
 		gap: 12,
 		maxInlineSize: 560,
+		minInlineSize: 0,
 		color: "var(--dsw-alias-label-primary)"
 	},
 	card: {
-		border: "0.5px solid var(--dsw-alias-settings-card-stroke, var(--dsw-alias-border-l4))",
+		border: "0.5px solid var(--dsw-alias-settings-card-stroke, var(--dsw-alias-border-l2))",
 		borderRadius: "var(--dsw-radius-xl, 20px)",
 		background: "var(--dsw-alias-settings-card-fill, var(--dsw-alias-bg-layer-2))",
 		padding: "12px 14px",
 		display: "flex",
 		flexDirection: "column",
-		gap: 6
+		gap: 8,
+		minInlineSize: 0
 	},
 	cardHeader: {
 		display: "flex",
 		alignItems: "center",
-		gap: 8
+		flexWrap: "wrap",
+		gap: 8,
+		minInlineSize: 0
 	},
 	dot: {
 		inlineSize: 8,
@@ -2441,24 +2492,33 @@ const styles$3 = {
 		flexShrink: 0
 	},
 	name: {
-		font: "var(--dsw-font-s-14)",
+		fontSize: 14,
+		lineHeight: "22px",
 		fontWeight: 500,
-		color: "var(--dsw-alias-label-primary)"
+		color: "var(--dsw-alias-label-primary)",
+		overflowWrap: "anywhere",
+		minInlineSize: 0
 	},
 	statusLine: {
 		margin: 0,
-		font: "var(--dsw-font-s-12)",
-		color: "var(--dsw-alias-label-tertiary)"
+		fontSize: 12,
+		lineHeight: "18px",
+		color: "var(--dsw-alias-label-secondary)",
+		overflowWrap: "anywhere"
 	},
 	clientVersion: {
-		font: "var(--dsw-font-s-12)",
-		color: "var(--dsw-alias-label-tertiary)",
-		fontVariantNumeric: "tabular-nums"
+		fontSize: 12,
+		lineHeight: "18px",
+		color: "var(--dsw-alias-label-secondary)",
+		fontVariantNumeric: "tabular-nums",
+		overflowWrap: "anywhere"
 	},
 	errorLine: {
 		margin: 0,
-		font: "var(--dsw-font-s-12)",
-		color: "var(--dsw-alias-state-error-primary)"
+		fontSize: 12,
+		lineHeight: "18px",
+		color: "var(--dsw-alias-state-error-primary)",
+		overflowWrap: "anywhere"
 	},
 	actions: {
 		display: "flex",
@@ -2481,13 +2541,15 @@ const styles$3 = {
 		gap: 8
 	},
 	usageTitle: {
-		font: "var(--dsw-font-s-12)",
+		fontSize: 12,
+		lineHeight: "18px",
 		fontWeight: 500,
 		color: "var(--dsw-alias-label-secondary)"
 	},
 	usagePlan: {
-		font: "var(--dsw-font-s-12)",
-		color: "var(--dsw-alias-label-tertiary)"
+		fontSize: 12,
+		lineHeight: "18px",
+		color: "var(--dsw-alias-label-secondary)"
 	},
 	usageRefresh: {
 		minHeight: 22,
@@ -2503,34 +2565,43 @@ const styles$3 = {
 	usageMeta: {
 		display: "flex",
 		justifyContent: "space-between",
+		flexWrap: "wrap",
 		gap: 8,
-		font: "var(--dsw-font-s-12)",
-		color: "var(--dsw-alias-label-tertiary)"
+		fontSize: 12,
+		lineHeight: "18px",
+		color: "var(--dsw-alias-label-secondary)",
+		overflowWrap: "anywhere"
 	},
 	accountRow: {
 		display: "flex",
 		flexDirection: "column",
 		gap: 6,
-		border: "0.5px solid var(--dsw-alias-border-l2)",
-		borderRadius: "var(--dsw-radius-lg, 16px)",
-		padding: "8px 10px",
+		minInlineSize: 0,
+		borderBlockStart: "0.5px solid var(--dsw-alias-border-l2)",
+		paddingBlockStart: 12,
 		marginBlockStart: 4
 	},
 	accountHeader: {
 		display: "flex",
 		alignItems: "center",
-		gap: 8
+		flexWrap: "wrap",
+		gap: 8,
+		minInlineSize: 0
 	},
 	accountName: {
-		font: "var(--dsw-font-s-13)",
+		fontSize: 13,
+		lineHeight: "20px",
 		color: "var(--dsw-alias-label-primary)",
-		userSelect: "all"
+		userSelect: "all",
+		overflowWrap: "anywhere",
+		minInlineSize: 0
 	},
 	starButton: {
 		border: "none",
 		padding: 0,
 		inlineSize: 28,
-		font: "var(--dsw-font-s-14)",
+		fontSize: 14,
+		lineHeight: "22px",
 		cursor: "pointer",
 		color: "var(--dsw-alias-state-warn-label)"
 	},
@@ -2545,7 +2616,10 @@ const styles$3 = {
 		blockSize: "100%",
 		borderRadius: 3
 	},
-	manual: { font: "var(--dsw-font-s-13)" },
+	manual: {
+		fontSize: 13,
+		lineHeight: "20px"
+	},
 	manualRow: {
 		display: "flex",
 		flexWrap: "wrap",
@@ -2573,13 +2647,62 @@ const styles$3 = {
 		boxShadow: "var(--dsw-elevation-prominent)"
 	},
 	modalTitle: {
-		font: "var(--dsw-font-s-16)",
+		fontSize: 16,
+		lineHeight: "24px",
 		fontWeight: 500,
 		color: "var(--dsw-alias-label-primary)"
 	}
 };
-const controlCss = `:is(.majed-subscriptions-settings, .majed-reset-dialog) input:not([type="checkbox"]),
-:is(.majed-subscriptions-settings, .majed-reset-dialog) select {
+/** Shared presentation only; account/usage controllers stay in their existing cards. */
+function providerIdentity(h, t, name, accounts, usage, clientVersion) {
+	const account = accounts.find((value) => value.isDefault) ?? accounts[0];
+	const plan = account?.plan ?? usage[account?.key]?.plan;
+	return h("div", { className: "majed-provider-identity" }, h("div", { className: "majed-provider-summary" }, h("span", { style: styles$3.name }, name), h("span", { style: styles$3.statusLine }, `${accounts.length} ${t("accountCount")}`), plan ? h("bdi", { style: styles$3.usagePlan }, plan) : null), clientVersion ? h("span", {
+		style: styles$3.clientVersion,
+		title: t("clientVersionHint")
+	}, "CLI ", h("bdi", { dir: "ltr" }, clientVersion.version), " · ", t(`source_${clientVersion.source}`)) : null);
+}
+function providerStatus(h, t, state, label) {
+	const color = state === "ready" ? "var(--dsw-alias-state-success-primary)" : state === "error" ? "var(--dsw-alias-state-error-primary)" : state === "warning" ? "var(--dsw-alias-state-warn-label)" : "var(--dsw-alias-label-secondary)";
+	return h("span", {
+		role: "img",
+		"aria-label": t(label),
+		title: t(label),
+		"data-majed-provider-status": state,
+		style: {
+			...styles$3.dot,
+			background: color
+		}
+	});
+}
+function providerDisclosure(h, t, name, expanded, toggle) {
+	return h("button", {
+		type: "button",
+		className: "majed-provider-disclosure",
+		"aria-label": `${t("subscriptionDetails")}: ${name}`,
+		"aria-expanded": expanded,
+		onClick: toggle
+	}, h("svg", {
+		"aria-hidden": true,
+		width: 16,
+		height: 16,
+		viewBox: "0 0 16 16",
+		style: { transform: expanded ? "rotate(90deg)" : void 0 }
+	}, h("path", {
+		d: "m6 3 5 5-5 5",
+		fill: "none",
+		stroke: "currentColor",
+		strokeWidth: 1.5,
+		strokeLinecap: "round",
+		strokeLinejoin: "round"
+	})));
+}
+const controlCss = `.majed-subscriptions-settings button.majed-provider-disclosure{inline-size:28px;min-height:28px;padding:0;border:0;background:transparent}
+.majed-provider-identity{display:flex;flex-direction:column;flex:1 1 160px;min-inline-size:0}
+.majed-provider-summary{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+[dir=rtl] .majed-provider-disclosure svg{scale:-1 1}
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) input:not([type="checkbox"]),
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) select {
   box-sizing: border-box;
   min-width: 0;
   height: 34px;
@@ -2589,40 +2712,41 @@ const controlCss = `:is(.majed-subscriptions-settings, .majed-reset-dialog) inpu
   background: var(--dsw-alias-bg-layer-3, var(--dsw-alias-bg-layer-1));
   color: var(--dsw-alias-label-primary);
   font: inherit;
-  font: var(--dsw-font-s-13);
+  font-size: 13px;
   font-weight: 400;
   line-height: 1.5;
 }
-:is(.majed-subscriptions-settings, .majed-reset-dialog) input::placeholder {
-  color: var(--dsw-alias-label-tertiary);
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) input::placeholder {
+  color: var(--dsw-alias-label-secondary);
   opacity: 1;
 }
-:is(.majed-subscriptions-settings, .majed-reset-dialog) input:not([type="checkbox"]):focus-visible,
-:is(.majed-subscriptions-settings, .majed-reset-dialog) select:focus-visible {
-  outline: none;
-  border-color: var(--dsw-alias-state-business-primary, var(--dsw-alias-brand-primary));
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) input:not([type="checkbox"]):focus-visible,
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) select:focus-visible {
+  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline-offset: 2px;
+  border-color: var(--dsw-alias-brand-primary);
 }
-:is(.majed-subscriptions-settings, .majed-reset-dialog) input:not([type="checkbox"]):disabled,
-:is(.majed-subscriptions-settings, .majed-reset-dialog) select:disabled {
-  color: var(--dsw-alias-label-tertiary);
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) input:not([type="checkbox"]):disabled,
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) select:disabled {
+  color: var(--dsw-alias-label-secondary);
   cursor: default;
 }
-:is(.majed-subscriptions-settings, .majed-reset-dialog) input[aria-invalid="true"] {
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) input[aria-invalid="true"] {
   border-color: var(--dsw-alias-state-error-primary);
 }
-:is(.majed-subscriptions-settings, .majed-reset-dialog) option {
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) option {
   background: var(--dsw-alias-bg-layer-2, var(--dsw-alias-bg-layer-1));
   color: var(--dsw-alias-label-primary);
 }
-:is(.majed-subscriptions-settings, .majed-reset-dialog) label:has(> input[type="checkbox"]) {
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) label:has(> input[type="checkbox"]) {
   display: flex;
   align-items: flex-start;
   gap: 6px;
-  font: var(--dsw-font-s-14);
+  font-size: 14px;
   line-height: 20px;
   cursor: pointer;
 }
-:is(.majed-subscriptions-settings, .majed-reset-dialog) input[type="checkbox"] {
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) input[type="checkbox"] {
   flex: 0 0 auto;
   width: 16px;
   height: 16px;
@@ -2630,67 +2754,70 @@ const controlCss = `:is(.majed-subscriptions-settings, .majed-reset-dialog) inpu
   accent-color: var(--dsw-alias-brand-primary);
   cursor: inherit;
 }
-:is(.majed-subscriptions-settings, .majed-reset-dialog) label:has(> input[type="checkbox"]:disabled) {
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) label:has(> input[type="checkbox"]:disabled) {
   cursor: default;
   opacity: 0.5;
 }
-:is(.majed-subscriptions-settings, .majed-reset-dialog) button {
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button {
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  min-height: 28px;
+  min-height: 32px;
+  max-inline-size: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
   padding: 0 10px;
   border: 0.5px solid var(--dsw-alias-border-l3, var(--dsw-alias-border-l2));
   border-radius: var(--dsw-radius-sm, 6px);
   background: transparent;
   color: var(--dsw-alias-label-primary);
   font: inherit;
-  font: var(--dsw-font-s-12);
+  font-size: 12px;
   line-height: 18px;
   cursor: pointer;
 }
-:is(.majed-subscriptions-settings, .majed-reset-dialog) button:hover:not(:disabled) {
-  background: var(--dsw-alias-interactive-bg-hover, var(--dsw-alias-bg-layer-3));
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover, var(--dsw-alias-bg-layer-1));
 }
-:is(.majed-subscriptions-settings, .majed-reset-dialog) button:active:not(:disabled) {
-  background: var(--dsw-alias-interactive-bg-active, var(--dsw-alias-bg-layer-3));
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button:active:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-active, var(--dsw-alias-bg-layer-1));
 }
-:is(.majed-subscriptions-settings, .majed-reset-dialog) button:disabled {
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button:disabled {
   opacity: 0.4;
   cursor: default;
 }
-:is(.majed-subscriptions-settings, .majed-reset-dialog) button.majed-subscription-quiet {
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button.majed-subscription-quiet {
   border-color: transparent;
   color: var(--dsw-alias-label-secondary, var(--dsw-alias-label-primary));
 }
-:is(.majed-subscriptions-settings, .majed-reset-dialog) :is(footer, .majed-subscription-dialog-actions) button {
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) :is(footer, .majed-subscription-dialog-actions) button {
   min-height: 34px;
   padding: 0 14px;
   border-radius: var(--dsw-radius-md, 8px);
-  font: var(--dsw-font-s-13);
+  font-size: 13px;
   line-height: 1.5;
 }
-:is(.majed-subscriptions-settings, .majed-reset-dialog) button.majed-subscription-primary {
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button.majed-subscription-primary {
   border-color: transparent;
   background: var(--dsw-alias-button-primary-fill, var(--dsw-alias-label-primary));
   color: var(--dsw-alias-label-primary-foreground, var(--dsw-alias-bg-layer-1));
   font-weight: 500;
 }
-:is(.majed-subscriptions-settings, .majed-reset-dialog) button.majed-subscription-primary:hover:not(:disabled) {
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button.majed-subscription-primary:hover:not(:disabled) {
   background: var(--dsw-alias-button-primary-hover, var(--dsw-alias-label-secondary));
 }
-:is(.majed-subscriptions-settings, .majed-reset-dialog) button:focus-visible,
-:is(.majed-subscriptions-settings, .majed-reset-dialog) input[type="checkbox"]:focus-visible,
-:is(.majed-subscriptions-settings, .majed-reset-dialog) summary:focus-visible {
-  outline: var(--dsw-focus-ring-width, 2px) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button:focus-visible,
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) input[type="checkbox"]:focus-visible,
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) summary:focus-visible {
+  outline: var(--dsw-focus-ring-width, 2px) solid var(--dsw-focus-ring-color, var(--dsw-alias-brand-primary));
   outline-offset: 2px;
 }
-:is(.majed-subscriptions-settings, .majed-reset-dialog) summary {
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) summary {
   border-radius: var(--dsw-radius-sm, 6px);
 }
-:is(.majed-subscriptions-settings, .majed-reset-dialog) summary:hover {
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) summary:hover {
   color: var(--dsw-alias-label-secondary, var(--dsw-alias-label-primary));
 }
 
@@ -2706,8 +2833,8 @@ function createCodexCard(React, primitives$1, rpc, t) {
 	const h = React.createElement;
 	const Button = primitives$1.Button ?? "button";
 	const Input = primitives$1.Input ?? "input";
-	return function CodexCard({ presentation, onAdd, onComplete, onFlowState, onAccountsChange, revision } = {}) {
-		const [expanded, setExpanded] = React.useState(false);
+	return function CodexCard({ presentation, onComplete, onFlowState, onAccountsChange, revision, initialExpanded = false } = {}) {
+		const [expanded, setExpanded] = React.useState(initialExpanded);
 		const initialAuthRevision = React.useRef(null);
 		const [manager, setManager] = React.useState(false);
 		const [status, setStatus] = React.useState(null);
@@ -2760,7 +2887,7 @@ function createCodexCard(React, primitives$1, rpc, t) {
 			if (revision !== void 0) refreshStatus().catch(() => {});
 		}, [revision]);
 		React.useEffect(() => {
-			if (presentation === "group" || !status?.busy) return;
+			if (!status?.busy) return;
 			const timer = setInterval(() => {
 				refreshStatus().catch((error$1) => {
 					if (alive.current) setError(error$1.message);
@@ -2812,7 +2939,12 @@ function createCodexCard(React, primitives$1, rpc, t) {
 			onClick,
 			...props
 		}, label);
-		const date = (time) => new Date(time).toLocaleString();
+		const date = (time) => new Date(time).toLocaleString(void 0, {
+			month: "short",
+			day: "numeric",
+			hour: "numeric",
+			minute: "2-digit"
+		});
 		const part = (name, style, ...children) => h("div", {
 			style,
 			"data-majed-codex-part": name
@@ -2835,7 +2967,7 @@ function createCodexCard(React, primitives$1, rpc, t) {
 				onComplete?.();
 			}
 		}, [status]);
-		const busy = presentation !== "group" && status?.busy;
+		const busy = status?.busy;
 		React.useEffect(() => {
 			if (presentation !== "auth") return;
 			onFlowState?.({
@@ -2872,16 +3004,10 @@ function createCodexCard(React, primitives$1, rpc, t) {
 				setManager(false);
 				refreshStatus();
 			}
-		}) : null, part("card", styles$3.card, part("header", styles$3.cardHeader, h("span", {
-			"aria-hidden": true,
-			style: {
-				...styles$3.dot,
-				background: busy ? "var(--dsw-alias-state-warn-label)" : status?.accounts?.length ? "var(--dsw-alias-state-success-primary)" : "var(--dsw-alias-label-dimmed)"
-			}
-		}), h("span", { style: styles$3.name }, status?.displayName || "Codex (ChatGPT)"), presentation === "auth" ? null : button(t("accountsManage"), () => setManager(true), false, { style: { marginInlineStart: "auto" } }), status?.clientVersion ? h("span", {
+		}) : null, part("card", styles$3.card, presentation !== "auth" && part("header", styles$3.cardHeader, providerStatus(h, t, error || status?.registrationError ? "error" : busy ? "warning" : !status ? "checking" : status?.accounts?.length ? "ready" : "warning", error || status?.registrationError ? "providerAttention" : busy ? "loginProgress" : !status ? "checking" : status?.accounts?.length ? "providerConfigured" : "notLoggedIn"), presentation === "group" ? providerIdentity(h, t, status?.displayName || "Codex (ChatGPT)", status?.accounts ?? [], usage, status?.clientVersion) : h("span", { style: styles$3.name }, status?.displayName || "Codex (ChatGPT)"), presentation === "auth" ? null : button(t("accountsManage"), () => setManager(true), false, { style: { marginInlineStart: "auto" } }), presentation === "group" ? providerDisclosure(h, t, status?.displayName || "Codex (ChatGPT)", expanded, () => setExpanded(!expanded)) : status?.clientVersion ? h("span", {
 			style: styles$3.clientVersion,
 			title: t("clientVersionHint")
-		}, "CLI ", h("bdi", { dir: "ltr" }, status.clientVersion.version), " · ", t(`source_${status.clientVersion.source}`)) : null), h("p", {
+		}, "CLI ", h("bdi", { dir: "ltr" }, status.clientVersion.version), " · ", t(`source_${status.clientVersion.source}`)) : null), (presentation === "auth" || presentation === "group" && status?.accounts?.length) && !busy && !status?.registrationError ? null : h("p", {
 			style: styles$3.statusLine,
 			role: "status"
 		}, status?.registrationError ? t("providerUnavailable") : busy ? t("loginProgress") : status?.accounts?.length ? `${status.accounts.length} ${t("connected")}` : status ? t("notLoggedIn") : t("checking")), status?.detail ? h("p", { style: styles$3.statusLine }, status.detail) : null, error ? h("p", {
@@ -2916,7 +3042,7 @@ function createCodexCard(React, primitives$1, rpc, t) {
 					account: account.key,
 					label: account.account
 				});
-			}, false, { style: { marginInlineStart: "auto" } })), snapshot?.supported === false ? h("p", { style: styles$3.statusLine }, t("usageUnavailable")) : part("usage", styles$3.usage, part("usage-header", styles$3.usageHeader, h("span", { style: styles$3.usageTitle }, t("usageTitle")), snapshot?.plan ? h("span", { style: styles$3.usagePlan }, t("plan"), ": ", h("bdi", null, snapshot.plan)) : null, button(t("refreshUsage"), () => {
+			}, false, { style: { marginInlineStart: "auto" } })), snapshot?.supported === false ? h("p", { style: styles$3.statusLine }, t("usageUnavailable")) : part("usage", styles$3.usage, part("usage-header", styles$3.usageHeader, h("span", { style: styles$3.usageTitle }, t("usageTitle")), button(t("refreshUsage"), () => {
 				action(() => refreshUsage(account.key, true));
 			}, false, { style: styles$3.usageRefresh })), !snapshot ? h("p", { style: styles$3.statusLine }, t("usageNotLoaded")) : snapshot.error ? h("p", {
 				style: styles$3.errorLine,
@@ -3000,13 +3126,13 @@ function createCodexCard(React, primitives$1, rpc, t) {
 					cursor: resetBlocked ? "not-allowed" : "pointer"
 				}
 			}) : null), h("span", { style: { textAlign: "end" } }, credit.expiresAt === void 0 ? t("creditExpiryUnknown") : h("span", null, t("expires"), " ", h("bdi", null, date(credit.expiresAt)), credit.expiresAt <= Date.now() ? ` · ${t("creditExpired")}` : null)))))) : null));
-		}), part("actions", styles$3.actions, presentation === "group" ? h(React.Fragment, null, button(`${status?.accounts?.length ?? 0} ${t("connected")}`, () => setExpanded(!expanded), false, { "aria-expanded": expanded }), button(t("addAccount"), onAdd)) : busy ? button(t("cancelLogin"), () => {
+		}), presentation !== "group" && part("actions", styles$3.actions, busy ? button(t("cancelLogin"), () => {
 			action(async () => {
 				await call("cancel");
 				setLogin(null);
 				await refreshStatus();
 			});
-		}) : button(t(status?.accounts?.length ? "addAccount" : "login"), startLogin, !!status?.registrationError)), !busy && status?.accounts?.length ? h("p", { style: styles$3.statusLine }, t("addAccountHint")) : null, busy ? h("div", null, (status.pendingAuth ?? login)?.authorizeUrl ? h("a", {
+		}) : button(t(status?.accounts?.length ? "addAccount" : "login"), startLogin, !!status?.registrationError)), presentation !== "group" && !busy && status?.accounts?.length ? h("p", { style: styles$3.statusLine }, t("addAccountHint")) : null, busy ? h("div", null, (status.pendingAuth ?? login)?.authorizeUrl ? h("a", {
 			href: (status.pendingAuth ?? login).authorizeUrl,
 			target: "_blank",
 			rel: "noopener noreferrer",
@@ -3049,7 +3175,8 @@ function createCodexCard(React, primitives$1, rpc, t) {
 			display: "flex",
 			gap: 8,
 			alignItems: "flex-start",
-			font: "var(--dsw-font-s-12)"
+			fontSize: 12,
+			lineHeight: "18px"
 		} }, h("input", {
 			type: "checkbox",
 			checked: acknowledged,
@@ -3189,88 +3316,128 @@ function ProxySettings({ rpc, t }) {
 				children: error
 			}),
 			open && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("dialog", {
+				className: "majed-subscription-manager majed-proxy-dialog",
 				ref: dialog,
 				"aria-labelledby": "majed-proxy-title",
 				onCancel: close,
 				style: {
-					maxInlineSize: 560,
-					inlineSize: "calc(100% - 32px)"
+					width: 620,
+					maxWidth: "calc(100vw - 32px)",
+					maxHeight: "calc(100dvh - 32px)",
+					overflow: "auto"
 				},
-				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("h3", {
-					id: "majed-proxy-title",
-					children: t("proxyDialogTitle")
-				}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("style", { children: providerSettingsCss }), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 					style: {
-						display: "grid",
-						gap: 12
+						display: "flex",
+						flexDirection: "column",
+						gap: 14,
+						padding: 20,
+						minWidth: 0
 					},
-					children: [
-						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
-							type: "checkbox",
-							checked: draft.enabled,
-							onChange: (event) => field("enabled", event.target.checked)
-						}), t("proxyEnabled")] }),
-						[
-							"url",
-							"username",
-							"password",
-							"bypass"
-						].map((key) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
-							style: {
-								display: "grid",
-								gap: 4
-							},
-							children: [
-								t(`proxy${key[0].toUpperCase()}${key.slice(1)}`),
-								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
-									type: key === "password" ? "password" : "text",
-									autoComplete: "off",
-									dir: key === "url" ? "ltr" : void 0,
-									value: draft[key],
-									onChange: (event) => field(key, event.target.value)
-								}),
-								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", { children: t(`proxy${key[0].toUpperCase()}${key.slice(1)}Hint`) })
-							]
-						}, key)),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
-							type: "checkbox",
-							checked: draft.clearPassword,
-							onChange: (event) => field("clearPassword", event.target.checked)
-						}), t("proxyClearPassword")] }),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", { children: t("proxyNote") }),
-						error && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-							role: "alert",
-							children: error
-						}),
-						result && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-							role: "status",
-							children: result.ok ? t(result.viaProxy ? "proxyTestOk" : "proxyTestOkDirect", {
-								status: String(result.status),
-								ms: String(result.latencyMs)
-							}) : t("proxyTestFail", { message: result.error ?? "" })
-						}),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("footer", { children: [
-							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-								type: "button",
-								disabled: !!busy,
-								onClick: () => void run(true),
-								children: t(busy === "test" ? "proxyTesting" : "proxyTest")
+					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("header", {
+						style: {
+							display: "flex",
+							justifyContent: "space-between",
+							alignItems: "center",
+							gap: 12
+						},
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("h2", {
+							id: "majed-proxy-title",
+							style: { margin: 0 },
+							children: t("proxyDialogTitle")
+						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+							type: "button",
+							onClick: close,
+							children: t("imageClose")
+						})]
+					}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+						style: {
+							display: "grid",
+							gap: 12
+						},
+						children: [
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+								type: "checkbox",
+								checked: draft.enabled,
+								onChange: (event) => field("enabled", event.target.checked)
+							}), t("proxyEnabled")] }),
+							[
+								"url",
+								"username",
+								"password",
+								"bypass"
+							].map((key) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+								style: {
+									display: "grid",
+									gap: 6,
+									minWidth: 0
+								},
+								children: [
+									t(`proxy${key[0].toUpperCase()}${key.slice(1)}`),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+										type: key === "password" ? "password" : "text",
+										autoComplete: "off",
+										dir: key === "url" ? "ltr" : void 0,
+										value: draft[key],
+										onChange: (event) => field(key, event.target.value)
+									}),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", {
+										className: "majed-subscription-hint",
+										children: t(`proxy${key[0].toUpperCase()}${key.slice(1)}Hint`)
+									})
+								]
+							}, key)),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+								type: "checkbox",
+								checked: draft.clearPassword,
+								onChange: (event) => field("clearPassword", event.target.checked)
+							}), t("proxyClearPassword")] }),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+								className: "majed-subscription-hint",
+								children: t("proxyNote")
 							}),
-							" ",
-							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-								type: "button",
-								disabled: !!busy,
-								onClick: () => void run(false),
-								children: t(busy === "save" ? "proxySaving" : "proxySave")
+							error && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+								role: "alert",
+								children: error
 							}),
-							" ",
-							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-								type: "button",
-								onClick: close,
-								children: t("proxyCancel")
+							result && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+								role: "status",
+								children: result.ok ? t(result.viaProxy ? "proxyTestOk" : "proxyTestOkDirect", {
+									status: String(result.status),
+									ms: String(result.latencyMs)
+								}) : t("proxyTestFail", { message: result.error ?? "" })
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("footer", {
+								style: {
+									display: "flex",
+									justifyContent: "flex-end",
+									flexWrap: "wrap",
+									gap: 8
+								},
+								children: [
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+										type: "button",
+										disabled: !!busy,
+										onClick: () => void run(true),
+										children: t(busy === "test" ? "proxyTesting" : "proxyTest")
+									}),
+									" ",
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+										type: "button",
+										disabled: !!busy,
+										onClick: () => void run(false),
+										children: t(busy === "save" ? "proxySaving" : "proxySave")
+									}),
+									" ",
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+										type: "button",
+										onClick: close,
+										children: t("proxyCancel")
+									})
+								]
 							})
-						] })
-					]
+						]
+					})]
 				})]
 			})
 		]
@@ -3295,15 +3462,15 @@ function createApiProviders(React, remote, t, primitives$1 = require("@deepseek-
 	const control = {
 		font: "inherit",
 		color: "inherit",
-		background: "var(--dsw-alias-settings-card-fill)",
-		border: "1px solid var(--dsw-alias-border-l2)",
-		borderRadius: "var(--dsw-radius-md)",
-		padding: "8px 12px",
+		background: "var(--dsw-alias-settings-card-fill, var(--dsw-alias-bg-layer-2))",
+		border: "0.5px solid var(--dsw-alias-border-l2)",
+		borderRadius: "var(--dsw-radius-md, 12px)",
+		padding: "6px 12px",
 		minHeight: "36px",
 		minWidth: 0,
 		boxSizing: "border-box"
 	};
-	return function ApiProviders({ subscriptions: subscriptions$2 } = {}) {
+	return function ApiProviders({ subscriptions: subscriptions$2, showAPI = true, showSubscriptionAdd = true } = {}) {
 		const [subscription, setSubscription] = React.useState("");
 		const [authFlow, setAuthFlow] = React.useState(null);
 		const [snapshot, setSnapshot] = React.useState(null);
@@ -3315,12 +3482,14 @@ function createApiProviders(React, remote, t, primitives$1 = require("@deepseek-
 		const generation = React.useRef(0);
 		const mounted = React.useRef(true);
 		const addButton = React.useRef(null);
+		const subscriptionAddButton = React.useRef(null);
+		const addOrigin = React.useRef("api");
 		const restoreAddFocus = React.useRef(false);
 		const visitedDrafts = React.useRef({});
 		React.useEffect(() => {
 			if (!addOpen && restoreAddFocus.current) {
 				restoreAddFocus.current = false;
-				addButton.current?.focus();
+				(addOrigin.current === "subscription" ? subscriptionAddButton : addButton).current?.focus();
 			}
 		}, [addOpen]);
 		const valueOf = (result) => {
@@ -3577,11 +3746,20 @@ function createApiProviders(React, remote, t, primitives$1 = require("@deepseek-
 			setMessage("apiSaved");
 			await load();
 		}
-		const button = (key, onClick, disabled = false) => h("button", {
+		const button = (key, onClick, disabled = false, cancellation = false) => h("button", {
 			type: "button",
-			style: control,
+			className: key === "apiAdd" ? "majed-api-add-trigger" : void 0,
+			style: {
+				...control,
+				...key === "apiAdd" ? {
+					inlineSize: "100%",
+					minHeight: 44,
+					borderStyle: "dashed",
+					background: "transparent"
+				} : {}
+			},
 			onClick,
-			disabled: busy || key !== "apiCancel" && !!authFlow?.busy || disabled,
+			disabled: busy || !cancellation && !!authFlow?.busy || disabled,
 			...key === "apiAdd" ? { ref: addButton } : {}
 		}, t(key));
 		const field = (key, value, onChange, type = "text") => h("label", { className: "majed-api-field" }, t(key), h("input", {
@@ -3592,7 +3770,12 @@ function createApiProviders(React, remote, t, primitives$1 = require("@deepseek-
 			style: control,
 			disabled: busy,
 			onChange: (e) => onChange(e.target.value),
-			dir: type === "password" ? void 0 : "auto"
+			dir: [
+				"apiRoute",
+				"apiURL",
+				"apiModelID",
+				"apiKey"
+			].includes(key) ? "ltr" : "auto"
 		}));
 		const configured = (entry) => {
 			const ns = nsOf(entry);
@@ -3608,6 +3791,8 @@ function createApiProviders(React, remote, t, primitives$1 = require("@deepseek-
 		}, ...options));
 		React.useEffect(() => {
 			if (!subscriptions$2?.request || authFlow?.busy) return;
+			addOrigin.current = "subscription";
+			if (subscriptions$2.request.returnFocus) subscriptionAddButton.current = subscriptions$2.request.returnFocus;
 			setSubscription(subscriptions$2.request.provider);
 			setAddMode("subscription");
 			setDraft(null);
@@ -3658,29 +3843,107 @@ function createApiProviders(React, remote, t, primitives$1 = require("@deepseek-
 			name: ""
 		}])), h("p", { className: "majed-api-muted" }, t("apiModelsHint")), h("div", { className: "majed-api-actions" }, button("apiSave", () => {
 			run(save);
-		}), button("apiCancel", close)));
+		}), button("apiCancel", close, false, true)));
+		const openAdd = (group) => {
+			addOrigin.current = group;
+			setAddOpen(true);
+			setDraft(null);
+			setMessage("");
+			setAddMode(group === "subscription" ? "subscription" : "catalog");
+			if (group === "api" && addable[0]) edit(addable[0]);
+		};
+		const addPanel = () => h("div", { className: `majed-api-add${addMode !== "subscription" ? " majed-api-add-open" : " majed-subscription-add-open"}` }, addOpen ? h(React.Fragment, null, addOrigin.current === "subscription" ? null : h(primitives$1.SegmentedControl, {
+			id: "majed-provider-add-mode",
+			value: addMode,
+			label: t("apiAdd"),
+			className: "majed-api-tabs",
+			disabled: busy || !!authFlow?.busy,
+			onChange: switchMode,
+			options: ["catalog", "custom"].map((mode) => ({
+				value: mode,
+				label: t(mode === "catalog" ? "apiCatalog" : mode === "custom" ? "apiCustom" : "apiSubscription"),
+				disabled: mode !== "subscription" && (!snapshot?.writable || mode === "custom" && !snapshot.namespaces.some((n) => n.ns === "llm-pi-ai"))
+			}))
+		}), h("div", {
+			role: addOrigin.current === "subscription" ? "group" : "tabpanel",
+			id: `majed-provider-add-mode-${addMode}-panel`,
+			"aria-label": addOrigin.current === "subscription" ? t("subscriptionAdd") : void 0,
+			"aria-labelledby": addOrigin.current === "subscription" ? void 0 : `majed-provider-add-mode-${addMode}`
+		}, addMode === "catalog" ? select("apiCatalog", draft?.entry.provider ?? "", (v) => {
+			const entry = addable.find((e) => e.provider === v);
+			if (entry) edit(entry);
+		}, [h("option", {
+			key: "",
+			value: "",
+			disabled: true
+		}, t("apiChoose")), ...addable.map((e) => h("option", {
+			key: e.provider,
+			value: e.provider
+		}, e.displayName))]) : null, addMode === "subscription" ? h(React.Fragment, null, select("apiSubscription", subscription || subscriptions$2.providers[0]?.id || "", (v) => {
+			if (!authFlow?.busy) {
+				setAuthFlow(null);
+				setSubscription(v);
+			}
+		}, subscriptions$2.providers.map((p) => h("option", {
+			key: p.id,
+			value: p.id
+		}, p.name))), subscriptions$2.renderAuth(subscription || subscriptions$2.providers[0]?.id, close, setAuthFlow), h("div", { className: "majed-subscription-add-actions" }, button("cancel", () => run(async () => {
+			if (!authFlow?.cancel || await authFlow.cancel()) close();
+		}), false, true))) : draft ? editor() : button("apiCancel", close, false, true))) : null);
 		return h("div", {
 			"data-majed-api-providers": true,
 			"aria-busy": busy,
 			className: "majed-api-section"
 		}, h("style", null, `
-        .majed-api-section{max-width:720px;display:flex;flex-direction:column;gap:12px;text-align:start;color:var(--dsw-alias-label-primary);font-size:14px;line-height:22px}
+        .majed-provider-group{display:flex;flex-direction:column;gap:12px;min-inline-size:0}.majed-provider-group+.majed-provider-group{margin-block-start:12px}.majed-provider-title{margin:0;font-size:16px;line-height:24px;font-weight:500}
+        .majed-api-section{max-inline-size:720px;min-inline-size:0;display:flex;flex-direction:column;gap:12px;text-align:start;color:var(--dsw-alias-label-primary);font-size:14px;line-height:22px}
         .majed-api-section *{box-sizing:border-box}.majed-api-section p{margin:0}
-        .majed-api-rows{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}
-        .majed-api-row{border:1px solid var(--dsw-alias-settings-card-stroke,var(--dsw-alias-border-l2));background:var(--dsw-alias-settings-card-fill);border-radius:var(--dsw-radius-xl,12px);padding:12px 14px;min-width:0}
+        .majed-api-rows{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}.majed-api-rows>li{min-inline-size:0}
+        .majed-api-row{border:0.5px solid var(--dsw-alias-settings-card-stroke,var(--dsw-alias-border-l2));background:var(--dsw-alias-settings-card-fill,var(--dsw-alias-bg-layer-2));border-radius:var(--dsw-radius-xl,20px);padding:14px 16px;min-inline-size:0}
         .majed-api-head,.majed-api-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-        .majed-api-identity{display:flex;align-items:center;gap:8px;flex:1 1 180px;min-width:0;overflow-wrap:anywhere}
+        .majed-api-identity{display:flex;flex-direction:column;align-items:flex-start;gap:4px;flex:1 1 180px;min-inline-size:0;overflow-wrap:anywhere}.majed-api-identity strong{font-weight:500}
         .majed-api-actions{margin-inline-start:auto}.majed-api-muted{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px;overflow-wrap:anywhere}
-        .majed-api-editor{display:flex;flex-direction:column;gap:16px;padding:16px 0 4px;margin-top:12px;border-top:1px solid var(--dsw-alias-border-l2)}
-        .majed-api-field{display:flex;flex-direction:column;gap:6px;min-width:0;font-weight:500}.majed-api-field input,.majed-api-field select{width:100%;font-weight:400}
+        .majed-api-editor{display:flex;flex-direction:column;gap:14px;padding-block:14px 4px;margin-block-start:12px;border-block-start:0.5px solid var(--dsw-alias-border-l2)}
+        .majed-api-field{display:flex;flex-direction:column;gap:6px;min-inline-size:0;font-size:12px;line-height:18px;font-weight:500}.majed-api-field input,.majed-api-field select{inline-size:100%;font-size:14px;line-height:22px;font-weight:400}
         .majed-api-model{display:grid;grid-template-columns:repeat(2,minmax(0,1fr)) auto;gap:8px;align-items:end}
-        .majed-api-add{margin-top:12px}.majed-api-tabs{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}.majed-api-tabs [aria-selected=true]{font-weight:600;background:var(--dsw-alias-interactive-secondary-hover,var(--dsw-alias-settings-card-fill))}
-        .majed-api-section button{cursor:pointer}.majed-api-section button:hover:not(:disabled){background:var(--dsw-alias-interactive-secondary-hover,var(--dsw-alias-settings-card-fill))}
-        .majed-api-section :is(button,input,select):focus-visible{outline:2px solid var(--dsw-alias-brand-primary,#367cff);outline-offset:2px}.majed-api-section :disabled{opacity:.5;cursor:not-allowed}
-        @media(max-width:520px){.majed-api-model{grid-template-columns:minmax(0,1fr)}.majed-api-model button{justify-self:start}.majed-api-row{padding:12px}.majed-api-actions{margin-inline-start:0}}
-      `), message ? h("p", { role: message === "apiSaved" ? "status" : "alert" }, t(message)) : null, h("div", { className: "majed-api-actions" }, button("apiRefresh", () => {
+        .majed-api-add{margin-block-start:4px;min-inline-size:0}.majed-api-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-block-end:14px}.majed-api-tabs [aria-selected=true]{font-weight:500;background:var(--dsw-alias-interactive-secondary-hover,var(--dsw-alias-bg-layer-1))}
+        .majed-api-section .majed-subscription-add-trigger{display:flex;align-items:center;justify-content:center;gap:6px;inline-size:100%;min-block-size:44px;padding:0 14px;border:1px dashed var(--dsw-alias-border-l3,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-lg,16px);background:transparent;color:inherit;font:inherit}
+        .majed-api-section .majed-subscription-add-trigger:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-1))}
+        .majed-subscription-add-open{padding:14px 16px;border-radius:var(--dsw-radius-lg,16px);background:var(--dsw-alias-bg-module-platform,var(--dsw-alias-bg-layer-1))}
+        .majed-subscription-add-actions{display:flex;justify-content:flex-end;gap:8px}
+        .majed-subscription-add-actions>button{flex:0 0 auto;inline-size:auto}
+        .majed-api-section .majed-subscriptions-settings :is([data-majed-codex-part=header],[data-majed-claude-part=header],[data-majed-grok-part=header],[data-majed-antigravity-part=header],[data-majed-copilot-part=header])>button:not(.majed-provider-disclosure){height:28px;block-size:28px;min-height:28px;padding:0 10px;border-radius:var(--dsw-radius-sm,8px);font-size:12px;line-height:18px}
+        .majed-subscription-add-open [data-majed-codex-part=card],.majed-subscription-add-open [data-majed-claude-part=card],.majed-subscription-add-open [data-majed-grok-part=card],.majed-subscription-add-open [data-majed-antigravity-part=card],.majed-subscription-add-open [data-majed-copilot-part=card]{border:0!important;background:transparent!important;padding:0!important}
+        .majed-api-add-open{padding:14px 16px;border:0.5px solid var(--dsw-alias-settings-card-stroke,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-xl,20px);background:var(--dsw-alias-settings-card-fill,var(--dsw-alias-bg-layer-2))}
+        .majed-api-add>:is([role=tabpanel],[role=group]){display:flex;flex-direction:column;gap:14px;min-inline-size:0}.majed-api-add>:is([role=tabpanel],[role=group])>.majed-api-editor{margin-block-start:0}
+        .majed-api-section button{cursor:pointer;max-inline-size:100%;white-space:normal;overflow-wrap:anywhere}.majed-api-section button:hover:not(:disabled){background:var(--dsw-alias-interactive-secondary-hover,var(--dsw-alias-bg-layer-1))}
+        .majed-api-section :is(button,input,select):focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}.majed-api-section :disabled{opacity:.5;cursor:not-allowed}
+        @media(max-width:520px){.majed-api-model{grid-template-columns:minmax(0,1fr)}.majed-api-model button{justify-self:start}.majed-api-actions{margin-inline-start:0}}
+      `), message ? h("p", { role: message === "apiSaved" ? "status" : "alert" }, t(message)) : null, subscriptions$2 ? h("section", {
+			"data-majed-provider-group": "subscription",
+			className: "majed-provider-group",
+			"aria-label": t("subscriptionProviders")
+		}, h("h3", { className: "majed-provider-title" }, t("subscriptionProviders")), h("ul", { className: "majed-api-rows" }, ...subscriptions$2.rows), addOpen && addOrigin.current === "subscription" ? addPanel() : !showSubscriptionAdd ? null : h("button", {
+			type: "button",
+			className: "majed-subscription-add-trigger",
+			ref: subscriptionAddButton,
+			disabled: busy || addOpen,
+			onClick: () => openAdd("subscription")
+		}, h("svg", {
+			width: 16,
+			height: 16,
+			viewBox: "0 0 24 24",
+			fill: "none",
+			stroke: "currentColor",
+			strokeWidth: 1.5,
+			"aria-hidden": true
+		}, h("path", { d: "M12 4v16M4 12h16" })), t("addAccount"))) : null, showAPI && h("section", {
+			"data-majed-provider-group": "api",
+			className: "majed-provider-group",
+			"aria-label": t("apiProviders")
+		}, h("div", { className: "majed-api-head" }, h("h3", { className: "majed-provider-title" }, t("apiProviders")), h("div", { className: "majed-api-actions" }, button("apiRefresh", () => {
 			load();
-		})), h(React.Fragment, null, !snapshot ? h("p", null, t(remote ? message ? "apiFailed" : "apiLoading" : "apiUnavailable")) : null, h("ul", { className: "majed-api-rows" }, ...subscriptions$2?.rows ?? [], ...(snapshot?.rows ?? []).filter(configured).map((entry) => {
+		}))), h(React.Fragment, null, !snapshot ? h("p", null, t(remote ? message ? "apiFailed" : "apiLoading" : "apiUnavailable")) : null, h("ul", { className: "majed-api-rows" }, ...(snapshot?.rows ?? []).filter(configured).map((entry) => {
 			const ns = nsOf(entry), profile = at(ns.value, entry.settingsPath);
 			const metadata = (profile?.apiKeyEnv ? [profile.apiKeyEnv] : [refOf(entry, profile), ...entry.nativeAuth?.env ?? []]).map((ref) => snapshot.credentials[ref]);
 			const credentialStatus = entry.provider === "deepseek-account" ? "account-unknown" : metadata.some((value) => value?.configured === true) ? "configured" : metadata.every((value) => value?.configured === false) ? "missing" : "unknown";
@@ -3705,57 +3968,10 @@ function createApiProviders(React, remote, t, primitives$1 = require("@deepseek-
 			}), t(statusLabel))), h("span", { className: "majed-api-actions" }, entry.provider === "deepseek-account" ? null : button("apiEdit", () => {
 				setAddOpen(false);
 				edit(entry);
-			}, !snapshot.writable), removable(entry, ns) ? button("apiDelete", () => {
+			}, addOpen || !snapshot.writable), removable(entry, ns) ? button("apiDelete", () => {
 				run(() => remove(entry));
-			}, !snapshot.writable) : null)), !addOpen && draft?.entry.provider === entry.provider ? editor() : null);
-		})), h("div", { className: "majed-api-add" }, !addOpen ? button("apiAdd", () => {
-			setAddOpen(true);
-			setAddMode("catalog");
-			setDraft(null);
-			if (addable[0]) edit(addable[0]);
-		}, !snapshot?.writable && !subscriptions$2) : null, addOpen ? h(React.Fragment, null, h(primitives$1.SegmentedControl, {
-			id: "majed-provider-add-mode",
-			value: addMode,
-			label: t("apiAdd"),
-			className: "majed-api-tabs",
-			disabled: busy || !!authFlow?.busy,
-			onChange: switchMode,
-			options: [
-				"catalog",
-				"custom",
-				...subscriptions$2 ? ["subscription"] : []
-			].map((mode) => ({
-				value: mode,
-				label: t(mode === "catalog" ? "apiCatalog" : mode === "custom" ? "apiCustom" : "apiSubscription"),
-				disabled: mode !== "subscription" && (!snapshot?.writable || mode === "custom" && !snapshot.namespaces.some((n) => n.ns === "llm-pi-ai"))
-			}))
-		}), h("div", {
-			role: "tabpanel",
-			id: `majed-provider-add-mode-${addMode}-panel`,
-			"aria-labelledby": `majed-provider-add-mode-${addMode}`
-		}, addMode === "catalog" ? select("apiCatalog", draft?.entry.provider ?? "", (v) => {
-			const entry = addable.find((e) => e.provider === v);
-			if (entry) edit(entry);
-		}, [h("option", {
-			key: "",
-			value: "",
-			disabled: true
-		}, t("apiChoose")), ...addable.map((e) => h("option", {
-			key: e.provider,
-			value: e.provider
-		}, e.displayName))]) : null, addMode === "subscription" ? h(React.Fragment, null, select("apiSubscription", subscription || subscriptions$2.providers[0]?.id || "", (v) => {
-			if (!authFlow?.busy) {
-				setAuthFlow(null);
-				setSubscription(v);
-			}
-		}, subscriptions$2.providers.map((p) => h("option", {
-			key: p.id,
-			value: p.id
-		}, p.name))), subscriptions$2.renderAuth(subscription || subscriptions$2.providers[0]?.id, close, setAuthFlow), button("apiCancel", () => {
-			run(async () => {
-				if (!authFlow?.cancel || await authFlow.cancel()) close();
-			});
-		})) : draft ? editor() : button("apiCancel", close))) : null)));
+			}, addOpen || !snapshot.writable) : null)), !addOpen && draft?.entry.provider === entry.provider ? editor() : null);
+		})), addOpen && addOrigin.current === "api" ? addPanel() : button("apiAdd", () => openAdd("api"), addOpen || !snapshot?.writable))));
 	};
 }
 
@@ -3768,8 +3984,8 @@ function createCopilotCard(React, primitives$1, rpc, t) {
 	const Button = primitives$1.Button ?? "button";
 	primitives$1.Input;
 	const DEFAULT_NAME = "GitHub Copilot";
-	return function CopilotCard({ presentation, onAdd, onComplete, onFlowState, onAccountsChange, revision } = {}) {
-		const [expanded, setExpanded] = React.useState(false);
+	return function CopilotCard({ presentation, onComplete, onFlowState, onAccountsChange, revision, initialExpanded = false } = {}) {
+		const [expanded, setExpanded] = React.useState(initialExpanded);
 		const initialAuthRevision = React.useRef(null);
 		const [manager, setManager] = React.useState(false);
 		const [status, setStatus] = React.useState(null);
@@ -3821,7 +4037,7 @@ function createCopilotCard(React, primitives$1, rpc, t) {
 			if (revision !== void 0) refreshStatus().catch(() => {});
 		}, [revision]);
 		React.useEffect(() => {
-			if (presentation === "group" || !status?.busy) return;
+			if (!status?.busy) return;
 			const timer = setInterval(() => {
 				refreshStatus().catch((failure) => {
 					if (alive.current) setError(failure.message);
@@ -3896,7 +4112,7 @@ function createCopilotCard(React, primitives$1, rpc, t) {
 				onComplete?.();
 			}
 		}, [status]);
-		const busy = presentation !== "group" && status?.busy;
+		const busy = status?.busy;
 		React.useEffect(() => {
 			if (presentation !== "auth") return;
 			onFlowState?.({
@@ -3935,16 +4151,10 @@ function createCopilotCard(React, primitives$1, rpc, t) {
 				setManager(false);
 				refreshStatus();
 			}
-		}) : null, part("card", styles$3.card, part("header", styles$3.cardHeader, h("span", {
-			"aria-hidden": true,
-			style: {
-				...styles$3.dot,
-				background: busy ? "var(--dsw-alias-state-warn-label)" : hasAccounts ? "var(--dsw-alias-state-success-primary)" : "var(--dsw-alias-label-dimmed)"
-			}
-		}), h("span", { style: styles$3.name }, name), presentation === "auth" ? null : button(t("accountsManage"), () => setManager(true), false, { style: { marginInlineStart: "auto" } }), status?.clientVersion ? h("span", {
+		}) : null, part("card", styles$3.card, presentation !== "auth" && part("header", styles$3.cardHeader, providerStatus(h, t, error || status?.registrationError ? "error" : busy ? "warning" : !status ? "checking" : status?.accounts?.length ? "ready" : "warning", error || status?.registrationError ? "providerAttention" : busy ? "loginProgress" : !status ? "checking" : status?.accounts?.length ? "providerConfigured" : "notLoggedIn"), presentation === "group" ? providerIdentity(h, t, name, status?.accounts ?? [], usage, status?.clientVersion) : h("span", { style: styles$3.name }, name), presentation === "auth" ? null : button(t("accountsManage"), () => setManager(true), false, { style: { marginInlineStart: "auto" } }), presentation === "group" ? providerDisclosure(h, t, name, expanded, () => setExpanded(!expanded)) : status?.clientVersion ? h("span", {
 			style: styles$3.clientVersion,
 			title: t("clientVersionHint")
-		}, "CLI ", h("bdi", { dir: "ltr" }, status.clientVersion.version), " · ", t(`source_${status.clientVersion.source}`)) : null), h("p", {
+		}, "CLI ", h("bdi", { dir: "ltr" }, status.clientVersion.version), " · ", t(`source_${status.clientVersion.source}`)) : null), (presentation === "auth" || presentation === "group" && status?.accounts?.length) && !busy && !status?.registrationError ? null : h("p", {
 			style: styles$3.statusLine,
 			role: "status"
 		}, status?.registrationError ? t("copilotProviderUnavailable") : busy ? t("loginProgress") : hasAccounts ? `${status.accounts.length} ${t("connected")}` : status ? t("notLoggedIn") : t("checking")), status?.detail ? h("p", { style: styles$3.statusLine }, status.detail) : null, error ? h("p", {
@@ -3995,7 +4205,7 @@ function createCopilotCard(React, primitives$1, rpc, t) {
 					inlineSize: `${percent}%`
 				} })));
 			})));
-		}), part("actions", styles$3.actions, presentation === "group" ? h(React.Fragment, null, button(`${status?.accounts?.length ?? 0} ${t("connected")}`, () => setExpanded(!expanded), false, { "aria-expanded": expanded }), button(t("addAccount"), onAdd)) : busy ? button(t("cancelLogin"), () => {
+		}), presentation !== "group" && part("actions", styles$3.actions, busy ? button(t("cancelLogin"), () => {
 			action(async () => {
 				await call("cancel");
 				setLogin(null);
@@ -4063,8 +4273,8 @@ function createClaudeCard(React, primitives$1, rpc, t) {
 	const Button = primitives$1.Button ?? "button";
 	const Input = primitives$1.Input ?? "input";
 	const DEFAULT_NAME = "Claude (Subscription)";
-	return function ClaudeCard({ presentation, onAdd, onComplete, onFlowState, onAccountsChange, revision } = {}) {
-		const [expanded, setExpanded] = React.useState(false);
+	return function ClaudeCard({ presentation, onComplete, onFlowState, onAccountsChange, revision, initialExpanded = false } = {}) {
+		const [expanded, setExpanded] = React.useState(initialExpanded);
 		const initialAuthRevision = React.useRef(null);
 		const [manager, setManager] = React.useState(false);
 		const [status, setStatus] = React.useState(null);
@@ -4116,7 +4326,7 @@ function createClaudeCard(React, primitives$1, rpc, t) {
 			if (revision !== void 0) refreshStatus().catch(() => {});
 		}, [revision]);
 		React.useEffect(() => {
-			if (presentation === "group" || !status?.busy) return;
+			if (!status?.busy) return;
 			const timer = setInterval(() => {
 				refreshStatus().catch((failure) => {
 					if (alive.current) setError(failure.message);
@@ -4191,7 +4401,7 @@ function createClaudeCard(React, primitives$1, rpc, t) {
 				onComplete?.();
 			}
 		}, [status]);
-		const busy = presentation !== "group" && status?.busy;
+		const busy = status?.busy;
 		React.useEffect(() => {
 			if (presentation !== "auth") return;
 			onFlowState?.({
@@ -4230,16 +4440,10 @@ function createClaudeCard(React, primitives$1, rpc, t) {
 				setManager(false);
 				refreshStatus();
 			}
-		}) : null, part("card", styles$3.card, part("header", styles$3.cardHeader, h("span", {
-			"aria-hidden": true,
-			style: {
-				...styles$3.dot,
-				background: busy ? "var(--dsw-alias-state-warn-label)" : hasAccounts ? "var(--dsw-alias-state-success-primary)" : "var(--dsw-alias-label-dimmed)"
-			}
-		}), h("span", { style: styles$3.name }, name), presentation === "auth" ? null : button(t("accountsManage"), () => setManager(true), false, { style: { marginInlineStart: "auto" } }), status?.clientVersion ? h("span", {
+		}) : null, part("card", styles$3.card, presentation !== "auth" && part("header", styles$3.cardHeader, providerStatus(h, t, error || status?.registrationError ? "error" : busy ? "warning" : !status ? "checking" : status?.accounts?.length ? "ready" : "warning", error || status?.registrationError ? "providerAttention" : busy ? "loginProgress" : !status ? "checking" : status?.accounts?.length ? "providerConfigured" : "notLoggedIn"), presentation === "group" ? providerIdentity(h, t, name, status?.accounts ?? [], usage, status?.clientVersion) : h("span", { style: styles$3.name }, name), presentation === "auth" ? null : button(t("accountsManage"), () => setManager(true), false, { style: { marginInlineStart: "auto" } }), presentation === "group" ? providerDisclosure(h, t, name, expanded, () => setExpanded(!expanded)) : status?.clientVersion ? h("span", {
 			style: styles$3.clientVersion,
 			title: t("clientVersionHint")
-		}, "CLI ", h("bdi", { dir: "ltr" }, status.clientVersion.version), " · ", t(`source_${status.clientVersion.source}`)) : null), h("p", {
+		}, "CLI ", h("bdi", { dir: "ltr" }, status.clientVersion.version), " · ", t(`source_${status.clientVersion.source}`)) : null), (presentation === "auth" || presentation === "group" && status?.accounts?.length) && !busy && !status?.registrationError ? null : h("p", {
 			style: styles$3.statusLine,
 			role: "status"
 		}, status?.registrationError ? t("claudeProviderUnavailable") : busy ? t("loginProgress") : hasAccounts ? `${status.accounts.length} ${t("connected")}` : status ? t("notLoggedIn") : t("checking")), status?.detail ? h("p", { style: styles$3.statusLine }, status.detail) : null, error ? h("p", {
@@ -4290,13 +4494,13 @@ function createClaudeCard(React, primitives$1, rpc, t) {
 					inlineSize: `${percent}%`
 				} })));
 			})));
-		}), part("actions", styles$3.actions, presentation === "group" ? h(React.Fragment, null, button(`${status?.accounts?.length ?? 0} ${t("connected")}`, () => setExpanded(!expanded), false, { "aria-expanded": expanded }), button(t("addAccount"), onAdd)) : busy ? button(t("cancelLogin"), () => {
+		}), presentation !== "group" && part("actions", styles$3.actions, busy ? button(t("cancelLogin"), () => {
 			action(async () => {
 				await call("cancel");
 				setLogin(null);
 				await refreshStatus();
 			});
-		}) : hasAccounts ? [button(t("addAccountOAuth"), () => startLogin("oauth"), !!status?.registrationError, { key: "oauth" }), button(t("addAccountKeychain"), () => startLogin("keychain"), !!status?.registrationError, { key: "keychain" })] : button(t("login"), () => startLogin(), !!status?.registrationError)), !busy && hasAccounts ? h("p", { style: styles$3.statusLine }, t("claudeAddAccountHint")) : null, busy ? h("div", null, (status.pendingAuth ?? login)?.authorizeUrl ? h("a", {
+		}) : hasAccounts ? [button(t("addAccountOAuth"), () => startLogin("oauth"), !!status?.registrationError, { key: "oauth" }), button(t("addAccountKeychain"), () => startLogin("keychain"), !!status?.registrationError, { key: "keychain" })] : button(t("login"), () => startLogin(), !!status?.registrationError)), presentation !== "group" && !busy && hasAccounts ? h("p", { style: styles$3.statusLine }, t("claudeAddAccountHint")) : null, busy ? h("div", null, (status.pendingAuth ?? login)?.authorizeUrl ? h("a", {
 			href: (status.pendingAuth ?? login).authorizeUrl,
 			target: "_blank",
 			rel: "noopener noreferrer",
@@ -4374,8 +4578,8 @@ function createAntigravityCard(React, primitives$1, rpc, t) {
 	const Button = primitives$1.Button ?? "button";
 	const Input = primitives$1.Input ?? "input";
 	const DEFAULT_NAME = "Google Antigravity";
-	return function AntigravityCard({ presentation, onAdd, onComplete, onFlowState, onAccountsChange, revision } = {}) {
-		const [expanded, setExpanded] = React.useState(false);
+	return function AntigravityCard({ presentation, onComplete, onFlowState, onAccountsChange, revision, initialExpanded = false } = {}) {
+		const [expanded, setExpanded] = React.useState(initialExpanded);
 		const initialAuthRevision = React.useRef(null);
 		const [manager, setManager] = React.useState(false);
 		const [status, setStatus] = React.useState(null);
@@ -4427,7 +4631,7 @@ function createAntigravityCard(React, primitives$1, rpc, t) {
 			if (revision !== void 0) refreshStatus().catch(() => {});
 		}, [revision]);
 		React.useEffect(() => {
-			if (presentation === "group" || !status?.busy) return;
+			if (!status?.busy) return;
 			const timer = setInterval(() => {
 				refreshStatus().catch((failure) => {
 					if (alive.current) setError(failure.message);
@@ -4503,7 +4707,7 @@ function createAntigravityCard(React, primitives$1, rpc, t) {
 				onComplete?.();
 			}
 		}, [status]);
-		const busy = presentation !== "group" && status?.busy;
+		const busy = status?.busy;
 		React.useEffect(() => {
 			if (presentation !== "auth") return;
 			onFlowState?.({
@@ -4542,16 +4746,10 @@ function createAntigravityCard(React, primitives$1, rpc, t) {
 				setManager(false);
 				refreshStatus();
 			}
-		}) : null, part("card", styles$3.card, part("header", styles$3.cardHeader, h("span", {
-			"aria-hidden": true,
-			style: {
-				...styles$3.dot,
-				background: busy ? "var(--dsw-alias-state-warn-label)" : hasAccounts ? "var(--dsw-alias-state-success-primary)" : "var(--dsw-alias-label-dimmed)"
-			}
-		}), h("span", { style: styles$3.name }, name), presentation === "auth" ? null : button(t("accountsManage"), () => setManager(true), false, { style: { marginInlineStart: "auto" } }), status?.clientVersion ? h("span", {
+		}) : null, part("card", styles$3.card, presentation !== "auth" && part("header", styles$3.cardHeader, providerStatus(h, t, error || status?.registrationError || status?.setupRequired ? "error" : busy ? "warning" : !status ? "checking" : status?.accounts?.length ? "ready" : "warning", error || status?.registrationError || status?.setupRequired ? "providerAttention" : busy ? "loginProgress" : !status ? "checking" : status?.accounts?.length ? "providerConfigured" : "notLoggedIn"), presentation === "group" ? providerIdentity(h, t, name, status?.accounts ?? [], usage, status?.clientVersion) : h("span", { style: styles$3.name }, name), presentation === "auth" ? null : button(t("accountsManage"), () => setManager(true), false, { style: { marginInlineStart: "auto" } }), presentation === "group" ? providerDisclosure(h, t, name, expanded, () => setExpanded(!expanded)) : status?.clientVersion ? h("span", {
 			style: styles$3.clientVersion,
 			title: t("clientVersionHint")
-		}, "CLI ", h("bdi", { dir: "ltr" }, status.clientVersion.version), " · ", t(`source_${status.clientVersion.source}`)) : null), h("p", {
+		}, "CLI ", h("bdi", { dir: "ltr" }, status.clientVersion.version), " · ", t(`source_${status.clientVersion.source}`)) : null), (presentation === "auth" || presentation === "group" && status?.accounts?.length) && !busy && !status?.registrationError && !status?.setupRequired ? null : h("p", {
 			style: styles$3.statusLine,
 			role: "status"
 		}, status?.setupRequired ? t("antigravitySetupRequired") : status?.registrationError ? t("antigravityProviderUnavailable") : busy ? t("loginProgress") : hasAccounts ? `${status.accounts.length} ${t("connected")}` : status ? t("notLoggedIn") : t("checking")), status?.detail && !status?.setupRequired ? h("p", { style: styles$3.statusLine }, status.detail) : null, error ? h("p", {
@@ -4603,7 +4801,7 @@ function createAntigravityCard(React, primitives$1, rpc, t) {
 					inlineSize: `${percent}%`
 				} })));
 			})));
-		}), part("actions", styles$3.actions, presentation === "group" ? h(React.Fragment, null, button(`${status?.accounts?.length ?? 0} ${t("connected")}`, () => setExpanded(!expanded), false, { "aria-expanded": expanded }), button(t("addAccount"), onAdd)) : busy ? button(t("cancelLogin"), () => {
+		}), presentation !== "group" && part("actions", styles$3.actions, busy ? button(t("cancelLogin"), () => {
 			action(async () => {
 				await call("cancel");
 				setLogin(null);
@@ -4674,6 +4872,7 @@ function createZenCard(React, primitives$1, rpc, t) {
 		const [status, setStatus] = React.useState(null);
 		const [failed, setFailed] = React.useState(false);
 		const [pending, setPending] = React.useState(false);
+		const [expanded, setExpanded] = React.useState(false);
 		const alive = React.useRef(true);
 		const refresh = async () => {
 			setPending(true);
@@ -4696,6 +4895,23 @@ function createZenCard(React, primitives$1, rpc, t) {
 				alive.current = false;
 			};
 		}, []);
+		const enabled = status?.enabled !== false;
+		const toggle = async () => {
+			setPending(true);
+			try {
+				const value = await callSubscriptionsAuth$1(rpc, "setZenEnabled", { enabled: !enabled });
+				if (alive.current) {
+					setStatus(value);
+					setFailed(false);
+				}
+			} catch {
+				if (alive.current) setFailed(true);
+			} finally {
+				if (alive.current) setPending(false);
+			}
+		};
+		const state = !enabled ? "warning" : pending || !status && !failed ? "checking" : failed || status?.registrationError ? "error" : status.reachable ? "ready" : "warning";
+		const label = state === "checking" ? "checking" : state === "error" ? "zenUnavailable" : state === "ready" ? "zenReachable" : "zenUnreachable";
 		return h("div", {
 			style: {
 				...styles$3.section,
@@ -4704,16 +4920,52 @@ function createZenCard(React, primitives$1, rpc, t) {
 				width: "100%",
 				textAlign: "start"
 			},
+			className: "majed-subscriptions-settings",
 			"data-majed-zen-card": true
-		}, h("div", { style: styles$3.card }, h("div", { style: styles$3.cardHeader }, h("span", { style: styles$3.name }, "OpenCode Zen"), h(primitives$1.Button ?? "button", {
+		}, h("style", null, controlCss), h("div", { style: styles$3.card }, h("div", { style: styles$3.cardHeader }, providerStatus(h, t, state, !enabled ? "zenDisabled" : label), h("div", { className: "majed-provider-identity" }, h("span", { style: styles$3.name }, "OpenCode Zen")), h("button", {
 			type: "button",
-			disabled: pending,
-			onClick: () => void refresh(),
-			style: { marginInlineStart: "auto" }
-		}, t("zenRefresh"))), h("p", { style: styles$3.statusLine }, t("zenNoLogin")), h("p", {
+			role: "switch",
+			"aria-checked": enabled,
+			"aria-label": t("zenEnabled"),
+			disabled: pending || !status,
+			onClick: () => void toggle(),
+			style: {
+				padding: 2,
+				height: 20,
+				minHeight: 20,
+				minWidth: 36,
+				width: 36,
+				flexShrink: 0,
+				border: 0,
+				borderRadius: 999,
+				display: "inline-flex",
+				alignItems: "center",
+				background: enabled ? "var(--dsw-alias-brand-primary)" : "var(--dsw-alias-interactive-bg-hover)"
+			}
+		}, h("span", {
+			"aria-hidden": true,
+			style: {
+				width: 16,
+				height: 16,
+				borderRadius: "50%",
+				background: enabled ? "var(--dsw-alias-bg-base)" : "var(--dsw-alias-label-secondary)",
+				marginInlineStart: enabled ? "auto" : 0,
+				marginInlineEnd: enabled ? 0 : "auto"
+			}
+		})), providerDisclosure(h, t, "OpenCode Zen", expanded, () => setExpanded(!expanded))), expanded ? h("div", { style: {
+			...styles$3.usage,
+			gap: 8
+		} }, h("p", {
 			role: "status",
 			style: styles$3.statusLine
-		}, failed || status?.registrationError ? t("zenUnavailable") : !status ? t("checking") : status.reachable ? t("zenReachable") : t("zenUnreachable")), status ? h("p", { style: styles$3.statusLine }, `${t("zenModelCount")}: ${status.modelCount} · ${t("zenSource_" + status.source)}`) : null));
+		}, t(!enabled ? "zenDisabled" : label)), status ? h("p", { style: styles$3.statusLine }, `${t("zenModelCount")}: ${status.modelCount} · ${t("zenSource_" + status.source)}`) : null, h("div", { style: {
+			...styles$3.actions,
+			justifyContent: "flex-end"
+		} }, h(primitives$1.Button ?? "button", {
+			type: "button",
+			disabled: pending,
+			onClick: () => void refresh()
+		}, t("zenRefresh")))) : null));
 	};
 }
 
@@ -4729,8 +4981,8 @@ function createGrokCard(React, primitives$1, rpc, t) {
 	const Button = primitives$1.Button ?? "button";
 	const Input = primitives$1.Input ?? "input";
 	const DEFAULT_NAME = "Grok (Subscription)";
-	return function GrokCard({ presentation, onAdd, onComplete, onFlowState, onAccountsChange, revision } = {}) {
-		const [expanded, setExpanded] = React.useState(false);
+	return function GrokCard({ presentation, onComplete, onFlowState, onAccountsChange, revision, initialExpanded = false } = {}) {
+		const [expanded, setExpanded] = React.useState(initialExpanded);
 		const initialAuthRevision = React.useRef(null);
 		const [manager, setManager] = React.useState(false);
 		const [status, setStatus] = React.useState(null);
@@ -4782,7 +5034,7 @@ function createGrokCard(React, primitives$1, rpc, t) {
 			if (revision !== void 0) refreshStatus().catch(() => {});
 		}, [revision]);
 		React.useEffect(() => {
-			if (presentation === "group" || !status?.busy) return;
+			if (!status?.busy) return;
 			const timer = setInterval(() => {
 				refreshStatus().catch((failure) => {
 					if (alive.current) setError(failure.message);
@@ -4857,7 +5109,7 @@ function createGrokCard(React, primitives$1, rpc, t) {
 				onComplete?.();
 			}
 		}, [status]);
-		const busy = presentation !== "group" && status?.busy;
+		const busy = status?.busy;
 		React.useEffect(() => {
 			if (presentation !== "auth") return;
 			onFlowState?.({
@@ -4896,16 +5148,10 @@ function createGrokCard(React, primitives$1, rpc, t) {
 				setManager(false);
 				refreshStatus();
 			}
-		}) : null, part("card", styles$3.card, part("header", styles$3.cardHeader, h("span", {
-			"aria-hidden": true,
-			style: {
-				...styles$3.dot,
-				background: busy ? "var(--dsw-alias-state-warn-label)" : hasAccounts ? "var(--dsw-alias-state-success-primary)" : "var(--dsw-alias-label-dimmed)"
-			}
-		}), h("span", { style: styles$3.name }, name), presentation === "auth" ? null : button(t("accountsManage"), () => setManager(true), false, { style: { marginInlineStart: "auto" } }), status?.clientVersion ? h("span", {
+		}) : null, part("card", styles$3.card, presentation !== "auth" && part("header", styles$3.cardHeader, providerStatus(h, t, error || status?.registrationError ? "error" : busy ? "warning" : !status ? "checking" : status?.accounts?.length ? "ready" : "warning", error || status?.registrationError ? "providerAttention" : busy ? "loginProgress" : !status ? "checking" : status?.accounts?.length ? "providerConfigured" : "notLoggedIn"), presentation === "group" ? providerIdentity(h, t, name, status?.accounts ?? [], usage, status?.clientVersion) : h("span", { style: styles$3.name }, name), presentation === "auth" ? null : button(t("accountsManage"), () => setManager(true), false, { style: { marginInlineStart: "auto" } }), presentation === "group" ? providerDisclosure(h, t, name, expanded, () => setExpanded(!expanded)) : status?.clientVersion ? h("span", {
 			style: styles$3.clientVersion,
 			title: t("clientVersionHint")
-		}, "CLI ", h("bdi", { dir: "ltr" }, status.clientVersion.version), " · ", t(`source_${status.clientVersion.source}`)) : null), h("p", {
+		}, "CLI ", h("bdi", { dir: "ltr" }, status.clientVersion.version), " · ", t(`source_${status.clientVersion.source}`)) : null), (presentation === "auth" || presentation === "group" && status?.accounts?.length) && !busy && !status?.registrationError ? null : h("p", {
 			style: styles$3.statusLine,
 			role: "status"
 		}, status?.registrationError ? t("grokProviderUnavailable") : busy ? t("loginProgress") : hasAccounts ? `${status.accounts.length} ${t("connected")}` : status ? t("notLoggedIn") : t("checking")), status?.detail ? h("p", { style: styles$3.statusLine }, status.detail) : null, error ? h("p", {
@@ -4956,7 +5202,7 @@ function createGrokCard(React, primitives$1, rpc, t) {
 					inlineSize: `${percent}%`
 				} })));
 			})));
-		}), part("actions", styles$3.actions, presentation === "group" ? h(React.Fragment, null, button(`${status?.accounts?.length ?? 0} ${t("connected")}`, () => setExpanded(!expanded), false, { "aria-expanded": expanded }), button(t("addAccount"), onAdd)) : busy ? button(t("cancelLogin"), () => {
+		}), presentation !== "group" && part("actions", styles$3.actions, busy ? button(t("cancelLogin"), () => {
 			action(async () => {
 				await call("cancel");
 				setLogin(null);
@@ -5284,21 +5530,6 @@ function usageBarColor(usedPercent$1) {
 }
 
 //#endregion
-//#region src/usage-badge/host-icons.ts
-/** A decorative glyph the host lacks renders nothing rather than crashing. */
-const NoIcon = () => null;
-/**
-* Resolve one 16px glyph under either host naming.
-* @param icons - the host primitives module (`import * as`), read by name.
-* @param name - the glyph name without prefix or size, e.g. `Sparkle`.
-* @returns the host's component, or one rendering nothing.
-*/
-function hostIcon(icons, name) {
-	const exports$1 = icons;
-	return exports$1[`Icon${name}Regular`] ?? exports$1[`Icon${name}16`] ?? NoIcon;
-}
-
-//#endregion
 //#region src/usage-badge/host-modules.ts
 let primitives;
 let reactDom;
@@ -5350,15 +5581,20 @@ function useUsageBadgeMode() {
 
 //#endregion
 //#region src/usage-badge/SubscriptionUsageBadge.tsx
-/** DSH renamed the data icon in 0.1.7; retain older supported hosts too. */
-function usageBadgeIcon(icons) {
-	return hostIcon(icons, "DataOutline");
-}
-let resolvedIcon;
-/** The data glyph resolved from the host on first render (never at bundle load). */
+/** Owned usage chart glyph; no dependency on a host icon export. */
 function UsageBadgeIcon() {
-	resolvedIcon ??= usageBadgeIcon(hostPrimitives());
-	return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(resolvedIcon, {});
+	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("svg", {
+		width: "16",
+		height: "16",
+		viewBox: "0 0 24 24",
+		fill: "none",
+		stroke: "currentColor",
+		strokeWidth: "1.7",
+		strokeLinecap: "round",
+		strokeLinejoin: "round",
+		"aria-hidden": "true",
+		children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "M4 19V13M10 19V8M16 19V4M3 21h18" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "m3 8 6-4 6 2 6-4" })]
+	});
 }
 /** How often the badge re-reads usage; the server also shares its own cache/negative-cache across UI surfaces. */
 const USAGE_POLL_INTERVAL_MS = 15 * 6e4;
@@ -5444,7 +5680,7 @@ function compactSegment(d, model, t = fallbackTranslate) {
 		const parts$1 = matching.slice(0, 2).map((w) => `${w.kind === "weekly" ? t("usageWeekly") : t("usageWindow")} ${usedPercent(w)}%`);
 		return `${d.name} ${parts$1.join(" · ")}`;
 	}
-	const parts = windows.slice(0, 2).map((w) => `${windowLabel(w)} ${usedPercent(w)}%`);
+	const parts = windows.slice(0, 2).map((w) => `${w.scope || (w.kind === "session" ? t("usageSessionShort") : w.kind === "weekly" ? t("usageWeeklyShort") : t("usageWindow"))} ${usedPercent(w)}%`);
 	if (windows.length > 2) parts.push(`+${windows.length - 2}`);
 	return `${d.name} ${parts.join(" · ")}`;
 }
@@ -5486,7 +5722,7 @@ function usageWindowLabel(t, window$1) {
 }
 /**
 * The composer subscription-usage badge: a pill reading e.g.
-* `Codex 6d 1h 25%` for the current model's provider, opening a dialog with
+* `Codex 5h 25% · Wk 40%` for the current model's provider, opening a dialog with
 * every provider's accounts and their windows. Returns null when no data is
 * available.
 */
@@ -5500,6 +5736,12 @@ function SubscriptionUsageBadge({ rpc, currentModel, t }) {
 	const badgeSelection = retainSubscriptionSelection(lastSubscription, selection);
 	const [open, setOpen] = (0, react.useState)(false);
 	const [hover, setHover] = (0, react.useState)(false);
+	const [focused, setFocused] = (0, react.useState)(false);
+	const tooltipId = (0, react.useId)();
+	const panelId = (0, react.useId)();
+	const tooltipRef = (0, react.useRef)(null);
+	const buttonRef = (0, react.useRef)(null);
+	const showTooltip = !open && (hover || focused);
 	const inflightRef = (0, react.useRef)(false);
 	const mountedRef = (0, react.useRef)(true);
 	const rootRef = (0, react.useRef)(null);
@@ -5654,17 +5896,30 @@ function SubscriptionUsageBadge({ rpc, currentModel, t }) {
 		gap: PANEL_GAP,
 		margin: PANEL_MARGIN
 	});
+	const tooltipPos = useAnchoredPosition({
+		open: showTooltip,
+		anchorRef: rootRef,
+		panelRef: tooltipRef,
+		side: "top",
+		gap: PANEL_GAP,
+		margin: PANEL_MARGIN
+	});
 	useDismissOnOutsidePointer(rootRef, open, setOpen, panelRef);
 	(0, react.useEffect)(() => {
-		if (!open) return;
+		if (!open && !showTooltip) return;
 		const onKeyDown = (event) => {
-			if (event.key === "Escape") setOpen(false);
+			if (event.key === "Escape") {
+				setOpen(false);
+				setHover(false);
+				setFocused(false);
+				if (open) buttonRef.current?.focus();
+			}
 		};
 		document.addEventListener("keydown", onKeyDown);
 		return () => {
 			document.removeEventListener("keydown", onKeyDown);
 		};
-	}, [open]);
+	}, [open, showTooltip]);
 	const [statsRow, setStatsRow] = (0, react.useState)(null);
 	(0, react.useEffect)(() => {
 		const seat$1 = seatRef.current;
@@ -5700,14 +5955,25 @@ function SubscriptionUsageBadge({ rpc, currentModel, t }) {
 	const toggle = () => {
 		const next = !open;
 		setOpen(next);
+		setHover(false);
+		setFocused(false);
 		if (next) refresh();
 	};
+	const close = () => {
+		setOpen(false);
+		setHover(false);
+		setFocused(false);
+		buttonRef.current?.focus();
+	};
+	const tooltipAccount = pillAccountOf(collapsed[0]);
+	const tooltipWindows = previewWindows(tooltipAccount.windows, badgeSelection?.model, collapsed[0].provider);
 	const pill = /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
 		ref: rootRef,
 		style: styles$1.anchor,
 		children: [
 			/* @__PURE__ */ (0, react_jsx_runtime.jsx)("style", { children: subscriptionChromeCss }),
 			/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("button", {
+				ref: buttonRef,
 				type: "button",
 				className: "majed-subscription-usage-pill",
 				style: {
@@ -5717,21 +5983,82 @@ function SubscriptionUsageBadge({ rpc, currentModel, t }) {
 				"aria-haspopup": "dialog",
 				"aria-expanded": open,
 				"aria-label": `${title} · ${label}`,
-				title,
+				"aria-describedby": showTooltip ? tooltipId : void 0,
+				"aria-controls": open ? panelId : void 0,
 				onMouseEnter: () => {
 					setHover(true);
 				},
 				onMouseLeave: () => {
 					setHover(false);
 				},
+				onFocus: () => {
+					if (!open) setFocused(true);
+				},
+				onBlur: () => {
+					setFocused(false);
+				},
+				onKeyDown: (event) => {
+					if (event.key === "Escape") {
+						setHover(false);
+						setFocused(false);
+					}
+				},
 				onClick: toggle,
-				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(UsageBadgeIcon, {}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(UsageBadgeIcon, {}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("bdi", {
 					style: styles$1.label,
 					children: label
 				})]
 			}),
+			showTooltip && hostReactDom().createPortal(/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+				ref: tooltipRef,
+				id: tooltipId,
+				role: "tooltip",
+				className: "majed-subscription-usage-tooltip",
+				style: {
+					...styles$1.tooltip,
+					...tooltipPos ?? MEASURE_STYLE
+				},
+				onMouseEnter: () => {
+					setHover(true);
+				},
+				onMouseLeave: () => {
+					setHover(false);
+				},
+				children: [
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", {
+						style: styles$1.tooltipTitle,
+						children: title
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("bdi", {
+						style: styles$1.tooltipHint,
+						title: tooltipAccount.account,
+						children: tooltipAccount.account
+					}),
+					tooltipWindows.shown.map((w, i) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+						style: styles$1.tooltipRow,
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: usageWindowLabel(translate, w) }), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("bdi", {
+							style: {
+								display: "inline-flex",
+								alignItems: "center",
+								gap: 5
+							},
+							children: [
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)(UsageRing, { percent: usedPercent(w) }),
+								usedPercent(w),
+								"%",
+								w.resetsAt !== void 0 && ` · ${translate("usageBadgeReset", { time: windowLabel(w) })}`
+							]
+						})]
+					}, i)),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+						style: styles$1.tooltipHint,
+						children: translate("usageBadgeOpenDetails")
+					})
+				]
+			}), document.body),
 			open && hostReactDom().createPortal(/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 				ref: panelRef,
+				id: panelId,
 				role: "dialog",
 				"aria-label": title,
 				className: "majed-subscription-usage-panel",
@@ -5740,12 +6067,28 @@ function SubscriptionUsageBadge({ rpc, currentModel, t }) {
 					...pos ?? MEASURE_STYLE
 				},
 				children: [
-					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 						style: styles$1.title,
-						children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
 							style: styles$1.titleLabel,
 							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(UsageBadgeIcon, {}), title]
-						})
+						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+							type: "button",
+							className: "majed-subscription-usage-close",
+							"aria-label": translate("usageBadgeClose"),
+							onClick: close,
+							children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("svg", {
+								width: "16",
+								height: "16",
+								viewBox: "0 0 24 24",
+								fill: "none",
+								stroke: "currentColor",
+								strokeWidth: "1.5",
+								strokeLinecap: "round",
+								"aria-hidden": true,
+								children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "m6 6 12 12M6 18 18 6" })
+							})
+						})]
 					}),
 					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 						style: styles$1.titleRule,
@@ -5814,7 +6157,14 @@ function AccountMeta({ account, translate }) {
 			style: styles$1.defaultStar,
 			"aria-label": translate("defaultAccount"),
 			children: "★ "
-		}), parts.join(" · ")]
+		}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+			style: {
+				display: "flex",
+				flexDirection: "column",
+				gap: 2
+			},
+			children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("bdi", { children: parts[0] }), parts[1] && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: parts[1] })]
+		})]
 	});
 }
 /** Preview each account independently; all remaining quotas stay accessible. */
@@ -5835,6 +6185,35 @@ function AccountWindows({ windows, model, provider, translate }) {
 		}), rows(hidden)]
 	})] });
 }
+function UsageRing({ percent }) {
+	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("svg", {
+		width: "14",
+		height: "14",
+		viewBox: "0 0 20 20",
+		"aria-hidden": "true",
+		style: {
+			flexShrink: 0,
+			transform: "rotate(-90deg)"
+		},
+		children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("circle", {
+			cx: "10",
+			cy: "10",
+			r: "7",
+			fill: "none",
+			stroke: "var(--dsw-alias-border-l2)",
+			strokeWidth: "3"
+		}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("circle", {
+			cx: "10",
+			cy: "10",
+			r: "7",
+			fill: "none",
+			stroke: usageBarColor(percent),
+			strokeWidth: "3",
+			pathLength: "100",
+			strokeDasharray: `${percent} 100`
+		})]
+	});
+}
 /** One `dt`/`dd` pair: window name → `25% · 6d 1h`, with the bar underneath. */
 function WindowRow({ label, window: w }) {
 	const percent = usedPercent(w);
@@ -5845,18 +6224,18 @@ function WindowRow({ label, window: w }) {
 		}),
 		/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("dd", {
 			style: styles$1.dd,
-			children: [
-				percent,
-				"%",
-				w.resetsAt !== void 0 && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
-					style: styles$1.reset,
-					children: [" · ", windowLabel(w)]
-				})
-			]
+			children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", { children: [percent, "%"] }), w.resetsAt !== void 0 && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+				style: styles$1.reset,
+				children: [" · ", windowLabel(w)]
+			})]
 		}),
 		/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+			role: "progressbar",
+			"aria-label": label,
+			"aria-valuenow": percent,
+			"aria-valuemin": 0,
+			"aria-valuemax": 100,
 			style: styles$1.bar,
-			"aria-hidden": true,
 			children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", { style: {
 				...styles$1.barFill,
 				width: `${percent}%`,
@@ -5878,11 +6257,13 @@ const styles$1 = {
 	seat: { display: "none" },
 	anchor: {
 		minWidth: 0,
-		maxWidth: "100%",
-		display: "inline-flex"
+		maxWidth: "min(100%, 100vw - 24px)",
+		display: "inline-flex",
+		flexShrink: 1
 	},
 	pill: {
 		boxSizing: "border-box",
+		minWidth: 0,
 		maxWidth: "100%",
 		color: "var(--dsw-alias-label-tertiary)",
 		font: "inherit",
@@ -5892,7 +6273,7 @@ const styles$1 = {
 		whiteSpace: "nowrap",
 		background: "transparent",
 		border: "none",
-		borderRadius: 999,
+		borderRadius: "var(--dsw-radius-sm, 8px)",
 		alignItems: "center",
 		gap: 6,
 		padding: "1px 8px",
@@ -5912,10 +6293,10 @@ const styles$1 = {
 		position: "fixed",
 		zIndex: 1100,
 		boxSizing: "border-box",
-		background: "var(--dsw-specific-menu)",
-		width: "max-content",
-		minWidth: "min(300px, 100vw - 24px)",
-		maxWidth: "min(440px, 100vw - 24px)",
+		background: "var(--dsw-specific-menu, var(--dsw-alias-bg-overlay))",
+		width: "min(400px, 100vw - 24px)",
+		minWidth: 0,
+		maxWidth: "calc(100vw - 24px)",
 		maxHeight: "min(560px, 100dvh - 24px)",
 		overflowY: "auto",
 		overscrollBehavior: "contain",
@@ -5927,6 +6308,40 @@ const styles$1 = {
 		padding: 16,
 		fontSize: 12,
 		lineHeight: "18px"
+	},
+	tooltip: {
+		position: "fixed",
+		zIndex: 1101,
+		boxSizing: "border-box",
+		width: "min(300px, 100vw - 24px)",
+		padding: "8px 10px",
+		borderRadius: "var(--dsw-radius-lg, 16px)",
+		background: "var(--dsw-specific-menu, var(--dsw-alias-bg-overlay))",
+		boxShadow: "var(--dsw-elevation-prominent)",
+		color: "var(--dsw-alias-label-secondary)",
+		fontSize: 12,
+		lineHeight: "18px",
+		display: "flex",
+		flexDirection: "column",
+		gap: 4,
+		overflowWrap: "anywhere",
+		maxHeight: "calc(100dvh - 24px)",
+		overflowY: "auto"
+	},
+	tooltipTitle: {
+		color: "var(--dsw-alias-label-primary)",
+		fontWeight: 500
+	},
+	tooltipRow: {
+		display: "flex",
+		justifyContent: "space-between",
+		flexWrap: "wrap",
+		gap: "2px 8px",
+		fontVariantNumeric: "tabular-nums"
+	},
+	tooltipHint: {
+		color: "var(--dsw-alias-label-tertiary)",
+		paddingBlockStart: 2
 	},
 	title: {
 		color: "var(--dsw-alias-label-primary)",
@@ -5955,13 +6370,16 @@ const styles$1 = {
 		display: "flex",
 		justifyContent: "space-between",
 		alignItems: "baseline",
-		gap: 16,
-		marginBottom: 6
+		flexWrap: "wrap",
+		gap: "4px 12px",
+		marginBottom: 8
 	},
 	providerName: {
 		color: "var(--dsw-alias-label-primary)",
 		fontWeight: 500,
 		display: "inline-flex",
+		flexWrap: "wrap",
+		overflowWrap: "anywhere",
 		alignItems: "center",
 		gap: 6
 	},
@@ -5977,9 +6395,11 @@ const styles$1 = {
 	providerMeta: {
 		color: "var(--dsw-alias-label-tertiary)",
 		minWidth: 0,
-		overflow: "hidden",
-		textOverflow: "ellipsis",
-		whiteSpace: "nowrap"
+		overflowWrap: "anywhere",
+		display: "inline-flex",
+		alignItems: "baseline",
+		gap: 4,
+		fontSize: 11
 	},
 	defaultStar: { color: "var(--dsw-alias-state-warn-label)" },
 	accountBlock: { marginTop: 8 },
@@ -5990,7 +6410,7 @@ const styles$1 = {
 	details: {
 		color: "var(--dsw-alias-label-tertiary)",
 		display: "grid",
-		gridTemplateColumns: "minmax(0, 1fr) max-content",
+		gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
 		gap: "4px 16px",
 		margin: 0
 	},
@@ -6010,7 +6430,8 @@ const styles$1 = {
 		margin: 0,
 		color: "var(--dsw-alias-label-secondary)",
 		fontVariantNumeric: "tabular-nums",
-		textAlign: "end"
+		textAlign: "end",
+		overflowWrap: "anywhere"
 	},
 	reset: { color: "var(--dsw-alias-label-tertiary)" },
 	bar: {
@@ -6146,7 +6567,6 @@ function applySubscriptions(root) {
 		const React = require("react");
 		const h = React.createElement;
 		const primitives$1 = require("@deepseek-ai/dsh-client-ui-primitives");
-		const { IconSettingsOutlineMedium } = primitives$1;
 		const NS = "majed.subscriptions";
 		isolate(() => ctx.effect(() => isolate(() => ctx.locale.register(NS, {
 			en: subscriptions$1,
@@ -6188,7 +6608,6 @@ function applySubscriptions(root) {
 		};
 		function UnifiedProviders() {
 			const [status, setStatus] = React.useState(null);
-			const [request, setRequest] = React.useState(null);
 			const [revision, setRevision] = React.useState(0);
 			const [error, setError] = React.useState(false);
 			const alive = React.useRef(true);
@@ -6222,33 +6641,37 @@ function applySubscriptions(root) {
 					copilot: "GitHub Copilot"
 				}[id]
 			}));
-			const rows = providers.filter(({ id }) => status?.providers?.[id]?.accounts?.length).map(({ id }) => h("li", {
+			const rows = providers.filter(({ id }) => status?.providers?.[id]?.accounts?.length).map(({ id }, index) => h("li", {
 				key: id,
 				"data-majed-subscription-row": id
 			}, h(providerCards[id], {
 				presentation: "group",
+				initialExpanded: index === 0,
 				revision,
-				onAccountsChange: refresh,
-				onAdd: () => setRequest({ provider: id })
+				onAccountsChange: refresh
 			})));
-			rows.push(h("li", {
-				key: "zen",
-				"data-majed-subscription-row": "zen"
-			}, h(ZenCard)));
-			return h(React.Fragment, null, error ? h("p", { role: "alert" }, t("unreachable")) : null, h(ApiProviders ?? SubscriptionProviders, { subscriptions: {
-				rows,
-				providers,
-				request,
-				renderAuth: (id, done, onFlowState) => id ? h(providerCards[id], {
-					key: id,
-					presentation: "auth",
-					onFlowState,
-					onComplete: () => {
-						done();
-						refresh();
-					}
-				}) : null
-			} }));
+			return h(React.Fragment, null, error ? h("p", { role: "alert" }, t("unreachable")) : null, h(SubscriptionProviders, {
+				showAPI: false,
+				showSubscriptionAdd: true,
+				subscriptions: {
+					rows,
+					providers,
+					renderAuth: (id, done, onFlowState) => id ? h(providerCards[id], {
+						key: id,
+						presentation: "auth",
+						onFlowState,
+						onComplete: () => {
+							done();
+							refresh();
+						}
+					}) : null
+				}
+			}), h("section", {
+				"data-majed-provider-group": "free",
+				className: "majed-provider-group",
+				style: { marginBlockStart: 24 },
+				"aria-label": t("freeProviders")
+			}, h("h3", { className: "majed-provider-title" }, t("freeProviders")), h("ul", { className: "majed-api-rows" }, h("li", null, h(ZenCard)))));
 		}
 		let present = false;
 		let failing = false;
@@ -6261,31 +6684,72 @@ function applySubscriptions(root) {
 				listeners.add(fn);
 				return () => listeners.delete(fn);
 			}, () => `${failing}:${referenceEnabled}:${!!ApiProviders}`);
-			return h("div", { style: {
-				textAlign: "start",
-				color: "var(--dsw-alias-label-primary)",
-				font: "var(--dsw-font-s-14)"
-			} }, referenceEnabled ? h("p", { role: "status" }, t("coexistence")) : null, failing ? h("p", { role: "alert" }, t("unreachable")) : null, h("details", {
-				"data-majed-settings": true,
+			return h("div", {
+				className: "majed-subscriptions-page",
 				style: {
+					display: "flex",
+					flexDirection: "column",
+					gap: 24,
 					maxInlineSize: 720,
-					paddingBlock: "var(--dsw-spacing-4)"
+					minInlineSize: 0,
+					textAlign: "start",
+					color: "var(--dsw-alias-label-primary)",
+					fontSize: 14,
+					lineHeight: "22px"
 				}
-			}, h("summary", { style: {
-				cursor: "pointer",
-				font: "var(--dsw-font-s-strong-14)"
-			} }, t("pageSettings")), h("div", { style: {
-				display: "flex",
-				flexDirection: "column",
-				gap: 12,
-				paddingBlockStart: "var(--dsw-spacing-3)"
-			} }, h(GuardedProxy, {
+			}, h("style", null, controlCss + `
+          .majed-subscriptions-page .majed-page-settings>h3{margin:0;font-size:16px;line-height:24px;font-weight:500}
+          .majed-subscriptions-page .majed-page-settings-content{display:flex;flex-direction:column;gap:12px;padding-block-start:12px}
+          .majed-subscriptions-page .majed-proxy-settings{padding:14px 16px;border:0.5px solid var(--dsw-alias-settings-card-stroke,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-xl,20px);background:var(--dsw-alias-settings-card-fill,var(--dsw-alias-bg-layer-2))}
+          .majed-subscriptions-page .majed-proxy-settings header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+          .majed-subscriptions-page .majed-proxy-settings p{margin:8px 0 0;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px;overflow-wrap:anywhere}
+        `), h("header", {
+				className: "majed-providers-identity",
+				style: {
+					display: "flex",
+					alignItems: "center",
+					gap: 8
+				}
+			}, h("svg", {
+				width: 20,
+				height: 20,
+				viewBox: "0 0 24 24",
+				fill: "none",
+				stroke: "currentColor",
+				strokeWidth: 1.5,
+				strokeLinecap: "round",
+				strokeLinejoin: "round",
+				"aria-hidden": true,
+				style: { flexShrink: 0 }
+			}, h("rect", {
+				x: 8,
+				y: 8,
+				width: 8,
+				height: 8,
+				rx: 2
+			}), h("path", { d: "M12 3v5m0 8v5M3 12h5m8 0h5M5 5l3 3m8 8 3 3M19 5l-3 3M8 16l-3 3" })), h("h2", { style: {
+				margin: 0,
+				fontSize: 18,
+				lineHeight: "26px",
+				fontWeight: 500,
+				overflowWrap: "anywhere"
+			} }, t("title"))), referenceEnabled ? h("p", { role: "status" }, t("coexistence")) : null, failing ? h("p", { role: "alert" }, t("unreachable")) : null, h("section", {
+				"data-majed-settings": true,
+				className: "majed-page-settings"
+			}, h("h3", null, t("pageSettings")), h("div", { className: "majed-page-settings-content" }, h(GuardedProxy, {
 				rpc: connection.rpc,
 				t
 			}), h(GuardedSetting, { t }))), h("section", { style: {
-				paddingBlock: "var(--dsw-spacing-4)",
-				borderBlockEnd: "1px solid var(--dsw-alias-border-l2)"
-			} }, h("h3", { style: { font: "var(--dsw-font-s-strong-14)" } }, t("providers")), h(UnifiedProviders)));
+				display: "flex",
+				flexDirection: "column",
+				gap: 12,
+				minInlineSize: 0
+			} }, h("p", { style: {
+				margin: 0,
+				color: "var(--dsw-alias-label-secondary)",
+				fontSize: 13,
+				lineHeight: "20px"
+			} }, t("providersHint")), h(UnifiedProviders)));
 		}
 		const models = () => ctx.get("modelDirectories");
 		const surfaceWanted = () => !disposed && present && !referenceEnabled;

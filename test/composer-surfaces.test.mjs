@@ -58,7 +58,7 @@ const translator = locale => (key, params = {}) => Object.entries(params).reduce
 const textOf = node => typeof node === 'string' ? node : (node.children ?? []).map(textOf).join('');
 async function mount(element) {
   let renderer;
-  await act(async () => { renderer = Renderer.create(element, { createNodeMock: () => ({ parentElement: null, contains: () => true, isConnected: true }) }); });
+  await act(async () => { renderer = Renderer.create(element, { createNodeMock: () => ({ parentElement: null, contains: () => true, isConnected: true, focus() {} }) }); });
   return renderer;
 }
 const tick = () => act(async () => { await Promise.resolve(); await Promise.resolve(); });
@@ -157,6 +157,40 @@ function installHost() {
 }
 for (const locale of ['en', 'ar']) {
   const t = translator(locale);
+  test(`usage presentation keeps reset details in an accessible tooltip and opens the full menu (${locale})`, () => withWindow(async () => {
+    installHost();
+    const rpc = rpcDouble({ usage: () => ({ ok: true, value: { supported: true, windows: [
+      { kind: 'session', usedPercent: 36, resetsAt: Date.now() + 3 * 3600000 },
+      { kind: 'weekly', usedPercent: 56, resetsAt: Date.now() + 5 * 86400000 },
+    ] } }) });
+    const page = await mount(React.createElement(SubscriptionUsageBadge, { rpc, t, currentModel: async () => ({ provider: 'codex', model: 'gpt-test' }) }));
+    try {
+      await tick(); await tick();
+      const pill = page.root.findByProps({ className: 'majed-subscription-usage-pill' });
+      assert.equal(textOf(pill), `Codex ${t('usageSessionShort')} 36% · ${t('usageWeeklyShort')} 56%`);
+      assert.equal(pill.props.title, undefined, 'no duplicate native tooltip');
+      await act(async () => pill.props.onFocus());
+      const tooltip = page.root.findByProps({ role: 'tooltip' });
+      assert.equal(pill.props['aria-describedby'], tooltip.props.id);
+      assert.equal(tooltip.findAllByType('circle').length, 4, 'hover has two circular quota indicators');
+      assert.equal(tooltip.findAllByProps({ role: 'progressbar' }).length, 0);
+      assert.ok(textOf(tooltip).includes('one@example.test'));
+      assert.ok(textOf(tooltip).includes(t('usageBadgeReset', { time: '' })));
+      assert.ok(textOf(tooltip).includes(t('usageBadgeOpenDetails')));
+      await act(async () => pill.props.onKeyDown({ key: 'Escape' }));
+      assert.equal(page.root.findAllByProps({ role: 'tooltip' }).length, 0);
+      await act(async () => pill.props.onClick()); await tick();
+      assert.equal(page.root.findAllByProps({ role: 'tooltip' }).length, 0);
+      const panel = page.root.findByProps({ role: 'dialog' });
+      assert.ok(textOf(panel).includes('one@example.test') && textOf(panel).includes('two@example.test'));
+      assert.ok(panel.findAllByType('dd').some(node => textOf(node).includes('36%')));
+      assert.ok(panel.findAllByProps({ role: 'progressbar' }).length >= 2, 'opened menu keeps linear quota bars');
+      assert.equal(panel.findAllByType('circle').length, 0, 'rings belong only to hover');
+      await act(async () => page.root.findByProps({ 'aria-label': t('usageBadgeClose') }).props.onClick());
+      assert.equal(page.root.findAllByProps({ role: 'dialog' }).length, 0);
+      assert.ok(rpc.calls.filter(c => c.method.endsWith('.usage')).every(c => c.payload.force === false));
+    } finally { await act(async () => page.unmount()); }
+  }));
   test(`usage badge auto-loads every account without forcing, shows the default account and expands to all windows (${locale})`, () => withWindow(async () => {
     installHost();
     const rpc = rpcDouble();

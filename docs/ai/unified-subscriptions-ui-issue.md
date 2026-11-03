@@ -1,6 +1,18 @@
 # Subscriptions (Majed): one native-style provider list and inline three-mode Add
 
-## Status and work contract
+## Final Owner-approved disposition — 2026-11-03
+
+The authoritative final scope is the approved #138 section at the top of ../specs/subscriptions.md. It supersedes both amendments below: AI Providers contains always-visible Settings, configured subscription groups with one bottom inline subscription Add, then separate Free providers/Zen with persisted enablement. Native Models remains the API surface; the existing API controller remains retained but is not rendered here. Composer hover rings/full-menu linear bars, responsive localized usage presentation, Proxy dialog alignment and the general modules icon are included. Owner authorized final review/publication and conditional merge/closure; acceptance evidence is still being reconciled, not waived.
+
+## Historical Owner-approved amendment — 2026-11-02
+
+The Owner reviewed the earlier candidate and approved separating Subscription providers and API providers while explicitly retaining DSH design. This amendment supersedes the historical one-mixed-list/three-mode-Add topology below, not the preservation or safety contract. Each group has its own inline Add entry; only one flow may be open. Subscription Add owns provider/auth selection; API Add owns catalog/custom modes and their safe drafts. Completion/cancel returns focus to the originating entry. Configured Add account preselects the existing subscription flow.
+
+Each subscription provider has one keyboard-operable disclosure with a single account count and available default-account plan. The first configured provider starts expanded; others start collapsed. Expanded content retains account identity/default/expiry, real usage names/percent/bars/reset information and existing actions. Healthy account counts are not repeated as a separate status line; busy/unavailable/setup errors remain visible. Zen remains loginless. DSH semantic styling, inherited typography and native control conventions remain authoritative; the supplied concept is an information-hierarchy reference, not a replacement visual theme.
+
+Local focused component/build verification is recorded in current-work.md. Completed authentication matrices remain credited, not repeated; their selectors are reconciled to the approved entry/count topology. The previous synthetic DOM captures predate this amendment. Fresh visual/installed/live acceptance and full #138 closure remain open; no installed/account/paid operations are authorized by this amendment.
+
+## Historical status and work contract
 
 Ready for Lead publication; NOT published. Owner completed shape discovery/confirmation, approved the unified list and inline three-mode Add, delegated global placement, and explicitly authorized execution. No repeat questionnaire is required. This first slice is planning/documentation only, at HEAD `ee021a2bc3f06bbc53326362f4233bdf249d3bbb`; no UI/runtime edits, commit, push, package or installation. Preserve dirty current-work and both untracked research reports.
 

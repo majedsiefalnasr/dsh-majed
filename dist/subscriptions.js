@@ -159,7 +159,8 @@ function readLoginMethod(payload, provider) {
 /** Endpoints that serve Claude; every other endpoint (speed, reset, proxy, image, video) stays Codex-only. */
 const CLAUDE_ENDPOINTS = new Set(['status', 'login', 'manual', 'cancel', 'logout', 'setDefault', 'usage', 'providerSettings', 'setProviderSettings', 'modelDefaults', 'setModelDefault']);
 export function apply(ctx, config = {}, options = {}) {
-    const zen = new ZenAdapter();
+    const preferences = new ProviderSettingsStore();
+    const zen = new ZenAdapter(() => preferences.zenEnabled());
     let zenRegistrationError = false;
     try {
         ctx.llm.registerAdapter(['opencode-zen'], zen);
@@ -170,7 +171,6 @@ export function apply(ctx, config = {}, options = {}) {
     ctx.effect(() => () => zen.dispose(), 'dsh-majed: zen disposal');
     const claudeCredsIo = options.claudeCredsIo ?? SYSTEM_CLAUDE_CREDS_IO;
     const claudeIdentity = { profile: options.claudeProfile ?? fetchClaudeProfile };
-    const preferences = new ProviderSettingsStore();
     void loadModelDefaults().catch(() => ctx.logger.warn('dsh-majed: model defaults unavailable'));
     const flows = new OAuthFlowManager();
     const version = new CodexClientVersionCache();
@@ -583,7 +583,7 @@ export function apply(ctx, config = {}, options = {}) {
     };
     ctx.inject(['connection'], ctx => {
         const connection = ctx.get('connection');
-        const endpoints = ['zenStatus', 'image', 'video', 'status', 'login', 'manual', 'cancel', 'logout', 'setDefault', 'usage', 'prepareReset', 'consumeReset', 'providerSettings', 'setProviderSettings', 'modelDefaults', 'setModelDefault', 'proxyGet', 'proxySet', 'proxyTest', 'speed', 'setSpeed'];
+        const endpoints = ['zenStatus', 'setZenEnabled', 'image', 'video', 'status', 'login', 'manual', 'cancel', 'logout', 'setDefault', 'usage', 'prepareReset', 'consumeReset', 'providerSettings', 'setProviderSettings', 'modelDefaults', 'setModelDefault', 'proxyGet', 'proxySet', 'proxyTest', 'speed', 'setSpeed'];
         for (const endpoint of endpoints) {
             const NS = 'majed-subscriptions.';
             const method = `${NS}${endpoint}`;
@@ -614,6 +614,12 @@ export function apply(ctx, config = {}, options = {}) {
                             throw new Error('Only Codex is available');
                         let value = { ok: true };
                         switch (endpoint) {
+                            case 'setZenEnabled':
+                                if (typeof payload.enabled !== 'boolean')
+                                    throw new Error('enabled must be a boolean');
+                                await preferences.setZenEnabled(payload.enabled);
+                                value = { ...zen.snapshot(), registrationError: zenRegistrationError };
+                                break;
                             case 'zenStatus':
                                 value = { ...await zen.status(request.signal), registrationError: zenRegistrationError };
                                 break;

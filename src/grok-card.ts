@@ -1,5 +1,5 @@
 import { ProviderAccountManager } from './settings/ProviderAccountManager.js';
-import { controlCss, styles } from './codex-card.js';
+import { controlCss, providerDisclosure, providerIdentity, providerStatus, styles } from './codex-card.js';
 /**
  * Grok Settings card (ticket #133). Scoped presentation port of the Grok part of V1ki v0.9.12 b802311
  * SubscriptionsSection; see PROVENANCE.md. It only ever receives sanitized status from the owned RPC: account
@@ -10,8 +10,8 @@ export function createGrokCard(React: any, primitives: any, rpc: any, t: (key: s
   const Button = primitives.Button ?? 'button';
   const Input = primitives.Input ?? 'input';
   const DEFAULT_NAME = 'Grok (Subscription)';
-  return function GrokCard({ presentation, onAdd, onComplete, onFlowState, onAccountsChange, revision }: any = {}) {
-    const [expanded, setExpanded] = React.useState(false);
+  return function GrokCard({ presentation, onComplete, onFlowState, onAccountsChange, revision, initialExpanded = false }: any = {}) {
+    const [expanded, setExpanded] = React.useState(initialExpanded);
     const initialAuthRevision = React.useRef(null as number | null);
     const [manager, setManager] = React.useState(false);
     const [status, setStatus] = React.useState(null);
@@ -46,7 +46,7 @@ export function createGrokCard(React: any, primitives: any, rpc: any, t: (key: s
     }, []);
     React.useEffect(() => { if (revision !== undefined) void refreshStatus().catch(() => {}); }, [revision]);
     React.useEffect(() => {
-      if (presentation === 'group' || !status?.busy) return;
+      if (!status?.busy) return;
       const timer = setInterval(() => { void refreshStatus().catch((failure: Error) => { if (alive.current) setError(failure.message); }); }, 2000);
       return () => clearInterval(timer);
     }, [status?.busy]);
@@ -97,7 +97,7 @@ export function createGrokCard(React: any, primitives: any, rpc: any, t: (key: s
         onComplete?.();
       }
     }, [status]);
-    const busy = presentation !== 'group' && status?.busy;
+    const busy = status?.busy;
     React.useEffect(() => {
       if (presentation !== 'auth') return;
       onFlowState?.({ busy: pending || !!busy, cancel: async () => {
@@ -112,12 +112,12 @@ export function createGrokCard(React: any, primitives: any, rpc: any, t: (key: s
       h('style', null, controlCss),
       manager ? h(ProviderAccountManager, { provider: 'grok', name, rpc, t, onClose: () => { setManager(false); void refreshStatus(); } }) : null,
       part('card', styles.card,
-        part('header', styles.cardHeader,
-          h('span', { 'aria-hidden': true, style: { ...styles.dot, background: busy ? 'var(--dsw-alias-state-warn-label)' : hasAccounts ? 'var(--dsw-alias-state-success-primary)' : 'var(--dsw-alias-label-dimmed)' } }),
-          h('span', { style: styles.name }, name),
+        presentation !== 'auth' && part('header', styles.cardHeader,
+          providerStatus(h, t, error || status?.registrationError ? 'error' : busy ? 'warning' : !status ? 'checking' : status?.accounts?.length ? 'ready' : 'warning', error || status?.registrationError ? 'providerAttention' : busy ? 'loginProgress' : !status ? 'checking' : status?.accounts?.length ? 'providerConfigured' : 'notLoggedIn'),
+          presentation === 'group' ? providerIdentity(h, t, name, status?.accounts ?? [], usage, status?.clientVersion) : h('span', { style: styles.name }, name),
           presentation === 'auth' ? null : button(t('accountsManage'), () => setManager(true), false, { style: { marginInlineStart: 'auto' } }),
-          status?.clientVersion ? h('span', { style: styles.clientVersion, title: t('clientVersionHint') }, 'CLI ', h('bdi', { dir: 'ltr' }, status.clientVersion.version), ' · ', t(`source_${status.clientVersion.source}`)) : null),
-        h('p', { style: styles.statusLine, role: 'status' }, status?.registrationError ? t('grokProviderUnavailable') : busy ? t('loginProgress') : hasAccounts ? `${status.accounts.length} ${t('connected')}` : status ? t('notLoggedIn') : t('checking')),
+          presentation === 'group' ? providerDisclosure(h, t, name, expanded, () => setExpanded(!expanded)) : status?.clientVersion ? h('span', { style: styles.clientVersion, title: t('clientVersionHint') }, 'CLI ', h('bdi', { dir: 'ltr' }, status.clientVersion.version), ' · ', t(`source_${status.clientVersion.source}`)) : null),
+        (presentation === 'auth' || (presentation === 'group' && status?.accounts?.length)) && !busy && !status?.registrationError ? null : h('p', { style: styles.statusLine, role: 'status' }, status?.registrationError ? t('grokProviderUnavailable') : busy ? t('loginProgress') : hasAccounts ? `${status.accounts.length} ${t('connected')}` : status ? t('notLoggedIn') : t('checking')),
         status?.detail ? h('p', { style: styles.statusLine }, status.detail) : null,
         error ? h('p', { style: styles.errorLine, role: 'alert' }, error) : null,
         ...(presentation === 'auth' || (presentation === 'group' && !expanded) ? [] : status?.accounts ?? []).map((account: any) => {
@@ -144,10 +144,8 @@ export function createGrokCard(React: any, primitives: any, rpc: any, t: (key: s
                     h('div', { style: { ...styles.usageFill, background: color, inlineSize: `${percent}%` } })));
               })));
         }),
-        part('actions', styles.actions,
-          presentation === 'group' ? h(React.Fragment, null,
-            button(`${status?.accounts?.length ?? 0} ${t('connected')}`, () => setExpanded(!expanded), false, { 'aria-expanded': expanded }),
-            button(t('addAccount'), onAdd)) : busy ? button(t('cancelLogin'), () => { void action(async () => { await call('cancel'); setLogin(null); await refreshStatus(); }); })
+        presentation !== 'group' && part('actions', styles.actions,
+          busy ? button(t('cancelLogin'), () => { void action(async () => { await call('cancel'); setLogin(null); await refreshStatus(); }); })
             : button(t(hasAccounts ? 'addAccountOAuth' : 'login'), () => startLogin(), !!status?.registrationError)),
         busy ? h('div', null,
           (status.pendingAuth ?? login)?.authorizeUrl ? h('a', { href: (status.pendingAuth ?? login).authorizeUrl, target: '_blank', rel: 'noopener noreferrer', style: styles.manual }, t('openAuthorization')) : null,

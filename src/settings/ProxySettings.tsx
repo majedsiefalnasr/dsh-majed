@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { callSubscriptionsAuth } from './subscriptions-rpc.js'
+import { providerSettingsCss } from './provider-settings-styles.js'
 
 /** Draft/test/save behavior ported from v0.9.12 SubscriptionsSection. Password never pre-fills. */
 export function ProxySettings({ rpc, t }: { rpc: any; t: (key: string, params?: any) => string }) {
@@ -36,16 +37,19 @@ export function ProxySettings({ rpc, t }: { rpc: any; t: (key: string, params?: 
     <header><strong>{t('proxyTitle')}</strong> <button type="button" disabled={!view} onClick={() => { setDraft({ ...view, username: view.username ?? '', password: '', clearPassword: false, bypass: view.bypass.join(', ') }); setError(''); setResult(undefined); setOpen(true) }}>{t('proxyConfigure')}</button></header>
     <p role="status">{view ? view.error ? t('proxyStatusError', { message: view.error }) : view.enabled ? t('proxyStatusEnabled', { url: view.url }) : t('proxyStatusNone') : t('proxyLoading')}</p>
     {error && !open && <p role="alert">{error}</p>}
-    {open && <dialog ref={dialog} aria-labelledby="majed-proxy-title" onCancel={close} style={{ maxInlineSize: 560, inlineSize: 'calc(100% - 32px)' }}>
-      <h3 id="majed-proxy-title">{t('proxyDialogTitle')}</h3>
+    {open && <dialog className="majed-subscription-manager majed-proxy-dialog" ref={dialog} aria-labelledby="majed-proxy-title" onCancel={close} style={{ width: 620, maxWidth: 'calc(100vw - 32px)', maxHeight: 'calc(100dvh - 32px)', overflow: 'auto' }}>
+      <style>{providerSettingsCss}</style>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: 20, minWidth: 0 }}>
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}><h2 id="majed-proxy-title" style={{ margin: 0 }}>{t('proxyDialogTitle')}</h2><button type="button" onClick={close}>{t('imageClose')}</button></header>
       <div style={{ display: 'grid', gap: 12 }}>
         <label><input type="checkbox" checked={draft.enabled} onChange={event => field('enabled', event.target.checked)} />{t('proxyEnabled')}</label>
-        {['url', 'username', 'password', 'bypass'].map(key => <label key={key} style={{ display: 'grid', gap: 4 }}>{t(`proxy${key[0].toUpperCase()}${key.slice(1)}`)}<input type={key === 'password' ? 'password' : 'text'} autoComplete="off" dir={key === 'url' ? 'ltr' : undefined} value={draft[key]} onChange={event => field(key, event.target.value)} /><small>{t(`proxy${key[0].toUpperCase()}${key.slice(1)}Hint`)}</small></label>)}
+        {['url', 'username', 'password', 'bypass'].map(key => <label key={key} style={{ display: 'grid', gap: 6, minWidth: 0 }}>{t(`proxy${key[0].toUpperCase()}${key.slice(1)}`)}<input type={key === 'password' ? 'password' : 'text'} autoComplete="off" dir={key === 'url' ? 'ltr' : undefined} value={draft[key]} onChange={event => field(key, event.target.value)} /><small className="majed-subscription-hint">{t(`proxy${key[0].toUpperCase()}${key.slice(1)}Hint`)}</small></label>)}
         <label><input type="checkbox" checked={draft.clearPassword} onChange={event => field('clearPassword', event.target.checked)} />{t('proxyClearPassword')}</label>
-        <p>{t('proxyNote')}</p>
+        <p className="majed-subscription-hint">{t('proxyNote')}</p>
         {error && <p role="alert">{error}</p>}
         {result && <p role="status">{result.ok ? t(result.viaProxy ? 'proxyTestOk' : 'proxyTestOkDirect', { status: String(result.status), ms: String(result.latencyMs) }) : t('proxyTestFail', { message: result.error ?? '' })}</p>}
-        <footer><button type="button" disabled={!!busy} onClick={() => void run(true)}>{t(busy === 'test' ? 'proxyTesting' : 'proxyTest')}</button> <button type="button" disabled={!!busy} onClick={() => void run(false)}>{t(busy === 'save' ? 'proxySaving' : 'proxySave')}</button> <button type="button" onClick={close}>{t('proxyCancel')}</button></footer>
+        <footer style={{ display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 8 }}><button type="button" disabled={!!busy} onClick={() => void run(true)}>{t(busy === 'test' ? 'proxyTesting' : 'proxyTest')}</button> <button type="button" disabled={!!busy} onClick={() => void run(false)}>{t(busy === 'save' ? 'proxySaving' : 'proxySave')}</button> <button type="button" onClick={close}>{t('proxyCancel')}</button></footer>
+      </div>
       </div>
     </dialog>}
   </section>
