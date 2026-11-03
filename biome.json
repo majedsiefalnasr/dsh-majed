@@ -1,0 +1,40 @@
+{
+  "files": {
+    "includes": [
+      "src/**",
+      "scripts/*.mjs",
+      "scripts/*.tsx",
+      "test/**",
+      "index.js",
+      "client.js",
+      "tsdown.config.ts",
+      "package.json",
+      "tsconfig*.json",
+      "biome.json",
+      "!test/reference/**",
+      "!src/providers/antigravity-oauth-client.ts"
+    ]
+  },
+  "formatter": { "enabled": true, "indentStyle": "space", "indentWidth": 2 },
+  "javascript": { "formatter": { "quoteStyle": "single" } },
+  "assist": { "enabled": false },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "none",
+      "correctness": {
+        "noUnreachable": "error",
+        "noUnsafeFinally": "error",
+        "noConstantCondition": "error"
+      },
+      "suspicious": {
+        "noDuplicateCase": "error",
+        "noDuplicateClassMembers": "error",
+        "noDuplicateParameters": "error",
+        "noDebugger": "error",
+        "noCompareNegZero": "error",
+        "noUnsafeNegation": "error"
+      }
+    }
+  }
+}

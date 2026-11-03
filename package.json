@@ -63,9 +63,16 @@
   "scripts": {
     "build": "tsc && tsdown && node scripts/assemble-client.mjs",
     "test": "node scripts/prepare-test-dirs.mjs && node scripts/classifier-test-adapter.mjs && node test/classify.test.cjs && tsc -p tsconfig.reference.json && node --test lib-test/test/reference/*.spec.js test/*.test.mjs",
-    "check:build": "node scripts/check-build.mjs"
+    "check:build": "node scripts/check-build.mjs",
+    "format": "node scripts/quality.mjs format",
+    "format:check": "node scripts/quality.mjs format:check",
+    "lint": "node scripts/quality.mjs lint",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.reference.json --noEmit",
+    "quality": "npm run format:check && npm run lint && npm run typecheck",
+    "ci": "npm run quality && npm test && npm run check:build"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.6.4",
     "@deepseek-ai/cordis": "^4.0.5",
     "@deepseek-ai/dsh-attachment": "^0.2.1-rc.2",
     "@deepseek-ai/dsh-client-connection": "^0.2.1-rc.2",
