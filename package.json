@@ -16,7 +16,7 @@
   "author": "Majed Sief Alnasr",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/majedsiefalnasr/dsh-majed.git"
+    "url": "git+https://github.com/majedsiefalnasr/dsh-waycraft.git"
   },
   "exports": {
     ".": "./index.js",
