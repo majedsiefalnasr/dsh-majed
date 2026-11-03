@@ -52,7 +52,7 @@ import { createVideoGenerateTool, videosDirectory } from './tools/video-generate
 import { createXSearchTool } from './tools/x-search.js';
 import { presentedVersion } from './providers/npm-cli-version.js';
 
-export const name = 'dsh-majed/subscriptions';
+export const name = 'dsh-waycraft/subscriptions';
 export const inject = ['llm'];
 /** Bound on one account's catalog read while assembling pools: a hung account sits out instead of failing the pool. */
 export const POOL_USAGE_TIMEOUT_MS = DISCOVERY_TIMEOUT_MS;

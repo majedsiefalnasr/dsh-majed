@@ -1,4 +1,4 @@
-# dsh-majed
+# Waycraft for DSH
 
 A single plugin for DeepSeek Harness (DSH) that adds app-wide preferences and, one component at a time, larger features such as Subscriptions.
 
@@ -9,7 +9,7 @@ The authenticated person who administers the DSH instance, locally or through th
 _Avoid_: Admin, user
 
 **Component**:
-One feature of dsh-majed declared as its own DSH Loader row, listed on the Plugins page under "Components" with its own switch.
+One feature of Waycraft for DSH declared as its own DSH Loader row, listed on the Plugins page under "Components" with its own switch.
 _Avoid_: Module, sub-plugin, manager
 
 **Core component**:
@@ -17,7 +17,7 @@ The `majed` row that carries the 0.2.0 preferences and the plugin's only browser
 _Avoid_: Main plugin, base module
 
 **Reference plugin**:
-A third-party plugin used as the source of behavior and code for a dsh-majed component. An installed reference stays as the Owner's fallback until the Owner accepts the replacement and removes it.
+A third-party plugin used as the source of behavior and code for a Waycraft for DSH component. An installed reference stays as the Owner's fallback until the Owner accepts the replacement and removes it.
 _Avoid_: Dependency, companion
 
 **Provenance record**:

@@ -1,15 +1,15 @@
 ---
-name: DSH-aligned Majed interfaces
-description: Source-backed design reference for all Majed features, with explicit external-plugin reuse boundaries.
+name: DSH-aligned Waycraft interfaces
+description: Source-backed design reference for all Waycraft features, with explicit external-plugin reuse boundaries.
 ---
 
-# Design System: DSH-aligned Majed interfaces
+# Design System: DSH-aligned Waycraft interfaces
 
 ## Overview
 
 **North Star: belong to DeepSeek Harness, not a second application inside it.**
 
-This is the shared reference for future Majed settings, tools, dialogs and other approved extension surfaces—not just Subscriptions. Use DSH's visual language, semantic theme and interaction conventions without patching the host or inventing a separate brand. A feature specification still decides what a surface does; this document decides how it should fit its host.
+This is the shared reference for future Waycraft settings, tools, dialogs and other approved extension surfaces—not just Subscriptions. Use DSH's visual language, semantic theme and interaction conventions without patching the host or inventing a separate brand. A feature specification still decides what a surface does; this document decides how it should fit its host.
 
 **Evidence baseline:** packaged DSH UI modules `0.2.1-rc.5`, inspected read-only on 2026-11-02. The separately inspected published primitives package is `0.2.1-rc.3`, not proof of installed rc.5 availability. Exact files, hashes, source regions, licensing and limitations are in the [source record](docs/research/dsh-design-source-2026-11-02.md). Source observations below are examples, not a claim that every native screen uses one universal size or component.
 
@@ -19,9 +19,9 @@ Authority order: the installed version's supported extension contract; its seman
 
 - **Supported public extension:** use a documented, version-compatible service, slot or primitive only when its availability to an external plugin is established. Test its loading, lifecycle and fallback at that seam.
 - **DSH-internal shared component:** a source export or published package can be useful for DSH's own development without being a supported external-plugin runtime dependency. Current external-plugin guidance explicitly warns against requiring Harness client packages. `dsh.client.inject` ordering does not make a private module a public API.
-- **Licensed adaptation:** if no supported reusable component is available, adapt the necessary markup, scoped CSS and behavior under Majed ownership after checking dependencies and license. Keep attribution and tests; Majed maintains that copy. Never reach into private closures, hashed class names or ASAR paths at runtime.
+- **Licensed adaptation:** if no supported reusable component is available, adapt the necessary markup, scoped CSS and behavior under Waycraft ownership after checking dependencies and license. Keep attribution and tests; Waycraft maintains that copy. Never reach into private closures, hashed class names or ASAR paths at runtime.
 
-The rc.5 native Models bundle exports activation functions, not its section/editor components. That does **not** prohibit reading or MIT-permitted adaptation of its code. It does mean that direct import of those components is not established. Existing Majed primitive imports are not changed or certified by this documentation task; reassess them in an approved compatibility slice, not via a silent dependency rewrite.
+The rc.5 native Models bundle exports activation functions, not its section/editor components. That does **not** prohibit reading or MIT-permitted adaptation of its code. It does mean that direct import of those components is not established. Existing Waycraft primitive imports are not changed or certified by this documentation task; reassess them in an approved compatibility slice, not via a silent dependency rewrite.
 
 The [unified Subscriptions brief](docs/ai/unified-subscriptions-ui-issue.md) owns that feature's mixed list, inline Add modes and placement decisions. Do not generalize its topology into a mandatory template for every future feature. The historical `.impeccable/design.json` sidecar is not the authority for this expanded source record and was not regenerated here.
 
@@ -73,7 +73,7 @@ For English and Arabic, preserve shaping and inherited direction. Use logical al
 
 Host settings navigation, application grid, titlebar clearances and global stacking belong to DSH. The observed settings shell's dimensions are not a plugin template. Mount only through an approved extension seam and fit the space it gives you.
 
-### Responsive and directional rules for Majed
+### Responsive and directional rules for Waycraft
 
 Use `min-width: 0`, wrapping, flexible columns and logical properties (`padding-inline`, `margin-inline-start`, etc.) at the responsible container. Stack dense fields/actions when necessary; keep important actions reachable without page-level horizontal scrolling. Native source contains physical left/right properties: adapt those rather than copying RTL defects.
 
@@ -101,13 +101,13 @@ Motion should explain state, not decorate a settings page. Theme defaults are 0.
 
 ### Selection and ownership
 
-The published rc.3 primitives declarations expose Button, Input, Switch, Checkbox, DisclosureRow, SegmentedControl, Modal, Menu, Tooltip, SettingsForm and rendering helpers. That inventory is design/API research, **not an external-plugin runtime allowlist**. Apply the reuse boundary in Overview before choosing any dependency. For an allowed direct primitive, pin and test its real contract. For an adaptation, own its implementation and accessibility under Majed-prefixed styles/IDs.
+The published rc.3 primitives declarations expose Button, Input, Switch, Checkbox, DisclosureRow, SegmentedControl, Modal, Menu, Tooltip, SettingsForm and rendering helpers. That inventory is design/API research, **not an external-plugin runtime allowlist**. Apply the reuse boundary in Overview before choosing any dependency. For an allowed direct primitive, pin and test its real contract. For an adaptation, own its implementation and accessibility under the retained `majed`-prefixed compatibility styles/IDs.
 
 Do not bind to native hashed CSS selectors, assume `apply` exports a React component, or mutate another plugin's registrations. Supported slots may permit composition without exposing their enclosing page's implementation. Verify each seam separately.
 
 ### Behavior to preserve
 
-| Pattern | Required behavior in Majed |
+| Pattern | Required behavior in Waycraft |
 | --- | --- |
 | Button / icon action | Real button semantics, accessible name, keyboard activation, visible focus and honest disabled/busy state; destructive action is distinct |
 | Input / secret field | Associated label/help/error; preserve drafts; secrets are write-only and never echoed as saved values; key metadata is separate from identity/service availability |

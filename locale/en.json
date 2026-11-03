@@ -1,7 +1,7 @@
 {
   "meta": {
-    "title": "Majed",
-    "description": "Bidirectional (RTL/LTR) text support for Arabic, Persian and Hebrew, GenUI RTL mirroring, and extra Settings > General options such as an app-UI font size."
+    "title": "Waycraft for DSH",
+    "description": "Interface and workflow enhancements for DeepSeek Harness: bidirectional text, appearance controls, notifications, approvals, subscription providers and account usage."
   },
   "subscriptions": {
     "pageSettings": "Settings",
