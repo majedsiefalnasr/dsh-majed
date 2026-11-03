@@ -1,0 +1,114 @@
+# #138 partial candidate verification
+
+## Offline real-controller outcome proof at b3fd8c9 — 2026-11-02
+
+Approved direct test/docs-only continuation; active seam is the registered actual section -> tracked RPC/React act -> real host controllers -> fake HTTP/injected Claude credential IO. No fabricated authRevision, product/auth/generated edits, browser/DOM/report edits, installed/profile/real-secret/live-provider/network operations, nested agents, push/merge/closure. Original admission tests remain unchanged.
+
+- All five providers: actual inline Add Cancel invokes the real cancellation route, restores Add, leaves zero persisted accounts and unchanged successful revision; reentry exercises token rejection, retained Add/error outcome, then successful retry with one account/group and cleared failure.
+- All five providers: token exchange is deliberately held, Add is cancelled and reentered, then the old successful HTTP response is released. The real controller cannot admit the old identity or increment authRevision; the reentered Add stays open, no group/stale callback appears, and no success-focus callback fires.
+- Claude: initial auto-import and explicit existing-account CLI import read genuine injected synthetic credential IO through actual UI/host handling. Same identity remains one account while real authRevision advances twice and Add/group refresh completes. Keychain and credential write-back remain forbidden sentinels.
+- Test-only fixture cleanup now runs on setup failure as well as ordinary disposal, restores global fetch/DSH_HOME in finally, releases held exchanges before restoring transport, and removes only the checked fixture-owned OS temporary home. Setup-failure path is defensive and not separately fault-injected in this slice.
+
+Commands/results: `node --test test/unified-host-flow-138.test.mjs` 16/16; `npm test` classifier166/166 and Node909/909; `npm run build`, `npm run check:build` (fresh bytes match), `git diff --check` all exit0. Logs: `ui138-outcomes-focused.log`, `ui138-outcomes-full.log`, `ui138-outcomes-build.log`, `ui138-outcomes-checkbuild.log`, `ui138-outcomes-diffcheck.log`. All cases retain the denied-HTTP assertion with zero denied requests; fake transport has no network fallback. New verification tests passed on first execution; no new product regression RED or product defect is claimed. One unexpected lookup failure (nonexistent `src/unified-subscriptions.ts`, grep exit2); one observation-policy reread required, not access bypass. Renewed budget did not reach cap.
+
+This closes the specifically requested offline actual UI/controller outcome gaps, NOT the whole acceptance matrix. New cases use EN renderer primitives and mock focus callbacks, not browser focus/keyboard/visual proof. Independent Standards/Spec review of this new test-only delta remains for Lead (prior review covered admission slice only); browser remains Owner-deferred. Exact URL/method audit of all older fake contracts, whole-DOM reconciliation, safe package/byte comparison and separately approved installed/restart/consolidated live acceptance remain separate. Unrelated untracked DOM fixtures, original candidate, detector outputs and historical synthetic workspace homes preserved/excluded. Local scoped commit only; unmerged/unpushed, no ticket-complete claim.
+
+## Test-only metadata-contract continuation — stopped 2026-11-01
+
+Owner renewed twenty minutes/two unexpected failures; read current scope/execution/state and issue brief plus both harness versions. Added exact synthetic metadata response for `https://models.dev/api.json`: `{ opencode: { models: {} } }`, matching the decoder in `src/providers/zen.ts:65-67`. Existing empty synthetic gateway catalog is unchanged. Denied-request throw/assertion remains intact, with no fetch fallback or live HTTP. Other existing fake contracts were not broadened; a comprehensive exact-URL/method audit remains unperformed.
+
+Workspace-only requirement prompted replacing the candidate temporary-home prefix with `new URL('../.ui138-host-home-', import.meta.url).pathname`. This is a test-harness defect: `.pathname` retains `%20`, so the actual path does not exist. The future narrow correction is URL-to-filesystem conversion, not a new directory or broader filesystem permission.
+
+Unexpected failure1: lookup under nonexistent `src/zen`, grep exit2. Actual Zen source was then read at `src/providers/zen.ts`. Unexpected failure2: `node --test test/unified-host-flow-138.candidate.mjs > ui138-host-final-candidate.log 2>&1`, exit1, all five tests fail fixture setup with `ENOENT` from mkdtemp at `DeepSeek%20Harness`. No admission assertions ran; this is neither product RED nor metadata GREEN. No external HTTP was invoked by this failed fixture setup.
+
+Stopped at cap without repair/retry. Candidate remains non-suite; original draft and historical logs preserved. No activation, focused/full/build/check:build/diffcheck or scoped delivery commit after failed prerequisite. Remaining real-controller matrix: success first/same/second identities still needs valid overall GREEN; cancellation/import/failure/recovery/late-completion not added. Existing narrower fake-RPC/host proofs do not substitute for this full matrix. Independent Standards/Spec review, visual/browser reconciliation, safe package/byte comparison and separately authorized installed/live gates remain open. No source/auth/product/generated/DOM edits or installed/profile/secrets/network/browser/nested-agent/push/merge/closure operations.
+
+## Renewed deterministic settlement diagnosis at 2d0cf6e — stopped 2026-11-01
+
+Original draft/logs preserved; candidate `test/unified-host-flow-138.candidate.mjs` remains outside suite discovery. Actual interval callback discards `refreshStatus()` promise; one event-loop turn cannot await asynchronous host file IO. Candidate wraps real registered-route dispatch, tracks pending promises, awaits them inside React act and repeats for RPC enqueued by flushed effects. No fake authRevision, inflated sleep/deadline, product fix or live HTTP.
+
+First command `node --test test/unified-host-flow-138.candidate.mjs > ui138-host-settlement.log 2>&1`, exit1: Codex/Claude/Grok/Copilot reach final denied-request check after all admission assertions, but dummy transport omitted Zen discovery, registry version and reset-credit endpoints. Antigravity failed its second-login wait because existing-account auth uses addAccountOAuth, not group addAccount. Unexpected failure1. Added narrow dummy responses for observed requests and corrected Antigravity selector only.
+
+Second command `node --test test/unified-host-flow-138.candidate.mjs > ui138-host-settlement-green.log 2>&1`, exit1 (misleading filename retained as exact evidence): all five reach final denied-request assertion, each with only `https://models.dev/api.json`. Thus each executed first/same/second identity counts1/1/2, real authRevision increments, Add close, one group, refreshed count, no group callback input and focus callback assertions successfully, but the tests themselves FAIL. No valid deterministic GREEN claimed. All requests were intercepted, including denied requests. No product defect established.
+
+STOP at renewed unexpected failure2; no more edit/retry to test code, no activation, full/focused/buildmatch/diffcheck, commit or outcome expansion. Remaining immediate gate: authorized renewed budget to finish explicit dummy Zen metadata contract and pass candidate before activating suite. Cancellation/import/failure/late-controller cases, independent Standards/Spec review, deferred whole-DOM/browser matrix, package/byte match and separately approved installation/live acceptance remain incomplete. No source/auth/generated/DOM/installed/profile/real-secret/nested-agent/push/merge/closure operations.
+
+## Real UI/host bridge attempt at cc3b2b5 — 2026-11-01
+
+Owner-authorized test/docs-only continuation; actual registered section and real `apply` route handlers/controllers, dummy global HTTP and injected Claude credential IO, isolated temporary DSH_HOME. Browser opening explicitly deferred; no browser/screenshots, network/live providers, installed/profile/real credential access, nested agents, source/auth/generated changes or offline DOM worker edits.
+
+Preserved incomplete harness in `test/unified-host-flow-138.draft.mjs` (not matched by `test/*.test.mjs`). It uses existing assembled browser VM/React renderer and host route fixtures without new product hooks/RPC. Admission matrix intends first identity, same identity and second identity for all five providers via OAuth/manual/device. Focus is a renderer callback mock, NOT browser focus proof. This is a draft, not accepted coverage.
+
+Executed evidence:
+
+- First tracer attempt failed unexpectedly because the zero-account Codex button is `login`, not `addAccount`. Corrected test selector only; this consumed unexpected failure 1.
+- Deliberate tracer RED after selector correction: `node --test test/unified-host-flow-138.test.mjs`, exit 1, `real admission required`, `0 !== 1` before callback submission. Log `ui138-host-tracer-red.log`. This proves omission of admission is detected; it is NOT a product regression red.
+- All-provider admission run: same command, exit 1, log `ui138-host-admission.log`. All five cases failed after real controller admission: Codex/Claude/Grok/Antigravity `real status closes Add` (`0 !== 1`); Copilot `one configured group` (`0 !== 1`). This consumed unexpected failure 2. Harness fires synthetic timers then yields only one event-loop turn; file-backed status/render settlement is a plausible cause, NOT established. No product defect claimed or patched. No weakening assertions/retry after cap.
+
+STOP at two unexpected failures. Harness moved to non-suite draft to avoid making ordinary `npm test` fail with unaccepted proof. Cancellation/failure/recovery/late-completion/import matrix remains unimplemented; group refresh/focus assertions unverified. Focused GREEN/full/build/check:build/diffcheck NOT executed in this attempt after stop, even though runtime/generated files are unchanged. No full-flow/visual/packaging/installation acceptance. Next allowed action: Lead reconcile draft/failures and obtain renewed budget before diagnosis; settle real asynchronous RPC/render work deterministically before deciding whether product behavior is defective. Routeguard review and offline DOM prep remain separate pre-existing evidence.
+
+## Reviewed admission repair at 43c64b8 — 2026-11-01
+
+Direct bounded repair of the independent Spec finding; full-ticket baseline remains `92072f8`. Shared reserved subscription IDs are now checked independently of rendered API rows. Collision knowledge retains the unfiltered configurable directory, registered adapters and resolved native `llm-pi-ai.providers` keys. Visible rows still exclude subscription IDs; no authentication or native Models changes.
+
+Actual-component/fake-remotes EN/AR matrix covers all six reserved IDs (including `opencode-zen`), directory-only `builtin`, registration-only `registered-only`, and native-configured-only `configured-only`. Valid model/URL plus dummy key intent ensure rejection is the route guard, not unrelated validation. Each rejection asserts no subsequent remote calls, unchanged native settings, retained route/name/URL/model/key draft and open inline editor. Existing legitimate custom protocols/discovery, revision conflicts, partial key retry and assembled auth regressions remain passing.
+
+Deliberate RED: `ui138-admission-red.log`, exit 1, 39 tests / 25 pass / 14 expected failures (six reserved plus configured-only in each locale); the four directory/registration preservation cases already passed. GREEN focused: `ui138-admission-focused.log`, 84/84. Full: `ui138-admission-full.log`, Node 893/893 and classifier 166/166, zero failures/cancellations/skips. Build and fresh-build comparison exit 0 (`ui138-admission-build.log`, `ui138-admission-checkbuild.log`). Finished source detector exit 0, `ui138-admission-detector.json` is `[]`. Whitespace gate recorded in `ui138-admission-diffcheck.log`. Zero unexpected failures in this repair budget; deliberate RED excluded.
+
+Separate DOM worker scripts/report and existing detector outputs are untouched/excluded. No nested delegation, network, installed/profile/secrets/live-provider actions, push, merge or closure. Local scoped commit only. Independent Standards/Spec re-review, full-flow/import/manual/device/controller-outcome proof, refreshed DOM/public-primitive reconciliation, package/byte match, and separately approved installation/restart/consolidated Owner live acceptance remain open. No visual or full-ticket acceptance claim. Stale Impeccable sidecar remains unchanged.
+
+## Independent-review repairs at e7dc0a9 — 2026-11-01
+
+Bounded direct workspace repair; no nested agents, network, installed/profile/secrets, live providers, push/merge/closure. Baseline for prior full ticket remains `92072f8`; this repair starts at `e7dc0a9`. Separate DOM worker outputs are untouched and excluded from this commit.
+
+- Completed cancellation/success closes clear the ephemeral auth lock. Failed/pending cancellation keeps the mounted flow. Deliberate regression RED `completed cancellation releases Add`, then GREEN.
+- Parent membership refresh increments an explicit revision passed to existing keyed groups; group status reloads without remounting or dropping expansion. Only Add presents authorization and polls its busy flow. Auth-only cards do not request account usage; grouped cards retain existing usage/Manage/reset-credit content.
+- All five controllers expose monotonic `authRevision` only after successful session persistence, including same-identity Claude import. No OAuth algorithm/constants or stores changed; no new RPC. Cards complete from this outcome, not account-count growth. Five actual-card REDs `same roster completes from explicit successful operation`, then GREEN.
+- Shared subscription list/Add survives absent SDK and initially failing API remotes. Subscription route IDs (including loginless Zen) are excluded from API rows. Public `SegmentedControl` receives controlled value/options/disabled/onChange and matching tabpanel IDs; test fakes implement that public contract, not native pixel/keyboard proof.
+- Assembled Claude host RPC proves same-identity import increments successful admission revision while cancellation does not.
+- Actual assembled section tests exercise each of five provider cards with absent and failing API, successful and failed cancel, reentry, same-identity success, new-account membership reload and no duplicate usage/callback UI. Actual-card tests cover late successful status after unmount without completing another flow. These are fake-RPC real UI flows, not live authentication.
+
+Latest gates: focused **85/85**, full Node **875/875** plus classifier **166/166**, build, fresh-build comparison and whitespace check exit 0. Logs `ui138-repair-{red,green,build,focused,full,checkbuild,diffcheck}.log`, `ui138-auth-{red,green,late}.log`, `ui138-realflows.log`. Final detector on all seven finished UI targets exit 0, `ui138-repair-detector.json` is `[]`. One unexpected test-fixture failure used a stale Claude button TestInstance after rerender (`Unable to find node on an unmounted component.`); corrected by querying current node, no product workaround. Two fs observation refusals required rereads, no denied access/retry bypass.
+
+Remaining gates: independent Standards/Spec re-review; reconcile separate workflow0b83 whole-DOM/public-primitive EN/AR/theme/viewport evidence against this new build (especially segmented keyboard/focus and missing/failed API modes); broader import/manual/device-specific outcome/failure coverage including actual controller-to-status integration; safe package/byte match; separately approved install/restart and consolidated live acceptance. No ticket-complete claim. Existing provider/auth suites pass but do not replace those missing whole-flow cases. Design sidecar remains stale and intentionally untouched.
+
+## Scope and revision
+
+Direct workspace-local continuation of `impl/138-unified-ui`, baseline `92072f805f44bd26a9addf2f13d7ce5caebf75b5`. Preserved all original uncommitted candidate changes. No nested delegation, network, installed/profile access, live provider operation, push, merge or closure. The renewed budget starts at zero unexpected failures; this slice consumed zero. A deliberate behavioral red is excluded.
+
+## Completed slice
+
+- Preserved the candidate API credential status corrections, DeepSeek Account fallback/editor exclusion, in-place API Add entry, focus return and safe visited drafts.
+- `src/browser.ts` Section owns one top-level Settings disclosure containing the existing Proxy and usage-display components. The controls retain their existing persistence and dialogs; no new Pool editor or endpoint.
+- `src/codex-card.ts` no longer imports or mounts ProxySettings. Authentication, usage, redemption and Manage code are unchanged.
+- EN/AR Settings label and existing provenance/changelog updated.
+- Actual assembled section regression asserts exactly one page Settings disclosure and exactly one Proxy instance inside it, while retaining all existing native directory assertions.
+
+## Evidence
+
+Workspace-local logs (synthetic only):
+
+- `ui138-settings-red.log`: deliberate assembled regression fails `one page-level Settings disclosure`, `0 !== 1` before implementation.
+- `ui138-build.log`: `npm run build` exit 0.
+- `ui138-focused.log`: API and assembled browser tests 48/48, exit 0.
+- `ui138-full.log`: `npm test` exit 0, Node 857/857; no failures, cancellations or skips.
+- `ui138-checkbuild.log`: fresh build matches generated output, exit 0.
+- `ui138-diffcheck.log`: whitespace check exit 0.
+- `ui138-detector.json`: one finished-slice Impeccable detector invocation, exit 0, findings `[]`.
+
+No rendered screenshots, geometry matrix or whole-page browser acceptance was performed. Detector success does not substitute for visual inspection. Existing React renderer warnings remain.
+
+## Composition continuation (2026-11-01)
+
+- Replaced the split with a single mixed list of configured subscription groups, login-less Zen and native API entries. Only configured group controllers and the selected inline authentication controller mount; no hidden legacy cards.
+- Shared Add now has catalog/custom/subscription modes and provider-specific existing authentication. Add account preselects the same workflow. Account counts expand real existing account/quota/reset-credit content; Manage remains intact. No store, RPC or authentication algorithm added; native Models untouched.
+- Authentication flow locks mode/provider changes while pending, waits for existing provider cancellation before closing, and refreshes configured groups after successful account-count change. Safe API drafts/key write-only/partial/conflict behaviors retained.
+- Deliberate topology red: `ui138-topology-red.log`. Actual React shared-flow success/focus and pending/cancel regressions, plus assembled mixed-list/group expansion/unconfigured-controller absence/Add-account preselection coverage.
+- Latest focused suite passes; full suite 859/859, build, check:build and diffcheck pass. `ui138-composition-detector.json`: final composition detector exit 0. Existing renderer deprecation warnings persist.
+- Two diagnostic failures exposed stale split-topology fixture assumptions and Codex status nesting (`providers.codex`); corrected with assembled proof. A subsequent ambiguous select assertion was narrowed to its label. No investigation loop or unrelated repair.
+
+## Missing gates and next work
+
+Functional composition is implemented and controlled tests pass, but #138 acceptance is NOT complete. Still required: whole-section synthetic DOM fixture and EN/AR × light/dark × 360/768/1440 matrix with distinct auth/error/layout variants and honest screenshot-inspection records; additional assembled provider-specific success/cancellation race proof beyond the shared-flow tests. Existing provider tests preserve controllers but do not constitute complete end-to-end authentication proof.
+
+After those changes: repeat focused/full/build/check:build/diffcheck and final whole-UI detector, independent Standards and Spec review, safe archive/byte-equality verification, and separately authorized consolidated Owner installation/live acceptance. No native Models changes, global Pool editor, credential readback or authentication algorithm changes are authorized. Package, independent review, installed and live acceptance remain unperformed.

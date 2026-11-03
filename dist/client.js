@@ -1,0 +1,8752 @@
+/*
+ * dsh-majed — Majed's DeepSeek Harness toolkit (client half).
+ *
+ * Nothing in DSH itself is modified: every feature below is added by this plugin
+ * through public client extension points (slots + injected <style>/observers)
+ * and is fully removed again when the plugin is disabled.
+ *
+ * Features
+ *  1. Settings > General > "Bidirectional text"  (toggle)
+ *       - per-paragraph direction for Arabic / Persian / Hebrew in chat,
+ *         reasoning, tool cells, question boxes, user bubbles
+ *         (replaces dsh-persian-rtl; CSS/logic adapted from it, MIT)
+ *       - mirroring of @changfenhuang/dsh-genui components
+ *  2. Settings > General > "App UI font size"   (px stepper, right after the chat font size)
+ *  3. Settings > General > "App font"           (dropdown: DSH default / System font)
+ *  4. Settings > General > "System notifications" (+ on completion / when action needed)
+ *     Native desktop notifications driven by DSH's session status; click opens the session.
+ *  7. Composer bar > "Approvals" dropdown: Ask me / Auto (safe) / Auto (aggressive), per session.
+ *  6. Settings > General > "Copy on select" (toggle, off by default)
+ *  5. Account menu grouping: sidebar footer buttons (Remote access, ...) move into the account menu.
+ */
+window.__ModuleLoader__.load({
+  id: 'dsh-majed',
+  factory(require) {
+const majedSubscriptionsFactory = (require) => {
+var module = { exports: {} }; var exports = module.exports;
+//#region rolldown:runtime
+var __create = Object.create;
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getProtoOf = Object.getPrototypeOf;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __copyProps = (to, from, except, desc) => {
+	if (from && typeof from === "object" || typeof from === "function") for (var keys = __getOwnPropNames(from), i = 0, n = keys.length, key; i < n; i++) {
+		key = keys[i];
+		if (!__hasOwnProp.call(to, key) && key !== except) __defProp(to, key, {
+			get: ((k) => from[k]).bind(null, key),
+			enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable
+		});
+	}
+	return to;
+};
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", {
+	value: mod,
+	enumerable: true
+}) : target, mod));
+
+//#endregion
+let react = require("react");
+react = __toESM(react);
+let react_jsx_runtime = require("react/jsx-runtime");
+react_jsx_runtime = __toESM(react_jsx_runtime);
+
+//#region src/ImageGallery.tsx
+/** Display box for a lone image (platform rule): long edge 240px with the
+* rendered aspect ratio clamped to [0.25, 4] — the overflow is cropped by
+* `object-fit: cover` — and never upscaled past the image's natural size. The
+* crop anchor keeps the top of very tall images and the left of very wide
+* ones, where the informative content usually starts. */
+function singleFit(attachment) {
+	const natural = attachment.width / attachment.height;
+	const ratio = Math.min(4, Math.max(.25, natural));
+	const box = ratio >= 1 ? {
+		width: 240,
+		height: 240 / ratio
+	} : {
+		width: 240 * ratio,
+		height: 240
+	};
+	const scale = Math.min(1, attachment.width / box.width, attachment.height / box.height);
+	return {
+		width: Math.max(1, Math.round(box.width * scale)),
+		height: Math.max(1, Math.round(box.height * scale)),
+		objectPosition: natural < .25 ? "center top" : natural > 4 ? "left center" : "center"
+	};
+}
+const styles$6 = {
+	gallery: {
+		display: "flex",
+		flexWrap: "wrap",
+		gap: 8,
+		justifyContent: "flex-start"
+	},
+	frame: {
+		display: "grid",
+		placeItems: "center",
+		overflow: "hidden",
+		padding: 0,
+		border: "1px solid var(--dsw-alias-border-l2-darkmode-thin)",
+		borderRadius: 8,
+		background: "var(--dsw-alias-interactive-bg-hover-solid)",
+		cursor: "zoom-in"
+	},
+	tile: {
+		width: 64,
+		height: 64
+	},
+	img: {
+		width: "100%",
+		height: "100%",
+		objectFit: "cover",
+		display: "block"
+	},
+	loading: {
+		font: "var(--dsw-font-s-12)",
+		color: "var(--dsw-alias-label-tertiary)",
+		padding: "0 8px"
+	},
+	error: {
+		font: "var(--dsw-font-s-12)",
+		color: "var(--dsw-alias-state-error-primary)",
+		cursor: "pointer",
+		border: "1px solid var(--dsw-alias-border-l2-darkmode-thin)",
+		borderRadius: 8,
+		background: "transparent",
+		padding: "6px 10px"
+	},
+	overlay: {
+		position: "fixed",
+		inset: 0,
+		zIndex: 1e3,
+		display: "grid",
+		placeItems: "center",
+		background: "var(--dsw-alias-bg-mask-1)",
+		padding: 24
+	},
+	overlayImg: {
+		maxWidth: "92vw",
+		maxHeight: "92vh",
+		objectFit: "contain",
+		borderRadius: 4
+	},
+	close: {
+		position: "absolute",
+		insetBlockStart: 12,
+		insetInlineEnd: 12,
+		width: 32,
+		height: 32,
+		display: "grid",
+		placeItems: "center",
+		border: "none",
+		borderRadius: "50%",
+		cursor: "pointer",
+		background: "var(--dsw-alias-bg-layer-1)",
+		color: "var(--dsw-alias-label-primary)",
+		font: "var(--dsw-font-s-13)"
+	}
+};
+/**
+* Full-viewport original-image preview: backdrop or close-control click and
+* Escape all dismiss; the image itself is inert so a click on it does not
+* fall through to the backdrop dismissal.
+*/
+function ImageLightbox({ src, alt, labels, onClose }) {
+	const closeButton = (0, react.useRef)(null);
+	(0, react.useEffect)(() => {
+		const opener = document.activeElement;
+		closeButton.current?.focus();
+		const onKey = (event) => {
+			if (event.key === "Escape") onClose();
+			if (event.key === "Tab") {
+				event.preventDefault();
+				closeButton.current?.focus();
+			}
+		};
+		window.addEventListener("keydown", onKey);
+		return () => {
+			window.removeEventListener("keydown", onKey);
+			opener?.focus();
+		};
+	}, [onClose]);
+	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+		role: "dialog",
+		"aria-modal": true,
+		"aria-label": labels.dialog,
+		style: styles$6.overlay,
+		onClick: onClose,
+		children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("img", {
+			src,
+			alt,
+			style: styles$6.overlayImg,
+			onClick: (event) => {
+				event.stopPropagation();
+			}
+		}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+			ref: closeButton,
+			type: "button",
+			"aria-label": labels.close,
+			style: styles$6.close,
+			onClick: onClose,
+			children: "×"
+		})]
+	});
+}
+/**
+* Compact history renderer with retryable loading and click-to-open original
+* preview. A lone image renders at its `singleFit` size; an image among
+* several renders as a fixed 64px square tile.
+*/
+function MessageImage({ attachment, load, variant, labels }) {
+	const [src, setSrc] = (0, react.useState)(null);
+	const [error, setError] = (0, react.useState)(false);
+	const [open, setOpen] = (0, react.useState)(false);
+	const [attempt, setAttempt] = (0, react.useState)(0);
+	const retry = (0, react.useCallback)(() => {
+		setAttempt((a) => a + 1);
+	}, []);
+	const close = (0, react.useCallback)(() => {
+		setOpen(false);
+	}, []);
+	const fit = (0, react.useMemo)(() => variant === "single" ? singleFit(attachment) : void 0, [attachment, variant]);
+	(0, react.useEffect)(() => {
+		let live = true;
+		setError(false);
+		setSrc(null);
+		load(attachment).then((url) => {
+			if (live) setSrc(url);
+		}).catch(() => {
+			if (live) setError(true);
+		});
+		return () => {
+			live = false;
+		};
+	}, [
+		attachment,
+		load,
+		attempt
+	]);
+	const label = attachment.name ?? labels.image;
+	if (error) return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+		type: "button",
+		style: styles$6.error,
+		onClick: retry,
+		children: labels.loadFailed
+	});
+	const box = fit === void 0 ? styles$6.tile : {
+		width: fit.width,
+		height: fit.height
+	};
+	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+		type: "button",
+		style: {
+			...styles$6.frame,
+			...box
+		},
+		title: labels.open,
+		"aria-label": labels.openNamed(label),
+		onClick: () => {
+			if (src !== null) setOpen(true);
+		},
+		children: src === null ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+			style: styles$6.loading,
+			children: labels.loading
+		}) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("img", {
+			src,
+			alt: label,
+			style: {
+				...styles$6.img,
+				objectPosition: fit?.objectPosition
+			},
+			onError: () => {
+				setOpen(false);
+				setError(true);
+			}
+		})
+	}), open && src !== null && /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ImageLightbox, {
+		src,
+		alt: label,
+		labels: labels.lightbox,
+		onClose: close
+	})] });
+}
+/** Wrapping image group: a lone image renders large, several render as 64px
+* square tiles (same rule as the platform gallery). */
+function ImageGallery({ images, load, labels }) {
+	if (images.length === 0) return null;
+	const variant = images.length === 1 ? "single" : "tile";
+	return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+		style: styles$6.gallery,
+		children: images.map((image, index) => /* @__PURE__ */ (0, react_jsx_runtime.jsx)(MessageImage, {
+			attachment: image.attachment,
+			load,
+			variant,
+			labels
+		}, `${image.attachment.attachmentId}:${index}`))
+	});
+}
+
+//#endregion
+//#region src/subscriptions-rpc.ts
+async function callSubscriptionsAuth$1(rpc, endpoint, payload) {
+	const result = await rpc.call("/api", `majed-subscriptions.${endpoint}`, payload);
+	if (!result?.ok) throw new Error(result?.error?.message ?? "Subscriptions unavailable");
+	return result.value;
+}
+
+//#endregion
+//#region locale/en.json
+var subscriptions$1 = {
+	"pageSettings": "Settings",
+	"providerConfigured": "Account configured (inference not verified)",
+	"providerAttention": "Provider needs attention",
+	"freeProviders": "Free providers",
+	"apiSubscription": "Subscription",
+	"zenEnabled": "Enable OpenCode Zen",
+	"zenDisabled": "Disabled — new requests are blocked",
+	"zenRefresh": "Refresh status",
+	"zenNoLogin": "Free models · no login required",
+	"zenUnavailable": "OpenCode Zen is unavailable.",
+	"zenReachable": "Gateway reachable (catalog only; inference not verified)",
+	"zenUnreachable": "Gateway unreachable; fallback models may not be available.",
+	"zenModelCount": "Available models",
+	"zenSource_gateway": "Gateway catalog",
+	"zenSource_static": "Static fallback",
+	"zenSource_cache": "Cached fallback",
+	"apiUnavailable": "Native API-provider remotes are unavailable. Browser admission must be verified before use.",
+	"apiRefresh": "Refresh API providers",
+	"apiLoading": "Loading native providers…",
+	"apiFailed": "The native operation failed. Your draft is retained; refresh or retry. No remote diagnostic is displayed because it may contain sensitive data.",
+	"apiConflict": "Settings changed underneath this editor. Your draft was not overwritten or applied. Cancel, refresh and reopen to reconcile your changes.",
+	"apiPartial": "Provider settings were saved, but the key operation failed. Your key intent is retained; retry saves only the outstanding key operation.",
+	"apiInvalid": "Check the route, HTTP(S) URL and model JSON. Custom endpoints need a base URL and at least one model.",
+	"apiSaved": "Saved to native DSH settings.",
+	"apiKeySet": "Key configured",
+	"apiKeyMissing": "No key configured",
+	"apiKeyUnknown": "Key status unavailable",
+	"apiAccountUnknown": "Account status unavailable",
+	"apiAdd": "Add provider",
+	"apiEdit": "Edit provider",
+	"apiDelete": "Delete added provider",
+	"apiCustom": "Custom API",
+	"apiCatalog": "Provider catalog",
+	"apiChoose": "Choose a provider",
+	"apiModelID": "Model ID",
+	"apiModelName": "Model name",
+	"apiModelAdd": "Add model",
+	"apiModelRemove": "Remove model",
+	"apiEditor": "API provider editor",
+	"apiRoute": "Provider route (lowercase words separated by hyphens)",
+	"apiName": "Display name",
+	"apiURL": "Base URL",
+	"apiProtocol": "Protocol",
+	"apiKeyAction": "Key action",
+	"apiKey_keep": "Keep current key",
+	"apiKey_set": "Set or replace key",
+	"apiKey_unset": "Remove stored key",
+	"apiKey": "New key (write only)",
+	"apiKeyLimit": "Stored keys are never read back. Settings and key writes are separate native operations, not a transaction. Removing a stored key may reveal an environment fallback. Deleting a provider does not delete shared credentials.",
+	"apiFetch": "Fetch available models",
+	"apiModels": "Models",
+	"apiModelsHint": "Edit model IDs and names. Existing model capabilities and metadata are preserved. Fetch replaces this draft only; Apply saves it.",
+	"apiSave": "Apply",
+	"apiCancel": "Cancel provider edit",
+	"antigravitySetupRequired": "Antigravity OAuth client configuration is malformed. Correct the configured client pair; stored accounts are retained.",
+	"copilotDeviceHint": "Enter this code on the GitHub verification page.",
+	"copyDeviceCode": "Copy code",
+	"copilotProviderUnavailable": "Copilot is unavailable. Disable the reference component first.",
+	"title": "AI Providers",
+	"accounts": "Subscription accounts",
+	"providers": "Model providers",
+	"subscriptionProviders": "Subscription providers",
+	"apiProviders": "API providers",
+	"subscriptionAdd": "Add subscription provider",
+	"accountCount": "account(s)",
+	"subscriptionDetails": "Provider details",
+	"providersHint": "Manage subscription accounts and usage. Use Add account below to sign in.",
+	"accountsEmpty": "No subscription accounts yet.",
+	"providersEmpty": "No API providers yet.",
+	"unreachable": "The Subscriptions host component cannot be reached. Reconnect or check the component on the Plugins page.",
+	"coexistence": "The reference plugin dsh-plugin-subscriptions is running too. Only one plugin can serve the shared provider ids (codex, claude, grok, copilot, antigravity) at a time; switch the reference plugin off before using providers from this component.",
+	"loginProgress": "Login in progress…",
+	"connected": "account(s) connected",
+	"notLoggedIn": "Not logged in",
+	"clientVersion": "Client version",
+	"source_npm": "latest on npm",
+	"source_local": "local CLI",
+	"source_fallback": "built-in",
+	"source_config": "configured",
+	"addAccount": "Add account",
+	"openAuthorization": "Open authorization page",
+	"pasteCallback": "Paste callback URL or code",
+	"submitCallback": "Submit",
+	"cancelLogin": "Cancel",
+	"unknownPlan": "Unknown plan",
+	"expires": "Expires",
+	"defaultAccount": "Default account",
+	"makeDefault": "Make default",
+	"logout": "Log out",
+	"refreshUsage": "Refresh",
+	"usageNotLoaded": "Loading usage…",
+	"usageUnavailable": "No usage windows reported.",
+	"window_session": "5-hour window",
+	"window_weekly": "Weekly",
+	"window_other": "Window",
+	"resets": "resets",
+	"resetCredits": "Usage limit resets",
+	"creditExpiryUnknown": "Expiry unknown",
+	"creditExpired": "Expired",
+	"creditsUnavailable": "Reset credits could not be verified.",
+	"useReset": "Use…",
+	"confirmLogout": "Log this account out? Its stored credentials will be removed.",
+	"confirmReset": "Confirm full reset",
+	"resetAcknowledge": "I understand that one credit will be consumed.",
+	"cancel": "Cancel",
+	"confirm": "Consume 1 reset",
+	"login": "Log in",
+	"checking": "Checking…",
+	"usageTitle": "Usage",
+	"plan": "Plan",
+	"available": "available",
+	"fullReset": "Full reset",
+	"providerUnavailable": "Codex unavailable: provider id already registered.",
+	"clientVersionHint": "Requests present this CLI version, and newer models may require a recent one.",
+	"manualSummary": "Browser flow not working? Paste the callback URL or code",
+	"addAccountHint": "Browser authorization signs in whichever account the browser currently uses — switch accounts there first (or use an incognito window with the manual code below) to add a different one.",
+	"resetGuard": "You can use this reset when weekly usage reaches at least 80%.",
+	"resetRefresh": "Refresh usage to verify current limits and reset availability.",
+	"resetReady": "Use this reset — the earliest-expiring credit. Confirmation required.",
+	"resetWarning": "This consumes one credit and resets weekly + 5-hour limits. This interface cannot undo it. Confirmation expires in 60 seconds.",
+	"intro": "Log a subscription provider in or out. Login opens the provider’s authorization page in a new tab; headless setups can paste the callback URL or code instead.",
+	"proxyTestOk": "OK · HTTP {status} · {ms} ms",
+	"proxyUsernamePlaceholder": "Proxy username",
+	"accountsModels": "Pool model allowlist",
+	"modelsContextInvalid": "Enter a positive whole number of tokens for {model}.",
+	"proxyLoadFailed": "Failed to load proxy settings: {message}",
+	"modelsSave": "Save changes",
+	"modelsContextHint": "Leave blank to follow the provider. The requested window is capped by the account’s advertised maximum; account pools use the smallest member window. This controls local history and compaction, not the API’s capacity.",
+	"usageRefresh": "Refresh",
+	"accountsAlias": "Alias (optional)",
+	"accountsSaveFailed": "Could not save changes: {message}",
+	"proxyUrlPlaceholder": "http://localhost:7890",
+	"proxyPasswordPlaceholder": "Leave blank to keep the saved password",
+	"accountsModelsCount": "{count} selected",
+	"modelDefaultsTitle": "Default reasoning effort",
+	"proxyDialogTitle": "Proxy settings",
+	"accountsIndependent": "Show an independent entry in the model picker",
+	"modelDefaultsFilterEmpty": "No model matches “{query}”.",
+	"modelsSubagentSpeed": "Subagent default speed",
+	"accountsPoolEnabled": "Include in the LLM account pool",
+	"modelsPartialSave": "Some reasoning defaults were saved. Remaining changes are still in the draft; retry to finish.",
+	"accountsModelsAutomatic": "Allow all models, including future models",
+	"proxySaveFailed": "Save failed: {message}",
+	"proxyStatusError": "Config error: {message}",
+	"proxyLoading": "Loading proxy settings…",
+	"modelsEdit": "Edit model list",
+	"proxyPassword": "Password",
+	"proxyBypassPlaceholder": "127.0.0.1, localhost, *.example.com",
+	"subscriptionDisplayName": "Subscription display name",
+	"modelDisplayName": "Model display name",
+	"accountsLoading": "Loading accounts…",
+	"accountsLoadFailed": "Could not load account settings: {message}",
+	"proxyUrlHint": "HTTP or HTTPS proxy only (Clash/mihomo, v2rayN…); socks is not supported.",
+	"accountsIndependentHint": "Independent LLM routes use only this account, with no fallback to another account. This does not isolate tools or the whole session.",
+	"modelsToolsHint": "Changes apply only to sessions created after saving. Existing sessions keep their tools. Shared tools remain available if any supporting provider is enabled.",
+	"proxySaving": "Saving…",
+	"subscriptionDisplayNameHint": "Used in the quota bar and subscription headings. Leave blank for the default.",
+	"modelsUnavailable": "Currently unavailable",
+	"speedFast": "Fast",
+	"proxyClearPassword": "Clear the saved password",
+	"proxyDialogClose": "Close",
+	"proxySave": "Save",
+	"modelsSelectAll": "Select all",
+	"proxyUrl": "Proxy URL",
+	"accountsCatalogUnavailable": "Model discovery is currently unavailable. Saved model selections are preserved.",
+	"modelsAutomatic": "Automatically show all models, including new models",
+	"speedStandard": "Standard",
+	"modelsHint": "Configure model visibility, default reasoning effort, subagent speed, context and tools here; Save changes below submits them together with the account settings. Hidden models remain usable by existing sessions; tool changes apply to new sessions.",
+	"modelDefaultsSaving": "Saving…",
+	"accountsHint": "Choose which accounts serve pooled LLM requests. Pool exclusion applies only to LLM routing, not tools or session-wide isolation.",
+	"accountsNoModels": "No models reported for this account.",
+	"proxyUsername": "Username (optional)",
+	"modelDefaultsFilterPlaceholder": "Filter models",
+	"modelDefaultsLoading": "Loading models…",
+	"proxyConfigure": "Configure…",
+	"proxyTestFail": "Failed: {message}",
+	"proxyTestOkDirect": "OK (DSH network settings) · HTTP {status} · {ms} ms",
+	"modelsContextBounds": "Default {default} · Maximum {max}",
+	"proxyStatusEnabled": "Enabled · {url}",
+	"accountsModelsAll": "All models",
+	"imageClose": "Close",
+	"proxyStatusNone": "Plugin proxy disabled — using DSH network settings.",
+	"modelDisplayNameHint": "Leave blank for the original name. Reasoning effort stays separate.",
+	"proxyEnabled": "Route subscription requests through a proxy",
+	"accountsTitle": "Manage {provider}",
+	"proxyNote": "On DSH v0.1.3-alpha.1, prefer the host HTTP_PROXY / HTTPS_PROXY / ALL_PROXY / NO_PROXY settings and leave this plugin proxy disabled. This optional override is retained for older hosts and subscription-only routing. Disabled or bypassed requests use DSH network settings; they are not necessarily direct. Applies to token exchange, model APIs, usage and tools. Browser OAuth follows the browser/system proxy.",
+	"proxyBypassHint": "Comma-separated hostnames that skip this plugin proxy and use DSH network settings.",
+	"proxyCancel": "Cancel",
+	"modelsContext": "Context (tokens)",
+	"displayNameReset": "Restore default",
+	"modelsTools": "Provider tools",
+	"proxySaved": "Saved — new requests use the updated network settings.",
+	"modelDefaultsRetry": "Retry",
+	"proxyBypass": "Bypass hosts",
+	"modelsSelectNone": "Clear selection",
+	"modelDefaultsFollowProvider": "Follow provider",
+	"proxyTesting": "Testing…",
+	"accountsManage": "Manage",
+	"accountsModelsHint": "Applies only to pooled LLM routing, not independent entries. An empty selection allows no models. Turning off pool participation keeps this selection for later.",
+	"proxyTitle": "Proxy",
+	"modelsSubagentSpeedHint": "Applies to subsequent subagent requests using this model, regardless of the parent model. Main conversations keep their own Speed setting. Fast requires model support.",
+	"proxyTest": "Test",
+	"proxyUsernameHint": "Username is optional",
+	"proxyPasswordHint": "Leave blank to keep the saved password",
+	"modelsWebSearch": "Web search",
+	"modelsImage": "Image generation",
+	"modelsVideo": "Video generation",
+	"modelsSearch": "X search",
+	"modelDefaultsLoadFailed": "Failed to load models: {message}",
+	"modelDefaultsRefresh": "Refresh model lists",
+	"modelDefaultsNoModels": "This provider reports no models.",
+	"modelDefaultsNoAccount": "No connected accounts. Connect one on the provider card first.",
+	"modelDefaultsDiscoveryFailed": "Model discovery failed or timed out. Use Refresh to try again.",
+	"modelDefaultsSaveFailedNamed": "Save failed for {model}: {message}",
+	"speed": "Speed",
+	"speedStandardDescription": "Default speed",
+	"speedFastDescription": "1.5x speed, more usage",
+	"commandFast": "Switch the Codex speed tier (Standard/Fast)",
+	"commandFastUnavailable": "The current model has no fast tier; /fast only works on Codex models whose catalog advertises one",
+	"usageSessionShort": "5h",
+	"usageWeeklyShort": "Wk",
+	"usageBadgeReset": "Resets in {time}",
+	"usageBadgeOpenDetails": "Open all accounts and quotas",
+	"usageBadgeClose": "Close usage details",
+	"usageBadgeTitle": "Subscription usage",
+	"usageBadgeCurrent": "current",
+	"usageBadgeMoreWindows": "More quota windows ({count})",
+	"usageBadgeModelCount": "{count} model quotas",
+	"usageBadgeModelUnavailable": "Current model quota unavailable",
+	"usageBadgeDisplay": "Status-bar quota display",
+	"usageBadgeDisplayRecent": "Current / most recent subscription only",
+	"usageBadgeDisplayHidden": "Hidden",
+	"usageBadgeDisplayHint": "Saved automatically in this browser. At most one subscription is shown; non-subscription models keep the most recent subscription selected in this view, or show nothing. Hiding does not affect usage details here.",
+	"usageBadgeDisplaySaveFailed": "Could not save the display preference. Check browser storage permissions.",
+	"usagePlan": "Plan: {plan}",
+	"usageSession": "5-hour window",
+	"usageWeekly": "Weekly",
+	"usageWindow": "Window",
+	"claudeProviderUnavailable": "Claude unavailable: provider id already registered.",
+	"addAccountOAuth": "Browser authorization",
+	"addAccountKeychain": "Import Claude Code",
+	"claudeAddAccountHint": "Browser authorization signs in whichever account the browser currently uses. Import Claude Code copies the account Claude Code is signed in to and keeps it in sync; sign in with the claude command first.",
+	"claudePromptCacheTtl": "Prompt cache lifetime",
+	"claudePromptCacheTtlHint": "How long Anthropic keeps the conversation cache after its last use. Cache reads cost the same either way; a one-hour cache write costs 2× base input instead of 1.25×. Applies from the next turn.",
+	"claudePromptCacheTtlDefault": "Follow config ({ttl})",
+	"claudePromptCacheTtl5m": "5 minutes",
+	"claudePromptCacheTtl1h": "1 hour",
+	"usageEmpty": "No usage quotas reported.",
+	"usageNoVisibleModels": "No quotas for the shown models.",
+	"antigravityProviderUnavailable": "Antigravity registration is unavailable.",
+	"grokProviderUnavailable": "Grok registration is unavailable.",
+	"image": "Image",
+	"viewImage": "View image",
+	"viewImageNamed": "View {name}",
+	"imageLoading": "Loading image…",
+	"imageLoadFailed": "Could not load image. Retry",
+	"imagePreview": "Image preview",
+	"generating": "Generating image…",
+	"generatingVideo": "Generating video…",
+	"videoLoading": "Loading video…",
+	"videoLoadFailed": "Could not load video: {message}",
+	"videoPlaybackFailed": "The browser could not play this video."
+};
+
+//#endregion
+//#region src/locales.ts
+const en = subscriptions$1;
+
+//#endregion
+//#region src/ImageGenerateToolview.tsx
+/** DSH 0.1.7 renamed IconSparkle16; resolving it by name keeps older hosts working too. */
+const SparkleIcon$1 = (_props) => null;
+/** Title prompt truncation budget (characters). */
+const PROMPT_MAX_LENGTH$1 = 60;
+/**
+* Build the ImageGallery loader over the `image` endpoint.
+* @param rpc - Connection RPC caller.
+* @returns loader resolving an attachment ref to a data URL.
+*/
+function createImageLoader(rpc) {
+	return (attachment) => callSubscriptionsAuth$1(rpc, "image", { ...attachment }).then((result) => `data:${result.mediaType};base64,${result.dataBase64}`);
+}
+/**
+* English-dictionary fallback for a missing locale seat (standalone renders);
+* the framework always supplies the namespace-bound one.
+* @param key - dictionary key.
+* @param params - `{name}` template params.
+* @returns the template with params substituted.
+*/
+function fallbackTranslate$3(key, params) {
+	let text = en[key];
+	for (const [name, value] of Object.entries(params ?? {})) text = text.replaceAll(`{${name}}`, String(value));
+	return text;
+}
+/** Extract the prompt from the call's raw args JSON; falls back to the first string value, then the raw line. */
+function derivePrompt$1(argsRaw) {
+	let parsed;
+	try {
+		parsed = JSON.parse(argsRaw);
+	} catch {
+		parsed = void 0;
+	}
+	let prompt;
+	if (typeof parsed === "object" && parsed !== null) {
+		const args = parsed;
+		if (typeof args.prompt === "string" && args.prompt !== "") prompt = args.prompt;
+		else for (const value of Object.values(args)) if (typeof value === "string" && value !== "") {
+			prompt = value;
+			break;
+		}
+	}
+	const line = (prompt ?? argsRaw).split("\n", 1)[0] ?? "";
+	return line.length > PROMPT_MAX_LENGTH$1 ? `${line.slice(0, PROMPT_MAX_LENGTH$1)}…` : line;
+}
+/** Flatten a settled result's text blocks (the degraded text-only route and the error line). */
+function resultText$1(block) {
+	if (!("kind" in block)) return "";
+	const parts = [];
+	for (const part of block.content) if (part.type === "text") parts.push(part.text);
+	if (parts.length === 0 && block.error !== void 0) parts.push(`${block.error.name}: ${block.error.code}`);
+	return parts.join("\n");
+}
+/** Image attachments of a settled result; empty while running or on the text-only route. */
+function resultImages(block) {
+	if (!("kind" in block)) return [];
+	const images = [];
+	for (const part of block.content) if (part.type === "image") images.push({ attachment: part.attachment });
+	return images;
+}
+const styles$5 = {
+	container: {
+		display: "flex",
+		flexDirection: "column",
+		gap: 6,
+		padding: "4px 0"
+	},
+	row: {
+		display: "flex",
+		alignItems: "center",
+		gap: 6,
+		minWidth: 0
+	},
+	icon: {
+		display: "inline-flex",
+		flexShrink: 0,
+		color: "var(--dsw-alias-label-tertiary)"
+	},
+	title: {
+		font: "var(--dsw-font-s-13)",
+		color: "var(--dsw-alias-label-primary)",
+		overflow: "hidden",
+		textOverflow: "ellipsis",
+		whiteSpace: "nowrap"
+	},
+	subtle: {
+		margin: 0,
+		font: "var(--dsw-font-s-12)",
+		color: "var(--dsw-alias-label-tertiary)"
+	},
+	output: {
+		margin: 0,
+		font: "var(--dsw-font-s-12)",
+		color: "var(--dsw-alias-label-secondary)",
+		whiteSpace: "pre-wrap",
+		overflowWrap: "anywhere"
+	},
+	error: {
+		margin: 0,
+		font: "var(--dsw-font-s-12)",
+		color: "var(--dsw-alias-state-error-primary)"
+	}
+};
+/**
+* The `image_generate` keyed toolview component.
+* @param props - owner share, inject face, and locale seat (spread flat).
+* @returns the call row plus, once settled, the gallery / text / error body.
+*/
+function ImageGenerateToolview(props) {
+	const { block, load } = props;
+	const t = props.t ?? fallbackTranslate$3;
+	if (block === void 0) return null;
+	const settled = "kind" in block;
+	const argsRaw = (settled ? block.call?.argsRaw : "argsRaw" in block ? block.argsRaw : void 0) ?? "";
+	let references = 0;
+	try {
+		const args = JSON.parse(argsRaw);
+		if (Array.isArray(args?.referenceImages)) references = args.referenceImages.length;
+	} catch {}
+	const title = `image_generate${references > 0 ? ` (${references} ref)` : ""}: ${derivePrompt$1(argsRaw)}`;
+	const images = resultImages(block);
+	const text = settled ? resultText$1(block) : "";
+	const labels = {
+		image: t("image"),
+		open: t("viewImage"),
+		openNamed: (name) => t("viewImageNamed", { name }),
+		loading: t("imageLoading"),
+		loadFailed: t("imageLoadFailed"),
+		lightbox: {
+			dialog: t("imagePreview"),
+			close: t("imageClose")
+		}
+	};
+	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+		style: styles$5.container,
+		children: [
+			/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+				style: styles$5.row,
+				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+					style: styles$5.icon,
+					children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(SparkleIcon$1, { size: 14 })
+				}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+					style: styles$5.title,
+					children: title
+				})]
+			}),
+			!settled && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+				style: styles$5.subtle,
+				children: t("generating")
+			}),
+			settled && block.isError && text !== "" && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+				style: styles$5.error,
+				children: text.split("\n", 1)[0]
+			}),
+			settled && !block.isError && images.length > 0 && load !== void 0 && /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ImageGallery, {
+				images,
+				load,
+				labels
+			}),
+			settled && !block.isError && images.length === 0 && text !== "" && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+				style: styles$5.output,
+				children: text
+			})
+		]
+	});
+}
+
+//#endregion
+//#region src/VideoGenerateToolview.tsx
+/** DSH 0.1.7 renamed IconSparkle16; resolving it by name keeps older hosts working too. */
+const SparkleIcon = (_props) => null;
+/** Title prompt truncation budget (characters). */
+const PROMPT_MAX_LENGTH = 60;
+/**
+* Build the video loader over the `/subscriptions-auth` `video` endpoint.
+* @param rpc - Connection RPC caller.
+* @returns loader resolving a bare file name to the decoded bytes.
+*/
+function createVideoLoader(rpc) {
+	return (name) => callSubscriptionsAuth$1(rpc, "video", { name });
+}
+/**
+* English-dictionary fallback for a missing locale seat (standalone renders);
+* the framework always supplies the namespace-bound one.
+*/
+function fallbackTranslate$2(key, params) {
+	let text = en[key];
+	for (const [name, value] of Object.entries(params ?? {})) text = text.replaceAll(`{${name}}`, String(value));
+	return text;
+}
+/** Extract the prompt from the call's raw args JSON; falls back to the first string value, then the raw line. */
+function derivePrompt(argsRaw) {
+	let parsed;
+	try {
+		parsed = JSON.parse(argsRaw);
+	} catch {
+		parsed = void 0;
+	}
+	let prompt;
+	if (typeof parsed === "object" && parsed !== null) {
+		const args = parsed;
+		if (typeof args.prompt === "string" && args.prompt !== "") prompt = args.prompt;
+		else for (const value of Object.values(args)) if (typeof value === "string" && value !== "") {
+			prompt = value;
+			break;
+		}
+	}
+	const line = (prompt ?? argsRaw).split("\n", 1)[0] ?? "";
+	return line.length > PROMPT_MAX_LENGTH ? `${line.slice(0, PROMPT_MAX_LENGTH)}…` : line;
+}
+/** Flatten a settled result's text blocks (the fallback body and the error line). */
+function resultText(block) {
+	if (!("kind" in block)) return "";
+	const parts = [];
+	for (const part of block.content) if (part.type === "text") parts.push(part.text);
+	if (parts.length === 0 && block.error !== void 0) parts.push(`${block.error.name}: ${block.error.code}`);
+	return parts.join("\n");
+}
+/**
+* The generated video's bare file name: presentation meta first (top-level
+* dispatches), then the render text's "Saved video to …" line (nested
+* dispatches compute no meta).
+*/
+function resolveFileName(block) {
+	if (!("kind" in block)) return void 0;
+	const meta = block.meta;
+	if (typeof meta === "object" && meta !== null) {
+		const fileName = meta.fileName;
+		if (typeof fileName === "string" && fileName.length > 0) return fileName;
+	}
+	const match = /^Saved video to (.+\.mp4)/m.exec(resultText(block));
+	if (match === null) return void 0;
+	const path = match[1];
+	return path.slice(path.lastIndexOf("/") + 1);
+}
+/** Decode a base64 payload into bytes (browser-side; no Buffer). */
+function base64Bytes(dataBase64) {
+	const binary = atob(dataBase64);
+	const bytes = new Uint8Array(binary.length);
+	for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index);
+	return bytes;
+}
+const styles$4 = {
+	container: {
+		display: "flex",
+		flexDirection: "column",
+		gap: 6,
+		padding: "4px 0"
+	},
+	row: {
+		display: "flex",
+		alignItems: "center",
+		gap: 6,
+		minWidth: 0
+	},
+	icon: {
+		display: "inline-flex",
+		flexShrink: 0,
+		color: "var(--dsw-alias-label-tertiary)"
+	},
+	title: {
+		font: "var(--dsw-font-s-13)",
+		color: "var(--dsw-alias-label-primary)",
+		overflow: "hidden",
+		textOverflow: "ellipsis",
+		whiteSpace: "nowrap"
+	},
+	subtle: {
+		margin: 0,
+		font: "var(--dsw-font-s-12)",
+		color: "var(--dsw-alias-label-tertiary)"
+	},
+	output: {
+		margin: 0,
+		font: "var(--dsw-font-s-12)",
+		color: "var(--dsw-alias-label-secondary)",
+		whiteSpace: "pre-wrap",
+		overflowWrap: "anywhere"
+	},
+	error: {
+		margin: 0,
+		font: "var(--dsw-font-s-12)",
+		color: "var(--dsw-alias-state-error-primary)"
+	},
+	video: {
+		display: "block",
+		maxWidth: 480,
+		width: "100%",
+		borderRadius: 8,
+		backgroundColor: "var(--dsw-alias-fill-tertiary)"
+	}
+};
+/**
+* The `video_generate` keyed toolview component.
+* @param props - owner share, inject face, and locale seat (spread flat).
+* @returns the call row plus, once settled, the player / text / error body.
+*/
+function VideoGenerateToolview(props) {
+	const { block, loadVideo } = props;
+	const t = props.t ?? fallbackTranslate$2;
+	const settled = block !== void 0 && "kind" in block;
+	const isError = settled && block.isError;
+	const fileName = block !== void 0 && settled && !isError ? resolveFileName(block) : void 0;
+	const [load, setLoad] = (0, react.useState)({ phase: "loading" });
+	(0, react.useEffect)(() => {
+		if (fileName === void 0 || loadVideo === void 0) return;
+		let cancelled = false;
+		let objectUrl;
+		setLoad({ phase: "loading" });
+		loadVideo(fileName).then((video) => {
+			if (cancelled) return;
+			objectUrl = URL.createObjectURL(new Blob([base64Bytes(video.dataBase64).slice()], { type: video.mediaType }));
+			setLoad({
+				phase: "ready",
+				url: objectUrl
+			});
+		}, (error) => {
+			if (cancelled) return;
+			setLoad({
+				phase: "failed",
+				message: error instanceof Error ? error.message : String(error)
+			});
+		});
+		return () => {
+			cancelled = true;
+			if (objectUrl !== void 0) URL.revokeObjectURL(objectUrl);
+		};
+	}, [fileName, loadVideo]);
+	if (block === void 0) return null;
+	const title = `video_generate: ${derivePrompt((settled ? block.call?.argsRaw : "argsRaw" in block ? block.argsRaw : void 0) ?? "")}`;
+	const text = settled ? resultText(block) : "";
+	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+		style: styles$4.container,
+		children: [
+			/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+				style: styles$4.row,
+				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+					style: styles$4.icon,
+					children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(SparkleIcon, { size: 14 })
+				}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+					style: styles$4.title,
+					children: title
+				})]
+			}),
+			!settled && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+				style: styles$4.subtle,
+				children: t("generatingVideo")
+			}),
+			settled && isError && text !== "" && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+				style: styles$4.error,
+				children: text.split("\n", 1)[0]
+			}),
+			settled && !isError && fileName !== void 0 && load.phase === "loading" && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+				style: styles$4.subtle,
+				children: t("videoLoading")
+			}),
+			settled && !isError && fileName !== void 0 && load.phase === "failed" && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+				style: styles$4.error,
+				children: t("videoLoadFailed", { message: load.message })
+			}),
+			settled && !isError && fileName !== void 0 && load.phase === "ready" && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("video", {
+				style: styles$4.video,
+				src: load.url,
+				controls: true,
+				preload: "metadata",
+				onError: () => setLoad({
+					phase: "failed",
+					message: t("videoPlaybackFailed")
+				})
+			}),
+			settled && !isError && fileName === void 0 && text !== "" && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+				style: styles$4.output,
+				children: text
+			})
+		]
+	});
+}
+
+//#endregion
+//#region locale/ar.json
+var subscriptions = {
+	"pageSettings": "الإعدادات",
+	"providerConfigured": "الحساب مُعدّ (لم يُتحقق من التوليد)",
+	"providerAttention": "الموفّر يحتاج إلى المراجعة",
+	"freeProviders": "الموفّرون المجانيون",
+	"apiSubscription": "اشتراك",
+	"zenEnabled": "تفعيل OpenCode Zen",
+	"zenDisabled": "معطّل — لا تُقبل طلبات جديدة",
+	"zenRefresh": "تحديث الحالة",
+	"zenNoLogin": "نماذج مجانية · لا يلزم تسجيل الدخول",
+	"zenUnavailable": "خدمة OpenCode Zen غير متاحة.",
+	"zenReachable": "البوابة متاحة (قائمة النماذج فقط؛ لم يُتحقق من التوليد)",
+	"zenUnreachable": "يتعذر الوصول للبوابة؛ قد لا تتاح النماذج الاحتياطية.",
+	"zenModelCount": "النماذج المتاحة",
+	"zenSource_gateway": "قائمة البوابة",
+	"zenSource_static": "قائمة احتياطية ثابتة",
+	"zenSource_cache": "قائمة احتياطية مخزنة",
+	"apiUnavailable": "واجهات موفري API الأصلية غير متاحة. يجب التحقق من صلاحية المتصفح قبل الاستخدام.",
+	"apiRefresh": "تحديث موفري API",
+	"apiLoading": "جارٍ تحميل الموفرين الأصليين…",
+	"apiFailed": "فشلت العملية الأصلية. حُفظت المسودة؛ حدّث أو أعد المحاولة. لا تُعرض تفاصيل الخطأ لأنها قد تحتوي على بيانات حساسة.",
+	"apiConflict": "تغيّرت الإعدادات أثناء التحرير. لم تُستبدل مسودتك ولم تُطبّق. ألغِ التحرير وحدّث ثم افتح المحرر لمراجعة تغييراتك.",
+	"apiPartial": "حُفظت إعدادات الموفر لكن عملية المفتاح فشلت. حُفظ طلب المفتاح؛ إعادة المحاولة تنفّذ عملية المفتاح المتبقية فقط.",
+	"apiInvalid": "تحقق من المعرّف ورابط HTTP(S) وبيانات النماذج. الموفر المخصص يحتاج إلى رابط ونموذج واحد على الأقل.",
+	"apiSaved": "حُفظ في إعدادات DSH الأصلية.",
+	"apiKeySet": "المفتاح مُعدّ",
+	"apiKeyMissing": "لا يوجد مفتاح مُعدّ",
+	"apiKeyUnknown": "حالة المفتاح غير متاحة",
+	"apiAccountUnknown": "حالة الحساب غير متاحة",
+	"apiAdd": "إضافة موفر",
+	"apiEdit": "تحرير الموفر",
+	"apiDelete": "حذف الموفر المضاف",
+	"apiCustom": "API مخصص",
+	"apiCatalog": "دليل الموفرين",
+	"apiChoose": "اختر موفرًا",
+	"apiModelID": "معرّف النموذج",
+	"apiModelName": "اسم النموذج",
+	"apiModelAdd": "إضافة نموذج",
+	"apiModelRemove": "إزالة النموذج",
+	"apiEditor": "محرر موفر API",
+	"apiRoute": "معرّف الموفر (كلمات لاتينية صغيرة تفصلها شرطات)",
+	"apiName": "اسم العرض",
+	"apiURL": "الرابط الأساسي",
+	"apiProtocol": "البروتوكول",
+	"apiKeyAction": "إجراء المفتاح",
+	"apiKey_keep": "الاحتفاظ بالمفتاح الحالي",
+	"apiKey_set": "تعيين المفتاح أو استبداله",
+	"apiKey_unset": "إزالة المفتاح المخزّن",
+	"apiKey": "مفتاح جديد (للكتابة فقط)",
+	"apiKeyLimit": "لا تُقرأ المفاتيح المخزّنة مطلقًا. كتابة الإعدادات والمفتاح عمليتان أصليتان منفصلتان وليستا معاملة ذرية. إزالة المفتاح قد تكشف مفتاح البيئة البديل. حذف الموفر لا يحذف بيانات الاعتماد المشتركة.",
+	"apiFetch": "جلب النماذج المتاحة",
+	"apiModels": "النماذج",
+	"apiModelsHint": "حرر معرّفات النماذج وأسماءها. تُحفظ القدرات والبيانات الحالية. الجلب يستبدل المسودة فقط؛ التطبيق يحفظها.",
+	"apiSave": "تطبيق",
+	"apiCancel": "إلغاء تحرير الموفر",
+	"antigravitySetupRequired": "إعداد عميل OAuth في Antigravity غير صالح. صحّح بيانات العميل المُعدّة؛ تُحفظ الحسابات الحالية.",
+	"copilotDeviceHint": "أدخل هذا الرمز في صفحة التحقق من GitHub.",
+	"copyDeviceCode": "نسخ الرمز",
+	"copilotProviderUnavailable": "Copilot غير متاح. أوقف المكوّن المرجعي أولًا.",
+	"title": "موفّرو الذكاء الاصطناعي",
+	"accounts": "حسابات الاشتراك",
+	"providers": "موفّرو النماذج",
+	"subscriptionProviders": "موفّرو الاشتراكات",
+	"apiProviders": "موفّرو API",
+	"subscriptionAdd": "إضافة موفّر اشتراك",
+	"accountCount": "حساب",
+	"subscriptionDetails": "تفاصيل الموفّر",
+	"providersHint": "أدِر حسابات الاشتراك والاستخدام. استخدم إضافة حساب أدناه لتسجيل الدخول.",
+	"accountsEmpty": "لا توجد حسابات اشتراك بعد.",
+	"providersEmpty": "لا يوجد موفرو API بعد.",
+	"unreachable": "يتعذر الوصول إلى مكوّن الاشتراكات على المضيف. أعد الاتصال أو تحقق من المكوّن في صفحة الإضافات.",
+	"coexistence": "الإضافة المرجعية dsh-plugin-subscriptions تعمل أيضًا. يمكن لإضافة واحدة فقط تقديم معرّفات الموفّرين المشتركة (codex, claude, grok, copilot, antigravity) في الوقت نفسه؛ أوقف الإضافة المرجعية قبل استخدام الموفّرين من هذا المكوّن.",
+	"loginProgress": "جارٍ تسجيل الدخول…",
+	"connected": "حساب متصل",
+	"notLoggedIn": "لم يتم تسجيل الدخول",
+	"clientVersion": "إصدار العميل",
+	"source_npm": "سجل npm",
+	"source_local": "واجهة الأوامر المحلية",
+	"source_fallback": "الإصدار الاحتياطي المرفق",
+	"source_config": "الإعدادات",
+	"addAccount": "إضافة حساب",
+	"openAuthorization": "فتح صفحة التفويض",
+	"pasteCallback": "ألصق رابط العودة أو الرمز",
+	"submitCallback": "إرسال",
+	"cancelLogin": "إلغاء",
+	"unknownPlan": "خطة غير معروفة",
+	"expires": "تنتهي الصلاحية",
+	"defaultAccount": "الحساب الافتراضي",
+	"makeDefault": "تعيين كافتراضي",
+	"logout": "تسجيل الخروج",
+	"refreshUsage": "تحديث",
+	"usageNotLoaded": "جارٍ تحميل الاستخدام…",
+	"usageUnavailable": "لم تُبلّغ أي فترات استخدام.",
+	"window_session": "فترة خمس ساعات",
+	"window_weekly": "أسبوعي",
+	"window_other": "فترة الاستخدام",
+	"resets": "إعادة التعيين",
+	"resetCredits": "إعادات تعيين حدود الاستخدام",
+	"creditExpiryUnknown": "انتهاء الصلاحية غير معروف",
+	"creditExpired": "منتهي الصلاحية",
+	"creditsUnavailable": "تعذر التحقق من أرصدة إعادة التعيين.",
+	"useReset": "استخدام…",
+	"confirmLogout": "هل تريد تسجيل خروج هذا الحساب؟ ستُحذف بيانات اعتماده المخزنة.",
+	"confirmReset": "تأكيد إعادة التعيين الكاملة",
+	"resetAcknowledge": "أفهم أن هذا سيستهلك رصيد إعادة تعيين واحدًا.",
+	"cancel": "إلغاء",
+	"confirm": "استهلاك رصيد واحد",
+	"login": "تسجيل الدخول",
+	"checking": "جارٍ التحقق…",
+	"usageTitle": "الاستخدام",
+	"plan": "الخطة",
+	"available": "متاح",
+	"fullReset": "إعادة تعيين كاملة",
+	"providerUnavailable": "Codex غير متاح: معرّف الموفّر مسجّل بالفعل.",
+	"clientVersionHint": "تستخدم الطلبات إصدار واجهة الأوامر هذا؛ قد تتطلب النماذج الأحدث إصدارًا حديثًا.",
+	"manualSummary": "هل تعذّر مسار المتصفح؟ ألصق رابط العودة أو الرمز",
+	"addAccountHint": "يسجّل تفويض المتصفح الدخول بالحساب المستخدم حاليًا في المتصفح — بدّل الحساب هناك أولًا (أو استخدم نافذة خاصة مع الرمز اليدوي أدناه) لإضافة حساب آخر.",
+	"resetGuard": "يمكنك استخدام إعادة التعيين عندما يبلغ الاستخدام الأسبوعي 80٪ على الأقل.",
+	"resetRefresh": "حدّث الاستخدام للتحقق من الحدود الحالية وتوفّر إعادة التعيين.",
+	"resetReady": "استخدم الرصيد الأقرب لانتهاء الصلاحية. يلزم التأكيد.",
+	"resetWarning": "يستهلك هذا رصيدًا واحدًا ويعيد تعيين الحد الأسبوعي وحد الخمس ساعات. لا يمكن التراجع من هذه الواجهة. ينتهي التأكيد بعد 60 ثانية.",
+	"intro": "سجّل الدخول إلى موفّر اشتراك أو اخرج منه. يفتح تسجيل الدخول صفحة تفويض الموفّر في تبويب جديد؛ ويمكن لصق رابط العودة أو الرمز في الأنظمة بلا متصفح.",
+	"proxyTestOk": "نجح · HTTP {status} · {ms} مللي ثانية",
+	"proxyUsernamePlaceholder": "اسم مستخدم الوكيل",
+	"accountsModels": "قائمة النماذج المسموح بها للمجموعة",
+	"modelsContextInvalid": "أدخل عدداً صحيحاً موجباً لرموز {model}.",
+	"proxyLoadFailed": "تعذر تحميل إعدادات الوكيل: {message}",
+	"modelsSave": "حفظ التغييرات",
+	"modelsContextHint": "اتركه فارغاً لاتباع المزوّد. يُقيّد بالحجم الأقصى المعلن للحساب؛ تستخدم المجموعة أصغر نافذة. يضبط السجل والضغط المحليين وليس سعة الواجهة.",
+	"usageRefresh": "تحديث",
+	"accountsAlias": "اسم مستعار (اختياري)",
+	"accountsSaveFailed": "تعذر حفظ التغييرات: {message}",
+	"proxyUrlPlaceholder": "مثال: http://localhost:7890",
+	"proxyPasswordPlaceholder": "اتركها فارغة للاحتفاظ بكلمة المرور المحفوظة",
+	"accountsModelsCount": "{count} محدد",
+	"modelDefaultsTitle": "مستوى الاستدلال الافتراضي",
+	"proxyDialogTitle": "إعدادات الوكيل الشبكي",
+	"accountsIndependent": "عرض إدخال مستقل في منتقي النماذج",
+	"modelDefaultsFilterEmpty": "لا نموذج يطابق «{query}».",
+	"modelsSubagentSpeed": "السرعة الافتراضية للوكيل الفرعي",
+	"accountsPoolEnabled": "تضمين في مجموعة حسابات النماذج",
+	"modelsPartialSave": "حُفظت بعض افتراضيات الاستدلال. التغييرات المتبقية ما زالت في المسودة؛ أعد المحاولة.",
+	"accountsModelsAutomatic": "السماح بكل النماذج بما فيها المستقبلية",
+	"proxySaveFailed": "تعذر الحفظ: {message}",
+	"proxyStatusError": "خطأ إعداد: {message}",
+	"proxyLoading": "جارٍ تحميل إعدادات الوكيل…",
+	"modelsEdit": "تحرير قائمة النماذج",
+	"proxyPassword": "كلمة المرور",
+	"proxyBypassPlaceholder": "مثال: 127.0.0.1, localhost, *.example.com",
+	"subscriptionDisplayName": "اسم عرض الاشتراك",
+	"modelDisplayName": "اسم عرض النموذج",
+	"accountsLoading": "جارٍ تحميل الحسابات…",
+	"accountsLoadFailed": "تعذر تحميل إعدادات الحسابات: {message}",
+	"proxyUrlHint": "وكيل HTTP أو HTTPS فقط؛ SOCKS غير مدعوم.",
+	"accountsIndependentHint": "يستخدم المسار المستقل هذا الحساب فقط دون الرجوع إلى حساب آخر. لا يعزل الأدوات أو الجلسة.",
+	"modelsToolsHint": "تنطبق التغييرات على الجلسات المنشأة بعد الحفظ فقط. تحتفظ الجلسات الحالية بأدواتها. تبقى الأدوات المشتركة متاحة إذا كان أي مزوّد داعم مفعّلاً.",
+	"proxySaving": "جارٍ الحفظ…",
+	"subscriptionDisplayNameHint": "يُستخدم في عناوين الاشتراك وشريط الحصة. اتركه فارغاً للاسم الافتراضي.",
+	"modelsUnavailable": "غير متاح حالياً",
+	"speedFast": "سريعة",
+	"proxyClearPassword": "مسح كلمة المرور المحفوظة",
+	"proxyDialogClose": "إغلاق",
+	"proxySave": "حفظ",
+	"modelsSelectAll": "تحديد الكل",
+	"proxyUrl": "عنوان الوكيل",
+	"accountsCatalogUnavailable": "اكتشاف النماذج غير متاح حالياً. تُحفظ التحديدات السابقة.",
+	"modelsAutomatic": "إظهار كل النماذج تلقائياً بما فيها الجديدة",
+	"speedStandard": "عادية",
+	"modelsHint": "اضبط ظهور النماذج والاستدلال الافتراضي وسرعة الوكيل الفرعي والسياق والأدوات. يحفظ الزر أدناه هذه التغييرات مع إعدادات الحسابات. تبقى النماذج المخفية قابلة للاستخدام في الجلسات الحالية؛ تغييرات الأدوات للجلسات الجديدة.",
+	"modelDefaultsSaving": "جارٍ الحفظ…",
+	"accountsHint": "اختر الحسابات التي تخدم طلبات مجموعة النماذج. الاستبعاد لا يعزل الأدوات أو الجلسة بأكملها.",
+	"accountsNoModels": "لم يُبلّغ عن نماذج لهذا الحساب.",
+	"proxyUsername": "اسم المستخدم (اختياري)",
+	"modelDefaultsFilterPlaceholder": "تصفية النماذج",
+	"modelDefaultsLoading": "جارٍ تحميل النماذج…",
+	"proxyConfigure": "تهيئة…",
+	"proxyTestFail": "فشل: {message}",
+	"proxyTestOkDirect": "نجح (إعدادات شبكة DSH) · HTTP {status} · {ms} مللي ثانية",
+	"modelsContextBounds": "الافتراضي {default} · الحد الأقصى {max}",
+	"proxyStatusEnabled": "مفعّل · {url}",
+	"accountsModelsAll": "كل النماذج",
+	"imageClose": "إغلاق",
+	"proxyStatusNone": "وكيل الإضافة معطّل — تُستخدم إعدادات شبكة DSH.",
+	"modelDisplayNameHint": "اتركه فارغاً للاسم الأصلي. يبقى مستوى الاستدلال مستقلاً.",
+	"proxyEnabled": "توجيه طلبات الاشتراك عبر وكيل شبكي",
+	"accountsTitle": "إدارة {provider}",
+	"proxyNote": "يُفضّل استخدام إعدادات شبكة DSH وترك هذا التجاوز الاختياري معطّلاً. تستخدم الطلبات المستثناة أو المعطّلة إعدادات DSH ولا تكون مباشرة بالضرورة. ينطبق على تبادل الرموز وواجهات النماذج والاستخدام والأدوات. يتبع تسجيل الدخول إعدادات المتصفح والنظام.",
+	"proxyBypassHint": "أسماء مضيفين مفصولة بفواصل تتجاوز وكيل الإضافة وتستخدم إعدادات شبكة DSH.",
+	"proxyCancel": "إلغاء",
+	"modelsContext": "السياق (رموز)",
+	"displayNameReset": "استعادة الافتراضي",
+	"modelsTools": "أدوات المزوّد",
+	"proxySaved": "تم الحفظ — تستخدم الطلبات الجديدة الإعدادات المحدّثة.",
+	"modelDefaultsRetry": "إعادة المحاولة",
+	"proxyBypass": "مضيفون مستثنون",
+	"modelsSelectNone": "مسح التحديد",
+	"modelDefaultsFollowProvider": "اتباع المزوّد",
+	"proxyTesting": "جارٍ الاختبار…",
+	"accountsManage": "إدارة",
+	"accountsModelsHint": "ينطبق على توجيه المجموعة فقط، لا الإدخالات المستقلة. التحديد الفارغ لا يسمح بأي نموذج. يُحفظ التحديد عند تعطيل المشاركة.",
+	"proxyTitle": "الوكيل الشبكي",
+	"modelsSubagentSpeedHint": "ينطبق على طلبات الوكيل الفرعي اللاحقة بهذا النموذج. تحتفظ المحادثات الرئيسية بسرعتها. تتطلب السرعة العالية دعم النموذج.",
+	"proxyTest": "اختبار",
+	"proxyUsernameHint": "اسم المستخدم اختياري",
+	"proxyPasswordHint": "اتركها فارغة للاحتفاظ بكلمة المرور المحفوظة",
+	"modelsWebSearch": "بحث الويب",
+	"modelsImage": "توليد الصور",
+	"modelsVideo": "توليد الفيديو",
+	"modelsSearch": "بحث X",
+	"modelDefaultsLoadFailed": "تعذر تحميل النماذج: {message}",
+	"modelDefaultsRefresh": "تحديث قوائم النماذج",
+	"modelDefaultsNoModels": "لم يُبلّغ المزوّد عن نماذج.",
+	"modelDefaultsNoAccount": "لا حسابات متصلة. أضف حساباً أولاً.",
+	"modelDefaultsDiscoveryFailed": "تعذر اكتشاف النماذج أو انتهت المهلة. حدّث لإعادة المحاولة.",
+	"modelDefaultsSaveFailedNamed": "تعذر حفظ {model}: {message}",
+	"speed": "السرعة",
+	"speedStandardDescription": "السرعة الافتراضية",
+	"speedFastDescription": "سرعة 1.5 ضعف، واستهلاك أكبر",
+	"commandFast": "تبديل مستوى سرعة Codex (عادية/سريعة)",
+	"commandFastUnavailable": "لا يدعم النموذج الحالي المستوى السريع؛ يعمل الأمر /fast فقط مع نماذج Codex التي يعلن كتالوجها عن مستوى سريع",
+	"usageSessionShort": "5س",
+	"usageWeeklyShort": "أسبوع",
+	"usageBadgeReset": "إعادة التعيين خلال {time}",
+	"usageBadgeOpenDetails": "عرض جميع الحسابات والحصص",
+	"usageBadgeClose": "إغلاق تفاصيل الاستهلاك",
+	"usageBadgeTitle": "استهلاك الاشتراك",
+	"usageBadgeCurrent": "الحالي",
+	"usageBadgeMoreWindows": "المزيد من نوافذ الحصة ({count})",
+	"usageBadgeModelCount": "حصص {count} من النماذج",
+	"usageBadgeModelUnavailable": "حصة النموذج الحالي غير متاحة",
+	"usageBadgeDisplay": "عرض الحصة في شريط الحالة",
+	"usageBadgeDisplayRecent": "الاشتراك الحالي / الأحدث فقط",
+	"usageBadgeDisplayHidden": "مخفي",
+	"usageBadgeDisplayHint": "يُحفظ تلقائيًا في هذا المتصفح. يُعرض اشتراك واحد على الأكثر؛ وتحتفظ النماذج غير المرتبطة باشتراك بآخر اشتراك تم اختياره في هذا العرض، أو لا تعرض شيئًا. لا يؤثر الإخفاء على تفاصيل الاستهلاك هنا.",
+	"usageBadgeDisplaySaveFailed": "تعذر حفظ تفضيل العرض. تحقق من أذونات تخزين المتصفح.",
+	"usagePlan": "الخطة: {plan}",
+	"usageSession": "نافذة 5 ساعات",
+	"usageWeekly": "أسبوعي",
+	"usageWindow": "نافذة",
+	"claudeProviderUnavailable": "Claude غير متاح: معرّف الموفّر مسجّل بالفعل.",
+	"addAccountOAuth": "تفويض المتصفح",
+	"addAccountKeychain": "استيراد من Claude Code",
+	"claudeAddAccountHint": "يسجّل تفويض المتصفح الدخول بالحساب المستخدم حاليًا في المتصفح. ينسخ الاستيراد من Claude Code الحساب المسجَّل فيه ويبقيه متزامنًا؛ سجّل الدخول أولًا بالأمر claude.",
+	"claudePromptCacheTtl": "مدة بقاء ذاكرة المطالبات المؤقتة",
+	"claudePromptCacheTtlHint": "المدة التي تحتفظ بها Anthropic بذاكرة المحادثة المؤقتة بعد آخر استخدام. تكلفة قراءة الذاكرة واحدة في الحالتين؛ أما كتابة ذاكرة لمدة ساعة فتكلّف ضعف مدخلات الأساس بدل 1.25 ضعفًا. يسري من الدور التالي.",
+	"claudePromptCacheTtlDefault": "اتباع الإعداد ({ttl})",
+	"claudePromptCacheTtl5m": "5 دقائق",
+	"claudePromptCacheTtl1h": "ساعة واحدة",
+	"usageEmpty": "لم يتم الإبلاغ عن حصص استخدام.",
+	"usageNoVisibleModels": "لا توجد حصص للنماذج المعروضة.",
+	"antigravityProviderUnavailable": "تسجيل Antigravity غير متاح.",
+	"grokProviderUnavailable": "تسجيل Grok غير متاح.",
+	"image": "صورة",
+	"viewImage": "عرض الصورة",
+	"viewImageNamed": "عرض {name}",
+	"imageLoading": "جارٍ تحميل الصورة…",
+	"imageLoadFailed": "تعذر تحميل الصورة. أعد المحاولة",
+	"imagePreview": "معاينة الصورة",
+	"generating": "جارٍ إنشاء الصورة…",
+	"generatingVideo": "جارٍ إنشاء الفيديو…",
+	"videoLoading": "جارٍ تحميل الفيديو…",
+	"videoLoadFailed": "تعذر تحميل الفيديو: {message}",
+	"videoPlaybackFailed": "تعذر على المتصفح تشغيل هذا الفيديو."
+};
+
+//#endregion
+//#region src/settings/subscriptions-rpc.ts
+/**
+* The node half mounts every endpoint as an exact POST route on the shared
+* `/api` channel (`/api/majed-subscriptions.<endpoint>`), so the browser
+* reaches it through the `/api` channel with a prefixed endpoint name.
+* A dedicated channel is no longer used: since dsh 0.1.5 `rpc.handle`
+* cannot register one from a plugin (see `src/auth/rpc.ts`).
+*/
+const SUBSCRIPTIONS_AUTH_CHANNEL = "/api";
+const SUBSCRIPTIONS_AUTH_PREFIX = "majed-subscriptions.";
+/** Business error returned by a `subscriptions-auth` endpoint (error branch message). */
+var SubscriptionsAuthError = class extends Error {};
+/**
+* Call one `subscriptions-auth` endpoint and unwrap the business result.
+* Shared by the settings section, the composer Speed toggle, the usage
+* badge, and the image/video toolviews.
+* @param rpc - Connection RPC caller.
+* @param endpoint - endpoint name (`status`, `usage`, `image`, ...).
+* @param payload - endpoint-owned request payload.
+* @returns the success value, cast by the caller to the endpoint's shape.
+*/
+async function callSubscriptionsAuth(rpc, endpoint, payload) {
+	let result;
+	try {
+		result = await rpc.call(SUBSCRIPTIONS_AUTH_CHANNEL, `${SUBSCRIPTIONS_AUTH_PREFIX}${endpoint}`, payload);
+	} catch (error) {
+		throw new SubscriptionsAuthError(error instanceof Error ? error.message : String(error));
+	}
+	if (!result.ok) throw new SubscriptionsAuthError(result.error.message);
+	return result.value;
+}
+
+//#endregion
+//#region src/settings/account-preferences.ts
+/** Missing allowlist follows discovery; explicit [] must remain empty. */
+function accountPoolSelection(account, models) {
+	return new Set(account.poolModels ?? models.map((model) => model.id));
+}
+/** Retain unavailable saved IDs so a temporary catalog failure cannot erase them. */
+function accountModelRows(account, preferences) {
+	const known = new Set(account.models.map((model) => model.id));
+	return [...account.models.map((model) => ({
+		...model,
+		unavailable: false
+	})), ...(preferences.poolModels ?? []).filter((id) => !known.has(id)).map((id) => ({
+		id,
+		name: id,
+		unavailable: true
+	}))];
+}
+
+//#endregion
+//#region src/settings/model-filter.ts
+/**
+* Which empty state the model list is in.
+*
+* `provider-empty` means the provider shows NO rows at all — the filter box cannot match
+* anything in that state, and printing `No model matches “”.` next to it reads like a broken
+* control rather than like an explanation (issue #147).
+*
+* `filter-empty` keeps the existing message for a query that filtered everything out of a
+* provider that does have rows.
+*/
+function modelListState(total, matched) {
+	if (total === 0) return "provider-empty";
+	return matched === 0 ? "filter-empty" : "rows";
+}
+/**
+* Row ids the editor can still show when discovery returned nothing: saved visibility,
+* display names and subagent speeds must count towards the total —
+* otherwise a temporary catalog failure would hide the rows that edit them.
+*/
+function savedModelIds(visibleModels, displayNames, subagentSpeeds = void 0) {
+	return [...new Set([
+		...visibleModels ?? [],
+		...Object.keys(displayNames ?? {}),
+		...Object.keys(subagentSpeeds ?? {})
+	])];
+}
+/**
+* Why the provider has no models — read from the data the host already sends.
+*
+* `total === 0` alone cannot tell these apart, and guessing wrong re-creates the very
+* defect issue #147 is about: telling a user who IS logged in to go and log in. The
+* catalog payload carries one row per connected account with `unavailable: true` when that
+* account's discovery failed or timed out (src/index.ts).
+*
+*  · no account at all                       → `noAccount`;
+*  · accounts exist, every discovery failed  → `discoveryFailed` (retry, not log in);
+*  · a connected account answered (possibly with an empty catalog) → `noModels`.
+*/
+function modelEditorNotice(accounts) {
+	if (accounts.length === 0) return "noAccount";
+	return accounts.every((account) => account.unavailable === true) ? "discoveryFailed" : "noModels";
+}
+/** Locale keys for the three honest empty states. */
+const NOTICE_KEYS = {
+	noAccount: "modelDefaultsNoAccount",
+	discoveryFailed: "modelDefaultsDiscoveryFailed",
+	noModels: "modelDefaultsNoModels"
+};
+/**
+* The editor's whole empty-state decision, in one testable place: how many rows exist
+* (discovered + the user's saved ids), whether a query filtered them all out, and which
+* notice to show when there are none.
+*/
+function modelEditorState(input) {
+	return {
+		listState: modelListState(input.discovered + input.saved, input.matched),
+		noticeKey: NOTICE_KEYS[modelEditorNotice(input.accounts)]
+	};
+}
+
+//#endregion
+//#region src/settings/ProviderModelEditor.tsx
+const border$1 = "0.5px solid var(--dsw-alias-border-l2, #ddd)";
+const actions$1 = {
+	display: "flex",
+	flexWrap: "wrap",
+	gap: 8,
+	alignItems: "center"
+};
+/**
+* Embedded section of the account manager dialog. It owns the model draft
+* (visibility, effort, context, tools) but not its submission: the dialog
+* collects the draft through the handle and saves it with the account edits
+* in one go, so there is a single Save/Cancel pair.
+*/
+const ProviderModelEditor = (0, react.forwardRef)(function ProviderModelEditor$1({ provider, rpc, t, disabled = false, onDirtyChange }, ref) {
+	const [catalog, setCatalog] = (0, react.useState)();
+	const [draft, setDraft] = (0, react.useState)({});
+	const [contexts, setContexts] = (0, react.useState)({});
+	const [efforts, setEfforts] = (0, react.useState)({});
+	const [query, setQuery] = (0, react.useState)("");
+	const [busy, setBusy] = (0, react.useState)(false);
+	const [dirty, setDirty] = (0, react.useState)(false);
+	const [error, setError] = (0, react.useState)("");
+	const generation = (0, react.useRef)(0);
+	(0, react.useEffect)(() => () => {
+		generation.current++;
+	}, []);
+	(0, react.useEffect)(() => {
+		onDirtyChange?.(dirty);
+	}, [dirty]);
+	function reset(data) {
+		setCatalog(data);
+		setDraft(data.settings);
+		setEfforts(Object.fromEntries(data.models.map((model) => [model.id, model.configured ?? ""])));
+		setContexts(Object.fromEntries(Object.entries(data.settings.contextWindows ?? {}).map(([id, value]) => [id, String(value)])));
+		setDirty(false);
+	}
+	async function load(force = false) {
+		const request = ++generation.current;
+		setBusy(true);
+		setError("");
+		try {
+			const data = await callSubscriptionsAuth(rpc, "providerSettings", {
+				provider,
+				force
+			});
+			if (generation.current === request) reset(data);
+		} catch (error$1) {
+			if (generation.current === request) setError(String(error$1 instanceof Error ? error$1.message : error$1));
+		} finally {
+			if (generation.current === request) setBusy(false);
+		}
+	}
+	function edit(next) {
+		setDraft(next);
+		setDirty(true);
+	}
+	(0, react.useEffect)(() => {
+		load();
+	}, [provider, rpc]);
+	(0, react.useImperativeHandle)(ref, () => ({ collect() {
+		if (!catalog || !dirty) return { efforts: [] };
+		const windows = Object.create(null);
+		for (const [model, text] of Object.entries(contexts)) {
+			if (!text.trim()) continue;
+			const value = Number(text);
+			const limits = catalog.models.find((entry) => entry.id === model);
+			if (!/^\d+$/.test(text.trim()) || !Number.isSafeInteger(value) || value <= 0 || limits?.maxContextWindow !== void 0 && value > limits.maxContextWindow) {
+				setError(t("modelsContextInvalid", { model }));
+				return;
+			}
+			windows[model] = value;
+		}
+		setError("");
+		const { accounts: _accounts,...settings } = {
+			...draft,
+			...provider === "codex" ? { contextWindows: windows } : {}
+		};
+		return {
+			settings,
+			original: catalog.settings,
+			efforts: catalog.models.flatMap((model) => {
+				const effort = efforts[model.id] ?? "";
+				return effort === (model.configured ?? "") || !model.efforts?.length ? [] : [{
+					model: model.id,
+					effort
+				}];
+			})
+		};
+	} }), [
+		catalog,
+		dirty,
+		draft,
+		contexts,
+		efforts,
+		provider
+	]);
+	const allModels = catalog?.models ?? [];
+	const known = new Set(allModels.map((model) => model.id));
+	const missing = savedModelIds(draft.visibleModels, draft.modelDisplayNames, draft.subagentSpeeds).filter((id) => !known.has(id)).map((id) => ({
+		id,
+		name: id
+	}));
+	const customName = (id) => Object.hasOwn(draft.modelDisplayNames ?? {}, id) ? draft.modelDisplayNames[id] : "";
+	const editName = (id, value) => {
+		const names = Object.assign(Object.create(null), draft.modelDisplayNames);
+		if (value.trim()) names[id] = value;
+		else delete names[id];
+		edit({
+			...draft,
+			modelDisplayNames: names
+		});
+	};
+	const models = [...allModels, ...missing].filter((model) => `${model.name} ${model.id} ${customName(model.id)}`.toLowerCase().includes(query.trim().toLowerCase()));
+	const editorState = modelEditorState({
+		discovered: allModels.length,
+		saved: missing.length,
+		matched: models.length,
+		accounts: catalog?.accounts ?? []
+	});
+	const selected = new Set(draft.visibleModels ?? allModels.map((model) => model.id));
+	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+		style: {
+			borderBlockStart: border$1,
+			marginBlockStart: 12,
+			paddingBlockStart: 12
+		},
+		children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("h3", {
+			style: { margin: 0 },
+			children: t("modelsEdit")
+		}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+			style: {
+				display: "grid",
+				gap: 12,
+				marginBlockStart: 12
+			},
+			children: [
+				/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+					className: "majed-subscription-hint",
+					children: t("modelsHint")
+				}),
+				error && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+					role: "alert",
+					children: error
+				}),
+				/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+					style: actions$1,
+					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+						type: "button",
+						className: "majed-subscription-quiet",
+						disabled: busy || disabled || dirty,
+						onClick: () => {
+							load(true);
+						},
+						children: t("usageRefresh")
+					}), busy && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+						role: "status",
+						children: t("modelDefaultsLoading")
+					})]
+				}),
+				catalog && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("fieldset", {
+					disabled: busy || disabled,
+					style: {
+						border: 0,
+						padding: 0,
+						margin: 0,
+						minWidth: 0,
+						display: "grid",
+						gap: 12
+					},
+					children: [
+						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", { children: [
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+								type: "checkbox",
+								checked: draft.visibleModels === void 0,
+								onChange: (event) => {
+									const next = { ...draft };
+									if (event.target.checked) delete next.visibleModels;
+									else next.visibleModels = allModels.map((model) => model.id);
+									edit(next);
+								}
+							}),
+							" ",
+							t("modelsAutomatic")
+						] }),
+						editorState.listState === "provider-empty" ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+							className: "majed-subscription-hint",
+							children: t(editorState.noticeKey)
+						}) : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+							style: actions$1,
+							children: [
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+									style: { flex: "1 1 180px" },
+									value: query,
+									onChange: (event) => setQuery(event.target.value),
+									placeholder: t("modelDefaultsFilterPlaceholder"),
+									"aria-label": t("modelDefaultsFilterPlaceholder")
+								}),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+									type: "button",
+									onClick: () => edit({
+										...draft,
+										visibleModels: allModels.map((model) => model.id)
+									}),
+									children: t("modelsSelectAll")
+								}),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+									type: "button",
+									onClick: () => edit({
+										...draft,
+										visibleModels: []
+									}),
+									children: t("modelsSelectNone")
+								})
+							]
+						}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+							style: {
+								maxHeight: 360,
+								overflowY: "auto",
+								display: "grid",
+								gap: 8
+							},
+							children: [models.map((model) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+								style: {
+									borderBlockEnd: border$1,
+									padding: "8px 2px",
+									display: "grid",
+									gap: 8
+								},
+								children: [
+									/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+										style: { overflowWrap: "anywhere" },
+										children: [
+											/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+												type: "checkbox",
+												checked: selected.has(model.id),
+												onChange: (event) => {
+													const next = new Set(selected);
+													if (event.target.checked) next.add(model.id);
+													else next.delete(model.id);
+													edit({
+														...draft,
+														visibleModels: [...next]
+													});
+												}
+											}),
+											" ",
+											model.name,
+											!known.has(model.id) && ` (${t("modelsUnavailable")})`
+										]
+									}),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("small", {
+										style: {
+											color: "var(--dsw-alias-label-tertiary)",
+											overflowWrap: "anywhere"
+										},
+										children: ["ID: ", model.id]
+									}),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+										style: actions$1,
+										children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+											style: {
+												display: "grid",
+												gap: 6,
+												flex: "1 1 200px",
+												minWidth: 0
+											},
+											children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+												style: { fontSize: 12 },
+												children: t("modelDisplayName")
+											}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+												maxLength: 80,
+												"aria-label": `${model.name} ${t("modelDisplayName")}`,
+												placeholder: model.name,
+												value: customName(model.id),
+												onChange: (event) => editName(model.id, event.target.value)
+											})]
+										}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+											type: "button",
+											style: { alignSelf: "end" },
+											"aria-label": `${model.name} ${t("displayNameReset")}`,
+											disabled: !customName(model.id),
+											onClick: () => editName(model.id, ""),
+											children: t("displayNameReset")
+										})]
+									}),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", {
+										style: { color: "var(--dsw-alias-label-tertiary)" },
+										children: t("modelDisplayNameHint")
+									}),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+										style: actions$1,
+										children: [(model.efforts?.length ?? 0) > 0 && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+											style: actions$1,
+											children: [t("modelDefaultsTitle"), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("select", {
+												"aria-label": `${model.name} ${t("modelDefaultsTitle")}`,
+												value: efforts[model.id] ?? "",
+												onChange: (event) => {
+													setEfforts({
+														...efforts,
+														[model.id]: event.target.value
+													});
+													setDirty(true);
+												},
+												children: [
+													/* @__PURE__ */ (0, react_jsx_runtime.jsx)("option", {
+														value: "",
+														children: t("modelDefaultsFollowProvider")
+													}),
+													model.configured && !model.efforts?.some((effort) => effort.id === model.configured) && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("option", {
+														value: model.configured,
+														disabled: true,
+														children: [
+															model.configured,
+															" (",
+															t("modelsUnavailable"),
+															")"
+														]
+													}),
+													model.efforts?.map((effort) => /* @__PURE__ */ (0, react_jsx_runtime.jsx)("option", {
+														value: effort.id,
+														children: effort.name
+													}, effort.id))
+												]
+											})]
+										}), provider === "codex" && model.maxContextWindow !== void 0 && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+											style: actions$1,
+											children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+												style: actions$1,
+												children: [t("modelsContext"), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+													style: { width: 140 },
+													inputMode: "numeric",
+													value: contexts[model.id] ?? "",
+													"aria-label": `${model.name} ${t("modelsContext")}`,
+													placeholder: String(model.defaultContextWindow),
+													onChange: (event) => {
+														setContexts({
+															...contexts,
+															[model.id]: event.target.value
+														});
+														setDirty(true);
+													}
+												})]
+											}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", { children: t("modelsContextBounds", {
+												default: model.defaultContextWindow,
+												max: model.maxContextWindow
+											}) })]
+										})]
+									}),
+									provider === "codex" && (model.fastTier || Object.hasOwn(draft.subagentSpeeds ?? {}, model.id)) && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+										style: {
+											display: "grid",
+											gap: 6
+										},
+										children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+											style: actions$1,
+											children: [t("modelsSubagentSpeed"), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("select", {
+												"aria-label": `${model.name} ${t("modelsSubagentSpeed")}`,
+												value: Object.hasOwn(draft.subagentSpeeds ?? {}, model.id) ? draft.subagentSpeeds[model.id] : "standard",
+												onChange: (event) => edit({
+													...draft,
+													subagentSpeeds: {
+														...draft.subagentSpeeds,
+														[model.id]: event.target.value
+													}
+												}),
+												children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("option", {
+													value: "standard",
+													children: t("speedStandard")
+												}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("option", {
+													value: "fast",
+													disabled: !model.fastTier,
+													children: [t("speedFast"), !model.fastTier && ` (${t("modelsUnavailable")})`]
+												})]
+											})]
+										}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", { children: t("modelsSubagentSpeedHint") })]
+									})
+								]
+							}, model.id)), models.length === 0 && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: t("modelDefaultsFilterEmpty", { query }) })]
+						})] }),
+						provider === "codex" && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", { children: t("modelsContextHint") }),
+						catalog.tools.length > 0 && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+							style: {
+								display: "grid",
+								gap: 8
+							},
+							children: [
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", { children: t("modelsTools") }),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", { children: t("modelsToolsHint") }),
+								catalog.tools.map((tool) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", { children: [
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+										type: "checkbox",
+										checked: draft.tools?.[tool] !== false,
+										onChange: (event) => edit({
+											...draft,
+											tools: {
+												...draft.tools,
+												[tool]: event.target.checked
+											}
+										})
+									}),
+									" ",
+									t(tool === "image_generate" ? "modelsImage" : tool === "video_generate" ? "modelsVideo" : tool === "web_search" ? "modelsWebSearch" : "modelsSearch")
+								] }, tool))
+							]
+						})
+					]
+				})
+			]
+		})]
+	});
+});
+
+//#endregion
+//#region src/settings/display-name-events.ts
+/** Notify mounted views after a successful save, without another quota request. */
+const DISPLAY_NAME_CHANGED = "majed-subscriptions-display-name-changed";
+function notifyDisplayNameChange(provider, displayName) {
+	window.dispatchEvent(new CustomEvent(DISPLAY_NAME_CHANGED, { detail: {
+		provider,
+		...displayName?.trim() ? { displayName: displayName.trim() } : {}
+	} }));
+}
+
+//#endregion
+//#region src/settings/provider-settings-styles.ts
+/**
+* The host loads one JS client bundle, so keep this small, scoped stylesheet
+* with the dialog instead of relying on a separate CSS asset. Geometry and
+* theme tokens follow the host's settings-form and ui-primitives controls.
+*/
+const formScope = ":is(.majed-subscription-manager, .majed-subscriptions-settings)";
+const providerSettingsCss = `
+.majed-subscription-manager {
+  box-sizing: border-box;
+  padding: 0;
+  border: 0;
+  border-radius: var(--dsw-radius-panel, 16px);
+  background: var(--dsw-alias-bg-layer-2, var(--dsw-alias-bg-layer-1));
+  color: var(--dsw-alias-label-primary);
+  box-shadow: var(--dsw-elevation-prominent, 0 20px 70px #0004);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  color-scheme: light;
+}
+.majed-subscriptions-settings {
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  color-scheme: light;
+}
+body[data-ds-dark-theme] ${formScope} {
+  color-scheme: dark;
+}
+.majed-subscription-manager::backdrop {
+  background: var(--dsw-alias-bg-mask-1, #0006);
+  backdrop-filter: var(--dsw-mask-blur, none);
+}
+${formScope} h2 {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 500;
+}
+${formScope} h3 {
+  font-size: 14px;
+  line-height: 22px;
+  font-weight: 500;
+}
+${formScope} strong,
+${formScope} .majed-subscription-label {
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 500;
+}
+${formScope} legend {
+  font-size: 14px;
+  line-height: 22px;
+  font-weight: 500;
+}
+${formScope} small,
+${formScope} .majed-subscription-hint,
+${formScope} [role="status"] {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--dsw-alias-label-tertiary);
+}
+${formScope} [role="alert"] {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--dsw-alias-state-error-primary, #b42318);
+}
+${formScope} input:not([type="checkbox"]),
+${formScope} select {
+  box-sizing: border-box;
+  min-width: 0;
+  height: 34px;
+  padding: 0 12px;
+  border: 0.5px solid var(--dsw-alias-border-l4, var(--dsw-alias-border-l2));
+  border-radius: var(--dsw-radius-md, 8px);
+  background: var(--dsw-alias-bg-layer-3, var(--dsw-alias-bg-layer-1));
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+${formScope} input::placeholder {
+  color: var(--dsw-alias-label-tertiary);
+  opacity: 1;
+}
+${formScope} input:not([type="checkbox"]):focus-visible,
+${formScope} select:focus-visible {
+  outline: none;
+  border-color: var(--dsw-alias-state-business-primary, var(--dsw-alias-brand-primary));
+}
+${formScope} input:not([type="checkbox"]):disabled,
+${formScope} select:disabled {
+  color: var(--dsw-alias-label-tertiary);
+  cursor: default;
+}
+${formScope} input[aria-invalid="true"] {
+  border-color: var(--dsw-alias-state-error-primary, #b42318);
+}
+${formScope} option {
+  background: var(--dsw-alias-bg-layer-2, var(--dsw-alias-bg-layer-1));
+  color: var(--dsw-alias-label-primary);
+}
+${formScope} label:has(> input[type="checkbox"]) {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 14px;
+  line-height: 20px;
+  cursor: pointer;
+}
+${formScope} input[type="checkbox"] {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin: 2px 0;
+  accent-color: var(--dsw-alias-brand-primary);
+  cursor: inherit;
+}
+${formScope} label:has(> input[type="checkbox"]:disabled) {
+  cursor: default;
+  opacity: 0.5;
+}
+${formScope} button {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 0.5px solid var(--dsw-alias-border-l3, var(--dsw-alias-border-l2));
+  border-radius: var(--dsw-radius-sm, 6px);
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 12px;
+  line-height: 18px;
+  cursor: pointer;
+}
+${formScope} button:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover, var(--dsw-alias-bg-layer-3));
+}
+${formScope} button:active:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-active, var(--dsw-alias-bg-layer-3));
+}
+${formScope} button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+${formScope} button.majed-subscription-quiet {
+  border-color: transparent;
+  color: var(--dsw-alias-label-secondary, var(--dsw-alias-label-primary));
+}
+${formScope} :is(footer, .majed-subscription-dialog-actions) button {
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: var(--dsw-radius-md, 8px);
+  font-size: 13px;
+  line-height: 1.5;
+}
+${formScope} button.majed-subscription-primary {
+  border-color: transparent;
+  background: var(--dsw-alias-button-primary-fill, var(--dsw-alias-label-primary));
+  color: var(--dsw-alias-label-primary-foreground, var(--dsw-alias-bg-layer-1));
+  font-weight: 500;
+}
+${formScope} button.majed-subscription-primary:hover:not(:disabled) {
+  background: var(--dsw-alias-button-primary-hover, var(--dsw-alias-label-secondary));
+}
+${formScope} button:focus-visible,
+${formScope} input[type="checkbox"]:focus-visible,
+${formScope} summary:focus-visible {
+  outline: var(--dsw-focus-ring-width, 2px) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
+  outline-offset: 2px;
+}
+${formScope} summary {
+  border-radius: var(--dsw-radius-sm, 6px);
+}
+${formScope} summary:hover {
+  color: var(--dsw-alias-label-secondary, var(--dsw-alias-label-primary));
+}
+`;
+/** Composer controls retain their own geometry, separate from settings forms. */
+const subscriptionChromeCss = `
+.majed-subscription-usage-pill { corner-shape: round; touch-action: manipulation; }
+.majed-subscription-usage-pill>svg { flex-shrink: 0; }
+.majed-subscription-usage-close {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  inline-size: 28px; block-size: 28px; padding: 0; border: 0; border-radius: var(--dsw-radius-sm, 8px);
+  color: var(--dsw-alias-label-secondary); background: transparent; cursor: pointer;
+}
+.majed-subscription-usage-close:hover { background: var(--dsw-alias-interactive-bg-hover); }
+.majed-subscription-usage-close:focus-visible {
+  outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px;
+}
+@media (max-width: 480px) {
+  .majed-subscription-usage-pill { max-inline-size: min(220px, calc(100vw - 24px)); }
+  .majed-subscription-usage-panel { padding: 12px !important; }
+}
+.majed-subscription-usage-tooltip,
+.majed-subscription-usage-panel {
+  --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
+  backdrop-filter: var(--dsw-menu-backdrop-filter, none);
+}
+.majed-subscription-speed button:hover:not(:disabled) {
+  --majed-subscription-speed-hover: var(--dsw-alias-interactive-bg-hover);
+}
+.majed-subscription-speed button:active:not(:disabled) {
+  --majed-subscription-speed-hover: var(--dsw-alias-interactive-bg-active);
+}
+.majed-subscription-speed button:disabled { opacity: 0.4; cursor: default; }
+.majed-subscription-speed button:focus-visible,
+.majed-subscription-usage-pill:focus-visible {
+  outline: var(--dsw-focus-ring-width, 2px) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
+  outline-offset: 2px;
+}
+`;
+
+//#endregion
+//#region src/settings/ProviderAccountManager.tsx
+const PROMPT_CACHE_TTLS = ["5m", "1h"];
+const border = "0.5px solid var(--dsw-alias-border-l2)";
+const stack = {
+	display: "grid",
+	gap: 12,
+	minWidth: 0
+};
+const actions = {
+	display: "flex",
+	flexWrap: "wrap",
+	gap: 8,
+	alignItems: "center"
+};
+/** Native top-layer dialog provides keyboard containment, Escape and focus restoration. */
+function ProviderAccountManager({ provider, name, rpc, t, onClose }) {
+	const dialog = (0, react.useRef)(null);
+	const title = (0, react.useId)();
+	const description = (0, react.useId)();
+	const cacheTtlId = (0, react.useId)();
+	const [catalog, setCatalog] = (0, react.useState)();
+	const [changes, setChanges] = (0, react.useState)({});
+	const [loading, setLoading] = (0, react.useState)(true);
+	const [saving, setSaving] = (0, react.useState)(false);
+	const [error, setError] = (0, react.useState)("");
+	const [saveError, setSaveError] = (0, react.useState)("");
+	const [attempt, setAttempt] = (0, react.useState)(0);
+	const [modelsDirty, setModelsDirty] = (0, react.useState)(false);
+	const [displayName, setDisplayName] = (0, react.useState)("");
+	const [nameDirty, setNameDirty] = (0, react.useState)(false);
+	/** '' follows the plugin config; otherwise an explicit TTL. */
+	const [cacheTtl, setCacheTtl] = (0, react.useState)("");
+	const [cacheTtlDirty, setCacheTtlDirty] = (0, react.useState)(false);
+	const alive = (0, react.useRef)(true);
+	const saveLock = (0, react.useRef)(false);
+	const editor = (0, react.useRef)(null);
+	(0, react.useEffect)(() => {
+		alive.current = true;
+		const element = dialog.current;
+		const previous = document.activeElement;
+		element.showModal();
+		return () => {
+			alive.current = false;
+			element.close();
+			if (previous instanceof HTMLElement && previous.isConnected) previous.focus();
+		};
+	}, []);
+	(0, react.useEffect)(() => {
+		let current = true;
+		setLoading(true);
+		setError("");
+		callSubscriptionsAuth(rpc, "providerSettings", { provider }).then((data) => {
+			if (current) {
+				setCatalog(data);
+				setDisplayName(data.settings.displayName ?? "");
+				setCacheTtl(data.settings.promptCacheTtl ?? "");
+			}
+		}).catch((error$1) => {
+			if (current) setError(t("accountsLoadFailed", { message: error$1 instanceof Error ? error$1.message : String(error$1) }));
+		}).finally(() => {
+			if (current) setLoading(false);
+		});
+		return () => {
+			current = false;
+		};
+	}, [
+		provider,
+		rpc,
+		attempt
+	]);
+	function edit(key, next) {
+		setChanges((current) => ({
+			...current,
+			[key]: next
+		}));
+	}
+	/**
+	* One submit for both drafts: the model editor's (visibility, effort,
+	* context, tools) and this dialog's account edits. A failure keeps the
+	* dialog open with every edit intact.
+	*/
+	async function save() {
+		if (saveLock.current) return;
+		const models = editor.current === null ? { efforts: [] } : editor.current.collect();
+		if (models === void 0) return;
+		saveLock.current = true;
+		setSaving(true);
+		setSaveError("");
+		let savedEfforts = 0;
+		try {
+			for (const { model, effort } of models.efforts) {
+				await callSubscriptionsAuth(rpc, "setModelDefault", {
+					provider,
+					model,
+					...effort ? { effort } : {}
+				});
+				savedEfforts++;
+				if (!alive.current) return;
+			}
+			const original = catalog?.settings ?? {};
+			const { accounts: _accounts, displayName: _name, promptCacheTtl: _ttl,...unchanged } = original;
+			const savedName = nameDirty ? displayName.trim() : original.displayName;
+			const savedTtl = cacheTtlDirty ? cacheTtl : original.promptCacheTtl;
+			const { accounts: _editorAccounts, displayName: _editorName, promptCacheTtl: _editorTtl,...editorFields } = models.settings ?? unchanged;
+			const settings = {
+				...editorFields,
+				...original.accounts || Object.keys(changes).length ? { accounts: {
+					...original.accounts,
+					...changes
+				} } : {},
+				...savedName ? { displayName: savedName } : {},
+				...savedTtl ? { promptCacheTtl: savedTtl } : {}
+			};
+			await callSubscriptionsAuth(rpc, "setProviderSettings", {
+				provider,
+				settings,
+				original
+			});
+			notifyDisplayNameChange(provider, settings.displayName);
+			if (alive.current) onClose();
+		} catch (error$1) {
+			if (alive.current) {
+				const message = error$1 instanceof Error ? error$1.message : String(error$1);
+				setSaveError((savedEfforts ? t("modelsPartialSave") + " " : "") + t("accountsSaveFailed", { message }));
+			}
+		} finally {
+			saveLock.current = false;
+			if (alive.current) setSaving(false);
+		}
+	}
+	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("dialog", {
+		className: "majed-subscription-manager",
+		ref: dialog,
+		"aria-labelledby": title,
+		"aria-describedby": description,
+		onCancel: (event) => {
+			if (saveLock.current) event.preventDefault();
+		},
+		onClose,
+		style: {
+			width: 620,
+			maxWidth: "calc(100vw - 32px)",
+			maxHeight: "calc(100dvh - 32px)",
+			overflow: "auto"
+		},
+		children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("style", { children: providerSettingsCss }), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+			style: {
+				...stack,
+				padding: 20
+			},
+			children: [
+				/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("header", {
+					style: {
+						...actions,
+						justifyContent: "space-between"
+					},
+					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("h2", {
+						id: title,
+						style: { margin: 0 },
+						children: t("accountsTitle", { provider: name })
+					}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+						type: "button",
+						autoFocus: true,
+						disabled: saving,
+						onClick: onClose,
+						children: t("imageClose")
+					})]
+				}),
+				/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+					id: description,
+					className: "majed-subscription-hint",
+					children: t("accountsHint")
+				}),
+				error && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+					role: "alert",
+					children: error
+				}),
+				loading && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+					role: "status",
+					className: "majed-subscription-hint",
+					children: t("accountsLoading")
+				}),
+				!loading && !catalog && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+					type: "button",
+					onClick: () => setAttempt((value) => value + 1),
+					children: t("modelDefaultsRetry")
+				}),
+				catalog && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("fieldset", {
+					disabled: saving || loading,
+					style: {
+						...stack,
+						border: 0,
+						margin: 0,
+						padding: 0
+					},
+					children: [
+						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("section", {
+							style: {
+								...stack,
+								gap: 6,
+								paddingBlockEnd: 8
+							},
+							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+								style: {
+									...stack,
+									gap: 6
+								},
+								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", { children: t("subscriptionDisplayName") }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+									maxLength: 80,
+									value: displayName,
+									placeholder: name,
+									onChange: (event) => {
+										setDisplayName(event.target.value);
+										setNameDirty(true);
+									}
+								})]
+							}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+								style: {
+									...actions,
+									justifyContent: "space-between"
+								},
+								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", {
+									className: "majed-subscription-hint",
+									children: t("subscriptionDisplayNameHint")
+								}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+									type: "button",
+									disabled: !displayName,
+									onClick: () => {
+										setDisplayName("");
+										setNameDirty(true);
+									},
+									children: t("displayNameReset")
+								})]
+							})]
+						}),
+						provider === "claude" && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("section", {
+							style: {
+								...stack,
+								gap: 6,
+								paddingBlockEnd: 8
+							},
+							children: [
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("label", {
+									htmlFor: cacheTtlId,
+									children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", { children: t("claudePromptCacheTtl") })
+								}),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("select", {
+									id: cacheTtlId,
+									value: cacheTtl,
+									style: { justifySelf: "start" },
+									onChange: (event) => {
+										setCacheTtl(event.target.value);
+										setCacheTtlDirty(true);
+									},
+									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("option", {
+										value: "",
+										children: t("claudePromptCacheTtlDefault", { ttl: catalog.promptCacheTtlDefault ?? "5m" })
+									}), PROMPT_CACHE_TTLS.map((ttl) => /* @__PURE__ */ (0, react_jsx_runtime.jsx)("option", {
+										value: ttl,
+										children: t(`claudePromptCacheTtl${ttl}`)
+									}, ttl))]
+								}),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", {
+									className: "majed-subscription-hint",
+									children: t("claudePromptCacheTtlHint")
+								})
+							]
+						}),
+						catalog.accounts.length === 0 && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+							className: "majed-subscription-hint",
+							children: t("accountsEmpty")
+						}),
+						catalog.accounts.map((account) => {
+							const preferences = changes[account.key] ?? catalog.settings.accounts?.[account.key] ?? {};
+							const selected = accountPoolSelection(preferences, account.models);
+							const models = accountModelRows(account, preferences);
+							return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("fieldset", {
+								style: {
+									...stack,
+									border,
+									borderRadius: "var(--dsw-radius-lg, 12px)",
+									padding: 14,
+									margin: 0
+								},
+								children: [
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("legend", {
+										style: {
+											padding: "0 6px",
+											overflowWrap: "anywhere",
+											maxWidth: "100%"
+										},
+										children: account.label
+									}),
+									account.unavailable && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+										className: "majed-subscription-hint",
+										children: t("accountsCatalogUnavailable")
+									}),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+										style: {
+											...stack,
+											gap: 6
+										},
+										children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+											className: "majed-subscription-label",
+											children: t("accountsAlias")
+										}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+											value: preferences.alias ?? "",
+											placeholder: account.label,
+											onChange: (event) => {
+												const next = { ...preferences };
+												if (event.target.value.trim()) next.alias = event.target.value;
+												else delete next.alias;
+												edit(account.key, next);
+											}
+										})]
+									}),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", { children: [
+										/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+											type: "checkbox",
+											checked: preferences.poolEnabled !== false,
+											onChange: (event) => edit(account.key, {
+												...preferences,
+												poolEnabled: event.target.checked
+											})
+										}),
+										" ",
+										t("accountsPoolEnabled")
+									] }),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", { children: [
+										/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+											type: "checkbox",
+											checked: preferences.independentEntry === true,
+											onChange: (event) => edit(account.key, {
+												...preferences,
+												independentEntry: event.target.checked
+											})
+										}),
+										" ",
+										t("accountsIndependent")
+									] }),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+										className: "majed-subscription-hint",
+										children: t("accountsIndependentHint")
+									}),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("details", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("summary", {
+										style: {
+											cursor: "pointer",
+											fontSize: 13
+										},
+										children: [
+											t("accountsModels"),
+											" · ",
+											preferences.poolModels === void 0 ? t("accountsModelsAll") : t("accountsModelsCount", { count: preferences.poolModels.length })
+										]
+									}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+										style: {
+											...stack,
+											marginBlockStart: 12
+										},
+										children: [
+											/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+												className: "majed-subscription-hint",
+												children: t("accountsModelsHint")
+											}),
+											/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", { children: [
+												/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+													type: "checkbox",
+													checked: preferences.poolModels === void 0,
+													onChange: (event) => {
+														const next = { ...preferences };
+														if (event.target.checked) delete next.poolModels;
+														else next.poolModels = account.models.map((model) => model.id);
+														edit(account.key, next);
+													}
+												}),
+												" ",
+												t("accountsModelsAutomatic")
+											] }),
+											/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+												style: actions,
+												children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+													type: "button",
+													onClick: () => edit(account.key, {
+														...preferences,
+														poolModels: models.map((model) => model.id)
+													}),
+													children: t("modelsSelectAll")
+												}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+													type: "button",
+													onClick: () => edit(account.key, {
+														...preferences,
+														poolModels: []
+													}),
+													children: t("modelsSelectNone")
+												})]
+											}),
+											/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+												style: {
+													...stack,
+													gap: 8,
+													maxHeight: 240,
+													overflowY: "auto"
+												},
+												children: [models.map((model) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+													style: { overflowWrap: "anywhere" },
+													children: [
+														/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+															type: "checkbox",
+															checked: selected.has(model.id),
+															onChange: (event) => {
+																const next = new Set(selected);
+																if (event.target.checked) next.add(model.id);
+																else next.delete(model.id);
+																edit(account.key, {
+																	...preferences,
+																	poolModels: [...next]
+																});
+															}
+														}),
+														" ",
+														model.name,
+														model.unavailable && ` (${t("modelsUnavailable")})`
+													]
+												}, model.id)), models.length === 0 && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+													className: "majed-subscription-hint",
+													children: t("accountsNoModels")
+												})]
+											})
+										]
+									})] })
+								]
+							}, account.key);
+						})
+					]
+				}),
+				/* @__PURE__ */ (0, react_jsx_runtime.jsx)(ProviderModelEditor, {
+					ref: editor,
+					provider,
+					rpc,
+					t,
+					disabled: saving,
+					onDirtyChange: setModelsDirty
+				}),
+				/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("footer", {
+					style: {
+						...stack,
+						gap: 8,
+						borderBlockStart: border,
+						padding: "14px 0 8px",
+						position: "sticky",
+						insetBlockEnd: 0,
+						background: "var(--dsw-alias-bg-layer-2, var(--dsw-alias-bg-layer-1))"
+					},
+					children: [saveError && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+						role: "alert",
+						children: saveError
+					}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+						style: {
+							...actions,
+							justifyContent: "flex-end"
+						},
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+							type: "button",
+							disabled: saving,
+							onClick: onClose,
+							children: t("cancel")
+						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+							type: "button",
+							className: "majed-subscription-primary",
+							disabled: loading || saving || !Object.keys(changes).length && !modelsDirty && !nameDirty && !cacheTtlDirty,
+							onClick: () => {
+								save();
+							},
+							children: saving ? t("modelDefaultsSaving") : t("modelsSave")
+						})]
+					})]
+				})
+			]
+		})]
+	});
+}
+
+//#endregion
+//#region src/codex-card.ts
+/** Scoped presentation port of V1ki v0.9.12 b802311; see PROVENANCE.md. */
+const styles$3 = {
+	section: {
+		display: "flex",
+		flexDirection: "column",
+		gap: 12,
+		maxInlineSize: 560,
+		minInlineSize: 0,
+		color: "var(--dsw-alias-label-primary)"
+	},
+	card: {
+		border: "0.5px solid var(--dsw-alias-settings-card-stroke, var(--dsw-alias-border-l2))",
+		borderRadius: "var(--dsw-radius-xl, 20px)",
+		background: "var(--dsw-alias-settings-card-fill, var(--dsw-alias-bg-layer-2))",
+		padding: "12px 14px",
+		display: "flex",
+		flexDirection: "column",
+		gap: 8,
+		minInlineSize: 0
+	},
+	cardHeader: {
+		display: "flex",
+		alignItems: "center",
+		flexWrap: "wrap",
+		gap: 8,
+		minInlineSize: 0
+	},
+	dot: {
+		inlineSize: 8,
+		blockSize: 8,
+		borderRadius: "50%",
+		flexShrink: 0
+	},
+	name: {
+		fontSize: 14,
+		lineHeight: "22px",
+		fontWeight: 500,
+		color: "var(--dsw-alias-label-primary)",
+		overflowWrap: "anywhere",
+		minInlineSize: 0
+	},
+	statusLine: {
+		margin: 0,
+		fontSize: 12,
+		lineHeight: "18px",
+		color: "var(--dsw-alias-label-secondary)",
+		overflowWrap: "anywhere"
+	},
+	clientVersion: {
+		fontSize: 12,
+		lineHeight: "18px",
+		color: "var(--dsw-alias-label-secondary)",
+		fontVariantNumeric: "tabular-nums",
+		overflowWrap: "anywhere"
+	},
+	errorLine: {
+		margin: 0,
+		fontSize: 12,
+		lineHeight: "18px",
+		color: "var(--dsw-alias-state-error-primary)",
+		overflowWrap: "anywhere"
+	},
+	actions: {
+		display: "flex",
+		gap: 8,
+		marginBlockStart: 4,
+		alignItems: "center",
+		flexWrap: "wrap"
+	},
+	usage: {
+		display: "flex",
+		flexDirection: "column",
+		gap: 6,
+		marginBlockStart: 4,
+		borderBlockStart: "0.5px solid var(--dsw-alias-border-l2)",
+		paddingBlockStart: 8
+	},
+	usageHeader: {
+		display: "flex",
+		alignItems: "center",
+		gap: 8
+	},
+	usageTitle: {
+		fontSize: 12,
+		lineHeight: "18px",
+		fontWeight: 500,
+		color: "var(--dsw-alias-label-secondary)"
+	},
+	usagePlan: {
+		fontSize: 12,
+		lineHeight: "18px",
+		color: "var(--dsw-alias-label-secondary)"
+	},
+	usageRefresh: {
+		minHeight: 22,
+		blockSize: 22,
+		padding: "0 8px",
+		marginInlineStart: "auto"
+	},
+	usageRow: {
+		display: "flex",
+		flexDirection: "column",
+		gap: 3
+	},
+	usageMeta: {
+		display: "flex",
+		justifyContent: "space-between",
+		flexWrap: "wrap",
+		gap: 8,
+		fontSize: 12,
+		lineHeight: "18px",
+		color: "var(--dsw-alias-label-secondary)",
+		overflowWrap: "anywhere"
+	},
+	accountRow: {
+		display: "flex",
+		flexDirection: "column",
+		gap: 6,
+		minInlineSize: 0,
+		borderBlockStart: "0.5px solid var(--dsw-alias-border-l2)",
+		paddingBlockStart: 12,
+		marginBlockStart: 4
+	},
+	accountHeader: {
+		display: "flex",
+		alignItems: "center",
+		flexWrap: "wrap",
+		gap: 8,
+		minInlineSize: 0
+	},
+	accountName: {
+		fontSize: 13,
+		lineHeight: "20px",
+		color: "var(--dsw-alias-label-primary)",
+		userSelect: "all",
+		overflowWrap: "anywhere",
+		minInlineSize: 0
+	},
+	starButton: {
+		border: "none",
+		padding: 0,
+		inlineSize: 28,
+		fontSize: 14,
+		lineHeight: "22px",
+		cursor: "pointer",
+		color: "var(--dsw-alias-state-warn-label)"
+	},
+	usageTrack: {
+		blockSize: 6,
+		borderRadius: 3,
+		overflow: "hidden",
+		background: "var(--dsw-alias-bg-layer-1)",
+		border: "0.5px solid var(--dsw-alias-border-l2)"
+	},
+	usageFill: {
+		blockSize: "100%",
+		borderRadius: 3
+	},
+	manual: {
+		fontSize: 13,
+		lineHeight: "20px"
+	},
+	manualRow: {
+		display: "flex",
+		flexWrap: "wrap",
+		gap: 8,
+		alignItems: "center",
+		marginBlockStart: 8
+	},
+	manualInput: {
+		flex: "1 1 200px",
+		minInlineSize: 0
+	},
+	modal: {
+		inlineSize: 460,
+		maxInlineSize: "100%",
+		maxHeight: "90vh",
+		overflowY: "auto",
+		boxSizing: "border-box",
+		display: "flex",
+		flexDirection: "column",
+		gap: 12,
+		padding: "16px 18px",
+		borderRadius: "var(--dsw-radius-panel, 28px)",
+		background: "var(--dsw-alias-bg-layer-2)",
+		border: 0,
+		boxShadow: "var(--dsw-elevation-prominent)"
+	},
+	modalTitle: {
+		fontSize: 16,
+		lineHeight: "24px",
+		fontWeight: 500,
+		color: "var(--dsw-alias-label-primary)"
+	}
+};
+/** Shared presentation only; account/usage controllers stay in their existing cards. */
+function providerIdentity(h, t, name, accounts, usage, clientVersion) {
+	const account = accounts.find((value) => value.isDefault) ?? accounts[0];
+	const plan = account?.plan ?? usage[account?.key]?.plan;
+	return h("div", { className: "majed-provider-identity" }, h("div", { className: "majed-provider-summary" }, h("span", { style: styles$3.name }, name), h("span", { style: styles$3.statusLine }, `${accounts.length} ${t("accountCount")}`), plan ? h("bdi", { style: styles$3.usagePlan }, plan) : null), clientVersion ? h("span", {
+		style: styles$3.clientVersion,
+		title: t("clientVersionHint")
+	}, "CLI ", h("bdi", { dir: "ltr" }, clientVersion.version), " · ", t(`source_${clientVersion.source}`)) : null);
+}
+function providerStatus(h, t, state, label) {
+	const color = state === "ready" ? "var(--dsw-alias-state-success-primary)" : state === "error" ? "var(--dsw-alias-state-error-primary)" : state === "warning" ? "var(--dsw-alias-state-warn-label)" : "var(--dsw-alias-label-secondary)";
+	return h("span", {
+		role: "img",
+		"aria-label": t(label),
+		title: t(label),
+		"data-majed-provider-status": state,
+		style: {
+			...styles$3.dot,
+			background: color
+		}
+	});
+}
+function providerDisclosure(h, t, name, expanded, toggle) {
+	return h("button", {
+		type: "button",
+		className: "majed-provider-disclosure",
+		"aria-label": `${t("subscriptionDetails")}: ${name}`,
+		"aria-expanded": expanded,
+		onClick: toggle
+	}, h("svg", {
+		"aria-hidden": true,
+		width: 16,
+		height: 16,
+		viewBox: "0 0 16 16",
+		style: { transform: expanded ? "rotate(90deg)" : void 0 }
+	}, h("path", {
+		d: "m6 3 5 5-5 5",
+		fill: "none",
+		stroke: "currentColor",
+		strokeWidth: 1.5,
+		strokeLinecap: "round",
+		strokeLinejoin: "round"
+	})));
+}
+const controlCss = `.majed-subscriptions-settings button.majed-provider-disclosure{inline-size:28px;min-height:28px;padding:0;border:0;background:transparent}
+.majed-provider-identity{display:flex;flex-direction:column;flex:1 1 160px;min-inline-size:0}
+.majed-provider-summary{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+[dir=rtl] .majed-provider-disclosure svg{scale:-1 1}
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) input:not([type="checkbox"]),
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) select {
+  box-sizing: border-box;
+  min-width: 0;
+  height: 34px;
+  padding: 0 12px;
+  border: 0.5px solid var(--dsw-alias-border-l4, var(--dsw-alias-border-l2));
+  border-radius: var(--dsw-radius-md, 8px);
+  background: var(--dsw-alias-bg-layer-3, var(--dsw-alias-bg-layer-1));
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) input::placeholder {
+  color: var(--dsw-alias-label-secondary);
+  opacity: 1;
+}
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) input:not([type="checkbox"]):focus-visible,
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) select:focus-visible {
+  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline-offset: 2px;
+  border-color: var(--dsw-alias-brand-primary);
+}
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) input:not([type="checkbox"]):disabled,
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) select:disabled {
+  color: var(--dsw-alias-label-secondary);
+  cursor: default;
+}
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) input[aria-invalid="true"] {
+  border-color: var(--dsw-alias-state-error-primary);
+}
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) option {
+  background: var(--dsw-alias-bg-layer-2, var(--dsw-alias-bg-layer-1));
+  color: var(--dsw-alias-label-primary);
+}
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) label:has(> input[type="checkbox"]) {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 14px;
+  line-height: 20px;
+  cursor: pointer;
+}
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) input[type="checkbox"] {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin: 2px 0;
+  accent-color: var(--dsw-alias-brand-primary);
+  cursor: inherit;
+}
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) label:has(> input[type="checkbox"]:disabled) {
+  cursor: default;
+  opacity: 0.5;
+}
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-height: 32px;
+  max-inline-size: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  padding: 0 10px;
+  border: 0.5px solid var(--dsw-alias-border-l3, var(--dsw-alias-border-l2));
+  border-radius: var(--dsw-radius-sm, 6px);
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 12px;
+  line-height: 18px;
+  cursor: pointer;
+}
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover, var(--dsw-alias-bg-layer-1));
+}
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button:active:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-active, var(--dsw-alias-bg-layer-1));
+}
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button.majed-subscription-quiet {
+  border-color: transparent;
+  color: var(--dsw-alias-label-secondary, var(--dsw-alias-label-primary));
+}
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) :is(footer, .majed-subscription-dialog-actions) button {
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: var(--dsw-radius-md, 8px);
+  font-size: 13px;
+  line-height: 1.5;
+}
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button.majed-subscription-primary {
+  border-color: transparent;
+  background: var(--dsw-alias-button-primary-fill, var(--dsw-alias-label-primary));
+  color: var(--dsw-alias-label-primary-foreground, var(--dsw-alias-bg-layer-1));
+  font-weight: 500;
+}
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button.majed-subscription-primary:hover:not(:disabled) {
+  background: var(--dsw-alias-button-primary-hover, var(--dsw-alias-label-secondary));
+}
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button:focus-visible,
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) input[type="checkbox"]:focus-visible,
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) summary:focus-visible {
+  outline: var(--dsw-focus-ring-width, 2px) solid var(--dsw-focus-ring-color, var(--dsw-alias-brand-primary));
+  outline-offset: 2px;
+}
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) summary {
+  border-radius: var(--dsw-radius-sm, 6px);
+}
+:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) summary:hover {
+  color: var(--dsw-alias-label-secondary, var(--dsw-alias-label-primary));
+}
+
+.majed-reset-credits > summary::-webkit-details-marker { display:none; }
+.majed-reset-credits[open] > summary > svg { transform:rotate(90deg); }
+[dir="rtl"] .majed-reset-credits > summary > svg { transform:scaleX(-1); }
+[dir="rtl"] .majed-reset-credits[open] > summary > svg { transform:rotate(90deg); }
+.majed-reset-dialog::backdrop { background:var(--dsw-alias-bg-mask-1); backdrop-filter:var(--dsw-mask-blur, none); }
+.majed-subscriptions-settings { font:var(--dsw-font-s-13); }
+.majed-subscriptions-settings a { color:var(--dsw-alias-state-business-primary); text-underline-offset: .15em; }
+`;
+function createCodexCard(React, primitives$1, rpc, t) {
+	const h = React.createElement;
+	const Button = primitives$1.Button ?? "button";
+	const Input = primitives$1.Input ?? "input";
+	return function CodexCard({ presentation, onComplete, onFlowState, onAccountsChange, revision, initialExpanded = false } = {}) {
+		const [expanded, setExpanded] = React.useState(initialExpanded);
+		const initialAuthRevision = React.useRef(null);
+		const [manager, setManager] = React.useState(false);
+		const [status, setStatus] = React.useState(null);
+		const [error, setError] = React.useState("");
+		const [pending, setPending] = React.useState(false);
+		const [login, setLogin] = React.useState(null);
+		const [input, setInput] = React.useState("");
+		const [usage, setUsage] = React.useState({});
+		const [confirmation, setConfirmation] = React.useState(null);
+		const [acknowledged, setAcknowledged] = React.useState(false);
+		const alive = React.useRef(true);
+		const usageRequests = React.useRef(/* @__PURE__ */ new Map());
+		const accountKeys = React.useRef(/* @__PURE__ */ new Set());
+		const call = async (endpoint, payload = {}) => {
+			const response = await rpc.call("/api", `majed-subscriptions.${endpoint}`, {
+				provider: "codex",
+				...payload
+			});
+			if (!response?.ok) throw new Error(response?.error?.message ?? t("unreachable"));
+			return response.value;
+		};
+		const refreshStatus = async () => {
+			const value = await call("status");
+			if (alive.current) setStatus({
+				...value.providers.codex,
+				registrationError: value.registrationError
+			});
+		};
+		const action = async (run) => {
+			setPending(true);
+			setError("");
+			try {
+				await run();
+			} catch (error$1) {
+				if (alive.current) setError(error$1 instanceof Error ? error$1.message : String(error$1));
+			} finally {
+				if (alive.current) setPending(false);
+			}
+		};
+		React.useEffect(() => {
+			alive.current = true;
+			refreshStatus().catch((error$1) => {
+				if (alive.current) setError(error$1.message);
+			});
+			return () => {
+				alive.current = false;
+			};
+		}, []);
+		React.useEffect(() => {
+			if (revision !== void 0) refreshStatus().catch(() => {});
+		}, [revision]);
+		React.useEffect(() => {
+			if (!status?.busy) return;
+			const timer = setInterval(() => {
+				refreshStatus().catch((error$1) => {
+					if (alive.current) setError(error$1.message);
+				});
+			}, 2e3);
+			return () => clearInterval(timer);
+		}, [status?.busy]);
+		const refreshUsage = (account, force = false) => {
+			if (usageRequests.current.has(account)) return usageRequests.current.get(account);
+			const request = (async () => {
+				try {
+					const snapshot = await call("usage", {
+						account,
+						force
+					});
+					if (alive.current && accountKeys.current.has(account) && usageRequests.current.get(account) === request) setUsage((previous) => ({
+						...previous,
+						[account]: snapshot
+					}));
+				} catch (error$1) {
+					if (alive.current && accountKeys.current.has(account) && usageRequests.current.get(account) === request) setUsage((previous) => ({
+						...previous,
+						[account]: { error: error$1 instanceof Error ? error$1.message : String(error$1) }
+					}));
+				} finally {
+					if (usageRequests.current.get(account) === request) usageRequests.current.delete(account);
+				}
+			})();
+			usageRequests.current.set(account, request);
+			return request;
+		};
+		const reportedAccounts = React.useRef(null);
+		const accountsSignature = JSON.stringify((status?.accounts ?? []).map((account) => account.key));
+		React.useEffect(() => {
+			if (presentation === "group" && status) {
+				if (reportedAccounts.current !== null && reportedAccounts.current !== accountsSignature) onAccountsChange?.();
+				reportedAccounts.current = accountsSignature;
+			}
+			const keys = new Set((status?.accounts ?? []).map((account) => account.key));
+			const added = [...keys].filter((key) => !accountKeys.current.has(key));
+			accountKeys.current = keys;
+			for (const key of usageRequests.current.keys()) if (!keys.has(key)) usageRequests.current.delete(key);
+			setUsage((previous) => Object.fromEntries(Object.entries(previous).filter(([key]) => keys.has(key))));
+			if (presentation !== "auth") for (const key of added) refreshUsage(key);
+		}, [accountsSignature]);
+		const button = (label, onClick, disabled = false, props = {}) => h(Button, {
+			type: "button",
+			disabled: pending || disabled,
+			onClick,
+			...props
+		}, label);
+		const date = (time) => new Date(time).toLocaleString(void 0, {
+			month: "short",
+			day: "numeric",
+			hour: "numeric",
+			minute: "2-digit"
+		});
+		const part = (name, style, ...children) => h("div", {
+			style,
+			"data-majed-codex-part": name
+		}, ...children);
+		const startLogin = () => {
+			action(async () => {
+				const result = await call("login");
+				if (!alive.current) return;
+				window.open(result.authorizeUrl, "_blank", "noopener");
+				setLogin(result);
+				await refreshStatus();
+			});
+		};
+		React.useEffect(() => {
+			if (!status) return;
+			const current = status.authRevision ?? 0;
+			if (initialAuthRevision.current === null) initialAuthRevision.current = current;
+			else if (presentation === "auth" && current > initialAuthRevision.current) {
+				initialAuthRevision.current = current;
+				onComplete?.();
+			}
+		}, [status]);
+		const busy = status?.busy;
+		React.useEffect(() => {
+			if (presentation !== "auth") return;
+			onFlowState?.({
+				busy: pending || !!busy,
+				cancel: async () => {
+					if (pending) return false;
+					if (busy) {
+						await call("cancel");
+						setLogin(null);
+						await refreshStatus();
+					}
+					return true;
+				}
+			});
+		}, [pending, busy]);
+		return h("div", {
+			style: {
+				...styles$3.section,
+				...presentation ? {
+					maxWidth: "none",
+					maxInlineSize: "none",
+					width: "100%"
+				} : {},
+				textAlign: "start"
+			},
+			className: "majed-subscriptions-settings",
+			"data-majed-codex-card": true
+		}, h("style", null, controlCss), manager ? h(ProviderAccountManager, {
+			provider: "codex",
+			name: status?.displayName || "Codex (ChatGPT)",
+			rpc,
+			t,
+			onClose: () => {
+				setManager(false);
+				refreshStatus();
+			}
+		}) : null, part("card", styles$3.card, presentation !== "auth" && part("header", styles$3.cardHeader, providerStatus(h, t, error || status?.registrationError ? "error" : busy ? "warning" : !status ? "checking" : status?.accounts?.length ? "ready" : "warning", error || status?.registrationError ? "providerAttention" : busy ? "loginProgress" : !status ? "checking" : status?.accounts?.length ? "providerConfigured" : "notLoggedIn"), presentation === "group" ? providerIdentity(h, t, status?.displayName || "Codex (ChatGPT)", status?.accounts ?? [], usage, status?.clientVersion) : h("span", { style: styles$3.name }, status?.displayName || "Codex (ChatGPT)"), presentation === "auth" ? null : button(t("accountsManage"), () => setManager(true), false, { style: { marginInlineStart: "auto" } }), presentation === "group" ? providerDisclosure(h, t, status?.displayName || "Codex (ChatGPT)", expanded, () => setExpanded(!expanded)) : status?.clientVersion ? h("span", {
+			style: styles$3.clientVersion,
+			title: t("clientVersionHint")
+		}, "CLI ", h("bdi", { dir: "ltr" }, status.clientVersion.version), " · ", t(`source_${status.clientVersion.source}`)) : null), (presentation === "auth" || presentation === "group" && status?.accounts?.length) && !busy && !status?.registrationError ? null : h("p", {
+			style: styles$3.statusLine,
+			role: "status"
+		}, status?.registrationError ? t("providerUnavailable") : busy ? t("loginProgress") : status?.accounts?.length ? `${status.accounts.length} ${t("connected")}` : status ? t("notLoggedIn") : t("checking")), status?.detail ? h("p", { style: styles$3.statusLine }, status.detail) : null, error ? h("p", {
+			style: styles$3.errorLine,
+			role: "alert"
+		}, error) : null, ...(presentation === "auth" || presentation === "group" && !expanded ? [] : status?.accounts ?? []).map((account) => {
+			const snapshot = usage[account.key];
+			const credits = [...snapshot?.resetCredits ?? []].sort((a, b) => (a.expiresAt ?? Infinity) - (b.expiresAt ?? Infinity));
+			const next = credits.find((credit) => credit.id && (credit.expiresAt === void 0 || credit.expiresAt > Date.now()));
+			const weekly = snapshot?.windows?.find((window$1) => window$1.kind === "weekly" && !window$1.scope);
+			const resetBlocked = !weekly || !Number.isFinite(weekly.usedPercent) || !weekly.resetsAt || weekly.resetsAt <= Date.now() || snapshot?.resetCreditsError ? "resetRefresh" : weekly.usedPercent < 80 ? "resetGuard" : !next ? "resetRefresh" : null;
+			return h("div", {
+				key: account.key,
+				style: styles$3.accountRow,
+				"data-majed-codex-part": "account"
+			}, part("account-header", styles$3.accountHeader, button(account.isDefault ? "★" : "☆", () => {
+				if (!account.isDefault) action(async () => {
+					await call("setDefault", { account: account.key });
+					await refreshStatus();
+				});
+			}, false, {
+				style: styles$3.starButton,
+				title: t(account.isDefault ? "defaultAccount" : "makeDefault"),
+				"aria-label": t(account.isDefault ? "defaultAccount" : "makeDefault")
+			}), h("bdi", {
+				dir: "ltr",
+				style: styles$3.accountName
+			}, account.alias || account.account || account.key), account.plan ? h("bdi", { style: styles$3.usagePlan }, account.plan) : null, account.expiresAt ? h("span", { style: styles$3.statusLine }, t("expires"), " ", h("bdi", null, date(account.expiresAt))) : null, button(t("logout"), () => {
+				setAcknowledged(false);
+				setConfirmation({
+					kind: "logout",
+					account: account.key,
+					label: account.account
+				});
+			}, false, { style: { marginInlineStart: "auto" } })), snapshot?.supported === false ? h("p", { style: styles$3.statusLine }, t("usageUnavailable")) : part("usage", styles$3.usage, part("usage-header", styles$3.usageHeader, h("span", { style: styles$3.usageTitle }, t("usageTitle")), button(t("refreshUsage"), () => {
+				action(() => refreshUsage(account.key, true));
+			}, false, { style: styles$3.usageRefresh })), !snapshot ? h("p", { style: styles$3.statusLine }, t("usageNotLoaded")) : snapshot.error ? h("p", {
+				style: styles$3.errorLine,
+				role: "alert"
+			}, snapshot.error) : !snapshot.windows?.length ? h("p", { style: styles$3.statusLine }, t("usageUnavailable")) : null, ...(snapshot?.windows ?? []).map((window$1, index) => {
+				const percent = Math.max(0, Math.min(100, window$1.usedPercent));
+				const color = percent >= 95 ? "var(--dsw-alias-state-error-primary)" : percent >= 80 ? "var(--dsw-alias-state-warn-label)" : "var(--dsw-alias-state-success-primary)";
+				return h("div", {
+					key: index,
+					style: styles$3.usageRow
+				}, part("usage-meta", styles$3.usageMeta, h("span", null, t(`window_${window$1.kind}`), window$1.scope ? ` · ${window$1.scope}` : ""), h("span", null, h("bdi", null, `${Math.round(percent)}%`), window$1.resetsAt ? h("span", null, " · ", t("resets"), " ", h("bdi", null, date(window$1.resetsAt))) : null)), h("div", {
+					role: "progressbar",
+					"aria-label": t(`window_${window$1.kind}`),
+					"aria-valuenow": percent,
+					"aria-valuemin": 0,
+					"aria-valuemax": 100,
+					style: styles$3.usageTrack
+				}, h("div", { style: {
+					...styles$3.usageFill,
+					background: color,
+					inlineSize: `${percent}%`
+				} })));
+			}), snapshot?.resetCreditsError ? h("p", {
+				style: styles$3.errorLine,
+				role: "alert"
+			}, t("creditsUnavailable"), " ", snapshot.resetCreditsError) : null, snapshot?.resetCredits ? h("details", {
+				className: "majed-reset-credits",
+				style: styles$3.usageRow
+			}, h("summary", { style: {
+				...styles$3.usageMeta,
+				cursor: "pointer",
+				listStyle: "none",
+				justifyContent: "flex-start",
+				gap: 6
+			} }, h("svg", {
+				"aria-hidden": true,
+				width: 12,
+				height: 12,
+				viewBox: "0 0 16 16"
+			}, h("path", {
+				d: "m6 3 5 5-5 5",
+				fill: "none",
+				stroke: "currentColor",
+				strokeWidth: 1.5,
+				strokeLinecap: "round",
+				strokeLinejoin: "round"
+			})), h("span", null, t("resetCredits")), h("span", { style: { marginInlineStart: "auto" } }, credits.filter((c) => c.id && (c.expiresAt === void 0 || c.expiresAt > Date.now())).length, " ", t("available"))), h("div", { style: {
+				paddingInlineStart: 18,
+				marginBlockStart: 6
+			} }, ...credits.map((credit, index) => h("div", {
+				key: credit.id ?? index,
+				style: {
+					...styles$3.usageMeta,
+					minBlockSize: 28,
+					gap: 12
+				}
+			}, h("span", { style: {
+				display: "inline-flex",
+				alignItems: "center",
+				gap: 8,
+				flexShrink: 0
+			} }, t("fullReset"), credit === next ? button(t("useReset"), () => {
+				if (!resetBlocked) action(async () => {
+					const prepared = await call("prepareReset", { account: account.key });
+					setAcknowledged(false);
+					setConfirmation({
+						kind: "reset",
+						account: account.key,
+						label: account.account ?? account.key,
+						...prepared
+					});
+				});
+			}, false, {
+				"aria-disabled": !!resetBlocked,
+				title: t(resetBlocked ?? "resetReady"),
+				style: {
+					blockSize: 22,
+					minBlockSize: 22,
+					padding: "0 7px",
+					opacity: resetBlocked ? .35 : 1,
+					cursor: resetBlocked ? "not-allowed" : "pointer"
+				}
+			}) : null), h("span", { style: { textAlign: "end" } }, credit.expiresAt === void 0 ? t("creditExpiryUnknown") : h("span", null, t("expires"), " ", h("bdi", null, date(credit.expiresAt)), credit.expiresAt <= Date.now() ? ` · ${t("creditExpired")}` : null)))))) : null));
+		}), presentation !== "group" && part("actions", styles$3.actions, busy ? button(t("cancelLogin"), () => {
+			action(async () => {
+				await call("cancel");
+				setLogin(null);
+				await refreshStatus();
+			});
+		}) : button(t(status?.accounts?.length ? "addAccount" : "login"), startLogin, !!status?.registrationError)), presentation !== "group" && !busy && status?.accounts?.length ? h("p", { style: styles$3.statusLine }, t("addAccountHint")) : null, busy ? h("div", null, (status.pendingAuth ?? login)?.authorizeUrl ? h("a", {
+			href: (status.pendingAuth ?? login).authorizeUrl,
+			target: "_blank",
+			rel: "noopener noreferrer",
+			style: styles$3.manual
+		}, t("openAuthorization")) : null, h("details", { style: styles$3.manual }, h("summary", null, t("manualSummary")), part("manual-row", styles$3.manualRow, h(Input, {
+			style: styles$3.manualInput,
+			value: input,
+			placeholder: t("pasteCallback"),
+			"aria-label": t("pasteCallback"),
+			dir: "ltr",
+			onChange: (event) => setInput(event.target.value)
+		}), button(t("submitCallback"), () => {
+			action(async () => {
+				await call("manual", { input });
+				setInput("");
+				await refreshStatus();
+			});
+		}, !input.trim())))) : null), confirmation ? h("dialog", {
+			ref: (node) => {
+				if (node && !node.open) node.showModal();
+			},
+			className: "majed-reset-dialog",
+			role: "dialog",
+			"aria-modal": true,
+			"aria-label": t(confirmation.kind === "logout" ? "confirmLogout" : "confirmReset"),
+			onCancel: () => setConfirmation(null),
+			onClose: () => setConfirmation(null),
+			style: {
+				...styles$3.modal,
+				margin: "auto",
+				color: "var(--dsw-alias-label-primary)"
+			}
+		}, h("h3", { style: {
+			...styles$3.modalTitle,
+			margin: 0
+		} }, t(confirmation.kind === "logout" ? "confirmLogout" : "confirmReset")), h("p", { style: {
+			...styles$3.statusLine,
+			overflowWrap: "anywhere"
+		} }, h("bdi", { dir: "ltr" }, confirmation.label ?? confirmation.account)), confirmation.kind === "reset" ? part("reset-context", styles$3.usageMeta, h("span", null, t("window_weekly")), h("strong", null, `${Math.round(confirmation.weeklyUsedPercent)}%`)) : null, confirmation.kind === "reset" ? h("p", { style: styles$3.statusLine }, confirmation.creditExpiresAt === void 0 ? t("creditExpiryUnknown") : h("span", null, t("expires"), " ", h("bdi", null, date(confirmation.creditExpiresAt)))) : null, confirmation.kind === "reset" ? h("p", { style: styles$3.statusLine }, t("resetWarning")) : null, confirmation.kind === "reset" ? h("label", { style: {
+			display: "flex",
+			gap: 8,
+			alignItems: "flex-start",
+			fontSize: 12,
+			lineHeight: "18px"
+		} }, h("input", {
+			type: "checkbox",
+			checked: acknowledged,
+			onChange: (event) => setAcknowledged(event.target.checked)
+		}), t("resetAcknowledge")) : null, h("div", {
+			className: "majed-subscription-dialog-actions",
+			style: {
+				...styles$3.actions,
+				justifyContent: "flex-end",
+				marginBlockStart: 8
+			}
+		}, button(t("cancel"), () => setConfirmation(null), false, { autoFocus: true }), button(t(confirmation.kind === "reset" ? "confirm" : "logout"), () => {
+			action(async () => {
+				if (confirmation.kind === "logout") await call("logout", { account: confirmation.account });
+				else await call("consumeReset", {
+					account: confirmation.account,
+					ticket: confirmation.ticket
+				});
+				setConfirmation(null);
+				await refreshStatus();
+				if (confirmation.kind === "reset") await refreshUsage(confirmation.account, true);
+			});
+		}, confirmation.kind === "reset" && (!acknowledged || Date.now() >= confirmation.expiresAt), { className: confirmation.kind === "reset" ? "majed-subscription-primary" : void 0 }))) : null);
+	};
+}
+
+//#endregion
+//#region src/settings/ProxySettings.tsx
+/** Draft/test/save behavior ported from v0.9.12 SubscriptionsSection. Password never pre-fills. */
+function ProxySettings({ rpc, t }) {
+	const [view, setView] = (0, react.useState)();
+	const [open, setOpen] = (0, react.useState)(false);
+	const [draft, setDraft] = (0, react.useState)({});
+	const [error, setError] = (0, react.useState)("");
+	const [busy, setBusy] = (0, react.useState)("");
+	const [result, setResult] = (0, react.useState)();
+	const dialog = (0, react.useRef)(null);
+	const generation = (0, react.useRef)(0);
+	(0, react.useEffect)(() => () => {
+		generation.current++;
+	}, []);
+	const close = () => {
+		generation.current++;
+		setOpen(false);
+		setBusy("");
+	};
+	(0, react.useEffect)(() => {
+		let alive = true;
+		callSubscriptionsAuth(rpc, "proxyGet", {}).then((value) => {
+			if (alive) setView(value);
+		}).catch((reason) => {
+			if (alive) setError(String(reason.message));
+		});
+		return () => {
+			alive = false;
+		};
+	}, [rpc]);
+	(0, react.useEffect)(() => {
+		if (!open) return;
+		const previous = document.activeElement;
+		dialog.current?.showModal();
+		return () => {
+			dialog.current?.close();
+			if (previous instanceof HTMLElement && previous.isConnected) previous.focus();
+		};
+	}, [open]);
+	const field = (key, value) => setDraft((old) => ({
+		...old,
+		[key]: value
+	}));
+	const run = async (test) => {
+		if (busy) return;
+		const request = ++generation.current;
+		setBusy(test ? "test" : "save");
+		setError("");
+		setResult(void 0);
+		const password = draft.clearPassword ? { password: null } : draft.password ? { password: draft.password } : {};
+		try {
+			if (test) {
+				const tested = await callSubscriptionsAuth(rpc, "proxyTest", { proxy: {
+					enabled: draft.enabled,
+					url: draft.url.trim(),
+					...draft.username.trim() !== "" ? { username: draft.username.trim() } : {},
+					...password,
+					bypass: draft.bypass.split(/[,\n]/).map((s) => s.trim()).filter(Boolean)
+				} });
+				if (generation.current === request) setResult(tested);
+			} else {
+				const saved = await callSubscriptionsAuth(rpc, "proxySet", {
+					enabled: draft.enabled,
+					url: draft.url.trim(),
+					username: draft.username,
+					...password,
+					bypass: draft.bypass.split(/[,\n]/).map((s) => s.trim()).filter(Boolean)
+				});
+				if (generation.current === request) {
+					setView(saved);
+					setOpen(false);
+				}
+			}
+		} catch (reason) {
+			if (generation.current === request) setError(reason.message);
+		} finally {
+			if (generation.current === request) setBusy("");
+		}
+	};
+	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("section", {
+		className: "majed-proxy-settings",
+		children: [
+			/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("header", { children: [
+				/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", { children: t("proxyTitle") }),
+				" ",
+				/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+					type: "button",
+					disabled: !view,
+					onClick: () => {
+						setDraft({
+							...view,
+							username: view.username ?? "",
+							password: "",
+							clearPassword: false,
+							bypass: view.bypass.join(", ")
+						});
+						setError("");
+						setResult(void 0);
+						setOpen(true);
+					},
+					children: t("proxyConfigure")
+				})
+			] }),
+			/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+				role: "status",
+				children: view ? view.error ? t("proxyStatusError", { message: view.error }) : view.enabled ? t("proxyStatusEnabled", { url: view.url }) : t("proxyStatusNone") : t("proxyLoading")
+			}),
+			error && !open && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+				role: "alert",
+				children: error
+			}),
+			open && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("dialog", {
+				className: "majed-subscription-manager majed-proxy-dialog",
+				ref: dialog,
+				"aria-labelledby": "majed-proxy-title",
+				onCancel: close,
+				style: {
+					width: 620,
+					maxWidth: "calc(100vw - 32px)",
+					maxHeight: "calc(100dvh - 32px)",
+					overflow: "auto"
+				},
+				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("style", { children: providerSettingsCss }), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+					style: {
+						display: "flex",
+						flexDirection: "column",
+						gap: 14,
+						padding: 20,
+						minWidth: 0
+					},
+					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("header", {
+						style: {
+							display: "flex",
+							justifyContent: "space-between",
+							alignItems: "center",
+							gap: 12
+						},
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("h2", {
+							id: "majed-proxy-title",
+							style: { margin: 0 },
+							children: t("proxyDialogTitle")
+						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+							type: "button",
+							onClick: close,
+							children: t("imageClose")
+						})]
+					}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+						style: {
+							display: "grid",
+							gap: 12
+						},
+						children: [
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+								type: "checkbox",
+								checked: draft.enabled,
+								onChange: (event) => field("enabled", event.target.checked)
+							}), t("proxyEnabled")] }),
+							[
+								"url",
+								"username",
+								"password",
+								"bypass"
+							].map((key) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+								style: {
+									display: "grid",
+									gap: 6,
+									minWidth: 0
+								},
+								children: [
+									t(`proxy${key[0].toUpperCase()}${key.slice(1)}`),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+										type: key === "password" ? "password" : "text",
+										autoComplete: "off",
+										dir: key === "url" ? "ltr" : void 0,
+										value: draft[key],
+										onChange: (event) => field(key, event.target.value)
+									}),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", {
+										className: "majed-subscription-hint",
+										children: t(`proxy${key[0].toUpperCase()}${key.slice(1)}Hint`)
+									})
+								]
+							}, key)),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+								type: "checkbox",
+								checked: draft.clearPassword,
+								onChange: (event) => field("clearPassword", event.target.checked)
+							}), t("proxyClearPassword")] }),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+								className: "majed-subscription-hint",
+								children: t("proxyNote")
+							}),
+							error && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+								role: "alert",
+								children: error
+							}),
+							result && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+								role: "status",
+								children: result.ok ? t(result.viaProxy ? "proxyTestOk" : "proxyTestOkDirect", {
+									status: String(result.status),
+									ms: String(result.latencyMs)
+								}) : t("proxyTestFail", { message: result.error ?? "" })
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("footer", {
+								style: {
+									display: "flex",
+									justifyContent: "flex-end",
+									flexWrap: "wrap",
+									gap: 8
+								},
+								children: [
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+										type: "button",
+										disabled: !!busy,
+										onClick: () => void run(true),
+										children: t(busy === "test" ? "proxyTesting" : "proxyTest")
+									}),
+									" ",
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+										type: "button",
+										disabled: !!busy,
+										onClick: () => void run(false),
+										children: t(busy === "save" ? "proxySaving" : "proxySave")
+									}),
+									" ",
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+										type: "button",
+										onClick: close,
+										children: t("proxyCancel")
+									})
+								]
+							})
+						]
+					})]
+				})]
+			})
+		]
+	});
+}
+
+//#endregion
+//#region src/api-providers.ts
+function createApiProviders(React, remote, t, primitives$1 = require("@deepseek-ai/dsh-client-ui-primitives")) {
+	const h = React.createElement;
+	const at = (value, path) => path.reduce((v, key) => v?.[key], value);
+	const refOf = (entry, profile) => profile?.apiKeyEnv ?? `${entry.provider.toUpperCase().replace(/[^A-Z0-9]+/g, "_")}_API_KEY`;
+	const copy = (value) => JSON.parse(JSON.stringify(value));
+	const subscriptionIDs = new Set([
+		"codex",
+		"claude",
+		"grok",
+		"antigravity",
+		"copilot",
+		"opencode-zen"
+	]);
+	const control = {
+		font: "inherit",
+		color: "inherit",
+		background: "var(--dsw-alias-settings-card-fill, var(--dsw-alias-bg-layer-2))",
+		border: "0.5px solid var(--dsw-alias-border-l2)",
+		borderRadius: "var(--dsw-radius-md, 12px)",
+		padding: "6px 12px",
+		minHeight: "36px",
+		minWidth: 0,
+		boxSizing: "border-box"
+	};
+	return function ApiProviders({ subscriptions: subscriptions$2, showAPI = true, showSubscriptionAdd = true } = {}) {
+		const [subscription, setSubscription] = React.useState("");
+		const [authFlow, setAuthFlow] = React.useState(null);
+		const [snapshot, setSnapshot] = React.useState(null);
+		const [draft, setDraft] = React.useState(null);
+		const [addOpen, setAddOpen] = React.useState(false);
+		const [addMode, setAddMode] = React.useState("catalog");
+		const [message, setMessage] = React.useState("");
+		const [busy, setBusy] = React.useState(false);
+		const generation = React.useRef(0);
+		const mounted = React.useRef(true);
+		const addButton = React.useRef(null);
+		const subscriptionAddButton = React.useRef(null);
+		const addOrigin = React.useRef("api");
+		const restoreAddFocus = React.useRef(false);
+		const visitedDrafts = React.useRef({});
+		React.useEffect(() => {
+			if (!addOpen && restoreAddFocus.current) {
+				restoreAddFocus.current = false;
+				(addOrigin.current === "subscription" ? subscriptionAddButton : addButton).current?.focus();
+			}
+		}, [addOpen]);
+		const valueOf = (result) => {
+			if (!result.ok) throw new Error(result.error?.code === "settings/conflict" ? "apiConflict" : "apiFailed");
+			return result.value;
+		};
+		async function load() {
+			const sequence = ++generation.current;
+			if (!remote) return;
+			try {
+				const [settings, directory, registered] = await Promise.all([
+					remote.settings.describe(),
+					remote.llm.listConfigurableProviders(),
+					remote.llm.listProviders()
+				]);
+				const described = valueOf(settings);
+				const entries = valueOf(directory);
+				const providers = valueOf(registered);
+				const configuredIDs = Object.keys(described.namespaces.find((n) => n.ns === "llm-pi-ai")?.value?.providers ?? {});
+				const occupiedIDs = new Set([
+					...entries.map((entry) => entry.provider),
+					...providers.map((provider) => provider.id),
+					...configuredIDs
+				]);
+				const rows = entries.filter((entry) => !subscriptionIDs.has(entry.provider));
+				for (const provider of providers) if (!subscriptionIDs.has(provider.id) && !rows.some((e) => e.provider === provider.id)) rows.push({
+					provider: provider.id,
+					displayName: provider.name,
+					settingsNs: "",
+					settingsPath: []
+				});
+				rows.sort((a, b) => rank(a.provider) - rank(b.provider));
+				const refs = [...new Set(rows.flatMap((e) => {
+					if (e.provider === "deepseek-account") return [];
+					const profile = at(described.namespaces.find((n) => n.ns === e.settingsNs)?.value, e.settingsPath);
+					return profile?.apiKeyEnv ? [profile.apiKeyEnv] : [refOf(e, profile), ...e.nativeAuth?.env ?? []];
+				}))];
+				const credentials = {};
+				for (let i = 0; i < refs.length; i += 64) Object.assign(credentials, valueOf(await remote.credentials.describe(refs.slice(i, i + 64))));
+				if (mounted.current && sequence === generation.current) setSnapshot({
+					...described,
+					rows,
+					credentials,
+					occupiedIDs
+				});
+			} catch {
+				if (mounted.current && sequence === generation.current) setMessage("apiFailed");
+			}
+		}
+		function rank(id) {
+			return id === "deepseek-account" ? 0 : id === "deepseek-official" ? 1 : 2;
+		}
+		React.useEffect(() => {
+			mounted.current = true;
+			load();
+			const refresh = () => {
+				load();
+			};
+			const disposers = !remote ? [] : [
+				"settings/document-updated",
+				"credentials/reference-updated",
+				"credentials/record-updated",
+				"llm/adapters-updated"
+			].map((event) => remote.$on(event, refresh));
+			return () => {
+				mounted.current = false;
+				generation.current++;
+				disposers.forEach((off) => off());
+			};
+		}, []);
+		const nsOf = (e) => snapshot.namespaces.find((n) => n.ns === e.settingsNs);
+		const removable = (e, ns) => e.declared === true && e.settingsPath.length > 0 && at(ns?.user, e.settingsPath) !== void 0 && at(ns?.base, e.settingsPath) === void 0;
+		function edit(entry) {
+			const ns = nsOf(entry);
+			if (!ns) return;
+			const profile = at(ns.value, entry.settingsPath) ?? {};
+			setMessage("");
+			setDraft({
+				entry,
+				revision: ns.revision,
+				user: copy(at(ns.user, entry.settingsPath) ?? {}),
+				profile: copy(profile),
+				key: "",
+				keyAction: "keep",
+				models: copy(profile.models ?? []),
+				isNew: at(ns.value, entry.settingsPath) === void 0,
+				custom: false
+			});
+		}
+		function custom() {
+			const ns = snapshot.namespaces.find((n) => n.ns === "llm-pi-ai");
+			setMessage("");
+			setDraft({
+				entry: {
+					provider: "",
+					settingsNs: "llm-pi-ai",
+					settingsPath: [],
+					declared: true
+				},
+				revision: ns.revision,
+				user: {},
+				profile: {
+					api: "openai-completions",
+					baseURL: "",
+					displayName: ""
+				},
+				key: "",
+				keyAction: "keep",
+				models: [],
+				isNew: true,
+				custom: true
+			});
+		}
+		function switchMode(mode) {
+			if (busy || authFlow?.busy || mode === addMode) return;
+			if (draft) visitedDrafts.current[addMode] = {
+				...draft,
+				key: "",
+				keyAction: "keep"
+			};
+			setAuthFlow(null);
+			setAddMode(mode);
+			setMessage("");
+			if (visitedDrafts.current[mode]) setDraft(visitedDrafts.current[mode]);
+			else {
+				setDraft(null);
+				if (mode === "custom") custom();
+				else if (mode === "catalog" && addable[0]) edit(addable[0]);
+			}
+		}
+		const change = (field$1, value) => setDraft((d) => ({
+			...d,
+			[field$1]: value
+		}));
+		const profileChange = (field$1, value) => setDraft((d) => ({
+			...d,
+			profile: {
+				...d.profile,
+				[field$1]: value
+			}
+		}));
+		async function run(action) {
+			if (busy) return;
+			setBusy(true);
+			setMessage("");
+			try {
+				await action();
+			} catch (error) {
+				if (mounted.current) setMessage(error instanceof Error && [
+					"apiConflict",
+					"apiInvalid",
+					"apiPartial"
+				].includes(error.message) ? error.message : "apiFailed");
+			} finally {
+				if (mounted.current) setBusy(false);
+			}
+		}
+		function parsedModels() {
+			const models = draft.models;
+			if (!Array.isArray(models) || models.some((m) => !m || typeof m.id !== "string" || !m.id.trim() || m.name !== void 0 && typeof m.name !== "string" || ["contextWindow", "maxTokens"].some((k) => m[k] !== void 0 && (!Number.isInteger(m[k]) || m[k] < 1)) || m.input !== void 0 && (!Array.isArray(m.input) || m.input.some((v) => !["text", "image"].includes(v))) || m.reasoningEfforts !== void 0 && m.reasoningEfforts !== false && (typeof m.reasoningEfforts !== "object" || m.reasoningEfforts === null || Array.isArray(m.reasoningEfforts)))) throw new Error("apiInvalid");
+			if (new Set(models.map((m) => m.id)).size !== models.length) throw new Error("apiInvalid");
+			return models;
+		}
+		async function save() {
+			let entry = draft.entry;
+			if (draft.custom) {
+				if (!/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(entry.provider) || subscriptionIDs.has(entry.provider) || snapshot.occupiedIDs.has(entry.provider)) throw new Error("apiInvalid");
+				entry = {
+					...entry,
+					settingsPath: ["providers", entry.provider]
+				};
+			}
+			if (draft.profile.baseURL) try {
+				const url = new URL(draft.profile.baseURL);
+				if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) throw new Error();
+			} catch {
+				throw new Error("apiInvalid");
+			}
+			const models = parsedModels();
+			if (draft.custom && (!draft.profile.baseURL || models.length === 0)) throw new Error("apiInvalid");
+			const next = { ...draft.user };
+			for (const field$1 of ["displayName", "baseURL"]) if (draft.profile[field$1]?.trim()) next[field$1] = draft.profile[field$1].trim();
+			else delete next[field$1];
+			next.models = models;
+			if (draft.custom) next.api = draft.profile.api;
+			const ref = refOf(entry, draft.profile);
+			if (draft.keyAction !== "keep" && snapshot.credentials[ref]?.writable === false) throw new Error("apiFailed");
+			if (draft.keyAction === "set") {
+				if (!draft.key.trim() || /[\r\n]/.test(draft.key)) throw new Error("apiInvalid");
+				next.apiKeyEnv = ref;
+			}
+			const ops = [];
+			for (const field$1 of ["displayName", "baseURL"]) if (field$1 in draft.user && !(field$1 in next)) ops.push({
+				op: "unset",
+				path: [...entry.settingsPath, field$1]
+			});
+			for (const field$1 of Object.keys(next)) if (JSON.stringify(next[field$1]) !== JSON.stringify(draft.user[field$1])) ops.push({
+				op: "set",
+				path: [...entry.settingsPath, field$1],
+				value: next[field$1]
+			});
+			if (draft.isNew && ops.length === 0) ops.push({
+				op: "set",
+				path: entry.settingsPath,
+				value: {}
+			});
+			let committed = false;
+			if (ops.length) {
+				const view = valueOf(await remote.settings.mutate(entry.settingsNs, ops, draft.revision));
+				committed = true;
+				if (mounted.current) setDraft((d) => ({
+					...d,
+					entry,
+					revision: view.revision,
+					user: copy(next),
+					isNew: false,
+					custom: false
+				}));
+			}
+			if (draft.keyAction !== "keep") try {
+				if (!(draft.keyAction === "set" ? await remote.credentials.set(ref, draft.key.trim()) : await remote.credentials.unset(ref)).ok) throw new Error("apiFailed");
+			} catch {
+				throw new Error(committed ? "apiPartial" : "apiFailed");
+			}
+			if (mounted.current) {
+				restoreAddFocus.current = addOpen;
+				visitedDrafts.current = {};
+				setDraft(null);
+				setAddOpen(false);
+				setMessage("apiSaved");
+			}
+			await load();
+		}
+		async function discover() {
+			const request = {
+				provider: draft.entry.provider,
+				baseURL: draft.profile.baseURL,
+				api: draft.profile.api
+			};
+			if (draft.keyAction === "set" && draft.key.trim()) request.apiKey = draft.key.trim();
+			const models = valueOf(await remote.llm.discoverModels(draft.entry.settingsNs, request)).map(({ inputModalities,...model }) => ({
+				...model,
+				...inputModalities === void 0 ? {} : { input: inputModalities }
+			}));
+			if (mounted.current) change("models", models);
+		}
+		async function remove(entry) {
+			const ns = nsOf(entry);
+			if (!removable(entry, ns)) throw new Error("apiInvalid");
+			valueOf(await remote.settings.mutate(ns.ns, [{
+				op: "unset",
+				path: entry.settingsPath
+			}], ns.revision));
+			setMessage("apiSaved");
+			await load();
+		}
+		const button = (key, onClick, disabled = false, cancellation = false) => h("button", {
+			type: "button",
+			className: key === "apiAdd" ? "majed-api-add-trigger" : void 0,
+			style: {
+				...control,
+				...key === "apiAdd" ? {
+					inlineSize: "100%",
+					minHeight: 44,
+					borderStyle: "dashed",
+					background: "transparent"
+				} : {}
+			},
+			onClick,
+			disabled: busy || !cancellation && !!authFlow?.busy || disabled,
+			...key === "apiAdd" ? { ref: addButton } : {}
+		}, t(key));
+		const field = (key, value, onChange, type = "text") => h("label", { className: "majed-api-field" }, t(key), h("input", {
+			"aria-label": t(key),
+			type,
+			value,
+			autoComplete: "off",
+			style: control,
+			disabled: busy,
+			onChange: (e) => onChange(e.target.value),
+			dir: [
+				"apiRoute",
+				"apiURL",
+				"apiModelID",
+				"apiKey"
+			].includes(key) ? "ltr" : "auto"
+		}));
+		const configured = (entry) => {
+			const ns = nsOf(entry);
+			return ns !== void 0 && (entry.settingsPath.length === 0 || at(ns.value, entry.settingsPath) !== void 0);
+		};
+		const addable = snapshot?.rows.filter((entry) => nsOf(entry) && !configured(entry)) ?? [];
+		const select = (key, value, onChange, options) => h("label", { className: "majed-api-field" }, t(key), h("select", {
+			"aria-label": t(key),
+			value,
+			style: control,
+			disabled: busy || key === "apiSubscription" && !!authFlow?.busy,
+			onChange: (e) => onChange(e.target.value)
+		}, ...options));
+		React.useEffect(() => {
+			if (!subscriptions$2?.request || authFlow?.busy) return;
+			addOrigin.current = "subscription";
+			if (subscriptions$2.request.returnFocus) subscriptionAddButton.current = subscriptions$2.request.returnFocus;
+			setSubscription(subscriptions$2.request.provider);
+			setAddMode("subscription");
+			setDraft(null);
+			setAddOpen(true);
+		}, [subscriptions$2?.request]);
+		const close = () => {
+			setAuthFlow(null);
+			restoreAddFocus.current = addOpen;
+			visitedDrafts.current = {};
+			setDraft(null);
+			setAddOpen(false);
+		};
+		const editor = () => h("div", {
+			role: "group",
+			"aria-label": t("apiEditor"),
+			className: "majed-api-editor"
+		}, draft.custom ? field("apiRoute", draft.entry.provider, (v) => change("entry", {
+			...draft.entry,
+			provider: v
+		})) : h("bdi", { className: "majed-api-muted" }, draft.entry.provider), field("apiName", draft.profile.displayName ?? "", (v) => profileChange("displayName", v)), field("apiURL", draft.profile.baseURL ?? "", (v) => profileChange("baseURL", v)), draft.custom ? select("apiProtocol", draft.profile.api, (v) => profileChange("api", v), [
+			"openai-completions",
+			"openai-responses",
+			"anthropic-messages"
+		].map((v) => h("option", {
+			key: v,
+			value: v
+		}, v))) : null, select("apiKeyAction", draft.keyAction, (v) => change("keyAction", v), [
+			"keep",
+			"set",
+			"unset"
+		].map((v) => h("option", {
+			key: v,
+			value: v
+		}, t(`apiKey_${v}`)))), draft.keyAction === "set" ? field("apiKey", draft.key, (v) => change("key", v), "password") : null, h("p", { className: "majed-api-muted" }, t("apiKeyLimit")), h("div", { className: "majed-api-head" }, h("strong", null, t("apiModels")), button("apiFetch", () => {
+			run(discover);
+		})), ...draft.models.map((model, index) => h("div", {
+			key: index,
+			className: "majed-api-model",
+			"data-majed-api-model": index
+		}, field("apiModelID", model.id, (v) => change("models", draft.models.map((m, i) => i === index ? {
+			...m,
+			id: v
+		} : m))), field("apiModelName", model.name ?? "", (v) => change("models", draft.models.map((m, i) => i === index ? {
+			...m,
+			name: v
+		} : m))), button("apiModelRemove", () => change("models", draft.models.filter((_, i) => i !== index))))), button("apiModelAdd", () => change("models", [...draft.models, {
+			id: "",
+			name: ""
+		}])), h("p", { className: "majed-api-muted" }, t("apiModelsHint")), h("div", { className: "majed-api-actions" }, button("apiSave", () => {
+			run(save);
+		}), button("apiCancel", close, false, true)));
+		const openAdd = (group) => {
+			addOrigin.current = group;
+			setAddOpen(true);
+			setDraft(null);
+			setMessage("");
+			setAddMode(group === "subscription" ? "subscription" : "catalog");
+			if (group === "api" && addable[0]) edit(addable[0]);
+		};
+		const addPanel = () => h("div", { className: `majed-api-add${addMode !== "subscription" ? " majed-api-add-open" : " majed-subscription-add-open"}` }, addOpen ? h(React.Fragment, null, addOrigin.current === "subscription" ? null : h(primitives$1.SegmentedControl, {
+			id: "majed-provider-add-mode",
+			value: addMode,
+			label: t("apiAdd"),
+			className: "majed-api-tabs",
+			disabled: busy || !!authFlow?.busy,
+			onChange: switchMode,
+			options: ["catalog", "custom"].map((mode) => ({
+				value: mode,
+				label: t(mode === "catalog" ? "apiCatalog" : mode === "custom" ? "apiCustom" : "apiSubscription"),
+				disabled: mode !== "subscription" && (!snapshot?.writable || mode === "custom" && !snapshot.namespaces.some((n) => n.ns === "llm-pi-ai"))
+			}))
+		}), h("div", {
+			role: addOrigin.current === "subscription" ? "group" : "tabpanel",
+			id: `majed-provider-add-mode-${addMode}-panel`,
+			"aria-label": addOrigin.current === "subscription" ? t("subscriptionAdd") : void 0,
+			"aria-labelledby": addOrigin.current === "subscription" ? void 0 : `majed-provider-add-mode-${addMode}`
+		}, addMode === "catalog" ? select("apiCatalog", draft?.entry.provider ?? "", (v) => {
+			const entry = addable.find((e) => e.provider === v);
+			if (entry) edit(entry);
+		}, [h("option", {
+			key: "",
+			value: "",
+			disabled: true
+		}, t("apiChoose")), ...addable.map((e) => h("option", {
+			key: e.provider,
+			value: e.provider
+		}, e.displayName))]) : null, addMode === "subscription" ? h(React.Fragment, null, select("apiSubscription", subscription || subscriptions$2.providers[0]?.id || "", (v) => {
+			if (!authFlow?.busy) {
+				setAuthFlow(null);
+				setSubscription(v);
+			}
+		}, subscriptions$2.providers.map((p) => h("option", {
+			key: p.id,
+			value: p.id
+		}, p.name))), subscriptions$2.renderAuth(subscription || subscriptions$2.providers[0]?.id, close, setAuthFlow), h("div", { className: "majed-subscription-add-actions" }, button("cancel", () => run(async () => {
+			if (!authFlow?.cancel || await authFlow.cancel()) close();
+		}), false, true))) : draft ? editor() : button("apiCancel", close, false, true))) : null);
+		return h("div", {
+			"data-majed-api-providers": true,
+			"aria-busy": busy,
+			className: "majed-api-section"
+		}, h("style", null, `
+        .majed-provider-group{display:flex;flex-direction:column;gap:12px;min-inline-size:0}.majed-provider-group+.majed-provider-group{margin-block-start:12px}.majed-provider-title{margin:0;font-size:16px;line-height:24px;font-weight:500}
+        .majed-api-section{max-inline-size:720px;min-inline-size:0;display:flex;flex-direction:column;gap:12px;text-align:start;color:var(--dsw-alias-label-primary);font-size:14px;line-height:22px}
+        .majed-api-section *{box-sizing:border-box}.majed-api-section p{margin:0}
+        .majed-api-rows{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}.majed-api-rows>li{min-inline-size:0}
+        .majed-api-row{border:0.5px solid var(--dsw-alias-settings-card-stroke,var(--dsw-alias-border-l2));background:var(--dsw-alias-settings-card-fill,var(--dsw-alias-bg-layer-2));border-radius:var(--dsw-radius-xl,20px);padding:14px 16px;min-inline-size:0}
+        .majed-api-head,.majed-api-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+        .majed-api-identity{display:flex;flex-direction:column;align-items:flex-start;gap:4px;flex:1 1 180px;min-inline-size:0;overflow-wrap:anywhere}.majed-api-identity strong{font-weight:500}
+        .majed-api-actions{margin-inline-start:auto}.majed-api-muted{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px;overflow-wrap:anywhere}
+        .majed-api-editor{display:flex;flex-direction:column;gap:14px;padding-block:14px 4px;margin-block-start:12px;border-block-start:0.5px solid var(--dsw-alias-border-l2)}
+        .majed-api-field{display:flex;flex-direction:column;gap:6px;min-inline-size:0;font-size:12px;line-height:18px;font-weight:500}.majed-api-field input,.majed-api-field select{inline-size:100%;font-size:14px;line-height:22px;font-weight:400}
+        .majed-api-model{display:grid;grid-template-columns:repeat(2,minmax(0,1fr)) auto;gap:8px;align-items:end}
+        .majed-api-add{margin-block-start:4px;min-inline-size:0}.majed-api-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-block-end:14px}.majed-api-tabs [aria-selected=true]{font-weight:500;background:var(--dsw-alias-interactive-secondary-hover,var(--dsw-alias-bg-layer-1))}
+        .majed-api-section .majed-subscription-add-trigger{display:flex;align-items:center;justify-content:center;gap:6px;inline-size:100%;min-block-size:44px;padding:0 14px;border:1px dashed var(--dsw-alias-border-l3,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-lg,16px);background:transparent;color:inherit;font:inherit}
+        .majed-api-section .majed-subscription-add-trigger:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-1))}
+        .majed-subscription-add-open{padding:14px 16px;border-radius:var(--dsw-radius-lg,16px);background:var(--dsw-alias-bg-module-platform,var(--dsw-alias-bg-layer-1))}
+        .majed-subscription-add-actions{display:flex;justify-content:flex-end;gap:8px}
+        .majed-subscription-add-actions>button{flex:0 0 auto;inline-size:auto}
+        .majed-api-section .majed-subscriptions-settings :is([data-majed-codex-part=header],[data-majed-claude-part=header],[data-majed-grok-part=header],[data-majed-antigravity-part=header],[data-majed-copilot-part=header])>button:not(.majed-provider-disclosure){height:28px;block-size:28px;min-height:28px;padding:0 10px;border-radius:var(--dsw-radius-sm,8px);font-size:12px;line-height:18px}
+        .majed-subscription-add-open [data-majed-codex-part=card],.majed-subscription-add-open [data-majed-claude-part=card],.majed-subscription-add-open [data-majed-grok-part=card],.majed-subscription-add-open [data-majed-antigravity-part=card],.majed-subscription-add-open [data-majed-copilot-part=card]{border:0!important;background:transparent!important;padding:0!important}
+        .majed-api-add-open{padding:14px 16px;border:0.5px solid var(--dsw-alias-settings-card-stroke,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-xl,20px);background:var(--dsw-alias-settings-card-fill,var(--dsw-alias-bg-layer-2))}
+        .majed-api-add>:is([role=tabpanel],[role=group]){display:flex;flex-direction:column;gap:14px;min-inline-size:0}.majed-api-add>:is([role=tabpanel],[role=group])>.majed-api-editor{margin-block-start:0}
+        .majed-api-section button{cursor:pointer;max-inline-size:100%;white-space:normal;overflow-wrap:anywhere}.majed-api-section button:hover:not(:disabled){background:var(--dsw-alias-interactive-secondary-hover,var(--dsw-alias-bg-layer-1))}
+        .majed-api-section :is(button,input,select):focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}.majed-api-section :disabled{opacity:.5;cursor:not-allowed}
+        @media(max-width:520px){.majed-api-model{grid-template-columns:minmax(0,1fr)}.majed-api-model button{justify-self:start}.majed-api-actions{margin-inline-start:0}}
+      `), message ? h("p", { role: message === "apiSaved" ? "status" : "alert" }, t(message)) : null, subscriptions$2 ? h("section", {
+			"data-majed-provider-group": "subscription",
+			className: "majed-provider-group",
+			"aria-label": t("subscriptionProviders")
+		}, h("h3", { className: "majed-provider-title" }, t("subscriptionProviders")), h("ul", { className: "majed-api-rows" }, ...subscriptions$2.rows), addOpen && addOrigin.current === "subscription" ? addPanel() : !showSubscriptionAdd ? null : h("button", {
+			type: "button",
+			className: "majed-subscription-add-trigger",
+			ref: subscriptionAddButton,
+			disabled: busy || addOpen,
+			onClick: () => openAdd("subscription")
+		}, h("svg", {
+			width: 16,
+			height: 16,
+			viewBox: "0 0 24 24",
+			fill: "none",
+			stroke: "currentColor",
+			strokeWidth: 1.5,
+			"aria-hidden": true
+		}, h("path", { d: "M12 4v16M4 12h16" })), t("addAccount"))) : null, showAPI && h("section", {
+			"data-majed-provider-group": "api",
+			className: "majed-provider-group",
+			"aria-label": t("apiProviders")
+		}, h("div", { className: "majed-api-head" }, h("h3", { className: "majed-provider-title" }, t("apiProviders")), h("div", { className: "majed-api-actions" }, button("apiRefresh", () => {
+			load();
+		}))), h(React.Fragment, null, !snapshot ? h("p", null, t(remote ? message ? "apiFailed" : "apiLoading" : "apiUnavailable")) : null, h("ul", { className: "majed-api-rows" }, ...(snapshot?.rows ?? []).filter(configured).map((entry) => {
+			const ns = nsOf(entry), profile = at(ns.value, entry.settingsPath);
+			const metadata = (profile?.apiKeyEnv ? [profile.apiKeyEnv] : [refOf(entry, profile), ...entry.nativeAuth?.env ?? []]).map((ref) => snapshot.credentials[ref]);
+			const credentialStatus = entry.provider === "deepseek-account" ? "account-unknown" : metadata.some((value) => value?.configured === true) ? "configured" : metadata.every((value) => value?.configured === false) ? "missing" : "unknown";
+			const statusLabel = credentialStatus === "configured" ? "apiKeySet" : credentialStatus === "missing" ? "apiKeyMissing" : credentialStatus === "account-unknown" ? "apiAccountUnknown" : "apiKeyUnknown";
+			return h("li", {
+				key: entry.provider,
+				"data-majed-api-provider": entry.provider,
+				className: "majed-api-row"
+			}, h("div", { className: "majed-api-head" }, h("span", { className: "majed-api-identity" }, h("strong", null, profile?.displayName ?? entry.displayName), h("span", {
+				className: "majed-api-muted",
+				"data-majed-credential-status": credentialStatus
+			}, h("span", {
+				"aria-hidden": true,
+				style: {
+					display: "inline-block",
+					width: 6,
+					height: 6,
+					borderRadius: "50%",
+					marginInlineEnd: 6,
+					background: "currentColor"
+				}
+			}), t(statusLabel))), h("span", { className: "majed-api-actions" }, entry.provider === "deepseek-account" ? null : button("apiEdit", () => {
+				setAddOpen(false);
+				edit(entry);
+			}, addOpen || !snapshot.writable), removable(entry, ns) ? button("apiDelete", () => {
+				run(() => remove(entry));
+			}, addOpen || !snapshot.writable) : null)), !addOpen && draft?.entry.provider === entry.provider ? editor() : null);
+		})), addOpen && addOrigin.current === "api" ? addPanel() : button("apiAdd", () => openAdd("api"), addOpen || !snapshot?.writable))));
+	};
+}
+
+//#endregion
+//#region src/copilot-card.ts
+/** GitHub Copilot Settings card, adapted from pinned reference SubscriptionsSection device login and shared
+* account presentation. Only sanitized status crosses RPC; see PROVENANCE.md (#134). */
+function createCopilotCard(React, primitives$1, rpc, t) {
+	const h = React.createElement;
+	const Button = primitives$1.Button ?? "button";
+	primitives$1.Input;
+	const DEFAULT_NAME = "GitHub Copilot";
+	return function CopilotCard({ presentation, onComplete, onFlowState, onAccountsChange, revision, initialExpanded = false } = {}) {
+		const [expanded, setExpanded] = React.useState(initialExpanded);
+		const initialAuthRevision = React.useRef(null);
+		const [manager, setManager] = React.useState(false);
+		const [status, setStatus] = React.useState(null);
+		const [error, setError] = React.useState("");
+		const [pending, setPending] = React.useState(false);
+		const [login, setLogin] = React.useState(null);
+		const [input, setInput] = React.useState("");
+		const [usage, setUsage] = React.useState({});
+		const [confirmation, setConfirmation] = React.useState(null);
+		const alive = React.useRef(true);
+		const usageRequests = React.useRef(/* @__PURE__ */ new Map());
+		const accountKeys = React.useRef(/* @__PURE__ */ new Set());
+		const call = async (endpoint, payload = {}) => {
+			const response = await rpc.call("/api", `majed-subscriptions.${endpoint}`, {
+				provider: "copilot",
+				...payload
+			});
+			if (!response?.ok) throw new Error(response?.error?.message ?? t("unreachable"));
+			return response.value;
+		};
+		const refreshStatus = async () => {
+			const value = await call("status");
+			if (alive.current) setStatus({
+				...value.providers.copilot ?? { accounts: [] },
+				registrationError: value.copilotRegistrationError
+			});
+		};
+		const action = async (run) => {
+			setPending(true);
+			setError("");
+			try {
+				await run();
+			} catch (failure) {
+				if (alive.current) setError(failure instanceof Error ? failure.message : String(failure));
+			} finally {
+				if (alive.current) setPending(false);
+			}
+		};
+		React.useEffect(() => {
+			alive.current = true;
+			refreshStatus().catch((failure) => {
+				if (alive.current) setError(failure.message);
+			});
+			return () => {
+				alive.current = false;
+			};
+		}, []);
+		React.useEffect(() => {
+			if (revision !== void 0) refreshStatus().catch(() => {});
+		}, [revision]);
+		React.useEffect(() => {
+			if (!status?.busy) return;
+			const timer = setInterval(() => {
+				refreshStatus().catch((failure) => {
+					if (alive.current) setError(failure.message);
+				});
+			}, 2e3);
+			return () => clearInterval(timer);
+		}, [status?.busy]);
+		const refreshUsage = (account, force = false) => {
+			if (usageRequests.current.has(account)) return usageRequests.current.get(account);
+			const request = (async () => {
+				try {
+					const snapshot = await call("usage", {
+						account,
+						force
+					});
+					if (alive.current && accountKeys.current.has(account) && usageRequests.current.get(account) === request) setUsage((previous) => ({
+						...previous,
+						[account]: snapshot
+					}));
+				} catch (failure) {
+					if (alive.current && accountKeys.current.has(account) && usageRequests.current.get(account) === request) setUsage((previous) => ({
+						...previous,
+						[account]: { error: failure instanceof Error ? failure.message : String(failure) }
+					}));
+				} finally {
+					if (usageRequests.current.get(account) === request) usageRequests.current.delete(account);
+				}
+			})();
+			usageRequests.current.set(account, request);
+			return request;
+		};
+		const reportedAccounts = React.useRef(null);
+		const accountsSignature = JSON.stringify((status?.accounts ?? []).map((account) => account.key));
+		React.useEffect(() => {
+			if (presentation === "group" && status) {
+				if (reportedAccounts.current !== null && reportedAccounts.current !== accountsSignature) onAccountsChange?.();
+				reportedAccounts.current = accountsSignature;
+			}
+			const keys = new Set((status?.accounts ?? []).map((account) => account.key));
+			const added = [...keys].filter((key) => !accountKeys.current.has(key));
+			accountKeys.current = keys;
+			for (const key of usageRequests.current.keys()) if (!keys.has(key)) usageRequests.current.delete(key);
+			setUsage((previous) => Object.fromEntries(Object.entries(previous).filter(([key]) => keys.has(key))));
+			if (presentation !== "auth") for (const key of added) refreshUsage(key);
+		}, [accountsSignature]);
+		const button = (label, onClick, disabled = false, props = {}) => h(Button, {
+			type: "button",
+			disabled: pending || disabled,
+			onClick,
+			...props
+		}, label);
+		const date = (time) => new Date(time).toLocaleString();
+		const part = (name$1, style, ...children) => h("div", {
+			style,
+			"data-majed-copilot-part": name$1
+		}, ...children);
+		const startLogin = () => {
+			action(async () => {
+				const result = await call("login");
+				if (!alive.current) return;
+				window.open(result.authorizeUrl, "_blank", "noopener");
+				setLogin(result);
+				await refreshStatus();
+			});
+		};
+		React.useEffect(() => {
+			if (!status) return;
+			const current = status.authRevision ?? 0;
+			if (initialAuthRevision.current === null) initialAuthRevision.current = current;
+			else if (presentation === "auth" && current > initialAuthRevision.current) {
+				initialAuthRevision.current = current;
+				onComplete?.();
+			}
+		}, [status]);
+		const busy = status?.busy;
+		React.useEffect(() => {
+			if (presentation !== "auth") return;
+			onFlowState?.({
+				busy: pending || !!busy,
+				cancel: async () => {
+					if (pending) return false;
+					if (busy) {
+						await call("cancel");
+						setLogin(null);
+						await refreshStatus();
+					}
+					return true;
+				}
+			});
+		}, [pending, busy]);
+		const name = status?.displayName || DEFAULT_NAME;
+		const hasAccounts = !!status?.accounts?.length;
+		return h("div", {
+			style: {
+				...styles$3.section,
+				...presentation ? {
+					maxWidth: "none",
+					maxInlineSize: "none",
+					width: "100%"
+				} : {},
+				textAlign: "start"
+			},
+			className: "majed-subscriptions-settings",
+			"data-majed-copilot-card": true
+		}, h("style", null, controlCss), manager ? h(ProviderAccountManager, {
+			provider: "copilot",
+			name,
+			rpc,
+			t,
+			onClose: () => {
+				setManager(false);
+				refreshStatus();
+			}
+		}) : null, part("card", styles$3.card, presentation !== "auth" && part("header", styles$3.cardHeader, providerStatus(h, t, error || status?.registrationError ? "error" : busy ? "warning" : !status ? "checking" : status?.accounts?.length ? "ready" : "warning", error || status?.registrationError ? "providerAttention" : busy ? "loginProgress" : !status ? "checking" : status?.accounts?.length ? "providerConfigured" : "notLoggedIn"), presentation === "group" ? providerIdentity(h, t, name, status?.accounts ?? [], usage, status?.clientVersion) : h("span", { style: styles$3.name }, name), presentation === "auth" ? null : button(t("accountsManage"), () => setManager(true), false, { style: { marginInlineStart: "auto" } }), presentation === "group" ? providerDisclosure(h, t, name, expanded, () => setExpanded(!expanded)) : status?.clientVersion ? h("span", {
+			style: styles$3.clientVersion,
+			title: t("clientVersionHint")
+		}, "CLI ", h("bdi", { dir: "ltr" }, status.clientVersion.version), " · ", t(`source_${status.clientVersion.source}`)) : null), (presentation === "auth" || presentation === "group" && status?.accounts?.length) && !busy && !status?.registrationError ? null : h("p", {
+			style: styles$3.statusLine,
+			role: "status"
+		}, status?.registrationError ? t("copilotProviderUnavailable") : busy ? t("loginProgress") : hasAccounts ? `${status.accounts.length} ${t("connected")}` : status ? t("notLoggedIn") : t("checking")), status?.detail ? h("p", { style: styles$3.statusLine }, status.detail) : null, error ? h("p", {
+			style: styles$3.errorLine,
+			role: "alert"
+		}, error) : null, ...(presentation === "auth" || presentation === "group" && !expanded ? [] : status?.accounts ?? []).map((account) => {
+			const snapshot = usage[account.key];
+			return h("div", {
+				key: account.key,
+				style: styles$3.accountRow,
+				"data-majed-copilot-part": "account"
+			}, part("account-header", styles$3.accountHeader, button(account.isDefault ? "★" : "☆", () => {
+				if (!account.isDefault) action(async () => {
+					await call("setDefault", { account: account.key });
+					await refreshStatus();
+				});
+			}, false, {
+				style: styles$3.starButton,
+				title: t(account.isDefault ? "defaultAccount" : "makeDefault"),
+				"aria-label": t(account.isDefault ? "defaultAccount" : "makeDefault")
+			}), h("bdi", {
+				dir: "ltr",
+				style: styles$3.accountName
+			}, account.alias || account.account || account.key), account.plan ? h("bdi", { style: styles$3.usagePlan }, account.plan) : null, account.expiresAt ? h("span", { style: styles$3.statusLine }, t("expires"), " ", h("bdi", null, date(account.expiresAt))) : null, button(t("logout"), () => setConfirmation({
+				account: account.key,
+				label: account.account
+			}), false, { style: { marginInlineStart: "auto" } })), snapshot?.supported === false ? h("p", { style: styles$3.statusLine }, t("usageUnavailable")) : part("usage", styles$3.usage, part("usage-header", styles$3.usageHeader, h("span", { style: styles$3.usageTitle }, t("usageTitle")), button(t("refreshUsage"), () => {
+				action(() => refreshUsage(account.key, true));
+			}, false, { style: styles$3.usageRefresh })), !snapshot ? h("p", { style: styles$3.statusLine }, t("usageNotLoaded")) : snapshot.error ? h("p", {
+				style: styles$3.errorLine,
+				role: "alert"
+			}, snapshot.error) : !snapshot.windows?.length ? h("p", { style: styles$3.statusLine }, t("usageUnavailable")) : null, ...(snapshot?.windows ?? []).map((window$1, index) => {
+				const percent = Math.max(0, Math.min(100, window$1.usedPercent));
+				const color = percent >= 95 ? "var(--dsw-alias-state-error-primary)" : percent >= 80 ? "var(--dsw-alias-state-warn-label)" : "var(--dsw-alias-state-success-primary)";
+				return h("div", {
+					key: index,
+					style: styles$3.usageRow
+				}, part("usage-meta", styles$3.usageMeta, h("span", null, t(`window_${window$1.kind}`), window$1.scope ? ` · ${window$1.scope}` : ""), h("span", null, h("bdi", null, `${Math.round(percent)}%`), window$1.resetsAt ? h("span", null, " · ", t("resets"), " ", h("bdi", null, date(window$1.resetsAt))) : null)), h("div", {
+					role: "progressbar",
+					"aria-label": t(`window_${window$1.kind}`),
+					"aria-valuenow": percent,
+					"aria-valuemin": 0,
+					"aria-valuemax": 100,
+					style: styles$3.usageTrack
+				}, h("div", { style: {
+					...styles$3.usageFill,
+					background: color,
+					inlineSize: `${percent}%`
+				} })));
+			})));
+		}), presentation !== "group" && part("actions", styles$3.actions, busy ? button(t("cancelLogin"), () => {
+			action(async () => {
+				await call("cancel");
+				setLogin(null);
+				await refreshStatus();
+			});
+		}) : button(t(hasAccounts ? "addAccount" : "login"), () => startLogin(), !!status?.registrationError)), busy && (status.pendingAuth ?? login) ? h("div", { style: styles$3.manual }, h("p", null, t("copilotDeviceHint")), h("bdi", {
+			dir: "ltr",
+			"data-majed-copilot-code": true
+		}, (status.pendingAuth ?? login).userCode), button(t("copyDeviceCode"), () => {
+			action(async () => {
+				await navigator.clipboard.writeText((status.pendingAuth ?? login).userCode);
+			});
+		}), h("a", {
+			href: (status.pendingAuth ?? login).authorizeUrl,
+			target: "_blank",
+			rel: "noopener noreferrer",
+			style: styles$3.manual
+		}, t("openAuthorization"))) : null), confirmation ? h("dialog", {
+			ref: (node) => {
+				if (node && !node.open) node.showModal();
+			},
+			className: "majed-reset-dialog",
+			role: "dialog",
+			"aria-modal": true,
+			"aria-label": t("confirmLogout"),
+			onCancel: () => setConfirmation(null),
+			onClose: () => setConfirmation(null),
+			style: {
+				...styles$3.modal,
+				margin: "auto",
+				color: "var(--dsw-alias-label-primary)"
+			}
+		}, h("h3", { style: {
+			...styles$3.modalTitle,
+			margin: 0
+		} }, t("confirmLogout")), h("p", { style: {
+			...styles$3.statusLine,
+			overflowWrap: "anywhere"
+		} }, h("bdi", { dir: "ltr" }, confirmation.label ?? confirmation.account)), h("div", {
+			className: "majed-subscription-dialog-actions",
+			style: {
+				...styles$3.actions,
+				justifyContent: "flex-end",
+				marginBlockStart: 8
+			}
+		}, button(t("cancel"), () => setConfirmation(null), false, { autoFocus: true }), button(t("logout"), () => {
+			action(async () => {
+				await call("logout", { account: confirmation.account });
+				setConfirmation(null);
+				await refreshStatus();
+			});
+		}))) : null);
+	};
+}
+
+//#endregion
+//#region src/claude-card.ts
+/**
+* Claude Settings card (ticket #132). Scoped presentation port of the Claude part of V1ki v0.9.12 b802311
+* SubscriptionsSection; see PROVENANCE.md. It only ever receives sanitized status from the owned RPC: account
+* labels, plan and expiry, never a token or credential-store path.
+*/
+function createClaudeCard(React, primitives$1, rpc, t) {
+	const h = React.createElement;
+	const Button = primitives$1.Button ?? "button";
+	const Input = primitives$1.Input ?? "input";
+	const DEFAULT_NAME = "Claude (Subscription)";
+	return function ClaudeCard({ presentation, onComplete, onFlowState, onAccountsChange, revision, initialExpanded = false } = {}) {
+		const [expanded, setExpanded] = React.useState(initialExpanded);
+		const initialAuthRevision = React.useRef(null);
+		const [manager, setManager] = React.useState(false);
+		const [status, setStatus] = React.useState(null);
+		const [error, setError] = React.useState("");
+		const [pending, setPending] = React.useState(false);
+		const [login, setLogin] = React.useState(null);
+		const [input, setInput] = React.useState("");
+		const [usage, setUsage] = React.useState({});
+		const [confirmation, setConfirmation] = React.useState(null);
+		const alive = React.useRef(true);
+		const usageRequests = React.useRef(/* @__PURE__ */ new Map());
+		const accountKeys = React.useRef(/* @__PURE__ */ new Set());
+		const call = async (endpoint, payload = {}) => {
+			const response = await rpc.call("/api", `majed-subscriptions.${endpoint}`, {
+				provider: "claude",
+				...payload
+			});
+			if (!response?.ok) throw new Error(response?.error?.message ?? t("unreachable"));
+			return response.value;
+		};
+		const refreshStatus = async () => {
+			const value = await call("status");
+			if (alive.current) setStatus({
+				...value.providers.claude ?? { accounts: [] },
+				registrationError: value.claudeRegistrationError
+			});
+		};
+		const action = async (run) => {
+			setPending(true);
+			setError("");
+			try {
+				await run();
+			} catch (failure) {
+				if (alive.current) setError(failure instanceof Error ? failure.message : String(failure));
+			} finally {
+				if (alive.current) setPending(false);
+			}
+		};
+		React.useEffect(() => {
+			alive.current = true;
+			refreshStatus().catch((failure) => {
+				if (alive.current) setError(failure.message);
+			});
+			return () => {
+				alive.current = false;
+			};
+		}, []);
+		React.useEffect(() => {
+			if (revision !== void 0) refreshStatus().catch(() => {});
+		}, [revision]);
+		React.useEffect(() => {
+			if (!status?.busy) return;
+			const timer = setInterval(() => {
+				refreshStatus().catch((failure) => {
+					if (alive.current) setError(failure.message);
+				});
+			}, 2e3);
+			return () => clearInterval(timer);
+		}, [status?.busy]);
+		const refreshUsage = (account, force = false) => {
+			if (usageRequests.current.has(account)) return usageRequests.current.get(account);
+			const request = (async () => {
+				try {
+					const snapshot = await call("usage", {
+						account,
+						force
+					});
+					if (alive.current && accountKeys.current.has(account) && usageRequests.current.get(account) === request) setUsage((previous) => ({
+						...previous,
+						[account]: snapshot
+					}));
+				} catch (failure) {
+					if (alive.current && accountKeys.current.has(account) && usageRequests.current.get(account) === request) setUsage((previous) => ({
+						...previous,
+						[account]: { error: failure instanceof Error ? failure.message : String(failure) }
+					}));
+				} finally {
+					if (usageRequests.current.get(account) === request) usageRequests.current.delete(account);
+				}
+			})();
+			usageRequests.current.set(account, request);
+			return request;
+		};
+		const reportedAccounts = React.useRef(null);
+		const accountsSignature = JSON.stringify((status?.accounts ?? []).map((account) => account.key));
+		React.useEffect(() => {
+			if (presentation === "group" && status) {
+				if (reportedAccounts.current !== null && reportedAccounts.current !== accountsSignature) onAccountsChange?.();
+				reportedAccounts.current = accountsSignature;
+			}
+			const keys = new Set((status?.accounts ?? []).map((account) => account.key));
+			const added = [...keys].filter((key) => !accountKeys.current.has(key));
+			accountKeys.current = keys;
+			for (const key of usageRequests.current.keys()) if (!keys.has(key)) usageRequests.current.delete(key);
+			setUsage((previous) => Object.fromEntries(Object.entries(previous).filter(([key]) => keys.has(key))));
+			if (presentation !== "auth") for (const key of added) refreshUsage(key);
+		}, [accountsSignature]);
+		const button = (label, onClick, disabled = false, props = {}) => h(Button, {
+			type: "button",
+			disabled: pending || disabled,
+			onClick,
+			...props
+		}, label);
+		const date = (time) => new Date(time).toLocaleString();
+		const part = (name$1, style, ...children) => h("div", {
+			style,
+			"data-majed-claude-part": name$1
+		}, ...children);
+		const startLogin = (method) => {
+			action(async () => {
+				const result = await call("login", method === void 0 ? {} : { method });
+				if (!alive.current) return;
+				if (result.authorizeUrl) window.open(result.authorizeUrl, "_blank", "noopener");
+				setLogin(result.authorizeUrl ? result : null);
+				await refreshStatus();
+			});
+		};
+		React.useEffect(() => {
+			if (!status) return;
+			const current = status.authRevision ?? 0;
+			if (initialAuthRevision.current === null) initialAuthRevision.current = current;
+			else if (presentation === "auth" && current > initialAuthRevision.current) {
+				initialAuthRevision.current = current;
+				onComplete?.();
+			}
+		}, [status]);
+		const busy = status?.busy;
+		React.useEffect(() => {
+			if (presentation !== "auth") return;
+			onFlowState?.({
+				busy: pending || !!busy,
+				cancel: async () => {
+					if (pending) return false;
+					if (busy) {
+						await call("cancel");
+						setLogin(null);
+						await refreshStatus();
+					}
+					return true;
+				}
+			});
+		}, [pending, busy]);
+		const name = status?.displayName || DEFAULT_NAME;
+		const hasAccounts = !!status?.accounts?.length;
+		return h("div", {
+			style: {
+				...styles$3.section,
+				...presentation ? {
+					maxWidth: "none",
+					maxInlineSize: "none",
+					width: "100%"
+				} : {},
+				textAlign: "start"
+			},
+			className: "majed-subscriptions-settings",
+			"data-majed-claude-card": true
+		}, h("style", null, controlCss), manager ? h(ProviderAccountManager, {
+			provider: "claude",
+			name,
+			rpc,
+			t,
+			onClose: () => {
+				setManager(false);
+				refreshStatus();
+			}
+		}) : null, part("card", styles$3.card, presentation !== "auth" && part("header", styles$3.cardHeader, providerStatus(h, t, error || status?.registrationError ? "error" : busy ? "warning" : !status ? "checking" : status?.accounts?.length ? "ready" : "warning", error || status?.registrationError ? "providerAttention" : busy ? "loginProgress" : !status ? "checking" : status?.accounts?.length ? "providerConfigured" : "notLoggedIn"), presentation === "group" ? providerIdentity(h, t, name, status?.accounts ?? [], usage, status?.clientVersion) : h("span", { style: styles$3.name }, name), presentation === "auth" ? null : button(t("accountsManage"), () => setManager(true), false, { style: { marginInlineStart: "auto" } }), presentation === "group" ? providerDisclosure(h, t, name, expanded, () => setExpanded(!expanded)) : status?.clientVersion ? h("span", {
+			style: styles$3.clientVersion,
+			title: t("clientVersionHint")
+		}, "CLI ", h("bdi", { dir: "ltr" }, status.clientVersion.version), " · ", t(`source_${status.clientVersion.source}`)) : null), (presentation === "auth" || presentation === "group" && status?.accounts?.length) && !busy && !status?.registrationError ? null : h("p", {
+			style: styles$3.statusLine,
+			role: "status"
+		}, status?.registrationError ? t("claudeProviderUnavailable") : busy ? t("loginProgress") : hasAccounts ? `${status.accounts.length} ${t("connected")}` : status ? t("notLoggedIn") : t("checking")), status?.detail ? h("p", { style: styles$3.statusLine }, status.detail) : null, error ? h("p", {
+			style: styles$3.errorLine,
+			role: "alert"
+		}, error) : null, ...(presentation === "auth" || presentation === "group" && !expanded ? [] : status?.accounts ?? []).map((account) => {
+			const snapshot = usage[account.key];
+			return h("div", {
+				key: account.key,
+				style: styles$3.accountRow,
+				"data-majed-claude-part": "account"
+			}, part("account-header", styles$3.accountHeader, button(account.isDefault ? "★" : "☆", () => {
+				if (!account.isDefault) action(async () => {
+					await call("setDefault", { account: account.key });
+					await refreshStatus();
+				});
+			}, false, {
+				style: styles$3.starButton,
+				title: t(account.isDefault ? "defaultAccount" : "makeDefault"),
+				"aria-label": t(account.isDefault ? "defaultAccount" : "makeDefault")
+			}), h("bdi", {
+				dir: "ltr",
+				style: styles$3.accountName
+			}, account.alias || account.account || account.key), account.plan ? h("bdi", { style: styles$3.usagePlan }, account.plan) : null, account.expiresAt ? h("span", { style: styles$3.statusLine }, t("expires"), " ", h("bdi", null, date(account.expiresAt))) : null, button(t("logout"), () => setConfirmation({
+				account: account.key,
+				label: account.account
+			}), false, { style: { marginInlineStart: "auto" } })), snapshot?.supported === false ? h("p", { style: styles$3.statusLine }, t("usageUnavailable")) : part("usage", styles$3.usage, part("usage-header", styles$3.usageHeader, h("span", { style: styles$3.usageTitle }, t("usageTitle")), button(t("refreshUsage"), () => {
+				action(() => refreshUsage(account.key, true));
+			}, false, { style: styles$3.usageRefresh })), !snapshot ? h("p", { style: styles$3.statusLine }, t("usageNotLoaded")) : snapshot.error ? h("p", {
+				style: styles$3.errorLine,
+				role: "alert"
+			}, snapshot.error) : !snapshot.windows?.length ? h("p", { style: styles$3.statusLine }, t("usageUnavailable")) : null, ...(snapshot?.windows ?? []).map((window$1, index) => {
+				const percent = Math.max(0, Math.min(100, window$1.usedPercent));
+				const color = percent >= 95 ? "var(--dsw-alias-state-error-primary)" : percent >= 80 ? "var(--dsw-alias-state-warn-label)" : "var(--dsw-alias-state-success-primary)";
+				return h("div", {
+					key: index,
+					style: styles$3.usageRow
+				}, part("usage-meta", styles$3.usageMeta, h("span", null, t(`window_${window$1.kind}`), window$1.scope ? ` · ${window$1.scope}` : ""), h("span", null, h("bdi", null, `${Math.round(percent)}%`), window$1.resetsAt ? h("span", null, " · ", t("resets"), " ", h("bdi", null, date(window$1.resetsAt))) : null)), h("div", {
+					role: "progressbar",
+					"aria-label": t(`window_${window$1.kind}`),
+					"aria-valuenow": percent,
+					"aria-valuemin": 0,
+					"aria-valuemax": 100,
+					style: styles$3.usageTrack
+				}, h("div", { style: {
+					...styles$3.usageFill,
+					background: color,
+					inlineSize: `${percent}%`
+				} })));
+			})));
+		}), presentation !== "group" && part("actions", styles$3.actions, busy ? button(t("cancelLogin"), () => {
+			action(async () => {
+				await call("cancel");
+				setLogin(null);
+				await refreshStatus();
+			});
+		}) : hasAccounts ? [button(t("addAccountOAuth"), () => startLogin("oauth"), !!status?.registrationError, { key: "oauth" }), button(t("addAccountKeychain"), () => startLogin("keychain"), !!status?.registrationError, { key: "keychain" })] : button(t("login"), () => startLogin(), !!status?.registrationError)), presentation !== "group" && !busy && hasAccounts ? h("p", { style: styles$3.statusLine }, t("claudeAddAccountHint")) : null, busy ? h("div", null, (status.pendingAuth ?? login)?.authorizeUrl ? h("a", {
+			href: (status.pendingAuth ?? login).authorizeUrl,
+			target: "_blank",
+			rel: "noopener noreferrer",
+			style: styles$3.manual
+		}, t("openAuthorization")) : null, h("details", { style: styles$3.manual }, h("summary", null, t("manualSummary")), part("manual-row", styles$3.manualRow, h(Input, {
+			style: styles$3.manualInput,
+			value: input,
+			placeholder: t("pasteCallback"),
+			"aria-label": t("pasteCallback"),
+			dir: "ltr",
+			onChange: (event) => setInput(event.target.value)
+		}), button(t("submitCallback"), () => {
+			action(async () => {
+				await call("manual", { input });
+				setInput("");
+				await refreshStatus();
+			});
+		}, !input.trim())))) : null), confirmation ? h("dialog", {
+			ref: (node) => {
+				if (node && !node.open) node.showModal();
+			},
+			className: "majed-reset-dialog",
+			role: "dialog",
+			"aria-modal": true,
+			"aria-label": t("confirmLogout"),
+			onCancel: () => setConfirmation(null),
+			onClose: () => setConfirmation(null),
+			style: {
+				...styles$3.modal,
+				margin: "auto",
+				color: "var(--dsw-alias-label-primary)"
+			}
+		}, h("h3", { style: {
+			...styles$3.modalTitle,
+			margin: 0
+		} }, t("confirmLogout")), h("p", { style: {
+			...styles$3.statusLine,
+			overflowWrap: "anywhere"
+		} }, h("bdi", { dir: "ltr" }, confirmation.label ?? confirmation.account)), h("div", {
+			className: "majed-subscription-dialog-actions",
+			style: {
+				...styles$3.actions,
+				justifyContent: "flex-end",
+				marginBlockStart: 8
+			}
+		}, button(t("cancel"), () => setConfirmation(null), false, { autoFocus: true }), button(t("logout"), () => {
+			action(async () => {
+				await call("logout", { account: confirmation.account });
+				setConfirmation(null);
+				await refreshStatus();
+			});
+		}))) : null);
+	};
+}
+
+//#endregion
+//#region src/usage-badge/usage-window-filter.ts
+/** Presentation only: never trim the raw snapshots used by quota/routing logic. */
+function visibleUsageWindows(provider, windows, visibleModels) {
+	const all = windows ?? [];
+	if (provider !== "antigravity" || visibleModels === void 0) return all;
+	const selected = new Set(visibleModels);
+	return all.filter((window$1) => !window$1.scope || selected.has(window$1.scope));
+}
+
+//#endregion
+//#region src/antigravity-card.ts
+/**
+* Antigravity Settings card (ticket #135). Scoped presentation port of the Antigravity part of V1ki v0.9.12 b802311
+* SubscriptionsSection; see PROVENANCE.md. It only ever receives sanitized status from the owned RPC: account
+* labels, plan and expiry, never a token or credential-store path.
+*/
+function createAntigravityCard(React, primitives$1, rpc, t) {
+	const h = React.createElement;
+	const Button = primitives$1.Button ?? "button";
+	const Input = primitives$1.Input ?? "input";
+	const DEFAULT_NAME = "Google Antigravity";
+	return function AntigravityCard({ presentation, onComplete, onFlowState, onAccountsChange, revision, initialExpanded = false } = {}) {
+		const [expanded, setExpanded] = React.useState(initialExpanded);
+		const initialAuthRevision = React.useRef(null);
+		const [manager, setManager] = React.useState(false);
+		const [status, setStatus] = React.useState(null);
+		const [error, setError] = React.useState("");
+		const [pending, setPending] = React.useState(false);
+		const [login, setLogin] = React.useState(null);
+		const [input, setInput] = React.useState("");
+		const [usage, setUsage] = React.useState({});
+		const [confirmation, setConfirmation] = React.useState(null);
+		const alive = React.useRef(true);
+		const usageRequests = React.useRef(/* @__PURE__ */ new Map());
+		const accountKeys = React.useRef(/* @__PURE__ */ new Set());
+		const call = async (endpoint, payload = {}) => {
+			const response = await rpc.call("/api", `majed-subscriptions.${endpoint}`, {
+				provider: "antigravity",
+				...payload
+			});
+			if (!response?.ok) throw new Error(response?.error?.message ?? t("unreachable"));
+			return response.value;
+		};
+		const refreshStatus = async () => {
+			const value = await call("status");
+			if (alive.current) setStatus({
+				...value.providers.antigravity ?? { accounts: [] },
+				registrationError: value.antigravityRegistrationError
+			});
+		};
+		const action = async (run) => {
+			setPending(true);
+			setError("");
+			try {
+				await run();
+			} catch (failure) {
+				if (alive.current) setError(failure instanceof Error ? failure.message : String(failure));
+			} finally {
+				if (alive.current) setPending(false);
+			}
+		};
+		React.useEffect(() => {
+			alive.current = true;
+			refreshStatus().catch((failure) => {
+				if (alive.current) setError(failure.message);
+			});
+			return () => {
+				alive.current = false;
+			};
+		}, []);
+		React.useEffect(() => {
+			if (revision !== void 0) refreshStatus().catch(() => {});
+		}, [revision]);
+		React.useEffect(() => {
+			if (!status?.busy) return;
+			const timer = setInterval(() => {
+				refreshStatus().catch((failure) => {
+					if (alive.current) setError(failure.message);
+				});
+			}, 2e3);
+			return () => clearInterval(timer);
+		}, [status?.busy]);
+		const refreshUsage = (account, force = false) => {
+			if (status?.setupRequired) return Promise.resolve();
+			if (usageRequests.current.has(account)) return usageRequests.current.get(account);
+			const request = (async () => {
+				try {
+					const snapshot = await call("usage", {
+						account,
+						force
+					});
+					if (alive.current && accountKeys.current.has(account) && usageRequests.current.get(account) === request) setUsage((previous) => ({
+						...previous,
+						[account]: snapshot
+					}));
+				} catch (failure) {
+					if (alive.current && accountKeys.current.has(account) && usageRequests.current.get(account) === request) setUsage((previous) => ({
+						...previous,
+						[account]: { error: failure instanceof Error ? failure.message : String(failure) }
+					}));
+				} finally {
+					if (usageRequests.current.get(account) === request) usageRequests.current.delete(account);
+				}
+			})();
+			usageRequests.current.set(account, request);
+			return request;
+		};
+		const reportedAccounts = React.useRef(null);
+		const accountsSignature = JSON.stringify((status?.accounts ?? []).map((account) => account.key));
+		React.useEffect(() => {
+			if (presentation === "group" && status) {
+				if (reportedAccounts.current !== null && reportedAccounts.current !== accountsSignature) onAccountsChange?.();
+				reportedAccounts.current = accountsSignature;
+			}
+			const keys = new Set((status?.accounts ?? []).map((account) => account.key));
+			const added = [...keys].filter((key) => !accountKeys.current.has(key));
+			accountKeys.current = keys;
+			for (const key of usageRequests.current.keys()) if (!keys.has(key)) usageRequests.current.delete(key);
+			setUsage((previous) => Object.fromEntries(Object.entries(previous).filter(([key]) => keys.has(key))));
+			if (presentation !== "auth") for (const key of added) refreshUsage(key);
+		}, [accountsSignature]);
+		const button = (label, onClick, disabled = false, props = {}) => h(Button, {
+			type: "button",
+			disabled: pending || disabled,
+			onClick,
+			...props
+		}, label);
+		const date = (time) => new Date(time).toLocaleString();
+		const part = (name$1, style, ...children) => h("div", {
+			style,
+			"data-majed-antigravity-part": name$1
+		}, ...children);
+		const startLogin = () => {
+			action(async () => {
+				const result = await call("login");
+				if (!alive.current) return;
+				if (result.authorizeUrl) window.open(result.authorizeUrl, "_blank", "noopener");
+				setLogin(result.authorizeUrl ? result : null);
+				await refreshStatus();
+			});
+		};
+		React.useEffect(() => {
+			if (!status) return;
+			const current = status.authRevision ?? 0;
+			if (initialAuthRevision.current === null) initialAuthRevision.current = current;
+			else if (presentation === "auth" && current > initialAuthRevision.current) {
+				initialAuthRevision.current = current;
+				onComplete?.();
+			}
+		}, [status]);
+		const busy = status?.busy;
+		React.useEffect(() => {
+			if (presentation !== "auth") return;
+			onFlowState?.({
+				busy: pending || !!busy,
+				cancel: async () => {
+					if (pending) return false;
+					if (busy) {
+						await call("cancel");
+						setLogin(null);
+						await refreshStatus();
+					}
+					return true;
+				}
+			});
+		}, [pending, busy]);
+		const name = status?.displayName || DEFAULT_NAME;
+		const hasAccounts = !!status?.accounts?.length;
+		return h("div", {
+			style: {
+				...styles$3.section,
+				...presentation ? {
+					maxWidth: "none",
+					maxInlineSize: "none",
+					width: "100%"
+				} : {},
+				textAlign: "start"
+			},
+			className: "majed-subscriptions-settings",
+			"data-majed-antigravity-card": true
+		}, h("style", null, controlCss), manager ? h(ProviderAccountManager, {
+			provider: "antigravity",
+			name,
+			rpc,
+			t,
+			onClose: () => {
+				setManager(false);
+				refreshStatus();
+			}
+		}) : null, part("card", styles$3.card, presentation !== "auth" && part("header", styles$3.cardHeader, providerStatus(h, t, error || status?.registrationError || status?.setupRequired ? "error" : busy ? "warning" : !status ? "checking" : status?.accounts?.length ? "ready" : "warning", error || status?.registrationError || status?.setupRequired ? "providerAttention" : busy ? "loginProgress" : !status ? "checking" : status?.accounts?.length ? "providerConfigured" : "notLoggedIn"), presentation === "group" ? providerIdentity(h, t, name, status?.accounts ?? [], usage, status?.clientVersion) : h("span", { style: styles$3.name }, name), presentation === "auth" ? null : button(t("accountsManage"), () => setManager(true), false, { style: { marginInlineStart: "auto" } }), presentation === "group" ? providerDisclosure(h, t, name, expanded, () => setExpanded(!expanded)) : status?.clientVersion ? h("span", {
+			style: styles$3.clientVersion,
+			title: t("clientVersionHint")
+		}, "CLI ", h("bdi", { dir: "ltr" }, status.clientVersion.version), " · ", t(`source_${status.clientVersion.source}`)) : null), (presentation === "auth" || presentation === "group" && status?.accounts?.length) && !busy && !status?.registrationError && !status?.setupRequired ? null : h("p", {
+			style: styles$3.statusLine,
+			role: "status"
+		}, status?.setupRequired ? t("antigravitySetupRequired") : status?.registrationError ? t("antigravityProviderUnavailable") : busy ? t("loginProgress") : hasAccounts ? `${status.accounts.length} ${t("connected")}` : status ? t("notLoggedIn") : t("checking")), status?.detail && !status?.setupRequired ? h("p", { style: styles$3.statusLine }, status.detail) : null, error ? h("p", {
+			style: styles$3.errorLine,
+			role: "alert"
+		}, error) : null, ...(presentation === "auth" || presentation === "group" && !expanded ? [] : status?.accounts ?? []).map((account) => {
+			const snapshot = usage[account.key];
+			const windows = visibleUsageWindows("antigravity", snapshot?.windows, status?.visibleModels);
+			return h("div", {
+				key: account.key,
+				style: styles$3.accountRow,
+				"data-majed-antigravity-part": "account"
+			}, part("account-header", styles$3.accountHeader, button(account.isDefault ? "★" : "☆", () => {
+				if (!account.isDefault) action(async () => {
+					await call("setDefault", { account: account.key });
+					await refreshStatus();
+				});
+			}, false, {
+				style: styles$3.starButton,
+				title: t(account.isDefault ? "defaultAccount" : "makeDefault"),
+				"aria-label": t(account.isDefault ? "defaultAccount" : "makeDefault")
+			}), h("bdi", {
+				dir: "ltr",
+				style: styles$3.accountName
+			}, account.alias || account.account || account.key), account.plan ? h("bdi", { style: styles$3.usagePlan }, account.plan) : null, account.expiresAt ? h("span", { style: styles$3.statusLine }, t("expires"), " ", h("bdi", null, date(account.expiresAt))) : null, button(t("logout"), () => setConfirmation({
+				account: account.key,
+				label: account.account
+			}), false, { style: { marginInlineStart: "auto" } })), snapshot?.supported === false ? h("p", { style: styles$3.statusLine }, t("usageUnavailable")) : part("usage", styles$3.usage, part("usage-header", styles$3.usageHeader, h("span", { style: styles$3.usageTitle }, t("usageTitle")), button(t("refreshUsage"), () => {
+				action(() => refreshUsage(account.key, true));
+			}, !!status?.setupRequired, { style: styles$3.usageRefresh })), !snapshot ? h("p", { style: styles$3.statusLine }, t("usageNotLoaded")) : snapshot.error ? h("p", {
+				style: styles$3.errorLine,
+				role: "alert"
+			}, snapshot.error) : !windows.length ? h("p", { style: styles$3.statusLine }, t(snapshot.windows?.length ? "usageNoVisibleModels" : "usageEmpty")) : null, ...windows.map((window$1, index) => {
+				const percent = Math.max(0, Math.min(100, window$1.usedPercent));
+				const color = percent >= 95 ? "var(--dsw-alias-state-error-primary)" : percent >= 80 ? "var(--dsw-alias-state-warn-label)" : "var(--dsw-alias-state-success-primary)";
+				return h("div", {
+					key: index,
+					style: styles$3.usageRow
+				}, part("usage-meta", styles$3.usageMeta, h("span", null, t(`window_${window$1.kind}`), window$1.scope ? ` · ${window$1.scope}` : ""), h("span", null, h("bdi", null, `${Math.round(percent)}%`), window$1.resetsAt ? h("span", null, " · ", t("resets"), " ", h("bdi", null, date(window$1.resetsAt))) : null)), h("div", {
+					role: "progressbar",
+					"aria-label": t(`window_${window$1.kind}`),
+					"aria-valuenow": percent,
+					"aria-valuemin": 0,
+					"aria-valuemax": 100,
+					style: styles$3.usageTrack
+				}, h("div", { style: {
+					...styles$3.usageFill,
+					background: color,
+					inlineSize: `${percent}%`
+				} })));
+			})));
+		}), presentation !== "group" && part("actions", styles$3.actions, busy ? button(t("cancelLogin"), () => {
+			action(async () => {
+				await call("cancel");
+				setLogin(null);
+				await refreshStatus();
+			});
+		}) : button(t(hasAccounts ? "addAccountOAuth" : "login"), () => startLogin(), !!status?.registrationError || !!status?.setupRequired)), busy ? h("div", null, (status.pendingAuth ?? login)?.authorizeUrl ? h("a", {
+			href: (status.pendingAuth ?? login).authorizeUrl,
+			target: "_blank",
+			rel: "noopener noreferrer",
+			style: styles$3.manual
+		}, t("openAuthorization")) : null, h("details", { style: styles$3.manual }, h("summary", null, t("manualSummary")), part("manual-row", styles$3.manualRow, h(Input, {
+			style: styles$3.manualInput,
+			value: input,
+			placeholder: t("pasteCallback"),
+			"aria-label": t("pasteCallback"),
+			dir: "ltr",
+			onChange: (event) => setInput(event.target.value)
+		}), button(t("submitCallback"), () => {
+			action(async () => {
+				await call("manual", { input });
+				setInput("");
+				await refreshStatus();
+			});
+		}, !input.trim())))) : null), confirmation ? h("dialog", {
+			ref: (node) => {
+				if (node && !node.open) node.showModal();
+			},
+			className: "majed-reset-dialog",
+			role: "dialog",
+			"aria-modal": true,
+			"aria-label": t("confirmLogout"),
+			onCancel: () => setConfirmation(null),
+			onClose: () => setConfirmation(null),
+			style: {
+				...styles$3.modal,
+				margin: "auto",
+				color: "var(--dsw-alias-label-primary)"
+			}
+		}, h("h3", { style: {
+			...styles$3.modalTitle,
+			margin: 0
+		} }, t("confirmLogout")), h("p", { style: {
+			...styles$3.statusLine,
+			overflowWrap: "anywhere"
+		} }, h("bdi", { dir: "ltr" }, confirmation.label ?? confirmation.account)), h("div", {
+			className: "majed-subscription-dialog-actions",
+			style: {
+				...styles$3.actions,
+				justifyContent: "flex-end",
+				marginBlockStart: 8
+			}
+		}, button(t("cancel"), () => setConfirmation(null), false, { autoFocus: true }), button(t("logout"), () => {
+			action(async () => {
+				await call("logout", { account: confirmation.account });
+				setConfirmation(null);
+				await refreshStatus();
+			});
+		}))) : null);
+	};
+}
+
+//#endregion
+//#region src/zen-card.ts
+/** Login-less lane; independent presentation using the existing owned card styles and RPC. */
+function createZenCard(React, primitives$1, rpc, t) {
+	const h = React.createElement;
+	return function ZenCard() {
+		const [status, setStatus] = React.useState(null);
+		const [failed, setFailed] = React.useState(false);
+		const [pending, setPending] = React.useState(false);
+		const [expanded, setExpanded] = React.useState(false);
+		const alive = React.useRef(true);
+		const refresh = async () => {
+			setPending(true);
+			try {
+				const value = await callSubscriptionsAuth$1(rpc, "zenStatus", {});
+				if (alive.current) {
+					setStatus(value);
+					setFailed(false);
+				}
+			} catch {
+				if (alive.current) setFailed(true);
+			} finally {
+				if (alive.current) setPending(false);
+			}
+		};
+		React.useEffect(() => {
+			alive.current = true;
+			refresh();
+			return () => {
+				alive.current = false;
+			};
+		}, []);
+		const enabled = status?.enabled !== false;
+		const toggle = async () => {
+			setPending(true);
+			try {
+				const value = await callSubscriptionsAuth$1(rpc, "setZenEnabled", { enabled: !enabled });
+				if (alive.current) {
+					setStatus(value);
+					setFailed(false);
+				}
+			} catch {
+				if (alive.current) setFailed(true);
+			} finally {
+				if (alive.current) setPending(false);
+			}
+		};
+		const state = !enabled ? "warning" : pending || !status && !failed ? "checking" : failed || status?.registrationError ? "error" : status.reachable ? "ready" : "warning";
+		const label = state === "checking" ? "checking" : state === "error" ? "zenUnavailable" : state === "ready" ? "zenReachable" : "zenUnreachable";
+		return h("div", {
+			style: {
+				...styles$3.section,
+				maxWidth: "none",
+				maxInlineSize: "none",
+				width: "100%",
+				textAlign: "start"
+			},
+			className: "majed-subscriptions-settings",
+			"data-majed-zen-card": true
+		}, h("style", null, controlCss), h("div", { style: styles$3.card }, h("div", { style: styles$3.cardHeader }, providerStatus(h, t, state, !enabled ? "zenDisabled" : label), h("div", { className: "majed-provider-identity" }, h("span", { style: styles$3.name }, "OpenCode Zen")), h("button", {
+			type: "button",
+			role: "switch",
+			"aria-checked": enabled,
+			"aria-label": t("zenEnabled"),
+			disabled: pending || !status,
+			onClick: () => void toggle(),
+			style: {
+				padding: 2,
+				height: 20,
+				minHeight: 20,
+				minWidth: 36,
+				width: 36,
+				flexShrink: 0,
+				border: 0,
+				borderRadius: 999,
+				display: "inline-flex",
+				alignItems: "center",
+				background: enabled ? "var(--dsw-alias-brand-primary)" : "var(--dsw-alias-interactive-bg-hover)"
+			}
+		}, h("span", {
+			"aria-hidden": true,
+			style: {
+				width: 16,
+				height: 16,
+				borderRadius: "50%",
+				background: enabled ? "var(--dsw-alias-bg-base)" : "var(--dsw-alias-label-secondary)",
+				marginInlineStart: enabled ? "auto" : 0,
+				marginInlineEnd: enabled ? 0 : "auto"
+			}
+		})), providerDisclosure(h, t, "OpenCode Zen", expanded, () => setExpanded(!expanded))), expanded ? h("div", { style: {
+			...styles$3.usage,
+			gap: 8
+		} }, h("p", {
+			role: "status",
+			style: styles$3.statusLine
+		}, t(!enabled ? "zenDisabled" : label)), status ? h("p", { style: styles$3.statusLine }, `${t("zenModelCount")}: ${status.modelCount} · ${t("zenSource_" + status.source)}`) : null, h("div", { style: {
+			...styles$3.actions,
+			justifyContent: "flex-end"
+		} }, h(primitives$1.Button ?? "button", {
+			type: "button",
+			disabled: pending,
+			onClick: () => void refresh()
+		}, t("zenRefresh")))) : null));
+	};
+}
+
+//#endregion
+//#region src/grok-card.ts
+/**
+* Grok Settings card (ticket #133). Scoped presentation port of the Grok part of V1ki v0.9.12 b802311
+* SubscriptionsSection; see PROVENANCE.md. It only ever receives sanitized status from the owned RPC: account
+* labels, plan and expiry, never a token or credential-store path.
+*/
+function createGrokCard(React, primitives$1, rpc, t) {
+	const h = React.createElement;
+	const Button = primitives$1.Button ?? "button";
+	const Input = primitives$1.Input ?? "input";
+	const DEFAULT_NAME = "Grok (Subscription)";
+	return function GrokCard({ presentation, onComplete, onFlowState, onAccountsChange, revision, initialExpanded = false } = {}) {
+		const [expanded, setExpanded] = React.useState(initialExpanded);
+		const initialAuthRevision = React.useRef(null);
+		const [manager, setManager] = React.useState(false);
+		const [status, setStatus] = React.useState(null);
+		const [error, setError] = React.useState("");
+		const [pending, setPending] = React.useState(false);
+		const [login, setLogin] = React.useState(null);
+		const [input, setInput] = React.useState("");
+		const [usage, setUsage] = React.useState({});
+		const [confirmation, setConfirmation] = React.useState(null);
+		const alive = React.useRef(true);
+		const usageRequests = React.useRef(/* @__PURE__ */ new Map());
+		const accountKeys = React.useRef(/* @__PURE__ */ new Set());
+		const call = async (endpoint, payload = {}) => {
+			const response = await rpc.call("/api", `majed-subscriptions.${endpoint}`, {
+				provider: "grok",
+				...payload
+			});
+			if (!response?.ok) throw new Error(response?.error?.message ?? t("unreachable"));
+			return response.value;
+		};
+		const refreshStatus = async () => {
+			const value = await call("status");
+			if (alive.current) setStatus({
+				...value.providers.grok ?? { accounts: [] },
+				registrationError: value.grokRegistrationError
+			});
+		};
+		const action = async (run) => {
+			setPending(true);
+			setError("");
+			try {
+				await run();
+			} catch (failure) {
+				if (alive.current) setError(failure instanceof Error ? failure.message : String(failure));
+			} finally {
+				if (alive.current) setPending(false);
+			}
+		};
+		React.useEffect(() => {
+			alive.current = true;
+			refreshStatus().catch((failure) => {
+				if (alive.current) setError(failure.message);
+			});
+			return () => {
+				alive.current = false;
+			};
+		}, []);
+		React.useEffect(() => {
+			if (revision !== void 0) refreshStatus().catch(() => {});
+		}, [revision]);
+		React.useEffect(() => {
+			if (!status?.busy) return;
+			const timer = setInterval(() => {
+				refreshStatus().catch((failure) => {
+					if (alive.current) setError(failure.message);
+				});
+			}, 2e3);
+			return () => clearInterval(timer);
+		}, [status?.busy]);
+		const refreshUsage = (account, force = false) => {
+			if (usageRequests.current.has(account)) return usageRequests.current.get(account);
+			const request = (async () => {
+				try {
+					const snapshot = await call("usage", {
+						account,
+						force
+					});
+					if (alive.current && accountKeys.current.has(account) && usageRequests.current.get(account) === request) setUsage((previous) => ({
+						...previous,
+						[account]: snapshot
+					}));
+				} catch (failure) {
+					if (alive.current && accountKeys.current.has(account) && usageRequests.current.get(account) === request) setUsage((previous) => ({
+						...previous,
+						[account]: { error: failure instanceof Error ? failure.message : String(failure) }
+					}));
+				} finally {
+					if (usageRequests.current.get(account) === request) usageRequests.current.delete(account);
+				}
+			})();
+			usageRequests.current.set(account, request);
+			return request;
+		};
+		const reportedAccounts = React.useRef(null);
+		const accountsSignature = JSON.stringify((status?.accounts ?? []).map((account) => account.key));
+		React.useEffect(() => {
+			if (presentation === "group" && status) {
+				if (reportedAccounts.current !== null && reportedAccounts.current !== accountsSignature) onAccountsChange?.();
+				reportedAccounts.current = accountsSignature;
+			}
+			const keys = new Set((status?.accounts ?? []).map((account) => account.key));
+			const added = [...keys].filter((key) => !accountKeys.current.has(key));
+			accountKeys.current = keys;
+			for (const key of usageRequests.current.keys()) if (!keys.has(key)) usageRequests.current.delete(key);
+			setUsage((previous) => Object.fromEntries(Object.entries(previous).filter(([key]) => keys.has(key))));
+			if (presentation !== "auth") for (const key of added) refreshUsage(key);
+		}, [accountsSignature]);
+		const button = (label, onClick, disabled = false, props = {}) => h(Button, {
+			type: "button",
+			disabled: pending || disabled,
+			onClick,
+			...props
+		}, label);
+		const date = (time) => new Date(time).toLocaleString();
+		const part = (name$1, style, ...children) => h("div", {
+			style,
+			"data-majed-grok-part": name$1
+		}, ...children);
+		const startLogin = () => {
+			action(async () => {
+				const result = await call("login");
+				if (!alive.current) return;
+				if (result.authorizeUrl) window.open(result.authorizeUrl, "_blank", "noopener");
+				setLogin(result.authorizeUrl ? result : null);
+				await refreshStatus();
+			});
+		};
+		React.useEffect(() => {
+			if (!status) return;
+			const current = status.authRevision ?? 0;
+			if (initialAuthRevision.current === null) initialAuthRevision.current = current;
+			else if (presentation === "auth" && current > initialAuthRevision.current) {
+				initialAuthRevision.current = current;
+				onComplete?.();
+			}
+		}, [status]);
+		const busy = status?.busy;
+		React.useEffect(() => {
+			if (presentation !== "auth") return;
+			onFlowState?.({
+				busy: pending || !!busy,
+				cancel: async () => {
+					if (pending) return false;
+					if (busy) {
+						await call("cancel");
+						setLogin(null);
+						await refreshStatus();
+					}
+					return true;
+				}
+			});
+		}, [pending, busy]);
+		const name = status?.displayName || DEFAULT_NAME;
+		const hasAccounts = !!status?.accounts?.length;
+		return h("div", {
+			style: {
+				...styles$3.section,
+				...presentation ? {
+					maxWidth: "none",
+					maxInlineSize: "none",
+					width: "100%"
+				} : {},
+				textAlign: "start"
+			},
+			className: "majed-subscriptions-settings",
+			"data-majed-grok-card": true
+		}, h("style", null, controlCss), manager ? h(ProviderAccountManager, {
+			provider: "grok",
+			name,
+			rpc,
+			t,
+			onClose: () => {
+				setManager(false);
+				refreshStatus();
+			}
+		}) : null, part("card", styles$3.card, presentation !== "auth" && part("header", styles$3.cardHeader, providerStatus(h, t, error || status?.registrationError ? "error" : busy ? "warning" : !status ? "checking" : status?.accounts?.length ? "ready" : "warning", error || status?.registrationError ? "providerAttention" : busy ? "loginProgress" : !status ? "checking" : status?.accounts?.length ? "providerConfigured" : "notLoggedIn"), presentation === "group" ? providerIdentity(h, t, name, status?.accounts ?? [], usage, status?.clientVersion) : h("span", { style: styles$3.name }, name), presentation === "auth" ? null : button(t("accountsManage"), () => setManager(true), false, { style: { marginInlineStart: "auto" } }), presentation === "group" ? providerDisclosure(h, t, name, expanded, () => setExpanded(!expanded)) : status?.clientVersion ? h("span", {
+			style: styles$3.clientVersion,
+			title: t("clientVersionHint")
+		}, "CLI ", h("bdi", { dir: "ltr" }, status.clientVersion.version), " · ", t(`source_${status.clientVersion.source}`)) : null), (presentation === "auth" || presentation === "group" && status?.accounts?.length) && !busy && !status?.registrationError ? null : h("p", {
+			style: styles$3.statusLine,
+			role: "status"
+		}, status?.registrationError ? t("grokProviderUnavailable") : busy ? t("loginProgress") : hasAccounts ? `${status.accounts.length} ${t("connected")}` : status ? t("notLoggedIn") : t("checking")), status?.detail ? h("p", { style: styles$3.statusLine }, status.detail) : null, error ? h("p", {
+			style: styles$3.errorLine,
+			role: "alert"
+		}, error) : null, ...(presentation === "auth" || presentation === "group" && !expanded ? [] : status?.accounts ?? []).map((account) => {
+			const snapshot = usage[account.key];
+			return h("div", {
+				key: account.key,
+				style: styles$3.accountRow,
+				"data-majed-grok-part": "account"
+			}, part("account-header", styles$3.accountHeader, button(account.isDefault ? "★" : "☆", () => {
+				if (!account.isDefault) action(async () => {
+					await call("setDefault", { account: account.key });
+					await refreshStatus();
+				});
+			}, false, {
+				style: styles$3.starButton,
+				title: t(account.isDefault ? "defaultAccount" : "makeDefault"),
+				"aria-label": t(account.isDefault ? "defaultAccount" : "makeDefault")
+			}), h("bdi", {
+				dir: "ltr",
+				style: styles$3.accountName
+			}, account.alias || account.account || account.key), account.plan ? h("bdi", { style: styles$3.usagePlan }, account.plan) : null, account.expiresAt ? h("span", { style: styles$3.statusLine }, t("expires"), " ", h("bdi", null, date(account.expiresAt))) : null, button(t("logout"), () => setConfirmation({
+				account: account.key,
+				label: account.account
+			}), false, { style: { marginInlineStart: "auto" } })), snapshot?.supported === false ? h("p", { style: styles$3.statusLine }, t("usageUnavailable")) : part("usage", styles$3.usage, part("usage-header", styles$3.usageHeader, h("span", { style: styles$3.usageTitle }, t("usageTitle")), button(t("refreshUsage"), () => {
+				action(() => refreshUsage(account.key, true));
+			}, false, { style: styles$3.usageRefresh })), !snapshot ? h("p", { style: styles$3.statusLine }, t("usageNotLoaded")) : snapshot.error ? h("p", {
+				style: styles$3.errorLine,
+				role: "alert"
+			}, snapshot.error) : !snapshot.windows?.length ? h("p", { style: styles$3.statusLine }, t("usageUnavailable")) : null, ...(snapshot?.windows ?? []).map((window$1, index) => {
+				const percent = Math.max(0, Math.min(100, window$1.usedPercent));
+				const color = percent >= 95 ? "var(--dsw-alias-state-error-primary)" : percent >= 80 ? "var(--dsw-alias-state-warn-label)" : "var(--dsw-alias-state-success-primary)";
+				return h("div", {
+					key: index,
+					style: styles$3.usageRow
+				}, part("usage-meta", styles$3.usageMeta, h("span", null, t(`window_${window$1.kind}`), window$1.scope ? ` · ${window$1.scope}` : ""), h("span", null, h("bdi", null, `${Math.round(percent)}%`), window$1.resetsAt ? h("span", null, " · ", t("resets"), " ", h("bdi", null, date(window$1.resetsAt))) : null)), h("div", {
+					role: "progressbar",
+					"aria-label": t(`window_${window$1.kind}`),
+					"aria-valuenow": percent,
+					"aria-valuemin": 0,
+					"aria-valuemax": 100,
+					style: styles$3.usageTrack
+				}, h("div", { style: {
+					...styles$3.usageFill,
+					background: color,
+					inlineSize: `${percent}%`
+				} })));
+			})));
+		}), presentation !== "group" && part("actions", styles$3.actions, busy ? button(t("cancelLogin"), () => {
+			action(async () => {
+				await call("cancel");
+				setLogin(null);
+				await refreshStatus();
+			});
+		}) : button(t(hasAccounts ? "addAccountOAuth" : "login"), () => startLogin(), !!status?.registrationError)), busy ? h("div", null, (status.pendingAuth ?? login)?.authorizeUrl ? h("a", {
+			href: (status.pendingAuth ?? login).authorizeUrl,
+			target: "_blank",
+			rel: "noopener noreferrer",
+			style: styles$3.manual
+		}, t("openAuthorization")) : null, h("details", { style: styles$3.manual }, h("summary", null, t("manualSummary")), part("manual-row", styles$3.manualRow, h(Input, {
+			style: styles$3.manualInput,
+			value: input,
+			placeholder: t("pasteCallback"),
+			"aria-label": t("pasteCallback"),
+			dir: "ltr",
+			onChange: (event) => setInput(event.target.value)
+		}), button(t("submitCallback"), () => {
+			action(async () => {
+				await call("manual", { input });
+				setInput("");
+				await refreshStatus();
+			});
+		}, !input.trim())))) : null), confirmation ? h("dialog", {
+			ref: (node) => {
+				if (node && !node.open) node.showModal();
+			},
+			className: "majed-reset-dialog",
+			role: "dialog",
+			"aria-modal": true,
+			"aria-label": t("confirmLogout"),
+			onCancel: () => setConfirmation(null),
+			onClose: () => setConfirmation(null),
+			style: {
+				...styles$3.modal,
+				margin: "auto",
+				color: "var(--dsw-alias-label-primary)"
+			}
+		}, h("h3", { style: {
+			...styles$3.modalTitle,
+			margin: 0
+		} }, t("confirmLogout")), h("p", { style: {
+			...styles$3.statusLine,
+			overflowWrap: "anywhere"
+		} }, h("bdi", { dir: "ltr" }, confirmation.label ?? confirmation.account)), h("div", {
+			className: "majed-subscription-dialog-actions",
+			style: {
+				...styles$3.actions,
+				justifyContent: "flex-end",
+				marginBlockStart: 8
+			}
+		}, button(t("cancel"), () => setConfirmation(null), false, { autoFocus: true }), button(t("logout"), () => {
+			action(async () => {
+				await call("logout", { account: confirmation.account });
+				setConfirmation(null);
+				await refreshStatus();
+			});
+		}))) : null);
+	};
+}
+
+//#endregion
+//#region src/speed/SpeedSelect.tsx
+/**
+* The `loadSpeed` half of the inject face: the plugin's own speed state plus
+* the host's current model selection (the visibility gate). A model-RPC
+* failure throws rather than answering "hidden" — the caller keeps its last
+* known state, so a transient failure never locks the toggle away.
+*
+* `sessionId` is a plain string: slot and command contexts brand it through
+* different dsh-session copies, and only the service boundary needs one.
+*
+* `models` resolves lazily per call: the ui-model-selection service may
+* register after this plugin applies, and a shell without it (no model seat
+* at all) simply keeps the toggle hidden.
+*/
+function createSpeedLoader(connection, models, sessionId) {
+	return async () => {
+		const directories = models();
+		const current = directories === void 0 ? null : (await directories.directoryFor(sessionId).load()).current;
+		const state = await callSubscriptionsAuth(connection.rpc, "speed", {
+			sessionId,
+			...current?.provider === "codex" ? { model: current.model } : {}
+		});
+		return {
+			visible: current !== null && current.provider === "codex" && state.fastModels.includes(current.model),
+			tier: state.tier
+		};
+	};
+}
+/** The `setSpeed` half of the inject face: boolean outcome for the component's busy state. */
+function createSpeedSetter(connection, sessionId) {
+	return (tier) => callSubscriptionsAuth(connection.rpc, "setSpeed", {
+		sessionId,
+		tier
+	}).then(() => true, () => false);
+}
+/** English-dictionary fallback for a missing inject `t` (standalone renders). */
+function fallbackTranslate$1(key) {
+	return subscriptions$1[key] ?? key;
+}
+const TIERS = ["standard", "fast"];
+/**
+* The composer Speed control: a trigger reading `Speed · Fast`/`Speed · Standard`
+* that opens a two-row menu (standard/fast with descriptions, check mark on
+* the current tier). Mount and every open reload the host state so a model
+* switch made since the last open self-corrects.
+*/
+/** How often the control re-reads the host state (model switches arrive only by asking). */
+const POLL_INTERVAL_MS = 3e3;
+/**
+* The composer Speed control: a trigger reading `Speed · Fast`/`Speed · Standard`
+* that opens a two-row menu (standard/fast with descriptions, check mark on
+* the current tier). The host pushes nothing on a model switch, so the
+* control re-reads on a slow poll with a single-flight guard; a failed read
+* keeps the last known state, so a transient RPC failure can never lock the
+* toggle away (the earlier mount-only load had no recovery path).
+*/
+function SpeedSelect({ loadSpeed, setSpeed, t }) {
+	const translate = t ?? fallbackTranslate$1;
+	const [state, setState] = (0, react.useState)(null);
+	const [open, setOpen] = (0, react.useState)(false);
+	const [busy, setBusy] = (0, react.useState)(false);
+	const rootRef = (0, react.useRef)(null);
+	const loadRef = (0, react.useRef)(loadSpeed);
+	loadRef.current = loadSpeed;
+	(0, react.useEffect)(() => {
+		if (loadRef.current === void 0) return;
+		let cancelled = false;
+		let inflight = false;
+		const reload = () => {
+			const load = loadRef.current;
+			if (load === void 0 || inflight) return;
+			inflight = true;
+			load().then((loaded) => {
+				if (!cancelled) setState(loaded);
+			}, () => {}).finally(() => {
+				inflight = false;
+			});
+		};
+		reload();
+		const timer = setInterval(reload, POLL_INTERVAL_MS);
+		return () => {
+			cancelled = true;
+			clearInterval(timer);
+		};
+	}, []);
+	(0, react.useEffect)(() => {
+		if (!open) return;
+		const closeOutside = (event) => {
+			if (!rootRef.current?.contains(event.target)) setOpen(false);
+		};
+		document.addEventListener("mousedown", closeOutside);
+		return () => {
+			document.removeEventListener("mousedown", closeOutside);
+		};
+	}, [open]);
+	if (loadSpeed === void 0 || setSpeed === void 0 || state === null || !state.visible) return null;
+	const choose = (tier) => {
+		if (busy) return;
+		if (tier === state.tier) {
+			setOpen(false);
+			return;
+		}
+		setBusy(true);
+		setSpeed(tier).then((ok) => {
+			setBusy(false);
+			if (ok) {
+				setState({
+					visible: true,
+					tier
+				});
+				setOpen(false);
+			}
+		});
+	};
+	const show = () => {
+		setOpen(true);
+		const load = loadRef.current;
+		if (load === void 0) return;
+		load().then(setState, () => {});
+	};
+	const tierName = (tier) => translate(tier === "fast" ? "speedFast" : "speedStandard");
+	const tierDescription = (tier) => translate(tier === "fast" ? "speedFastDescription" : "speedStandardDescription");
+	const triggerLabel = `${translate("speed")} · ${tierName(state.tier)}`;
+	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+		ref: rootRef,
+		className: "majed-subscription-speed",
+		style: styles$2.root,
+		onKeyDown: (event) => {
+			if (event.key === "Escape" && open) {
+				event.preventDefault();
+				setOpen(false);
+			}
+		},
+		children: [
+			/* @__PURE__ */ (0, react_jsx_runtime.jsx)("style", { children: subscriptionChromeCss }),
+			open && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+				style: styles$2.menu,
+				role: "menu",
+				"aria-label": translate("speed"),
+				children: TIERS.map((tier) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("button", {
+					type: "button",
+					role: "menuitemradio",
+					"aria-checked": tier === state.tier,
+					style: styles$2.item,
+					disabled: busy,
+					onClick: () => {
+						choose(tier);
+					},
+					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+						style: styles$2.itemCheck,
+						children: tier === state.tier ? "✓" : ""
+					}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+						style: styles$2.itemText,
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+							style: styles$2.itemName,
+							children: tierName(tier)
+						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+							style: styles$2.itemDescription,
+							children: tierDescription(tier)
+						})]
+					})]
+				}, tier))
+			}),
+			/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+				type: "button",
+				style: styles$2.trigger,
+				"aria-haspopup": "menu",
+				"aria-expanded": open,
+				title: triggerLabel,
+				disabled: busy,
+				onClick: () => {
+					if (open) setOpen(false);
+					else show();
+				},
+				children: triggerLabel
+			})
+		]
+	});
+}
+const styles$2 = {
+	root: {
+		position: "relative",
+		display: "inline-flex"
+	},
+	trigger: {
+		border: "0.5px solid var(--dsw-alias-border-l3)",
+		borderRadius: "var(--dsw-radius-sm, 8px)",
+		background: "var(--majed-subscription-speed-hover, transparent)",
+		color: "var(--dsw-alias-label-secondary)",
+		font: "inherit",
+		fontSize: 12,
+		lineHeight: "18px",
+		padding: "2px 8px",
+		cursor: "pointer",
+		whiteSpace: "nowrap"
+	},
+	menu: {
+		position: "absolute",
+		bottom: "100%",
+		insetInlineEnd: 0,
+		marginBottom: 4,
+		minWidth: 180,
+		padding: 4,
+		zIndex: 20,
+		background: "var(--dsw-specific-menu, var(--dsw-alias-bg-layer-2))",
+		border: 0,
+		boxShadow: "var(--dsw-elevation-prominent)",
+		borderRadius: "var(--dsw-radius-lg, 16px)",
+		display: "flex",
+		flexDirection: "column",
+		gap: 2
+	},
+	item: {
+		display: "flex",
+		alignItems: "flex-start",
+		gap: 6,
+		width: "100%",
+		border: "none",
+		borderRadius: "var(--dsw-radius-sm, 8px)",
+		background: "var(--majed-subscription-speed-hover, transparent)",
+		padding: "6px 8px",
+		cursor: "pointer",
+		font: "inherit",
+		textAlign: "start"
+	},
+	itemCheck: {
+		width: 14,
+		flexShrink: 0,
+		fontSize: 12,
+		lineHeight: "18px",
+		color: "var(--dsw-alias-label-primary)"
+	},
+	itemText: {
+		display: "flex",
+		flexDirection: "column"
+	},
+	itemName: {
+		fontSize: 12,
+		lineHeight: "18px",
+		color: "var(--dsw-alias-label-primary)"
+	},
+	itemDescription: {
+		fontSize: 11,
+		lineHeight: "16px",
+		color: "var(--dsw-alias-label-tertiary)"
+	}
+};
+
+//#endregion
+//#region src/speed/fast-command.ts
+/** Build the locale resolver used by the /fast command contribution. */
+function fastCommandDescription(t) {
+	return () => t();
+}
+
+//#endregion
+//#region src/usage-badge/usage-types.ts
+/** Bar fill color: success normally, warn from 80%, error from 95%. */
+function usageBarColor(usedPercent$1) {
+	if (usedPercent$1 >= 95) return "var(--dsw-alias-state-error-primary)";
+	if (usedPercent$1 >= 80) return "var(--dsw-alias-state-warn-label)";
+	return "var(--dsw-alias-state-success-primary)";
+}
+
+//#endregion
+//#region src/usage-badge/host-modules.ts
+let primitives;
+let reactDom;
+/** `@deepseek-ai/dsh-client-ui-primitives`, resolved on first use. */
+function hostPrimitives() {
+	return primitives ??= require("@deepseek-ai/dsh-client-ui-primitives");
+}
+/** `react-dom` (portals), resolved on first use. */
+function hostReactDom() {
+	return reactDom ??= require("react-dom");
+}
+
+//#endregion
+//#region src/usage-badge/usage-badge-preferences.ts
+const MODE_KEY = "majed.subscriptions.usageBadgeMode";
+const MODE_EVENT = "majed:subscriptions:usage-badge-mode";
+/** Read the browser preference; blocked storage retains the default display. */
+function readUsageBadgeMode() {
+	if (typeof window === "undefined") return "recent";
+	try {
+		return window.localStorage.getItem(MODE_KEY) === "hidden" ? "hidden" : "recent";
+	} catch (error) {
+		if (!(error instanceof DOMException) || error.name !== "SecurityError") throw error;
+		return "recent";
+	}
+}
+/** Save first, then notify; the settings control reports a rejected write. */
+function setUsageBadgeMode(mode) {
+	if (mode !== "recent" && mode !== "hidden") throw new TypeError("Invalid subscription usage display mode");
+	window.localStorage.setItem(MODE_KEY, mode);
+	window.dispatchEvent(new Event(MODE_EVENT));
+}
+/** Same-tab writes need a custom event; other tabs use the storage event. */
+function subscribeUsageBadgeMode(notify) {
+	const onStorage = (event) => {
+		if (event.key === MODE_KEY || event.key === null) notify();
+	};
+	window.addEventListener(MODE_EVENT, notify);
+	window.addEventListener("storage", onStorage);
+	return () => {
+		window.removeEventListener(MODE_EVENT, notify);
+		window.removeEventListener("storage", onStorage);
+	};
+}
+/** Shared React snapshot used by the settings control and every mounted badge. */
+function useUsageBadgeMode() {
+	return (0, react.useSyncExternalStore)(subscribeUsageBadgeMode, readUsageBadgeMode, () => "recent");
+}
+
+//#endregion
+//#region src/usage-badge/SubscriptionUsageBadge.tsx
+/** Owned usage chart glyph; no dependency on a host icon export. */
+function UsageBadgeIcon() {
+	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("svg", {
+		width: "16",
+		height: "16",
+		viewBox: "0 0 24 24",
+		fill: "none",
+		stroke: "currentColor",
+		strokeWidth: "1.7",
+		strokeLinecap: "round",
+		strokeLinejoin: "round",
+		"aria-hidden": "true",
+		children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "M4 19V13M10 19V8M16 19V4M3 21h18" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "m3 8 6-4 6 2 6-4" })]
+	});
+}
+/** How often the badge re-reads usage; the server also shares its own cache/negative-cache across UI surfaces. */
+const USAGE_POLL_INTERVAL_MS = 15 * 6e4;
+/** How often the badge re-reads the session's current model (model switches arrive only by asking). */
+const MODEL_POLL_INTERVAL_MS = 3e3;
+/** Distance between the trigger's top edge and the dialog's bottom (host stat dialogs use the same). */
+const PANEL_GAP = 8;
+/** Distance kept between the dialog and each viewport edge. */
+const PANEL_MARGIN = 12;
+/** The account the collapsed pill reads: the default one, else the first listed. */
+function pillAccountOf(d) {
+	return d.accounts.find((a) => a.isDefault) ?? d.accounts[0];
+}
+/** Brand display names (short form for the compact badge). */
+const PROVIDER_NAMES = {
+	codex: "Codex",
+	claude: "Claude",
+	grok: "Grok",
+	copilot: "Copilot",
+	antigravity: "Antigravity"
+};
+/**
+* The `currentModel` half of the inject face: the session's effective
+* model selection through ui-model-selection's `modelDirectories` service,
+* resolved lazily per call (the service may register after this plugin, and
+* a shell without it reports "unknown"; the badge keeps the most recent
+* subscription selected in this view, or stays hidden).
+*/
+function createCurrentModelReader(models, sessionId) {
+	return async () => {
+		const directories = models();
+		if (directories === void 0) return void 0;
+		const { current } = await directories.directoryFor(sessionId).load();
+		return current ?? void 0;
+	};
+}
+/**
+* Compact time-remaining label derived from the window's `resetsAt` timestamp:
+* "6d 18h" (days+hours), "1h 58m" (hours+minutes), or "42m" (minutes only).
+* Falls back to the scope/kind abbreviation when no reset time is known.
+*/
+function windowLabel(w) {
+	if (w.resetsAt === void 0) {
+		if (w.scope !== void 0 && w.scope !== "") return w.scope;
+		switch (w.kind) {
+			case "session": return "5h";
+			case "weekly": return "Wk";
+			default: return "W";
+		}
+	}
+	const ms = Math.max(0, w.resetsAt - Date.now());
+	const minutes = Math.floor(ms / 6e4);
+	const hours = Math.floor(minutes / 60);
+	const days = Math.floor(hours / 24);
+	if (days > 0) return `${days}d ${hours % 24}h`;
+	if (hours > 0) return `${hours}h ${minutes % 60}m`;
+	return `${Math.max(1, minutes)}m`;
+}
+/** Clamp and round a window's used share for display. */
+function usedPercent(w) {
+	return Math.round(Math.min(100, Math.max(0, w.usedPercent)));
+}
+/** Keep model quotas separate: matching percentages do not imply a shared pool. */
+function prioritizeWindows(windows, model) {
+	return model === void 0 ? [...windows] : [...windows.filter((w) => w.scope === model), ...windows.filter((w) => w.scope !== model)];
+}
+/** Small previews keep a live model catalog from taking over the dialog. */
+const WINDOW_PREVIEW_LIMIT = 4;
+function previewWindows(windows, model, provider) {
+	const ordered = prioritizeWindows(windows, model);
+	const limit = provider === "antigravity" ? Math.min(2, model === void 0 ? 0 : windows.filter((w) => w.scope === model).length) : WINDOW_PREVIEW_LIMIT;
+	return {
+		shown: ordered.slice(0, limit),
+		hidden: ordered.slice(limit)
+	};
+}
+/** Bounded readout; Antigravity quotas belong to individual models, not the account. */
+function compactSegment(d, model, t = fallbackTranslate) {
+	const windows = pillAccountOf(d).windows;
+	if (d.provider === "antigravity") {
+		const matching = model === void 0 ? [] : windows.filter((w) => w.scope === model);
+		if (matching.length === 0) return `${d.name} ${t(model === void 0 ? "usageBadgeModelCount" : "usageBadgeModelUnavailable", { count: new Set(windows.map((w) => w.scope).filter(Boolean)).size })}`;
+		const parts$1 = matching.slice(0, 2).map((w) => `${w.kind === "weekly" ? t("usageWeekly") : t("usageWindow")} ${usedPercent(w)}%`);
+		return `${d.name} ${parts$1.join(" · ")}`;
+	}
+	const parts = windows.slice(0, 2).map((w) => `${w.scope || (w.kind === "session" ? t("usageSessionShort") : w.kind === "weekly" ? t("usageWeeklyShort") : t("usageWindow"))} ${usedPercent(w)}%`);
+	if (windows.length > 2) parts.push(`+${windows.length - 2}`);
+	return `${d.name} ${parts.join(" · ")}`;
+}
+/** Remember only the most recent subscription in this view, including its model scope. */
+function retainSubscriptionSelection(previous, current) {
+	return current !== void 0 && Object.hasOwn(PROVIDER_NAMES, current.provider) ? current : previous;
+}
+/** At most one provider; no known selection or no usage means no badge. */
+function collapsedDisplays(displays, current) {
+	const match = displays.find((d) => d.provider === current);
+	return match === void 0 ? [] : [match];
+}
+/** Order for the expanded dialog: the current provider first, the rest in poll order. */
+function expandedDisplays(displays, current) {
+	const match = displays.find((d) => d.provider === current);
+	return match === void 0 ? displays : [match, ...displays.filter((d) => d !== match)];
+}
+/**
+* A provider's logged-in accounts, the effective default first. When no
+* account is flagged default the first listed stands in, matching what
+* direct routes fall back to.
+*/
+function accountsOf(status) {
+	if (status == null || !Array.isArray(status.accounts) || status.accounts.length === 0) return [];
+	const fallback = status.accounts.find((a) => a.isDefault) ?? status.accounts[0];
+	return status.accounts.map((a) => a === fallback ? {
+		...a,
+		isDefault: true
+	} : a).sort((a, b) => Number(b.isDefault) - Number(a.isDefault));
+}
+/** English-dictionary fallback for a missing inject `t` (standalone renders). */
+function fallbackTranslate(key, params) {
+	return (subscriptions$1[key] ?? key).replace(/\{(\w+)\}/g, (_, name) => String(params?.[name] ?? ""));
+}
+/** Localized label of one usage window (kind, plus the model scope when named). */
+function usageWindowLabel(t, window$1) {
+	const base = window$1.kind === "session" ? t("usageSession") : window$1.kind === "weekly" ? t("usageWeekly") : t("usageWindow");
+	return window$1.scope !== void 0 && window$1.scope !== "" ? `${base} · ${window$1.scope}` : base;
+}
+/**
+* The composer subscription-usage badge: a pill reading e.g.
+* `Codex 5h 25% · Wk 40%` for the current model's provider, opening a dialog with
+* every provider's accounts and their windows. Returns null when no data is
+* available.
+*/
+function SubscriptionUsageBadge({ rpc, currentModel, t }) {
+	const translate = t ?? fallbackTranslate;
+	const [displays, setDisplays] = (0, react.useState)([]);
+	const [selection, setSelection] = (0, react.useState)(void 0);
+	const [lastSubscription, setLastSubscription] = (0, react.useState)(void 0);
+	const displayMode = useUsageBadgeMode();
+	const current = selection?.provider;
+	const badgeSelection = retainSubscriptionSelection(lastSubscription, selection);
+	const [open, setOpen] = (0, react.useState)(false);
+	const [hover, setHover] = (0, react.useState)(false);
+	const [focused, setFocused] = (0, react.useState)(false);
+	const tooltipId = (0, react.useId)();
+	const panelId = (0, react.useId)();
+	const tooltipRef = (0, react.useRef)(null);
+	const buttonRef = (0, react.useRef)(null);
+	const showTooltip = !open && (hover || focused);
+	const inflightRef = (0, react.useRef)(false);
+	const mountedRef = (0, react.useRef)(true);
+	const rootRef = (0, react.useRef)(null);
+	const panelRef = (0, react.useRef)(null);
+	const seatRef = (0, react.useRef)(null);
+	const currentRef = (0, react.useRef)(currentModel);
+	currentRef.current = currentModel;
+	const lastKnownRef = (0, react.useRef)(/* @__PURE__ */ new Map());
+	const namesRevision = (0, react.useRef)(0);
+	const recentNames = (0, react.useRef)(/* @__PURE__ */ new Map());
+	const refresh = (0, react.useCallback)(async () => {
+		if (rpc === void 0 || inflightRef.current) return;
+		inflightRef.current = true;
+		const revision = namesRevision.current;
+		try {
+			const statusResp = await callSubscriptionsAuth(rpc, "status", {});
+			if (!mountedRef.current) return;
+			const roster = [];
+			for (const provider of Object.keys(statusResp.providers)) {
+				if (!Object.hasOwn(PROVIDER_NAMES, provider)) continue;
+				for (const account of accountsOf(statusResp.providers[provider])) roster.push({
+					provider,
+					account
+				});
+			}
+			const keyOf = (provider, account) => `${provider}:${account.key}`;
+			const lastKnown = lastKnownRef.current;
+			const live = new Set(roster.map(({ provider, account }) => keyOf(provider, account)));
+			for (const key of lastKnown.keys()) if (!live.has(key)) lastKnown.delete(key);
+			if (roster.length === 0) {
+				setDisplays([]);
+				return;
+			}
+			const results = await Promise.allSettled(roster.map(async ({ provider, account }) => {
+				return {
+					provider,
+					account,
+					usage: await callSubscriptionsAuth(rpc, "usage", {
+						provider,
+						account: account.key,
+						force: false
+					})
+				};
+			}));
+			if (!mountedRef.current) return;
+			const plans = /* @__PURE__ */ new Map();
+			for (const r of results) {
+				if (r.status !== "fulfilled") continue;
+				const { provider, account, usage } = r.value;
+				const key = keyOf(provider, account);
+				if (usage.plan !== void 0) plans.set(key, usage.plan);
+				if (!usage.supported || !usage.windows || usage.windows.length === 0) {
+					lastKnown.delete(key);
+					continue;
+				}
+				lastKnown.set(key, usage.windows);
+			}
+			const byProvider = /* @__PURE__ */ new Map();
+			for (const { provider, account } of roster) {
+				const key = keyOf(provider, account);
+				const windows = lastKnown.get(key);
+				if (windows === void 0) continue;
+				const plan = plans.get(key) ?? account.plan;
+				const row = {
+					key: account.key,
+					isDefault: account.isDefault,
+					...account.account === void 0 ? {} : { account: account.account },
+					...plan === void 0 ? {} : { plan },
+					windows
+				};
+				const display = byProvider.get(provider);
+				if (display === void 0) byProvider.set(provider, {
+					provider,
+					name: statusResp.providers[provider]?.displayName || PROVIDER_NAMES[provider],
+					accounts: [row]
+				});
+				else display.accounts.push(row);
+			}
+			setDisplays([...byProvider.values()].map((row) => {
+				const saved = recentNames.current.get(row.provider);
+				return saved && saved.revision > revision ? {
+					...row,
+					name: saved.name
+				} : row;
+			}));
+		} catch {} finally {
+			inflightRef.current = false;
+		}
+	}, [rpc]);
+	(0, react.useEffect)(() => {
+		const update = (event) => {
+			const { provider, displayName } = event.detail;
+			recentNames.current.set(provider, {
+				revision: ++namesRevision.current,
+				name: displayName || PROVIDER_NAMES[provider]
+			});
+			setDisplays((current$1) => current$1.map((row) => row.provider === provider ? {
+				...row,
+				name: displayName || PROVIDER_NAMES[provider]
+			} : row));
+		};
+		window.addEventListener(DISPLAY_NAME_CHANGED, update);
+		return () => {
+			window.removeEventListener(DISPLAY_NAME_CHANGED, update);
+		};
+	}, []);
+	(0, react.useEffect)(() => {
+		mountedRef.current = true;
+		return () => {
+			mountedRef.current = false;
+		};
+	}, []);
+	(0, react.useEffect)(() => {
+		if (displayMode === "hidden") return;
+		refresh();
+		const timer = setInterval(() => {
+			refresh();
+		}, USAGE_POLL_INTERVAL_MS);
+		return () => {
+			clearInterval(timer);
+		};
+	}, [refresh, displayMode]);
+	(0, react.useEffect)(() => {
+		if (currentRef.current === void 0) return;
+		let cancelled = false;
+		let inflight = false;
+		const reload = () => {
+			const read = currentRef.current;
+			if (read === void 0 || inflight) return;
+			inflight = true;
+			read().then((model) => {
+				if (cancelled) return;
+				setLastSubscription((previous) => retainSubscriptionSelection(previous, model));
+				setSelection(model);
+			}, () => {}).finally(() => {
+				inflight = false;
+			});
+		};
+		reload();
+		const timer = setInterval(reload, MODEL_POLL_INTERVAL_MS);
+		return () => {
+			cancelled = true;
+			clearInterval(timer);
+		};
+	}, []);
+	const { useAnchoredPosition, useDismissOnOutsidePointer } = hostPrimitives();
+	const pos = useAnchoredPosition({
+		open,
+		anchorRef: rootRef,
+		panelRef,
+		side: "top",
+		gap: PANEL_GAP,
+		margin: PANEL_MARGIN
+	});
+	const tooltipPos = useAnchoredPosition({
+		open: showTooltip,
+		anchorRef: rootRef,
+		panelRef: tooltipRef,
+		side: "top",
+		gap: PANEL_GAP,
+		margin: PANEL_MARGIN
+	});
+	useDismissOnOutsidePointer(rootRef, open, setOpen, panelRef);
+	(0, react.useEffect)(() => {
+		if (!open && !showTooltip) return;
+		const onKeyDown = (event) => {
+			if (event.key === "Escape") {
+				setOpen(false);
+				setHover(false);
+				setFocused(false);
+				if (open) buttonRef.current?.focus();
+			}
+		};
+		document.addEventListener("keydown", onKeyDown);
+		return () => {
+			document.removeEventListener("keydown", onKeyDown);
+		};
+	}, [open, showTooltip]);
+	const [statsRow, setStatsRow] = (0, react.useState)(null);
+	(0, react.useEffect)(() => {
+		const seat$1 = seatRef.current;
+		if (seat$1 === null) return;
+		const scope = statsScopeOf(seat$1);
+		if (scope === null) return;
+		const find = () => scope.querySelector("[data-composer-stats]");
+		setStatsRow(find());
+		const observer = new MutationObserver(() => {
+			setStatsRow(find());
+		});
+		observer.observe(scope, {
+			childList: true,
+			subtree: true
+		});
+		return () => {
+			observer.disconnect();
+		};
+	}, []);
+	(0, react.useEffect)(() => {
+		if (displayMode === "hidden") setOpen(false);
+	}, [displayMode]);
+	const seat = /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+		ref: seatRef,
+		style: styles$1.seat,
+		"aria-hidden": true
+	});
+	const collapsed = collapsedDisplays(displays, badgeSelection?.provider);
+	if (displayMode === "hidden" || collapsed.length === 0) return seat;
+	const label = compactSegment(collapsed[0], badgeSelection?.model, translate);
+	const expanded = expandedDisplays(displays, badgeSelection?.provider);
+	const title = translate("usageBadgeTitle");
+	const toggle = () => {
+		const next = !open;
+		setOpen(next);
+		setHover(false);
+		setFocused(false);
+		if (next) refresh();
+	};
+	const close = () => {
+		setOpen(false);
+		setHover(false);
+		setFocused(false);
+		buttonRef.current?.focus();
+	};
+	const tooltipAccount = pillAccountOf(collapsed[0]);
+	const tooltipWindows = previewWindows(tooltipAccount.windows, badgeSelection?.model, collapsed[0].provider);
+	const pill = /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+		ref: rootRef,
+		style: styles$1.anchor,
+		children: [
+			/* @__PURE__ */ (0, react_jsx_runtime.jsx)("style", { children: subscriptionChromeCss }),
+			/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("button", {
+				ref: buttonRef,
+				type: "button",
+				className: "majed-subscription-usage-pill",
+				style: {
+					...styles$1.pill,
+					...hover || open ? styles$1.pillActive : {}
+				},
+				"aria-haspopup": "dialog",
+				"aria-expanded": open,
+				"aria-label": `${title} · ${label}`,
+				"aria-describedby": showTooltip ? tooltipId : void 0,
+				"aria-controls": open ? panelId : void 0,
+				onMouseEnter: () => {
+					setHover(true);
+				},
+				onMouseLeave: () => {
+					setHover(false);
+				},
+				onFocus: () => {
+					if (!open) setFocused(true);
+				},
+				onBlur: () => {
+					setFocused(false);
+				},
+				onKeyDown: (event) => {
+					if (event.key === "Escape") {
+						setHover(false);
+						setFocused(false);
+					}
+				},
+				onClick: toggle,
+				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(UsageBadgeIcon, {}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("bdi", {
+					style: styles$1.label,
+					children: label
+				})]
+			}),
+			showTooltip && hostReactDom().createPortal(/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+				ref: tooltipRef,
+				id: tooltipId,
+				role: "tooltip",
+				className: "majed-subscription-usage-tooltip",
+				style: {
+					...styles$1.tooltip,
+					...tooltipPos ?? MEASURE_STYLE
+				},
+				onMouseEnter: () => {
+					setHover(true);
+				},
+				onMouseLeave: () => {
+					setHover(false);
+				},
+				children: [
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", {
+						style: styles$1.tooltipTitle,
+						children: title
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("bdi", {
+						style: styles$1.tooltipHint,
+						title: tooltipAccount.account,
+						children: tooltipAccount.account
+					}),
+					tooltipWindows.shown.map((w, i) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+						style: styles$1.tooltipRow,
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: usageWindowLabel(translate, w) }), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("bdi", {
+							style: {
+								display: "inline-flex",
+								alignItems: "center",
+								gap: 5
+							},
+							children: [
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)(UsageRing, { percent: usedPercent(w) }),
+								usedPercent(w),
+								"%",
+								w.resetsAt !== void 0 && ` · ${translate("usageBadgeReset", { time: windowLabel(w) })}`
+							]
+						})]
+					}, i)),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+						style: styles$1.tooltipHint,
+						children: translate("usageBadgeOpenDetails")
+					})
+				]
+			}), document.body),
+			open && hostReactDom().createPortal(/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+				ref: panelRef,
+				id: panelId,
+				role: "dialog",
+				"aria-label": title,
+				className: "majed-subscription-usage-panel",
+				style: {
+					...styles$1.panel,
+					...pos ?? MEASURE_STYLE
+				},
+				children: [
+					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+						style: styles$1.title,
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+							style: styles$1.titleLabel,
+							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(UsageBadgeIcon, {}), title]
+						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+							type: "button",
+							className: "majed-subscription-usage-close",
+							"aria-label": translate("usageBadgeClose"),
+							onClick: close,
+							children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("svg", {
+								width: "16",
+								height: "16",
+								viewBox: "0 0 24 24",
+								fill: "none",
+								stroke: "currentColor",
+								strokeWidth: "1.5",
+								strokeLinecap: "round",
+								"aria-hidden": true,
+								children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "m6 6 12 12M6 18 18 6" })
+							})
+						})]
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+						style: styles$1.titleRule,
+						"aria-hidden": true
+					}),
+					expanded.map((d, index) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("section", {
+						style: index === 0 ? void 0 : styles$1.section,
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+							style: styles$1.providerRow,
+							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+								style: styles$1.providerName,
+								children: [d.name, d.provider === current && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+									style: styles$1.currentTag,
+									children: translate("usageBadgeCurrent")
+								})]
+							}), d.accounts.length === 1 && /* @__PURE__ */ (0, react_jsx_runtime.jsx)(AccountMeta, {
+								account: d.accounts[0],
+								translate
+							})]
+						}), d.accounts.map((account, accountIndex) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+							style: accountIndex === 0 ? void 0 : styles$1.accountBlock,
+							children: [d.accounts.length > 1 && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+								style: styles$1.accountRow,
+								children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(AccountMeta, {
+									account,
+									translate
+								})
+							}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(AccountWindows, {
+								windows: account.windows,
+								model: d.provider === badgeSelection?.provider ? badgeSelection.model : void 0,
+								provider: d.provider,
+								translate
+							}, `${d.provider}:${badgeSelection?.model ?? ""}`)]
+						}, account.key))]
+					}, d.provider))
+				]
+			}), document.body)
+		]
+	});
+	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [seat, statsRow !== null && statsRow.isConnected ? hostReactDom().createPortal(pill, statsRow) : pill] });
+}
+/**
+* Nearest ancestor of the dock seat that can contain the host's stats row:
+* the composer bar. Bounded so a badge in an unfamiliar layout never adopts
+* some other composer's pills.
+*/
+function statsScopeOf(seat) {
+	let node = seat.parentElement;
+	for (let depth = 0; node !== null && depth < 4; depth++) {
+		if (node.querySelector("[data-composer-stats]") !== null) return node;
+		node = node.parentElement;
+	}
+	return seat.parentElement;
+}
+/**
+* One account's handle and plan: `★ user@example.com · Plan: pro`. The star
+* marks the default account (the one direct routes serve and the collapsed
+* pill reads), the same glyph Settings → Subscriptions uses.
+*/
+function AccountMeta({ account, translate }) {
+	const parts = [account.account, account.plan === void 0 ? void 0 : translate("usagePlan", { plan: account.plan })].filter((part) => part !== void 0 && part !== "");
+	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+		style: styles$1.providerMeta,
+		title: account.account,
+		children: [account.isDefault && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+			style: styles$1.defaultStar,
+			"aria-label": translate("defaultAccount"),
+			children: "★ "
+		}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+			style: {
+				display: "flex",
+				flexDirection: "column",
+				gap: 2
+			},
+			children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("bdi", { children: parts[0] }), parts[1] && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: parts[1] })]
+		})]
+	});
+}
+/** Preview each account independently; all remaining quotas stay accessible. */
+function AccountWindows({ windows, model, provider, translate }) {
+	const { shown, hidden } = previewWindows(windows, model, provider);
+	const rows = (items) => /* @__PURE__ */ (0, react_jsx_runtime.jsx)("dl", {
+		style: styles$1.details,
+		children: items.map((w, i) => /* @__PURE__ */ (0, react_jsx_runtime.jsx)(WindowRow, {
+			label: `${usageWindowLabel(translate, w)}${model !== void 0 && w.scope === model ? ` · ${translate("usageBadgeCurrent")}` : ""}`,
+			window: w
+		}, i))
+	});
+	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [rows(shown), hidden.length > 0 && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("details", {
+		style: styles$1.moreWindows,
+		children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("summary", {
+			style: styles$1.moreSummary,
+			children: translate("usageBadgeMoreWindows", { count: hidden.length })
+		}), rows(hidden)]
+	})] });
+}
+function UsageRing({ percent }) {
+	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("svg", {
+		width: "14",
+		height: "14",
+		viewBox: "0 0 20 20",
+		"aria-hidden": "true",
+		style: {
+			flexShrink: 0,
+			transform: "rotate(-90deg)"
+		},
+		children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("circle", {
+			cx: "10",
+			cy: "10",
+			r: "7",
+			fill: "none",
+			stroke: "var(--dsw-alias-border-l2)",
+			strokeWidth: "3"
+		}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("circle", {
+			cx: "10",
+			cy: "10",
+			r: "7",
+			fill: "none",
+			stroke: usageBarColor(percent),
+			strokeWidth: "3",
+			pathLength: "100",
+			strokeDasharray: `${percent} 100`
+		})]
+	});
+}
+/** One `dt`/`dd` pair: window name → `25% · 6d 1h`, with the bar underneath. */
+function WindowRow({ label, window: w }) {
+	const percent = usedPercent(w);
+	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [
+		/* @__PURE__ */ (0, react_jsx_runtime.jsx)("dt", {
+			style: styles$1.dt,
+			children: label
+		}),
+		/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("dd", {
+			style: styles$1.dd,
+			children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", { children: [percent, "%"] }), w.resetsAt !== void 0 && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+				style: styles$1.reset,
+				children: [" · ", windowLabel(w)]
+			})]
+		}),
+		/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+			role: "progressbar",
+			"aria-label": label,
+			"aria-valuenow": percent,
+			"aria-valuemin": 0,
+			"aria-valuemax": 100,
+			style: styles$1.bar,
+			children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", { style: {
+				...styles$1.barFill,
+				width: `${percent}%`,
+				background: usageBarColor(percent)
+			} })
+		})
+	] });
+}
+/**
+* Unplaced portal panel: hidden but laid out so the clamp measures real
+* dimensions (the `useAnchoredPosition` measure pass).
+*/
+const MEASURE_STYLE = {
+	visibility: "hidden",
+	left: 0,
+	top: 0
+};
+const styles$1 = {
+	seat: { display: "none" },
+	anchor: {
+		minWidth: 0,
+		maxWidth: "min(100%, 100vw - 24px)",
+		display: "inline-flex",
+		flexShrink: 1
+	},
+	pill: {
+		boxSizing: "border-box",
+		minWidth: 0,
+		maxWidth: "100%",
+		color: "var(--dsw-alias-label-tertiary)",
+		font: "inherit",
+		fontSize: "calc(var(--dsh-content-font-size-secondary, 13px) - 1px)",
+		fontVariantNumeric: "tabular-nums",
+		lineHeight: "calc(20px + var(--dsh-content-font-delta-secondary, 0px))",
+		whiteSpace: "nowrap",
+		background: "transparent",
+		border: "none",
+		borderRadius: "var(--dsw-radius-sm, 8px)",
+		alignItems: "center",
+		gap: 6,
+		padding: "1px 8px",
+		display: "inline-flex",
+		cursor: "pointer"
+	},
+	pillActive: {
+		background: "var(--dsw-alias-interactive-bg-hover)",
+		color: "var(--dsw-alias-label-secondary)"
+	},
+	label: {
+		textOverflow: "ellipsis",
+		minWidth: 0,
+		overflow: "hidden"
+	},
+	panel: {
+		position: "fixed",
+		zIndex: 1100,
+		boxSizing: "border-box",
+		background: "var(--dsw-specific-menu, var(--dsw-alias-bg-overlay))",
+		width: "min(400px, 100vw - 24px)",
+		minWidth: 0,
+		maxWidth: "calc(100vw - 24px)",
+		maxHeight: "min(560px, 100dvh - 24px)",
+		overflowY: "auto",
+		overscrollBehavior: "contain",
+		boxShadow: "var(--dsw-elevation-prominent)",
+		color: "var(--dsw-alias-label-secondary)",
+		cursor: "default",
+		border: 0,
+		borderRadius: "var(--dsw-radius-lg, 16px)",
+		padding: 16,
+		fontSize: 12,
+		lineHeight: "18px"
+	},
+	tooltip: {
+		position: "fixed",
+		zIndex: 1101,
+		boxSizing: "border-box",
+		width: "min(300px, 100vw - 24px)",
+		padding: "8px 10px",
+		borderRadius: "var(--dsw-radius-lg, 16px)",
+		background: "var(--dsw-specific-menu, var(--dsw-alias-bg-overlay))",
+		boxShadow: "var(--dsw-elevation-prominent)",
+		color: "var(--dsw-alias-label-secondary)",
+		fontSize: 12,
+		lineHeight: "18px",
+		display: "flex",
+		flexDirection: "column",
+		gap: 4,
+		overflowWrap: "anywhere",
+		maxHeight: "calc(100dvh - 24px)",
+		overflowY: "auto"
+	},
+	tooltipTitle: {
+		color: "var(--dsw-alias-label-primary)",
+		fontWeight: 500
+	},
+	tooltipRow: {
+		display: "flex",
+		justifyContent: "space-between",
+		flexWrap: "wrap",
+		gap: "2px 8px",
+		fontVariantNumeric: "tabular-nums"
+	},
+	tooltipHint: {
+		color: "var(--dsw-alias-label-tertiary)",
+		paddingBlockStart: 2
+	},
+	title: {
+		color: "var(--dsw-alias-label-primary)",
+		display: "flex",
+		justifyContent: "space-between",
+		gap: 16,
+		marginBottom: 8,
+		fontWeight: 500
+	},
+	titleLabel: {
+		alignItems: "center",
+		gap: 6,
+		minWidth: 0,
+		display: "inline-flex"
+	},
+	titleRule: {
+		borderTop: "0.5px solid var(--dsw-alias-border-l2)",
+		marginBottom: 10
+	},
+	section: {
+		marginTop: 12,
+		paddingTop: 10,
+		borderTop: "0.5px solid var(--dsw-alias-border-l2)"
+	},
+	providerRow: {
+		display: "flex",
+		justifyContent: "space-between",
+		alignItems: "baseline",
+		flexWrap: "wrap",
+		gap: "4px 12px",
+		marginBottom: 8
+	},
+	providerName: {
+		color: "var(--dsw-alias-label-primary)",
+		fontWeight: 500,
+		display: "inline-flex",
+		flexWrap: "wrap",
+		overflowWrap: "anywhere",
+		alignItems: "center",
+		gap: 6
+	},
+	currentTag: {
+		fontSize: 10,
+		lineHeight: "14px",
+		fontWeight: 400,
+		padding: "0 5px",
+		borderRadius: 7,
+		color: "var(--dsw-alias-label-secondary)",
+		background: "var(--dsw-alias-interactive-bg-hover)"
+	},
+	providerMeta: {
+		color: "var(--dsw-alias-label-tertiary)",
+		minWidth: 0,
+		overflowWrap: "anywhere",
+		display: "inline-flex",
+		alignItems: "baseline",
+		gap: 4,
+		fontSize: 11
+	},
+	defaultStar: { color: "var(--dsw-alias-state-warn-label)" },
+	accountBlock: { marginTop: 8 },
+	accountRow: {
+		display: "flex",
+		marginBottom: 4
+	},
+	details: {
+		color: "var(--dsw-alias-label-tertiary)",
+		display: "grid",
+		gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+		gap: "4px 16px",
+		margin: 0
+	},
+	moreWindows: { marginTop: 8 },
+	moreSummary: {
+		cursor: "pointer",
+		color: "var(--dsw-alias-label-secondary)",
+		marginBottom: 8
+	},
+	dt: {
+		minWidth: 0,
+		margin: 0,
+		overflowWrap: "anywhere"
+	},
+	dd: {
+		minWidth: 0,
+		margin: 0,
+		color: "var(--dsw-alias-label-secondary)",
+		fontVariantNumeric: "tabular-nums",
+		textAlign: "end",
+		overflowWrap: "anywhere"
+	},
+	reset: { color: "var(--dsw-alias-label-tertiary)" },
+	bar: {
+		gridColumn: "1 / -1",
+		height: 4,
+		borderRadius: 2,
+		overflow: "hidden",
+		background: "var(--dsw-alias-border-l2)",
+		marginBottom: 2
+	},
+	barFill: {
+		height: "100%",
+		borderRadius: 2
+	}
+};
+
+//#endregion
+//#region src/usage-badge/UsageBadgeDisplaySetting.tsx
+/** Browser-local display preference; never changes provider or account settings. */
+function UsageBadgeDisplaySetting({ t }) {
+	const mode = useUsageBadgeMode();
+	const [failed, setFailed] = (0, react.useState)(false);
+	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+		style: styles.card,
+		children: [
+			/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+				style: styles.field,
+				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: t("usageBadgeDisplay") }), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("select", {
+					style: styles.select,
+					"aria-label": t("usageBadgeDisplay"),
+					value: mode,
+					onChange: (event) => {
+						const value = event.currentTarget.value;
+						if (value !== "recent" && value !== "hidden") return;
+						try {
+							setUsageBadgeMode(value);
+							setFailed(false);
+						} catch (error) {
+							if (!(error instanceof DOMException) || !["SecurityError", "QuotaExceededError"].includes(error.name)) throw error;
+							setFailed(true);
+						}
+					},
+					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("option", {
+						value: "recent",
+						children: t("usageBadgeDisplayRecent")
+					}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("option", {
+						value: "hidden",
+						children: t("usageBadgeDisplayHidden")
+					})]
+				})]
+			}),
+			/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+				style: styles.hint,
+				children: t("usageBadgeDisplayHint")
+			}),
+			failed && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
+				role: "alert",
+				style: {
+					...styles.hint,
+					color: "var(--dsw-alias-state-error-primary)"
+				},
+				children: t("usageBadgeDisplaySaveFailed")
+			})
+		]
+	});
+}
+const styles = {
+	card: {
+		border: "0.5px solid var(--dsw-alias-settings-card-stroke, var(--dsw-alias-border-l4))",
+		borderRadius: "var(--dsw-radius-xl, 20px)",
+		background: "var(--dsw-alias-settings-card-fill, var(--dsw-alias-bg-layer-2))",
+		padding: "12px 14px",
+		display: "flex",
+		flexDirection: "column",
+		gap: 6
+	},
+	field: {
+		display: "flex",
+		flexDirection: "column",
+		gap: 6,
+		fontSize: 13,
+		fontWeight: 500,
+		lineHeight: "20px"
+	},
+	select: { width: "100%" },
+	hint: {
+		margin: 0,
+		fontSize: 12,
+		lineHeight: "18px",
+		color: "var(--dsw-alias-label-tertiary)"
+	}
+};
+
+//#endregion
+//#region src/usage-badge/error-boundary.ts
+function guarded(React, Component, label, report = (message, error) => console.error(message, error)) {
+	class Boundary extends React.Component {
+		state = { failed: false };
+		static getDerivedStateFromError() {
+			return { failed: true };
+		}
+		componentDidCatch(error) {
+			report(`dsh-majed: ${label} failed to render`, error);
+		}
+		render() {
+			return this.state.failed ? null : React.createElement(Component, this.props);
+		}
+	}
+	const wrapped = (props) => React.createElement(Boundary, props);
+	Object.defineProperty(wrapped, "name", { value: `Guarded${label.replace(/\W+/g, "")}` });
+	return wrapped;
+}
+
+//#endregion
+//#region src/browser.ts
+function applySubscriptions(root) {
+	const report = (error) => console.error("dsh-majed: Subscriptions setup failed", error);
+	function isolate(callback) {
+		try {
+			const result = callback();
+			if (result && typeof result.then === "function") return Promise.resolve(result).catch(report);
+			return result;
+		} catch (error) {
+			report(error);
+		}
+	}
+	isolate(() => root.inject([
+		"connection",
+		"slots",
+		"locale"
+	], (ctx) => isolate(() => {
+		const connection = ctx.get("connection");
+		const React = require("react");
+		const h = React.createElement;
+		const primitives$1 = require("@deepseek-ai/dsh-client-ui-primitives");
+		const NS = "majed.subscriptions";
+		isolate(() => ctx.effect(() => isolate(() => ctx.locale.register(NS, {
+			en: subscriptions$1,
+			ar: subscriptions
+		})), "dsh-majed: subscriptions dictionaries"));
+		const t = ctx.locale.bind(NS);
+		const CodexCard = createCodexCard(React, primitives$1, connection.rpc, t);
+		const CopilotCard = guarded(React, createCopilotCard(React, primitives$1, connection.rpc, t), "Copilot card");
+		const ClaudeCard = guarded(React, createClaudeCard(React, primitives$1, connection.rpc, t), "Claude card");
+		const AntigravityCard = guarded(React, createAntigravityCard(React, primitives$1, connection.rpc, t), "Antigravity card");
+		const ZenCard = guarded(React, createZenCard(React, primitives$1, connection.rpc, t), "Zen card");
+		const GrokCard = guarded(React, createGrokCard(React, primitives$1, connection.rpc, t), "Grok card");
+		const GuardedSetting = guarded(React, UsageBadgeDisplaySetting, "usage display setting");
+		const GuardedProxy = guarded(React, ProxySettings, "proxy setting");
+		const GuardedSpeed = guarded(React, SpeedSelect, "Speed control");
+		const GuardedBadge = guarded(React, SubscriptionUsageBadge, "usage badge");
+		const listeners = /* @__PURE__ */ new Set();
+		let ApiProviders;
+		const SubscriptionProviders = createApiProviders(React, null, t, primitives$1);
+		isolate(() => ctx.inject([
+			"remote",
+			"remote.settings",
+			"remote.credentials",
+			"remote.llm"
+		], (scope) => {
+			ApiProviders = guarded(React, createApiProviders(React, scope.remote, t, primitives$1), "API providers");
+			listeners.forEach((listener) => listener());
+			return () => {
+				ApiProviders = void 0;
+				listeners.forEach((listener) => listener());
+			};
+		}));
+		const providerCards = {
+			codex: CodexCard,
+			claude: ClaudeCard,
+			grok: GrokCard,
+			antigravity: AntigravityCard,
+			copilot: CopilotCard
+		};
+		function UnifiedProviders() {
+			const [status, setStatus] = React.useState(null);
+			const [revision, setRevision] = React.useState(0);
+			const [error, setError] = React.useState(false);
+			const alive = React.useRef(true);
+			const refresh = async () => {
+				try {
+					const answer = await connection.rpc.call("/api", "majed-subscriptions.status", {});
+					if (!answer?.ok) throw new Error();
+					if (alive.current) {
+						setStatus(answer.value);
+						setRevision((value) => value + 1);
+						setError(false);
+					}
+				} catch {
+					if (alive.current) setError(true);
+				}
+			};
+			React.useEffect(() => {
+				alive.current = true;
+				refresh();
+				return () => {
+					alive.current = false;
+				};
+			}, []);
+			const providers = Object.keys(providerCards).map((id) => ({
+				id,
+				name: {
+					codex: "Codex (ChatGPT)",
+					claude: "Claude",
+					grok: "Grok",
+					antigravity: "Antigravity",
+					copilot: "GitHub Copilot"
+				}[id]
+			}));
+			const rows = providers.filter(({ id }) => status?.providers?.[id]?.accounts?.length).map(({ id }, index) => h("li", {
+				key: id,
+				"data-majed-subscription-row": id
+			}, h(providerCards[id], {
+				presentation: "group",
+				initialExpanded: index === 0,
+				revision,
+				onAccountsChange: refresh
+			})));
+			return h(React.Fragment, null, error ? h("p", { role: "alert" }, t("unreachable")) : null, h(SubscriptionProviders, {
+				showAPI: false,
+				showSubscriptionAdd: true,
+				subscriptions: {
+					rows,
+					providers,
+					renderAuth: (id, done, onFlowState) => id ? h(providerCards[id], {
+						key: id,
+						presentation: "auth",
+						onFlowState,
+						onComplete: () => {
+							done();
+							refresh();
+						}
+					}) : null
+				}
+			}), h("section", {
+				"data-majed-provider-group": "free",
+				className: "majed-provider-group",
+				style: { marginBlockStart: 24 },
+				"aria-label": t("freeProviders")
+			}, h("h3", { className: "majed-provider-title" }, t("freeProviders")), h("ul", { className: "majed-api-rows" }, h("li", null, h(ZenCard)))));
+		}
+		let present = false;
+		let failing = false;
+		let referenceEnabled = false;
+		let disposed = false;
+		let sequence = 0;
+		let withdraw;
+		function Section() {
+			React.useSyncExternalStore((fn) => {
+				listeners.add(fn);
+				return () => listeners.delete(fn);
+			}, () => `${failing}:${referenceEnabled}:${!!ApiProviders}`);
+			return h("div", {
+				className: "majed-subscriptions-page",
+				style: {
+					display: "flex",
+					flexDirection: "column",
+					gap: 24,
+					maxInlineSize: 720,
+					minInlineSize: 0,
+					textAlign: "start",
+					color: "var(--dsw-alias-label-primary)",
+					fontSize: 14,
+					lineHeight: "22px"
+				}
+			}, h("style", null, controlCss + `
+          .majed-subscriptions-page .majed-page-settings>h3{margin:0;font-size:16px;line-height:24px;font-weight:500}
+          .majed-subscriptions-page .majed-page-settings-content{display:flex;flex-direction:column;gap:12px;padding-block-start:12px}
+          .majed-subscriptions-page .majed-proxy-settings{padding:14px 16px;border:0.5px solid var(--dsw-alias-settings-card-stroke,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-xl,20px);background:var(--dsw-alias-settings-card-fill,var(--dsw-alias-bg-layer-2))}
+          .majed-subscriptions-page .majed-proxy-settings header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+          .majed-subscriptions-page .majed-proxy-settings p{margin:8px 0 0;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px;overflow-wrap:anywhere}
+        `), h("header", {
+				className: "majed-providers-identity",
+				style: {
+					display: "flex",
+					alignItems: "center",
+					gap: 8
+				}
+			}, h("svg", {
+				width: 20,
+				height: 20,
+				viewBox: "0 0 24 24",
+				fill: "none",
+				stroke: "currentColor",
+				strokeWidth: 1.5,
+				strokeLinecap: "round",
+				strokeLinejoin: "round",
+				"aria-hidden": true,
+				style: { flexShrink: 0 }
+			}, h("rect", {
+				x: 8,
+				y: 8,
+				width: 8,
+				height: 8,
+				rx: 2
+			}), h("path", { d: "M12 3v5m0 8v5M3 12h5m8 0h5M5 5l3 3m8 8 3 3M19 5l-3 3M8 16l-3 3" })), h("h2", { style: {
+				margin: 0,
+				fontSize: 18,
+				lineHeight: "26px",
+				fontWeight: 500,
+				overflowWrap: "anywhere"
+			} }, t("title"))), referenceEnabled ? h("p", { role: "status" }, t("coexistence")) : null, failing ? h("p", { role: "alert" }, t("unreachable")) : null, h("section", {
+				"data-majed-settings": true,
+				className: "majed-page-settings"
+			}, h("h3", null, t("pageSettings")), h("div", { className: "majed-page-settings-content" }, h(GuardedProxy, {
+				rpc: connection.rpc,
+				t
+			}), h(GuardedSetting, { t }))), h("section", { style: {
+				display: "flex",
+				flexDirection: "column",
+				gap: 12,
+				minInlineSize: 0
+			} }, h("p", { style: {
+				margin: 0,
+				color: "var(--dsw-alias-label-secondary)",
+				fontSize: 13,
+				lineHeight: "20px"
+			} }, t("providersHint")), h(UnifiedProviders)));
+		}
+		const models = () => ctx.get("modelDirectories");
+		const surfaceWanted = () => !disposed && present && !referenceEnabled;
+		const surfaces = [];
+		let surfacesActive = false;
+		function syncSurfaces() {
+			if (surfaceWanted() && !surfacesActive) {
+				surfacesActive = true;
+				const add = (register) => isolate(() => {
+					const off = register();
+					if (typeof off === "function") surfaces.push(off);
+				});
+				for (const [name, view, inject] of [[
+					"image_generate",
+					ImageGenerateToolview,
+					() => ({ load: createImageLoader(connection.rpc) })
+				], [
+					"video_generate",
+					VideoGenerateToolview,
+					() => ({ loadVideo: createVideoLoader(connection.rpc) })
+				]]) for (const key of [name, `dsh_majed_${name}`]) add(() => ctx.slots.inject("tool.call.toolview", () => ctx.slots.register({
+					name: "tool.call.toolview",
+					id: `majed-toolview-${key}`,
+					key,
+					locale: NS,
+					inject
+				}, guarded(React, view, name))));
+				add(() => ctx.slots.inject("conversation.input.right", () => ctx.slots.register({
+					name: "conversation.input.right",
+					id: "majed-subscription-speed",
+					order: 0,
+					locale: NS,
+					inject: (sessionId) => ({
+						loadSpeed: createSpeedLoader(connection, models, sessionId),
+						setSpeed: createSpeedSetter(connection, sessionId)
+					})
+				}, GuardedSpeed)));
+				add(() => ctx.slots.inject("conversation.composer.dock", () => ctx.slots.register({
+					name: "conversation.composer.dock",
+					id: "majed-subscription-usage",
+					order: 10,
+					locale: NS,
+					inject: (sessionId) => ({
+						rpc: connection.rpc,
+						currentModel: createCurrentModelReader(models, sessionId)
+					})
+				}, GuardedBadge)));
+			} else if (!surfaceWanted() && surfacesActive) {
+				surfacesActive = false;
+				for (const off of surfaces.splice(0)) isolate(off);
+			}
+		}
+		isolate(() => ctx.inject(["commandUi"], (scope) => isolate(() => {
+			const command = scope.get("commandUi");
+			scope.effect(() => command.register({
+				name: "fast",
+				description: fastCommandDescription(() => t("commandFast")),
+				available: () => surfaceWanted(),
+				ui: {
+					kind: "popupSelect",
+					options: async (session) => {
+						if (!surfaceWanted()) throw new Error(t("commandFastUnavailable"));
+						const state = await createSpeedLoader(connection, models, session.sessionId)();
+						if (!state.visible) throw new Error(t("commandFastUnavailable"));
+						return [{
+							id: "standard",
+							label: t("speedStandard"),
+							detail: t("speedStandardDescription")
+						}, {
+							id: "fast",
+							label: t("speedFast"),
+							detail: t("speedFastDescription")
+						}].map((option) => ({
+							...option,
+							active: option.id === state.tier
+						}));
+					},
+					onSelect: async (option, session) => {
+						if (!surfaceWanted()) return;
+						await createSpeedSetter(connection, session.sessionId)(option.id);
+					}
+				}
+			}), "dsh-majed: /fast contribution");
+		})));
+		function update() {
+			isolate(syncSurfaces);
+			if (present && !withdraw) withdraw = ctx.slots.inject("settings.section", () => ctx.slots.register({
+				name: "settings.section",
+				id: "majed-subscriptions",
+				order: 90,
+				label: () => t("title")
+			}, Section));
+			else if (!present && withdraw) {
+				withdraw();
+				withdraw = void 0;
+			}
+			listeners.forEach((listener) => listener());
+		}
+		async function probe() {
+			const current = ++sequence;
+			probeReference(current);
+			try {
+				const result = await connection.rpc.call("/api", "majed-subscriptions.status", {});
+				if (disposed || current !== sequence) return;
+				present = true;
+				failing = !(result?.ok && result.value?.component === "subscriptions");
+			} catch (error) {
+				if (disposed || current !== sequence) return;
+				if (error instanceof Error && error.message === "transport failure for /api/majed-subscriptions.status: HTTP 404") {
+					present = false;
+					failing = false;
+				} else {
+					present = true;
+					failing = true;
+				}
+			}
+			isolate(update);
+		}
+		async function probeReference(current) {
+			let enabled = false;
+			try {
+				enabled = (await connection.rpc.call("/api", "subscriptions-auth.proxyGet", {}))?.ok === true;
+			} catch {}
+			if (disposed || current !== sequence) return;
+			referenceEnabled = enabled;
+			isolate(update);
+		}
+		isolate(() => ctx.effect(() => isolate(() => {
+			probe();
+			const unsubscribe = connection.state.subscribe(() => {
+				if (connection.state.getSnapshot() === "connected") probe();
+			});
+			const timer = setInterval(() => {
+				probe();
+			}, 3e3);
+			return () => {
+				disposed = true;
+				sequence++;
+				clearInterval(timer);
+				unsubscribe();
+				isolate(syncSurfaces);
+				withdraw?.();
+				listeners.clear();
+			};
+		}), "dsh-majed: subscriptions presence"));
+	})));
+}
+
+//#endregion
+exports.applySubscriptions = applySubscriptions;
+return module.exports; };
+    const subscriptions = majedSubscriptionsFactory(require);
+    const React = require('react');
+    const h = React.createElement;
+    let primitives = {};
+    try { primitives = require('@deepseek-ai/dsh-client-ui-primitives') || {}; } catch (_) {}
+
+    // ───────────────────────── own settings store (localStorage) ─────────────
+    const STORE_KEY = 'dsh-majed:settings:v1';
+    // App UI font size is a px number like the chat font size (DSH chrome is designed at 14px).
+    const UI_BASE_PX = 14, UI_MIN_PX = 11, UI_MAX_PX = 20;
+    const DEFAULTS = { bidi: true, uiFontSize: UI_BASE_PX, fontSource: 'dsh', notifyMode: 'background', notifyDone: true, notifyAction: true, accountMenu: true, autoCopy: false, autoApprove: {} };
+    const NOTIFY_MODES = ['off', 'background', 'always'];
+    // Bundled UI fonts (OFL-1.1, served by this plugin's host half from fonts/*.woff2).
+    const FONT_ROUTE = '/plugins/dsh-majed/fonts/';
+    const BUNDLED_FONTS = {"inter": {"label": "Inter", "family": "Inter Majed"}, "roboto": {"label": "Roboto", "family": "Roboto Majed"}, "open-sans": {"label": "Open Sans", "family": "Open Sans Majed"}, "noto-sans": {"label": "Noto Sans", "family": "Noto Sans Majed"}, "ibm-plex-sans": {"label": "IBM Plex Sans", "family": "IBM Plex Sans Majed"}};
+    const FONT_FACES = [{"f": "Inter Majed", "u": "inter-latin-wght-normal.woff2", "w": "100 900", "r": "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD", "k": "inter"}, {"f": "Inter Majed", "u": "inter-latin-ext-wght-normal.woff2", "w": "100 900", "r": "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF", "k": "inter"}, {"f": "Roboto Majed", "u": "roboto-latin-wght-normal.woff2", "w": "100 900", "r": "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD", "k": "roboto"}, {"f": "Roboto Majed", "u": "roboto-latin-ext-wght-normal.woff2", "w": "100 900", "r": "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF", "k": "roboto"}, {"f": "Open Sans Majed", "u": "open-sans-latin-wght-normal.woff2", "w": "100 900", "r": "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD", "k": "open-sans"}, {"f": "Open Sans Majed", "u": "open-sans-latin-ext-wght-normal.woff2", "w": "100 900", "r": "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF", "k": "open-sans"}, {"f": "Open Sans Majed", "u": "open-sans-hebrew-wght-normal.woff2", "w": "100 900", "r": "U+0307-0308,U+0590-05FF,U+200C-2010,U+20AA,U+25CC,U+FB1D-FB4F", "k": "open-sans"}, {"f": "Noto Sans Majed", "u": "noto-sans-latin-wght-normal.woff2", "w": "100 900", "r": "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD", "k": "noto-sans"}, {"f": "Noto Sans Majed", "u": "noto-sans-latin-ext-wght-normal.woff2", "w": "100 900", "r": "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF", "k": "noto-sans"}, {"f": "Noto Sans Majed", "u": "noto-sans-arabic-arabic-wght-normal.woff2", "w": "100 900", "r": "U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0897-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FE74,U+FE76-FEFC,U+102E0-102FB,U+10E60-10E7E,U+10EC2-10EC4,U+10EFC-10EFF,U+1EE00-1EE03,U+1EE05-1EE1F,U+1EE21-1EE22,U+1EE24,U+1EE27,U+1EE29-1EE32,U+1EE34-1EE37,U+1EE39,U+1EE3B,U+1EE42,U+1EE47,U+1EE49,U+1EE4B,U+1EE4D-1EE4F,U+1EE51-1EE52,U+1EE54,U+1EE57,U+1EE59,U+1EE5B,U+1EE5D,U+1EE5F,U+1EE61-1EE62,U+1EE64,U+1EE67-1EE6A,U+1EE6C-1EE72,U+1EE74-1EE77,U+1EE79-1EE7C,U+1EE7E,U+1EE80-1EE89,U+1EE8B-1EE9B,U+1EEA1-1EEA3,U+1EEA5-1EEA9,U+1EEAB-1EEBB,U+1EEF0-1EEF1", "k": "noto-sans-arabic"}, {"f": "IBM Plex Sans Majed", "u": "ibm-plex-sans-latin-400-normal.woff2", "w": "400", "r": "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD", "k": "ibm-plex-sans"}, {"f": "IBM Plex Sans Majed", "u": "ibm-plex-sans-latin-ext-400-normal.woff2", "w": "400", "r": "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF", "k": "ibm-plex-sans"}, {"f": "IBM Plex Sans Majed", "u": "ibm-plex-sans-latin-500-normal.woff2", "w": "500", "r": "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD", "k": "ibm-plex-sans"}, {"f": "IBM Plex Sans Majed", "u": "ibm-plex-sans-latin-ext-500-normal.woff2", "w": "500", "r": "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF", "k": "ibm-plex-sans"}, {"f": "IBM Plex Sans Majed", "u": "ibm-plex-sans-latin-600-normal.woff2", "w": "600", "r": "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD", "k": "ibm-plex-sans"}, {"f": "IBM Plex Sans Majed", "u": "ibm-plex-sans-latin-ext-600-normal.woff2", "w": "600", "r": "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF", "k": "ibm-plex-sans"}, {"f": "IBM Plex Sans Majed", "u": "ibm-plex-sans-latin-700-normal.woff2", "w": "700", "r": "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD", "k": "ibm-plex-sans"}, {"f": "IBM Plex Sans Majed", "u": "ibm-plex-sans-latin-ext-700-normal.woff2", "w": "700", "r": "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF", "k": "ibm-plex-sans"}, {"f": "IBM Plex Sans Majed", "u": "ibm-plex-sans-arabic-arabic-400-normal.woff2", "w": "400", "r": "U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0897-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FE74,U+FE76-FEFC,U+102E0-102FB,U+10E60-10E7E,U+10EC2-10EC4,U+10EFC-10EFF,U+1EE00-1EE03,U+1EE05-1EE1F,U+1EE21-1EE22,U+1EE24,U+1EE27,U+1EE29-1EE32,U+1EE34-1EE37,U+1EE39,U+1EE3B,U+1EE42,U+1EE47,U+1EE49,U+1EE4B,U+1EE4D-1EE4F,U+1EE51-1EE52,U+1EE54,U+1EE57,U+1EE59,U+1EE5B,U+1EE5D,U+1EE5F,U+1EE61-1EE62,U+1EE64,U+1EE67-1EE6A,U+1EE6C-1EE72,U+1EE74-1EE77,U+1EE79-1EE7C,U+1EE7E,U+1EE80-1EE89,U+1EE8B-1EE9B,U+1EEA1-1EEA3,U+1EEA5-1EEA9,U+1EEAB-1EEBB,U+1EEF0-1EEF1", "k": "ibm-plex-sans-arabic"}, {"f": "IBM Plex Sans Majed", "u": "ibm-plex-sans-arabic-arabic-500-normal.woff2", "w": "500", "r": "U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0897-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FE74,U+FE76-FEFC,U+102E0-102FB,U+10E60-10E7E,U+10EC2-10EC4,U+10EFC-10EFF,U+1EE00-1EE03,U+1EE05-1EE1F,U+1EE21-1EE22,U+1EE24,U+1EE27,U+1EE29-1EE32,U+1EE34-1EE37,U+1EE39,U+1EE3B,U+1EE42,U+1EE47,U+1EE49,U+1EE4B,U+1EE4D-1EE4F,U+1EE51-1EE52,U+1EE54,U+1EE57,U+1EE59,U+1EE5B,U+1EE5D,U+1EE5F,U+1EE61-1EE62,U+1EE64,U+1EE67-1EE6A,U+1EE6C-1EE72,U+1EE74-1EE77,U+1EE79-1EE7C,U+1EE7E,U+1EE80-1EE89,U+1EE8B-1EE9B,U+1EEA1-1EEA3,U+1EEA5-1EEA9,U+1EEAB-1EEBB,U+1EEF0-1EEF1", "k": "ibm-plex-sans-arabic"}, {"f": "IBM Plex Sans Majed", "u": "ibm-plex-sans-arabic-arabic-600-normal.woff2", "w": "600", "r": "U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0897-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FE74,U+FE76-FEFC,U+102E0-102FB,U+10E60-10E7E,U+10EC2-10EC4,U+10EFC-10EFF,U+1EE00-1EE03,U+1EE05-1EE1F,U+1EE21-1EE22,U+1EE24,U+1EE27,U+1EE29-1EE32,U+1EE34-1EE37,U+1EE39,U+1EE3B,U+1EE42,U+1EE47,U+1EE49,U+1EE4B,U+1EE4D-1EE4F,U+1EE51-1EE52,U+1EE54,U+1EE57,U+1EE59,U+1EE5B,U+1EE5D,U+1EE5F,U+1EE61-1EE62,U+1EE64,U+1EE67-1EE6A,U+1EE6C-1EE72,U+1EE74-1EE77,U+1EE79-1EE7C,U+1EE7E,U+1EE80-1EE89,U+1EE8B-1EE9B,U+1EEA1-1EEA3,U+1EEA5-1EEA9,U+1EEAB-1EEBB,U+1EEF0-1EEF1", "k": "ibm-plex-sans-arabic"}, {"f": "IBM Plex Sans Majed", "u": "ibm-plex-sans-arabic-arabic-700-normal.woff2", "w": "700", "r": "U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0897-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FE74,U+FE76-FEFC,U+102E0-102FB,U+10E60-10E7E,U+10EC2-10EC4,U+10EFC-10EFF,U+1EE00-1EE03,U+1EE05-1EE1F,U+1EE21-1EE22,U+1EE24,U+1EE27,U+1EE29-1EE32,U+1EE34-1EE37,U+1EE39,U+1EE3B,U+1EE42,U+1EE47,U+1EE49,U+1EE4B,U+1EE4D-1EE4F,U+1EE51-1EE52,U+1EE54,U+1EE57,U+1EE59,U+1EE5B,U+1EE5D,U+1EE5F,U+1EE61-1EE62,U+1EE64,U+1EE67-1EE6A,U+1EE6C-1EE72,U+1EE74-1EE77,U+1EE79-1EE7C,U+1EE7E,U+1EE80-1EE89,U+1EE8B-1EE9B,U+1EEA1-1EEA3,U+1EEA5-1EEA9,U+1EEAB-1EEBB,U+1EEF0-1EEF1", "k": "ibm-plex-sans-arabic"}];
+    const FONT_SOURCES = ['dsh', 'system', ...Object.keys(BUNDLED_FONTS)];
+    const listeners = new Set();
+    let state = (() => {
+      try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(STORE_KEY) || '{}') }; }
+      catch (_) { return { ...DEFAULTS }; }
+    })();
+    const clampPx = (v) => Math.min(UI_MAX_PX, Math.max(UI_MIN_PX, Math.round(Number(v)) || UI_BASE_PX));
+    state.uiFontSize = clampPx(state.uiFontSize);
+    if (!FONT_SOURCES.includes(state.fontSource)) state.fontSource = 'dsh';
+    if (!NOTIFY_MODES.includes(state.notifyMode)) state.notifyMode = 'background';
+    // Per-session auto-approve modes. 'aggressive' lives in memory only: it resets to 'ask' on restart.
+    const AP_MODES = ['ask', 'safe', 'aggressive'];
+    state.autoApprove = Object.fromEntries(Object.entries(state.autoApprove && typeof state.autoApprove === 'object' ? state.autoApprove : {}).filter(([, v]) => v === 'safe'));
+    const store = {
+      get: () => state,
+      subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
+      set(patch) {
+        state = { ...state, ...patch };
+        try { localStorage.setItem(STORE_KEY, JSON.stringify({ ...state, autoApprove: Object.fromEntries(Object.entries(state.autoApprove || {}).filter(([, v]) => v === 'safe')) })); } catch (_) {}
+        listeners.forEach((fn) => fn(state));
+      },
+    };
+    const useSetting = (key) => React.useSyncExternalStore(store.subscribe, () => store.get()[key]);
+
+    // ───────────────────────── dictionaries ─────────────────────────
+    const NS = 'majed';
+    const en = {
+      'bidi.title': 'Bidirectional text',
+      'bidi.description': 'Detects Arabic, Persian and Hebrew per paragraph and lays it out right-to-left (chat, reasoning, tools, GenUI components).',
+      'size.title': 'App UI font size',
+      'size.description': 'Font size of the app interface (sidebar, headers, composer, panels). The chat font size above is unchanged.',
+      'size.increase': 'Increase app UI font size',
+      'size.decrease': 'Decrease app UI font size',
+      'size.unit': 'px',
+      'font.title': 'App font',
+      'font.description': 'Choose the typeface used by the app interface and chat text.',
+      'font.dsh': 'DSH default',
+      'font.system': 'System font',
+      'font.inter': 'Inter',
+      'font.roboto': 'Roboto',
+      'font.open-sans': 'Open Sans',
+      'font.noto-sans': 'Noto Sans',
+      'font.ibm-plex-sans': 'IBM Plex Sans',
+      'notify.title': 'System notifications',
+      'notify.description': 'Send a desktop notification when a session finishes or needs your attention.',
+      'notify.off': 'Off',
+      'notify.background': 'Only when app is in background',
+      'notify.always': 'Always (silent while app is focused)',
+      'notify.test': 'Send test',
+      'notify.testBody': 'Notifications are working.',
+      'notify.status.granted': 'Allowed on this device.',
+      'notify.status.default': 'Not allowed yet — tap “Send test” to allow notifications.',
+      'notify.status.denied': 'Blocked — allow notifications for this site in the browser settings.',
+      'notify.status.insecure': 'Unavailable: this page is not served over HTTPS. Use the tunnel (https) link. In-app alerts still appear.',
+      'notify.status.unsupported': 'Unsupported here. On iPhone, add the app to the Home Screen first. In-app alerts still appear.',
+      'notify.done.title': 'Notify on completion',
+      'notify.done.description': 'When a session finishes its work.',
+      'notify.action.title': 'Notify when action is needed',
+      'notify.action.description': 'When a session waits for an approval, a question, or a plan review.',
+      'notify.msg.done': 'Finished — ready for review',
+      'notify.msg.approval': 'Approval needed: {tool}',
+      'notify.msg.approvalPlain': 'Approval needed',
+      'notify.msg.question': 'Waiting for your answer',
+      'notify.msg.plan': 'Plan ready for your review',
+      'notify.session': 'Session',
+      'account.title': 'Group sidebar actions in account menu',
+      'account.description': 'Moves extra sidebar buttons (such as Remote access) into the account menu instead of showing them beside it.',
+      'copy.title': 'Copy on select',
+      'copy.description': 'Automatically copy any text you select in the app to the clipboard. Text inside input fields is not copied.',
+      'copy.toast': 'Copied to clipboard',
+      'ap.label': 'Approvals',
+      'ap.ask': 'Ask me',
+      'ap.safe': 'Auto (safe)',
+      'ap.aggressive': 'Auto (aggressive)',
+      'ap.aria': 'Automatic approval for this session',
+      'ap.confirm': 'Aggressive mode approves almost every request automatically in this session — including full-access escalations, network access and unknown tools. Destructive commands (rm -rf, sudo, force-push, secrets…) still ask you. It resets when the app restarts. Enable it?',
+      'ap.toast': 'Auto-approved: {tool}',
+      'ap.paused': 'Auto-approval paused after repeated requests that need your decision.',
+    };
+    const zh = {
+      'bidi.title': '双向文本（RTL）',
+      'bidi.description': '按段落识别阿拉伯语、波斯语、希伯来语并从右到左排版（对话、思考、工具、GenUI 组件）。',
+      'size.title': '应用界面字号',
+      'size.description': '应用界面（侧边栏、标题栏、输入框、面板）的字号，不影响上方的对话字号。',
+      'size.increase': '增大应用界面字号',
+      'size.decrease': '减小应用界面字号',
+      'size.unit': 'px',
+      'font.title': '应用字体',
+      'font.description': '选择应用界面与对话文字使用的字体。',
+      'font.dsh': 'DSH 默认',
+      'font.system': '系统字体',
+      'font.inter': 'Inter',
+      'font.roboto': 'Roboto',
+      'font.open-sans': 'Open Sans',
+      'font.noto-sans': 'Noto Sans',
+      'font.ibm-plex-sans': 'IBM Plex Sans',
+      'notify.title': '系统通知',
+      'notify.description': '会话完成或需要你处理时发送桌面通知。',
+      'notify.off': '关闭',
+      'notify.background': '仅应用在后台时',
+      'notify.always': '始终（应用在前台时静音）',
+      'notify.test': '发送测试',
+      'notify.testBody': '通知正常工作。',
+      'notify.status.granted': '已在此设备上允许。',
+      'notify.status.default': '尚未允许：点击“发送测试”以允许通知。',
+      'notify.status.denied': '已被阻止：请在浏览器设置中允许此网站发送通知。',
+      'notify.status.insecure': '不可用：当前页面不是 HTTPS。请使用隧道（https）链接；应用内提醒仍会显示。',
+      'notify.status.unsupported': '此处不支持。iPhone 请先将应用添加到主屏幕；应用内提醒仍会显示。',
+      'notify.done.title': '完成时通知',
+      'notify.done.description': '会话完成工作时。',
+      'notify.action.title': '需要操作时通知',
+      'notify.action.description': '会话等待审批、提问或计划审阅时。',
+      'notify.msg.done': '已完成，等待查看',
+      'notify.msg.approval': '需要审批：{tool}',
+      'notify.msg.approvalPlain': '需要审批',
+      'notify.msg.question': '等待你的回答',
+      'notify.msg.plan': '计划待审阅',
+      'notify.session': '会话',
+      'account.title': '将侧边栏操作收进账户菜单',
+      'account.description': '把额外的侧边栏按钮（如远程访问）移入账户菜单，而不是显示在旁边。',
+      'copy.title': '选中即复制',
+      'copy.description': '在应用中选中的文字会自动复制到剪贴板。输入框内的文字不会被复制。',
+      'copy.toast': '已复制到剪贴板',
+      'ap.label': '审批',
+      'ap.ask': '手动确认',
+      'ap.safe': '自动（安全）',
+      'ap.aggressive': '自动（激进）',
+      'ap.aria': '本会话的自动审批',
+      'ap.confirm': '激进模式会在本会话中自动批准所有请求，包括完全访问提权、网络访问和未知工具；应用重启后会重置。确定开启吗？',
+      'ap.toast': '已自动批准：{tool}',
+      'ap.paused': '多次出现需要你决定的请求，已暂停自动审批。',
+    };
+
+    // ───────────────────────── settings rows ─────────────────────────
+    const ROW_CSS = `
+.majed-row{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:16px 0;border-bottom:.5px solid var(--dsw-alias-border-l2)}
+.majed-text{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
+.majed-title{color:var(--dsw-alias-label-primary);font:var(--dsw-font-s-14)}
+.majed-desc{color:var(--dsw-alias-label-tertiary);font:var(--dsw-font-xxs-12)}
+.majed-control{display:inline-flex;align-items:center;gap:8px}
+.majed-stepper{display:inline-flex;align-items:center;justify-content:center;min-width:72px;height:36px;border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-module-platform);position:relative}
+.majed-value{min-width:30px;text-align:center;font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-primary);font:var(--dsw-font-s-14)}
+.majed-arrows{position:absolute;right:6px;display:flex;flex-direction:column;gap:2px;opacity:0}
+.majed-stepper:hover .majed-arrows,.majed-stepper:focus-within .majed-arrows{opacity:1}
+.majed-arrow{width:17px;height:12px;display:inline-flex;align-items:center;justify-content:center;border:none;padding:0;border-radius:var(--dsw-radius-xs);background:color-mix(in srgb,var(--dsw-alias-bg-layer-1) 75%,transparent);color:var(--dsw-alias-label-primary);cursor:pointer;font-size:calc(8px + var(--majed-ui-d,0px));line-height:1}
+.majed-arrow:hover:not(:disabled){background:var(--dsw-alias-bg-layer-1)}
+.majed-arrow:disabled{color:var(--dsw-alias-label-caption);cursor:default}
+.majed-unit{color:var(--dsw-alias-label-secondary);font:var(--dsw-font-s-14)}
+.majed-selector{display:inline-flex;align-items:center;gap:12px;height:36px;padding:0 14px;border:none;border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);font:var(--dsw-font-s-14);cursor:pointer}
+.majed-selector:hover{background:var(--dsw-alias-interactive-bg-hover)}
+.majed-chevron{flex:none}
+.majed-test{height:36px;padding:0 12px;border:none;border-radius:var(--dsw-radius-md);background:transparent;color:var(--dsw-alias-label-secondary);font:var(--dsw-font-xs-13);cursor:pointer}
+.majed-test:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
+.majed-test:disabled{opacity:.4;cursor:default}
+.majed-status{display:inline-block;margin-top:2px}
+.majed-status[data-state=granted]{color:var(--dsw-alias-state-success-primary,#3ecf8e)}
+.majed-status[data-state=denied],.majed-status[data-state=unsupported]{color:var(--dsw-alias-state-error-primary,#ff6b6b)}
+.majed-ap-trigger{display:inline-flex;align-items:center;gap:6px;min-width:0;max-width:200px;height:28px;padding:0 6px 0 8px;border:none;border-radius:var(--dsw-radius-sm);background:transparent;color:var(--dsw-alias-label-secondary);font:var(--dsw-font-xs-strong-13);cursor:pointer}
+.majed-ap-trigger:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}
+.majed-ap-trigger:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}
+.majed-ap-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.majed-ap-dot{flex:none;width:7px;height:7px;border-radius:50%;background:var(--dsw-alias-label-caption)}
+.majed-ap-trigger[data-mode=safe] .majed-ap-dot{background:var(--dsw-alias-state-success-primary,#3ecf8e)}
+.majed-ap-trigger[data-mode=aggressive] .majed-ap-dot{background:var(--dsw-alias-state-error-primary,#ff6b6b)}
+.majed-ap-trigger[data-mode=aggressive]{color:var(--dsw-alias-state-error-primary,#ff6b6b)}
+[data-majed-menu-trigger]{width:0!important;height:0!important;min-width:0!important;min-height:0!important;margin:0!important;padding:0!important;border:0!important;overflow:hidden!important;opacity:0!important;pointer-events:none!important;flex:none!important}
+`;
+
+    function BidiRow({ t }) {
+      const on = useSetting('bidi');
+      const Switch = primitives.Switch;
+      return h('div', { className: 'majed-row' },
+        h('div', { className: 'majed-text' },
+          h('div', { className: 'majed-title' }, t('bidi.title')),
+          h('div', { className: 'majed-desc' }, t('bidi.description'))),
+        Switch
+          ? h(Switch, { checked: on, label: t('bidi.title'), onChange: (next) => store.set({ bidi: !!next }) })
+          : h('input', { type: 'checkbox', checked: on, 'aria-label': t('bidi.title'), onChange: (e) => store.set({ bidi: e.target.checked }) }));
+    }
+
+    function UiFontSizeRow({ t }) {
+      const size = useSetting('uiFontSize');
+      const Up = primitives.IconChevronUpOutlineRegular, Down = primitives.IconChevronDownOutlineRegular;
+      const set = (v) => store.set({ uiFontSize: clampPx(v) });
+      return h('div', { className: 'majed-row' },
+        h('div', { className: 'majed-text' },
+          h('div', { className: 'majed-title' }, t('size.title')),
+          h('div', { className: 'majed-desc' }, t('size.description'))),
+        h('div', { className: 'majed-control' },
+          h('div', { className: 'majed-stepper' },
+            h('span', { className: 'majed-value' }, size),
+            h('span', { className: 'majed-arrows' },
+              h('button', { type: 'button', className: 'majed-arrow', 'aria-label': t('size.increase'), disabled: size >= UI_MAX_PX, onClick: () => set(size + 1) }, Up ? h(Up, { size: 9 }) : '▲'),
+              h('button', { type: 'button', className: 'majed-arrow', 'aria-label': t('size.decrease'), disabled: size <= UI_MIN_PX, onClick: () => set(size - 1) }, Down ? h(Down, { size: 9 }) : '▼'))),
+          h('span', { className: 'majed-unit' }, t('size.unit'))));
+    }
+
+    /** Same look as the built-in "Open chat links in" row: title/description + dropdown button. */
+    function FontSourceRow({ t }) {
+      const value = useSetting('fontSource');
+      const [open, setOpen] = React.useState(false);
+      const ref = React.useRef(null);
+      const Menu = primitives.Menu, Chevron = primitives.IconChevronDownOutlineRegular;
+      const close = () => setOpen(false);
+      const selector = h('button', {
+        ref, type: 'button', className: 'majed-selector', 'aria-haspopup': 'menu', 'aria-expanded': open,
+        onClick: () => setOpen((v) => !v),
+      }, t('font.' + value), Chevron ? h(Chevron, { className: 'majed-chevron' }) : '▾');
+      return h('div', { className: 'majed-row' },
+        h('div', { className: 'majed-text' },
+          h('div', { className: 'majed-title' }, t('font.title')),
+          h('div', { className: 'majed-desc' }, t('font.description'))),
+        Menu
+          ? h(Menu, {
+              open, onClose: close, selectedId: value, align: 'end', portal: true, anchor: selector,
+              items: FONT_SOURCES.map((id) => ({ id, label: t('font.' + id) })),
+              onSelect: (id) => { ref.current && ref.current.focus({ preventScroll: true }); close(); store.set({ fontSource: id }); },
+            })
+          : h('select', { value, onChange: (e) => store.set({ fontSource: e.target.value }) },
+              FONT_SOURCES.map((id) => h('option', { key: id, value: id }, t('font.' + id)))));
+    }
+
+    // ───────────────────────── generic rows (same look as built-in ones) ─────────────────────────
+    function SelectRow({ title, description, value, options, onSelect, extra }) {
+      const [open, setOpen] = React.useState(false);
+      const ref = React.useRef(null);
+      const Menu = primitives.Menu, Chevron = primitives.IconChevronDownOutlineRegular;
+      const close = () => setOpen(false);
+      const current = options.find((o) => o.id === value);
+      const selector = h('button', {
+        ref, type: 'button', className: 'majed-selector', 'aria-haspopup': 'menu', 'aria-expanded': open,
+        onClick: () => setOpen((v) => !v),
+      }, current ? current.label : value, Chevron ? h(Chevron, { className: 'majed-chevron' }) : '▾');
+      return h('div', { className: 'majed-row' },
+        h('div', { className: 'majed-text' },
+          h('div', { className: 'majed-title' }, title),
+          h('div', { className: 'majed-desc' }, description)),
+        h('div', { className: 'majed-control' }, extra || null,
+          Menu
+            ? h(Menu, {
+                open, onClose: close, selectedId: value, align: 'end', portal: true, anchor: selector, items: options,
+                onSelect: (id) => { ref.current && ref.current.focus({ preventScroll: true }); close(); onSelect(id); },
+              })
+            : h('select', { value, onChange: (e) => onSelect(e.target.value) },
+                options.map((o) => h('option', { key: o.id, value: o.id }, o.label)))));
+    }
+    function ToggleRow({ title, description, checked, onChange }) {
+      const Switch = primitives.Switch;
+      return h('div', { className: 'majed-row' },
+        h('div', { className: 'majed-text' },
+          h('div', { className: 'majed-title' }, title),
+          h('div', { className: 'majed-desc' }, description)),
+        Switch
+          ? h(Switch, { checked, label: title, onChange: (n) => onChange(!!n) })
+          : h('input', { type: 'checkbox', checked, 'aria-label': title, onChange: (e) => onChange(e.target.checked) }));
+    }
+
+    // ───────────────────────── system notifications ─────────────────────────
+    let appCtx = null;
+    const fmt = (str, vars) => String(str).replace(/\{(\w+)\}/g, (_, k) => (vars && vars[k] != null ? vars[k] : ''));
+
+    /** Capabilities of THIS browser/webview, used both to pick a delivery path and to explain failures. */
+    function notifyCaps() {
+      const hasApi = typeof Notification !== 'undefined';
+      return {
+        api: hasApi,
+        secure: window.isSecureContext !== false,
+        sw: 'serviceWorker' in navigator,
+        permission: hasApi ? Notification.permission : 'unsupported',
+      };
+    }
+    // requestPermission() must run inside a user gesture on mobile browsers; callers pass `fromGesture`
+    // only from click handlers. Without a gesture we never prompt (it would be silently ignored).
+    async function ensurePermission(fromGesture) {
+      const caps = notifyCaps();
+      if (!caps.api) return false;
+      if (caps.permission === 'granted') return true;
+      if (caps.permission === 'denied' || !fromGesture) return false;
+      try { return (await Notification.requestPermission()) === 'granted'; } catch (_) { return false; }
+    }
+    async function swRegistration() {
+      try {
+        if (!('serviceWorker' in navigator)) return null;
+        const reg = await navigator.serviceWorker.getRegistration();
+        return reg && typeof reg.showNotification === 'function' ? reg : null;
+      } catch (_) { return null; }
+    }
+    const appFocused = () => !document.hidden && document.hasFocus();
+    function shouldNotify() {
+      const mode = store.get().notifyMode;
+      if (mode === 'off') return false;
+      if (mode === 'always') return true;
+      return !appFocused();
+    }
+    const live = new Set();
+    async function notify({ title, body, sessionId, tag, fromGesture }) {
+      const options = { body, tag, renotify: true, silent: appFocused(), data: { sessionId } };
+      if (await ensurePermission(!!fromGesture)) {
+        // 1) Service-worker registration: the only API Chrome on Android allows, and it also works on
+        //    desktop and in installed iOS web apps. The remote-access plugin already registers one.
+        const reg = await swRegistration();
+        if (reg) { try { await reg.showNotification(title, options); return; } catch (_) { /* fall through */ } }
+        // 2) Classic constructor (desktop browsers, Electron). Mute the sound while the app is focused.
+        try {
+          const n = new Notification(title, options);
+          live.add(n);
+          n.onclose = () => live.delete(n);
+          n.onclick = () => {
+            try { window.focus(); } catch (_) {}
+            try { if (sessionId && appCtx && appCtx.uiWorkspace) appCtx.uiWorkspace.openSession(sessionId); } catch (_) {}
+            n.close();
+          };
+          return;
+        } catch (_) { /* e.g. "Illegal constructor" on Android: fall through */ }
+      }
+      // 3) Last resort so the event is never lost: in-app banner + haptic buzz.
+      try { showToast(title + ' — ' + body); } catch (_) {}
+      try { if (!appFocused() && navigator.vibrate) navigator.vibrate([120, 60, 120]); } catch (_) {}
+    }
+
+    function describePending(p, t) {
+      if (!p) return null;
+      if (p.kind === 'plan-review') return { key: p.key, text: t('notify.msg.plan'), type: 'action' };
+      if (p.questions) return { key: p.key, text: t('notify.msg.question'), type: 'action' };
+      return { key: p.key || p.callId, type: 'action',
+        text: p.toolName ? fmt(t('notify.msg.approval'), { tool: p.toolName }) : t('notify.msg.approvalPlain') };
+    }
+
+    /** Invisible root component: watches session status through the standard `useSessionStatus` hook. */
+    function NotificationWatcher({ useSessionStatus, useSessions, t }) {
+      const status = useSessionStatus((m) => m);
+      const list = useSessions((l) => l);
+      const prev = React.useRef(null);        // Map(sessionId -> { running, pendingKey })
+      const t0 = React.useRef(new Map());     // sessionId -> run start
+      React.useEffect(() => {
+        const next = new Map();
+        const titleOf = (id) => {
+          const row = list && list.byId && list.byId[id];
+          return (row && (row.title || row.name)) || t('notify.session');
+        };
+        for (const [id, st] of status) {
+          const pending = describePending(st.pendingInteraction, t);
+          next.set(id, { running: st.running === true, pendingKey: pending ? String(pending.key) : null });
+          const before = prev.current && prev.current.get(id);
+          if (!prev.current) continue;                                   // first snapshot = baseline
+          const cfg = store.get();
+          if (st.running === true && !(before && before.running)) t0.current.set(id, Date.now());
+          if (pending && cfg.notifyAction && (!before || before.pendingKey !== String(pending.key)) && shouldNotify()) {
+            notify({ title: titleOf(id), body: pending.text, sessionId: id, tag: `${id}:action` });
+          } else if (before && before.running && st.running === false && !pending && cfg.notifyDone && shouldNotify()) {
+            notify({ title: titleOf(id), body: t('notify.msg.done'), sessionId: id, tag: `${id}:done` });
+          }
+        }
+        prev.current = next;
+      }, [status, list, t]);
+      return null;
+    }
+
+    function NotifyModeRow({ t }) {
+      const mode = useSetting('notifyMode');
+      const [, setTick] = React.useState(0);
+      const caps = notifyCaps();
+      const statusKey = !caps.api ? (caps.secure ? 'notify.status.unsupported' : 'notify.status.insecure')
+        : caps.permission === 'granted' ? 'notify.status.granted'
+        : caps.permission === 'denied' ? 'notify.status.denied' : 'notify.status.default';
+      const options = NOTIFY_MODES.map((id) => ({ id, label: t('notify.' + id) }));
+      const test = h('button', {
+        type: 'button', className: 'majed-test', disabled: mode === 'off',
+        onClick: async () => { await notify({ title: 'DeepSeek Harness', body: t('notify.testBody'), tag: 'majed:test', fromGesture: true }); setTick((n) => n + 1); },
+      }, t('notify.test'));
+      return h(SelectRow, {
+        title: t('notify.title'),
+        description: h('span', null, t('notify.description'), h('br'), h('span', { className: 'majed-status', 'data-state': caps.permission }, t(statusKey))),
+        value: mode, options, extra: test,
+        onSelect: (id) => { store.set({ notifyMode: id }); if (id !== 'off') ensurePermission(true).then(() => setTick((n) => n + 1)); },
+      });
+    }
+    function NotifyDoneRow({ t }) {
+      const on = useSetting('notifyDone');
+      return h(ToggleRow, { title: t('notify.done.title'), description: t('notify.done.description'), checked: on, onChange: (v) => store.set({ notifyDone: v }) });
+    }
+    function NotifyActionRow({ t }) {
+      const on = useSetting('notifyAction');
+      return h(ToggleRow, { title: t('notify.action.title'), description: t('notify.action.description'), checked: on, onChange: (v) => store.set({ notifyAction: v }) });
+    }
+
+    // ───────────────────────── account menu: extra actions live inside it ─────────────────────────
+    // DSH builds the account menu (Settings / Feedback / Sign out) from fixed props, and plugins such as
+    // Remote access add their button to the `sidebar.footer.action` slot instead. We (1) hide those footer
+    // triggers (zero-size, still mounted, so their panels and state keep working) and (2) add an equivalent
+    // item to the account menu whenever it opens; selecting it clicks the hidden trigger.
+    const ACCOUNT_TRIGGER = 'button[data-signed-out]';
+    const FOOTER_SLOT = '[data-slot="sidebar.footer.action"]';
+    const accountItems = new Map();   // id -> { id, label, icon?: svg markup, order?, onSelect }
+
+    function footerTriggers() {
+      const out = [];
+      document.querySelectorAll(FOOTER_SLOT).forEach((slot) => {
+        Array.from(slot.children).forEach((child) => {
+          const trigger = child.matches('button') ? child : child.querySelector('button');
+          if (trigger) out.push(trigger);
+        });
+      });
+      return out;
+    }
+    function markFooterTriggers(on) {
+      for (const t of footerTriggers()) {
+        if (on) t.setAttribute('data-majed-menu-trigger', '');
+        else t.removeAttribute('data-majed-menu-trigger');
+      }
+    }
+    function footerMenuItems() {
+      const out = [];
+      for (const trigger of footerTriggers()) {
+        const label = (trigger.getAttribute('aria-label') || trigger.getAttribute('title') || trigger.textContent || '').trim();
+        if (!label) continue;
+        out.push({ id: 'footer:' + label, label, order: 1000 + out.length, svg: trigger.querySelector('svg'), onSelect: () => trigger.click() });
+      }
+      return out;
+    }
+    function removeInjectedItems() {
+      document.querySelectorAll('[data-majed-item]').forEach((b) => { const w = b.parentElement; if (w) w.remove(); });
+    }
+    function injectAccountItems(menu, trigger) {
+      const buttons = Array.from(menu.querySelectorAll('[role="menuitem"]')).filter((b) => !b.hasAttribute('data-majed-item'));
+      if (!buttons.length) return;
+      const template = buttons.find((b) => !b.querySelector('[aria-hidden="true"]')) || buttons[0];
+      const anchorWrap = buttons[buttons.length - 1].parentElement;   // before Sign out / Sign in
+      const have = new Set(Array.from(menu.querySelectorAll('[data-majed-item]')).map((n) => n.getAttribute('data-majed-item')));
+      const items = [...footerMenuItems(), ...accountItems.values()].sort((a, b) => (a.order || 0) - (b.order || 0));
+      for (const item of items) {
+        if (have.has(item.id)) continue;
+        const wrap = template.parentElement.cloneNode(true);
+        wrap.querySelectorAll('[role="separator"]').forEach((n) => n.remove());
+        const btn = wrap.querySelector('[role="menuitem"]');
+        btn.setAttribute('data-majed-item', item.id);
+        btn.removeAttribute('disabled'); btn.removeAttribute('aria-keyshortcuts');
+        const spans = Array.from(btn.children).filter((n) => n.tagName === 'SPAN');
+        const iconSpan = spans.length >= 2 ? spans[0] : null;
+        const labelSpan = spans.length >= 2 ? spans[1] : spans[0];
+        spans.slice(2).forEach((n) => n.remove());
+        if (labelSpan) labelSpan.textContent = item.label;
+        if (iconSpan) {
+          iconSpan.textContent = '';
+          if (item.svg) { const c = item.svg.cloneNode(true); c.setAttribute('width', '16'); c.setAttribute('height', '16'); iconSpan.appendChild(c); }
+          else if (item.icon) iconSpan.innerHTML = item.icon;
+        }
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          try { item.onSelect(); } finally {
+            if (trigger.getAttribute('aria-expanded') === 'true') trigger.click();   // close the account menu
+          }
+        });
+        anchorWrap.parentElement.insertBefore(wrap, anchorWrap);
+      }
+    }
+    function syncAccountMenu() {
+      const on = store.get().accountMenu;
+      markFooterTriggers(on);
+      if (!on) { removeInjectedItems(); return; }
+      const trigger = document.querySelector(ACCOUNT_TRIGGER);
+      if (!trigger || trigger.getAttribute('aria-expanded') !== 'true') return;
+      const menus = document.querySelectorAll('[role="menu"]');
+      const menu = menus[menus.length - 1];
+      if (menu) injectAccountItems(menu, trigger);
+    }
+    function startAccountMenu() {
+      let raf = null;
+      const schedule = () => { if (raf === null) raf = requestAnimationFrame(() => { raf = null; syncAccountMenu(); }); };
+      const observer = new MutationObserver(schedule);
+      observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-expanded'] });
+      const unsub = store.subscribe(schedule);
+      // Public hook so later features of this plugin (or others) can add items to the same menu.
+      const api = {
+        register(item) { accountItems.set(item.id, item); schedule(); return () => { accountItems.delete(item.id); removeInjectedItems(); schedule(); }; },
+      };
+      window.__dshMajed = Object.assign(window.__dshMajed || {}, { accountMenu: api });
+      schedule();
+      return () => {
+        observer.disconnect(); unsub();
+        if (raf !== null) cancelAnimationFrame(raf);
+        markFooterTriggers(false); removeInjectedItems(); accountItems.clear();
+        if (window.__dshMajed) delete window.__dshMajed.accountMenu;
+      };
+    }
+    function AccountMenuRow({ t }) {
+      const on = useSetting('accountMenu');
+      return h(ToggleRow, { title: t('account.title'), description: t('account.description'), checked: on, onChange: (v) => store.set({ accountMenu: v }) });
+    }
+
+    // ───────────────────────── copy on select ─────────────────────────
+    // Copies the current text selection when the user finishes selecting (mouse up / keyboard selection
+    // keys), never mid-drag. Selections inside editable fields are ignored so typing is never disturbed.
+    function isEditable(el) {
+      if (!el) return false;
+      if (el.isContentEditable) return true;
+      const tag = el.tagName;
+      return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+    }
+    // Lightweight toast that matches DSH's own (same tokens, top-centre, ~2s). It lives in <body>, outside
+    // React, so it works from plain DOM listeners; one element is reused so rapid copies don't stack.
+    const TOAST_CSS = `
+.majed-toast{position:fixed;top:40px;left:50%;z-index:2147483000;transform:translate(-50%,-6px);display:flex;align-items:center;gap:10px;width:max-content;max-width:min(640px,calc(100vw - 48px));padding:12px 16px;border-radius:var(--dsw-radius-lg,16px);background:var(--dsw-alias-toast-bg,#2b2b2e);color:var(--dsw-alias-toast-label,#fff);font:var(--dsw-font-s-14);box-shadow:var(--dsw-shadow-lv3,0 8px 24px rgba(0,0,0,.28));pointer-events:none;opacity:0;transition:opacity .16s ease,transform .16s ease}
+.majed-toast[data-show]{opacity:1;transform:translate(-50%,0)}
+.majed-toast svg{flex:none;width:16px;height:16px;color:var(--dsw-alias-state-success-primary,#3ecf8e)}
+`;
+    let toastEl = null, toastTimer = null, toastStyle = null;
+    function showToast(text) {
+      if (!document.body) return;
+      if (!toastStyle) { toastStyle = document.createElement('style'); toastStyle.setAttribute('data-majed-toast-style', ''); toastStyle.textContent = TOAST_CSS; document.head.appendChild(toastStyle); }
+      if (!toastEl) {
+        toastEl = document.createElement('div');
+        toastEl.className = 'majed-toast'; toastEl.setAttribute('role', 'status'); toastEl.setAttribute('aria-live', 'polite');
+        toastEl.innerHTML = '<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 4.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span></span>';
+        document.body.appendChild(toastEl);
+      }
+      toastEl.lastElementChild.textContent = text;
+      // restart the transition when a toast is already visible
+      toastEl.removeAttribute('data-show'); void toastEl.offsetWidth; toastEl.setAttribute('data-show', '');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { if (toastEl) toastEl.removeAttribute('data-show'); }, 2000);
+    }
+    function disposeToast() {
+      clearTimeout(toastTimer);
+      if (toastEl) { toastEl.remove(); toastEl = null; }
+      if (toastStyle) { toastStyle.remove(); toastStyle = null; }
+    }
+
+    function startAutoCopy(onCopied) {
+      let last = '';
+      const done = () => { if (onCopied) onCopied(); };
+      const copy = (text) => {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done, () => { try { if (document.execCommand('copy')) done(); } catch (_) {} });
+        } else { try { if (document.execCommand('copy')) done(); } catch (_) {} }
+      };
+      const run = () => {
+        const sel = window.getSelection && window.getSelection();
+        if (!sel || sel.isCollapsed) { last = ''; return; }
+        const text = sel.toString();
+        if (!text || !text.trim() || text === last) return;
+        const anchor = sel.anchorNode && (sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement);
+        if (isEditable(document.activeElement) || isEditable(anchor) || (anchor && anchor.closest && anchor.closest('[contenteditable="true"], .xterm'))) return;
+        last = text;
+        copy(text);
+      };
+      let timer = null;
+      const later = () => { clearTimeout(timer); timer = setTimeout(run, 30); };
+      const onKey = (e) => { if (e.shiftKey || e.key === 'a' || e.key === 'A') later(); };
+      document.addEventListener('mouseup', later, true);
+      document.addEventListener('dblclick', later, true);
+      document.addEventListener('keyup', onKey, true);
+      return () => {
+        clearTimeout(timer);
+        document.removeEventListener('mouseup', later, true);
+        document.removeEventListener('dblclick', later, true);
+        document.removeEventListener('keyup', onKey, true);
+      };
+    }
+    function AutoCopyRow({ t }) {
+      const on = useSetting('autoCopy');
+      return h(ToggleRow, { title: t('copy.title'), description: t('copy.description'), checked: on, onChange: (v) => store.set({ autoCopy: v }) });
+    }
+
+    // ───────────────────────── command classifier (inlined from lib/classify.cjs; tested in test/) ─────────────────────────
+    const CLASSIFY = (function () {
+    /**
+     * Deterministic approval classifier for shell commands (no LLM, no network).
+     *
+     * Verdicts:
+     *   'allow' — every part is positively recognised as non-destructive and contained
+     *   'ask'   — unknown / ambiguous: a human decides (the default for anything not recognised)
+     *   'deny'  — matches a hard rule (destroys data, rewrites shared history, leaks secrets, escalates the
+     *             machine); never auto-approved, even in "aggressive" mode's sibling "safe" mode.
+     *
+     * Principles (from Claude Code auto mode, Codex `is_safe_command`, anumati, Qwen auto-mode docs):
+     *  - judge real effect, not surface text: a chain is safe only if EVERY segment is safe;
+     *  - allow-list by shape (program + sub-command + flags), never "anything except X";
+     *  - command substitution, eval, process substitution, here-docs and unknown redirects => not provable => ask;
+     *  - hard-deny the irreversible / shared-state / secret / persistence classes regardless of intent.
+     *
+     * The module is plain ES5-ish JS so it can be inlined into the browser client and unit-tested in Node.
+     */
+
+    /* ─────────────────────────── tokenizer ─────────────────────────── */
+
+    /** Split a command line into top-level segments + words. Returns null when the line is not statically analysable. */
+    function parse(line) {
+      const segments = [];       // { words: string[], op: string|null (operator that FOLLOWS), redirects: string[] }
+      let words = [], cur = '', has = false, quote = null, i = 0;
+      let redirects = [];
+      const pushWord = () => { if (has) { words.push(cur); cur = ''; has = false; } };
+      const pushSeg = (op) => { pushWord(); if (words.length || redirects.length || op) segments.push({ words, op, redirects }); words = []; redirects = []; };
+      const n = line.length;
+      while (i < n) {
+        const c = line[i];
+        if (quote === "'") { if (c === "'") quote = null; else { cur += c; has = true; } i++; continue; }
+        if (quote === '"') {
+          if (c === '"') { quote = null; i++; continue; }
+          if (c === '\\' && i + 1 < n) { cur += line[i + 1]; has = true; i += 2; continue; }
+          if (c === '$' && (line[i + 1] === '(' || line[i + 1] === '{')) return null;   // substitution / expansion with code
+          if (c === '`') return null;
+          cur += c; has = true; i++; continue;
+        }
+        if (c === "'" || c === '"') { quote = c; has = true; i++; continue; }
+        if (c === '\\') { if (i + 1 < n) { cur += line[i + 1]; has = true; i += 2; continue; } return null; }
+        if (c === '`') return null;
+        if (c === '$' && (line[i + 1] === '(' || line[i + 1] === '{')) return null;
+        if ((c === '<' || c === '>') && line[i + 1] === '(') return null;               // process substitution
+        if (c === '<' && line[i + 1] === '<') return null;                              // here-doc / here-string
+        if (c === '\n' || c === ';') { pushSeg(c === ';' ? ';' : '\n'); i++; continue; }
+        if (c === '&') {
+          if (line[i + 1] === '&') { pushSeg('&&'); i += 2; continue; }
+          if (line[i - 1] === '>' || line[i + 1] === '>') { cur += c; has = true; i++; continue; }  // 2>&1, &>
+          pushSeg('&'); i++; continue;
+        }
+        if (c === '|') {
+          if (line[i + 1] === '|') { pushSeg('||'); i += 2; continue; }
+          pushSeg('|'); i++; continue;
+        }
+        if (c === ' ' || c === '\t') { pushWord(); i++; continue; }
+        if (c === '>' || c === '<') {
+          // redirection: capture target word
+          pushWord();
+          let op = c; i++;
+          if (line[i] === '>') { op += '>'; i++; }
+          if (line[i] === '&') { op += '&'; i++; }
+          while (line[i] === ' ') i++;
+          let target = '';
+          while (i < n && !/[\s;&|<>]/.test(line[i])) { target += line[i]; i++; }
+          redirects.push(op + target);
+          continue;
+        }
+        cur += c; has = true; i++;
+      }
+      if (quote) return null;
+      pushSeg(null);
+      return segments.filter((s) => s.words.length || s.redirects.length);
+    }
+
+    /* ─────────────────────────── helpers ─────────────────────────── */
+
+    const SECRET_PATH = /(^|\/)(\.ssh|\.aws|\.gnupg|\.kube|\.docker\/config\.json|\.netrc|\.npmrc|\.pypirc|id_(rsa|ed25519|ecdsa|dsa)|\.env(\.[\w.-]+)?|credentials(\.json)?|secrets?(\.[\w]+)?|[\w.-]*\.(pem|key|p12|pfx|keystore))$/i;
+    const SECRET_CONTAINS = /(\.ssh\/|\.aws\/|\.gnupg\/|Library\/Keychains|\/etc\/(shadow|sudoers)|keychain)/i;
+    function touchesSecret(w) { return SECRET_PATH.test(w) || SECRET_CONTAINS.test(w); }
+
+    function basename(p) { const m = /([^/]+)$/.exec(p); return m ? m[1] : p; }
+
+    /** Strip leading env assignments (FOO=bar cmd) and harmless wrappers. Returns { env, words } or null if env sets code-affecting vars. */
+    const DANGEROUS_ENV = /^(LD_PRELOAD|LD_LIBRARY_PATH|DYLD_[A-Z_]+|PATH|NODE_OPTIONS|PYTHONPATH|PYTHONSTARTUP|BASH_ENV|ENV|PROMPT_COMMAND|GIT_SSH_COMMAND|GIT_EXTERNAL_DIFF|GIT_PAGER|GIT_ASKPASS|SSH_ASKPASS|EDITOR|VISUAL|PAGER|SHELL|HOME)$/;
+    function stripPrefix(words) {
+      let i = 0;
+      while (i < words.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(words[i])) {
+        if (DANGEROUS_ENV.test(words[i].split('=')[0])) return null;
+        i++;
+      }
+      let w = words.slice(i);
+      for (;;) {
+        if (w[0] === 'time' || w[0] === 'command' || w[0] === 'builtin' || w[0] === 'nohup') { w = w.slice(1); continue; }
+        if (w[0] === 'env') { // env with no assignments/options only
+          if (w.length > 1 && !/^-/.test(w[1]) && !/=/.test(w[1])) { w = w.slice(1); continue; }
+          return null;
+        }
+        if (w[0] === 'timeout' && w.length > 2 && /^[\d.]+[smhd]?$/.test(w[1])) { w = w.slice(2); continue; }
+        break;
+      }
+      return w;
+    }
+
+    function hasAny(words, set) { return words.some((x) => set.has(x)); }
+    const setOf = (...a) => new Set(a);
+
+    /* ─────────────────────────── hard-deny rules ─────────────────────────── */
+
+    /** @returns reason string when the SEGMENT (already prefix-stripped) is a hard-deny, else null */
+    function hardDenySegment(w, ctx) {
+      const cmd = basename(w[0]);
+      const args = w.slice(1);
+      const joined = w.join(' ');
+
+      // privilege / system
+      if (['sudo', 'su', 'doas', 'pkexec', 'launchctl', 'systemctl', 'service', 'crontab', 'at', 'passwd', 'chown', 'chgrp', 'mount', 'umount', 'diskutil', 'fdisk', 'mkfs', 'dd', 'shutdown', 'reboot', 'halt', 'killall', 'pkill', 'kill', 'csrutil', 'spctl', 'defaults', 'scutil', 'networksetup', 'pmset', 'sysctl', 'visudo', 'useradd', 'userdel', 'dscl', 'security', 'osascript'].includes(cmd)) return `system/privilege command: ${cmd}`;
+      if (cmd === 'chmod' && (args.includes('-R') || args.some((a) => /^[0-7]*7[0-7]*7$/.test(a) || a === 'u+s' || a === 'g+s' || a === '+s' || a === 'a+rwx' || a === '777'))) return 'dangerous chmod';
+      // destructive filesystem
+      if (cmd === 'rm' || cmd === 'rmdir' || cmd === 'unlink' || cmd === 'shred' || cmd === 'srm' || cmd === 'trash') {
+        // recursive or force deletes, or anything pointing outside the project / at home, root, or wildcards at top level
+        const rec = args.some((a) => /^-[a-zA-Z]*[rRf][a-zA-Z]*$/.test(a) || a === '--recursive' || a === '--force');
+        const targets = args.filter((a) => !a.startsWith('-'));
+        const outside = targets.some((t) => t === '/' || t === '~' || t.startsWith('~/') || t.startsWith('/') || t === '.' || t === '..' || t.startsWith('../') || /^\*+$/.test(t) || t === './*' || /\$/.test(t));
+        if (rec || outside || cmd !== 'rm') return `destructive delete (${cmd})`;
+      }
+      if (cmd === 'find' && args.some((a) => ['-delete', '-exec', '-execdir', '-ok', '-okdir', '-fprint', '-fprint0', '-fprintf', '-fls'].includes(a))) return 'find with delete/exec';
+      if (cmd === 'truncate' || cmd === 'mv' && targetsOutside(args)) return `${cmd} touching paths outside the project`;
+      // git: history rewrite, shared state, secrets
+      if (cmd === 'git') {
+        const sub = gitSub(args);
+        if (sub) {
+          const rest = sub.rest;
+          if (sub.name === 'push') {
+            const force = rest.some((a) => a === '-f' || a === '--force' || a.startsWith('--force-with-lease') || a === '--mirror' || a === '--delete' || a === '-d' || /^\+/.test(a) || /^:/.test(a));
+            const toProtected = rest.some((a) => /(^|[:/ ])(main|master|develop|trunk|release[\w/.-]*|production|prod)$/i.test(a));
+            if (force) return 'git push with force/delete';
+            if (toProtected) return 'git push to a protected branch';
+            return null; // plain push is "ask", not hard-deny
+          }
+          if (sub.name === 'reset' && rest.includes('--hard')) return 'git reset --hard (discards work)';
+          if (sub.name === 'clean' && rest.some((a) => /^-[a-z]*[fdx][a-z]*$/i.test(a))) return 'git clean (deletes untracked files)';
+          if (sub.name === 'checkout' && (rest.includes('--') && rest.includes('.') || rest.includes('-f') || rest.includes('--force'))) return 'git checkout discarding changes';
+          if (sub.name === 'restore' && !rest.includes('--staged')) return 'git restore discarding changes';
+          if (sub.name === 'stash' && ['drop', 'clear'].includes(rest[0])) return 'git stash drop/clear';
+          if (sub.name === 'branch' && rest.some((a) => a === '-D' || a === '--delete' && rest.includes('--force'))) return 'git branch -D';
+          if (['filter-branch', 'filter-repo', 'update-ref', 'reflog'].includes(sub.name) && (sub.name !== 'reflog' || ['expire', 'delete'].includes(rest[0]))) return `git ${sub.name} (history rewrite)`;
+          if (sub.name === 'gc' && rest.some((a) => a.startsWith('--prune'))) return 'git gc --prune';
+          if (sub.name === 'config' && rest.some((a) => /^(--global|--system)$/.test(a))) return 'git config global/system';
+          if (rest.some((a) => a === '--no-verify' || a === '--no-gpg-sign' || a === '-n' && sub.name === 'commit')) return 'bypasses git hooks/signing';
+        }
+      }
+      // GitHub CLI: shared-state & destructive
+      if (cmd === 'gh') {
+        const a = args.filter((x) => !x.startsWith('-'));
+        if (a[0] === 'repo' && ['delete', 'archive', 'rename', 'edit', 'transfer'].includes(a[1])) return `gh repo ${a[1]}`;
+        if (a[0] === 'secret' || a[0] === 'auth' && ['logout', 'token', 'refresh', 'login'].includes(a[1]) || a[0] === 'ssh-key' || a[0] === 'gpg-key' || a[0] === 'codespace' && a[1] === 'delete') return `gh ${a[0]} ${a[1] || ''}`.trim();
+        if (a[0] === 'pr' && ['merge', 'close'].includes(a[1]) || a[0] === 'release' && ['create', 'delete'].includes(a[1]) || a[0] === 'workflow' && ['run', 'enable', 'disable'].includes(a[1]) || a[0] === 'run' && ['cancel', 'delete', 'rerun'].includes(a[1])) return `gh ${a[0]} ${a[1]} (affects shared state)`;
+        if (a[0] === 'api') {
+          const m = /(?:^|\s)(-X|--method)[ =]?(\w+)/i.exec(joined);
+          if (m && m[2].toUpperCase() !== 'GET') return 'gh api non-GET';
+          if (args.some((x) => x === '-f' || x === '-F' || x === '--field' || x === '--raw-field' || x === '--input')) return 'gh api with request body (implies POST)';
+        }
+      }
+      // package publication / registry
+      if (['npm', 'pnpm', 'yarn', 'bun'].includes(cmd) && args.some((a) => ['publish', 'unpublish', 'deprecate', 'login', 'adduser', 'token', 'owner', 'access', 'dist-tag'].includes(a))) return `${cmd} registry action`;
+      if (cmd === 'twine' || cmd === 'cargo' && args[0] === 'publish' || cmd === 'gem' && args[0] === 'push') return 'package publish';
+      // infra & containers & cloud
+      if (['terraform', 'tofu', 'pulumi'].includes(cmd) && args.some((a) => ['apply', 'destroy', 'import', 'state', 'taint', 'untaint', 'up', 'refresh'].includes(a))) return `${cmd} mutating`;
+      if (cmd === 'kubectl' && args.some((a) => ['delete', 'apply', 'replace', 'patch', 'drain', 'cordon', 'scale', 'rollout', 'exec', 'cp', 'edit', 'create', 'run', 'annotate', 'label', 'set'].includes(a))) return 'kubectl mutating';
+      if (cmd === 'helm' && args.some((a) => ['install', 'upgrade', 'uninstall', 'rollback', 'delete'].includes(a))) return 'helm mutating';
+      if (['aws', 'gcloud', 'az', 'doctl', 'heroku', 'vercel', 'netlify', 'flyctl', 'fly', 'wrangler', 'firebase', 'supabase', 'railway', 'stripe'].includes(cmd) && !args.some((a) => ['--version', '--help', 'help', 'version'].includes(a))) return `cloud CLI (${cmd})`;
+      if (cmd === 'docker' || cmd === 'podman') {
+        const a = args.filter((x) => !x.startsWith('-'));
+        if (['rm', 'rmi', 'system', 'volume', 'network', 'prune', 'kill', 'push', 'login', 'logout', 'exec', 'cp', 'commit', 'run', 'compose', 'stop', 'restart'].includes(a[0]) || args.includes('--privileged') || args.some((x) => x.startsWith('-v') || x === '--volume' || x === '--mount')) return `${cmd} mutating`;
+      }
+      // databases
+      if (['psql', 'mysql', 'mysqldump', 'mongosh', 'mongo', 'redis-cli', 'sqlite3', 'mariadb', 'pg_dump', 'pg_restore', 'dropdb', 'createdb'].includes(cmd) && /DROP|DELETE|TRUNCATE|UPDATE|INSERT|ALTER|GRANT|FLUSH|--eval|-c\s/i.test(joined)) return 'database write';
+      // exfiltration / downloads executed / raw network
+      if (['nc', 'ncat', 'netcat', 'socat', 'telnet', 'ssh', 'scp', 'sftp', 'rsync', 'ftp', 'tftp', 'sshpass', 'ngrok', 'cloudflared', 'tailscale', 'wg', 'openssl', 'nmap', 'masscan', 'tcpdump', 'dig', 'nslookup', 'whois', 'ping', 'traceroute', 'mitmproxy'].includes(cmd) && !['ping'].includes(cmd)) return `network/remote tool: ${cmd}`;
+      if (['curl', 'wget', 'http', 'https', 'httpie', 'aria2c', 'xh'].includes(cmd) && !(cmd === 'wget' && !args.some((a) => /^(--post|--body|--header|--user|--password|--load-cookies|--certificate|--private-key)/.test(a) || a === '-U' && false))) {
+        const upload = args.some((a) => ['-d', '--data', '--data-binary', '--data-raw', '--data-urlencode', '-F', '--form', '-T', '--upload-file', '-X', '--request', '--post-data', '--post-file', '--method', '-u', '--user', '-H', '--header', '--cookie', '-b', '--output', '-o', '-O', '--remote-name'].includes(a) || /^-(?:[a-zA-Z]*[dFTXuHbo])$/.test(a) || a.startsWith('--data') || a.startsWith('--form') || a.startsWith('--post'));
+        if (upload) return `${cmd} with body/auth/output (possible exfiltration or download)`;
+        // plain GET without options is classed in `allow` rules (read-only fetch of a URL), not here
+      }
+      // secrets read or modified
+      if (w.some((x) => touchesSecret(x)) && !['ls', 'stat', 'file', 'test', '[', 'git'].includes(cmd)) return 'touches secrets or credentials';
+      if (['security', 'op', 'gpg', 'pass', 'vault', 'doppler', 'sops', 'age', 'keychain', 'ssh-add', 'ssh-keygen', 'ssh-agent'].includes(cmd)) return `credential tool: ${cmd}`;
+      // shell indirection that hides what runs
+      if (['eval', 'exec', 'source', '.', 'xargs', 'parallel', 'watch', 'script', 'expect', 'screen', 'tmux', 'disown', 'setsid', 'trap', 'alias', 'unalias', 'export', 'unset', 'umask', 'ulimit', 'complete', 'hash'].includes(cmd) && !(cmd === 'export' && false)) return `shell indirection/state change: ${cmd}`;
+      const SHELLS = ['sh', 'bash', 'zsh', 'fish', 'dash', 'ksh', 'csh', 'tcsh'];
+      if (SHELLS.includes(cmd) && args.some((a) => /^-[a-zA-Z]*c$/.test(a) || a === '--command' || a === '-')) return 'nested shell -c';
+      // `... | sh` / `... | python`: code arriving on stdin is executed without being inspected
+      if ((SHELLS.includes(cmd) || ['python', 'python3', 'node', 'ruby', 'perl', 'php', 'deno', 'bun'].includes(cmd)) && args.every((a) => a.startsWith('-')) && ctx && ctx.piped) return `pipes data into ${cmd} (executes it)`;
+      if (['python', 'python3', 'python2', 'node', 'nodejs', 'deno', 'bun', 'ruby', 'perl', 'php', 'lua', 'osascript', 'pwsh', 'powershell', 'Rscript', 'julia', 'swift', 'go'].includes(cmd) && args.some((a) => /^(-c|-e|-E|-r|--eval|-p|--print|-x)$/.test(a) || a === 'run' && cmd === 'go' || a === '-')) return `inline code via ${cmd}`;
+      // launching / mac side effects
+      if (['open', 'xdg-open', 'pbcopy', 'pbpaste', 'say', 'afplay', 'screencapture', 'caffeinate', 'ditto', 'hdiutil', 'installer', 'pkgutil', 'brew', 'port', 'apt', 'apt-get', 'yum', 'dnf', 'pacman', 'snap', 'pip', 'pip3', 'pipx', 'conda', 'gem', 'cpan', 'cargo'].includes(cmd) && !(cmd === 'cargo' && ['build', 'check', 'test', 'fmt', 'clippy', 'doc', 'tree', 'metadata', 'bench'].includes(args[0])) && !(cmd === 'brew' && ['list', 'info', 'search', 'outdated', 'deps', 'config', '--version'].includes(args[0])) && !(['pip', 'pip3'].includes(cmd) && ['list', 'show', 'freeze', 'check', '--version', 'index'].includes(args[0]))) return `system/package manager: ${cmd}`;
+      // writing outside project via tee / sed -i / dd of=
+      if (cmd === 'tee' && args.some((a) => !a.startsWith('-') && (a.startsWith('/') || a.startsWith('~') || a.startsWith('..')))) return 'tee outside project';
+      return null;
+    }
+
+    function targetsOutside(args) {
+      return args.filter((a) => !a.startsWith('-')).some((t) => t.startsWith('/') || t.startsWith('~') || t.startsWith('..') || /\$/.test(t));
+    }
+
+    /** Locate the git sub-command skipping global options (-C <dir>, -c k=v, --git-dir=…, --no-pager …). */
+    function gitSub(args) {
+      let i = 0;
+      while (i < args.length) {
+        const a = args[i];
+        if (a === '-C' || a === '-c' || a === '--git-dir' || a === '--work-tree' || a === '--namespace' || a === '--exec-path') { i += 2; continue; }
+        if (a.startsWith('--git-dir=') || a.startsWith('--work-tree=') || a.startsWith('--exec-path=') || a.startsWith('--namespace=')) { i++; continue; }
+        if (a.startsWith('-')) { i++; continue; }
+        return { name: a, rest: args.slice(i + 1), globals: args.slice(0, i) };
+      }
+      return null;
+    }
+    function gitHasUnsafeGlobals(globals) {
+      for (let i = 0; i < globals.length; i++) {
+        const a = globals[i];
+        if (a === '-c') { const v = globals[i + 1] || ''; if (/^(core\.(pager|editor|sshcommand|fsmonitor|hookspath|askpass)|alias\.|credential\.|protocol\.|http\.|url\.|diff\.external|filter\.|include|receive\.|uploadpack\.)/i.test(v)) return true; i++; continue; }
+        if (a === '--exec-path' || a.startsWith('--exec-path') || a === '--git-dir' || a.startsWith('--git-dir=') || a === '--work-tree' || a.startsWith('--work-tree=')) return true;
+      }
+      return false;
+    }
+
+    /* ─────────────────────────── allow rules ─────────────────────────── */
+
+    const READ_ONLY = setOf('ls', 'll', 'la', 'dir', 'pwd', 'cat', 'bat', 'head', 'tail', 'less', 'more', 'wc', 'nl', 'tac', 'rev', 'cut', 'sort', 'uniq', 'tr', 'fold', 'fmt', 'column', 'paste', 'comm', 'join', 'diff', 'cmp', 'basename', 'dirname', 'realpath', 'readlink', 'stat', 'file', 'du', 'df', 'tree', 'which', 'whereis', 'type', 'whoami', 'id', 'hostname', 'uname', 'date', 'uptime', 'arch', 'nproc', 'echo', 'printf', 'true', 'false', 'test', '[', 'sleep', 'seq', 'expr', 'md5', 'md5sum', 'shasum', 'sha1sum', 'sha256sum', 'cksum', 'b2sum', 'strings', 'hexdump', 'od', 'xxd', 'jq', 'yq', 'rg', 'ag', 'fd', 'fdfind', 'locate', 'grep', 'egrep', 'fgrep', 'zgrep', 'wc', 'env', 'printenv', 'ps', 'lsof', 'top', 'cd', 'pushd', 'popd', 'dirs', 'man', 'help', 'info', 'tldr', 'cal', 'bc', 'dc', 'tput', 'clear', 'lscpu', 'free', 'vm_stat', 'sw_vers', 'ioreg', 'system_profiler');
+    // printenv/env/ps/lsof may print secrets in env; keep but they are read-only to the machine. Output is local only.
+
+    /** programs whose output could be redirected harmfully are handled by redirect rules below. */
+    function safeFind(args) { return !args.some((a) => ['-delete', '-exec', '-execdir', '-ok', '-okdir', '-fprint', '-fprint0', '-fprintf', '-fls'].includes(a)); }
+    function safeSed(args) { return !args.some((a) => a === '-i' || a.startsWith('-i') || a === '--in-place' || a === '-f' || a === '--file' || a === 'w' || /(^|;|\s)[wWeE]\s/.test(a) || /\/[gI]*[we]\b/.test(a) && /s\//.test(a)); }
+    function safeAwk(args) { return !args.some((a) => /system\s*\(|getline\s*<|>\s*"|print\s*>|\|\s*"|-f\b/.test(a)) && !args.includes('-f'); }
+    function safeSort(args) { return !args.some((a) => a === '-o' || a.startsWith('--output') || a.startsWith('-o')); }
+    function safeTree(args) { return !args.some((a) => a === '-o'); }
+
+    const GIT_READ = setOf('status', 'log', 'diff', 'show', 'blame', 'shortlog', 'describe', 'rev-parse', 'rev-list', 'ls-files', 'ls-tree', 'ls-remote', 'cat-file', 'grep', 'remote', 'config', 'branch', 'tag', 'stash', 'reflog', 'for-each-ref', 'show-ref', 'name-rev', 'merge-base', 'whatchanged', 'count-objects', 'fsck', 'check-ignore', 'check-attr', 'var', 'version', 'help', 'diff-tree', 'diff-index', 'diff-files', 'ls-remote', 'show-branch', 'verify-commit', 'verify-tag', 'worktree', 'submodule', 'fetch', 'add', 'restore', 'commit', 'switch', 'checkout', 'pull', 'merge', 'rebase', 'cherry-pick', 'mv', 'apply', 'format-patch', 'archive', 'bisect', 'revert', 'notes', 'sparse-checkout', 'maintenance', 'gc', 'prune', 'rm', 'init', 'clone', 'push');
+    // Which git sub-commands are acceptable without a human, and under which flags:
+    function gitAllowed(sub) {
+      const s = sub.name, r = sub.rest;
+      const noFlags = (allowed) => r.every((a) => !a.startsWith('-') || allowed.test(a));
+      switch (s) {
+        case 'status': case 'log': case 'diff': case 'show': case 'blame': case 'shortlog': case 'describe': case 'rev-parse': case 'rev-list': case 'ls-files': case 'ls-tree': case 'cat-file': case 'grep': case 'for-each-ref': case 'show-ref': case 'name-rev': case 'merge-base': case 'whatchanged': case 'count-objects': case 'check-ignore': case 'check-attr': case 'var': case 'version': case 'help': case 'diff-tree': case 'diff-index': case 'diff-files': case 'show-branch': case 'verify-commit': case 'verify-tag':
+          return !r.some((a) => a === '--output' || a.startsWith('--output=') || a === '--ext-diff' || a === '--textconv' && false || a === '--open-files-in-pager' || a.startsWith('--open-files-in-pager'));
+        case 'ls-remote': return r.every((a) => !a.startsWith('-') || /^(--heads|--tags|--refs|-h|-t|--symref|--get-url)$/.test(a));
+        case 'fsck': return r.every((a) => !a.startsWith('-') || /^(--no-progress|--connectivity-only|--full|--strict|--unreachable|--lost-found)$/.test(a)) && !r.includes('--lost-found');
+        case 'remote': return r.length === 0 || r[0] === '-v' || r[0] === 'show' || r[0] === 'get-url';
+        case 'config': return r.some((a) => a === '--get' || a === '--get-all' || a === '--list' || a === '-l' || a === '--get-regexp') && !r.some((a) => ['--global', '--system', '--unset', '--add', '--replace-all', '--edit', '-e', '--file', '-f'].includes(a));
+        case 'branch': return r.length === 0 || r.every((a) => ['--list', '-l', '--show-current', '-a', '--all', '-r', '--remotes', '-v', '-vv', '--verbose', '--contains', '--merged', '--no-merged'].includes(a) || a.startsWith('--format=') || a.startsWith('--sort='));
+        case 'tag': return r.length === 0 || r.every((a) => ['-l', '--list', '-n'].includes(a) || a.startsWith('--sort=') || a.startsWith('--format=') || a === '--contains' || a === '--merged') || (r[0] === '-l' || r[0] === '--list');
+        case 'stash': return r[0] === 'list' || r[0] === 'show';
+        case 'reflog': return r.length === 0 || r[0] === 'show' || r[0] === 'list' || (r[0].startsWith('-') ) && !['expire', 'delete'].includes(r[0]);
+        case 'worktree': return r[0] === 'list';
+        case 'submodule': return r[0] === 'status' || r[0] === 'summary' || r[0] === 'foreach' && false;
+        case 'notes': return r[0] === 'list' || r[0] === 'show';
+        case 'bisect': return r[0] === 'log' || r[0] === 'visualize' && false;
+        // local, reversible, contained repo mutations (no remote effect, nothing is destroyed; git keeps the objects)
+        case 'add': return !r.some((a) => a === '-f' || a === '--force' || a === '--ignore-errors') && !r.some((a) => touchesSecret(a));
+        case 'commit': return !r.some((a) => a === '--no-verify' || a === '-n' || a === '--no-gpg-sign' || a === '--amend' || a === '--allow-empty-message' || a === '-C' && false) && !r.some((a) => touchesSecret(a));
+        case 'fetch': return !r.some((a) => a === '--prune' || a === '-p' || a === '--force' || a === '-f' || a === '--update-head-ok' || a === '--upload-pack' || a.startsWith('--upload-pack='));
+        case 'switch': case 'checkout': return !r.some((a) => a === '-f' || a === '--force' || a === '--discard-changes' || a === '--' || a === '--orphan' || a === '-B' && false) && !r.includes('.') ;
+        case 'restore': return r.includes('--staged') && !r.includes('--worktree') && !r.includes('-W');
+        case 'merge': return r.includes('--no-commit') || r.includes('--ff-only') || r.includes('--abort') || r.includes('--no-ff') && false;
+        case 'cherry-pick': case 'revert': return r.includes('--no-commit') || r.includes('-n') || r.includes('--abort') || r.includes('--quit');
+        case 'rebase': return r.includes('--abort') || r.includes('--continue') && false || r.includes('--quit');
+        case 'format-patch': return !r.some((a) => a === '-o' || a.startsWith('--output-directory') || a === '--stdout' && false) || true;
+        case 'archive': return !r.some((a) => a === '-o' || a.startsWith('--output') || a.startsWith('--remote'));
+        case 'mv': return !targetsOutside(r);
+        case 'rm': return r.includes('--cached') && !r.some((a) => a === '-f' || a === '--force' || a === '-r' || a === '-R' || a === '--') ;
+        case 'init': return !r.some((a) => a.startsWith('--template') || a.startsWith('--separate-git-dir')) && !targetsOutside(r);
+        case 'clone': return false;   // network + arbitrary hooks/code from elsewhere => ask
+        case 'pull': return false;    // merges remote code into the working tree => ask
+        case 'push': return false;    // shared state => ask (force/protected are hard-denied earlier)
+        case 'apply': return r.includes('--check') || r.includes('--stat') || r.includes('--numstat') || r.includes('--summary');
+        case 'gc': case 'prune': case 'maintenance': case 'sparse-checkout': return false;
+        default: return false;
+      }
+    }
+
+    /** Package scripts and toolchains: contained to the project; run project code but that is what the user asked to do. */
+    const SAFE_NPM_SCRIPTS = setOf('test', 'lint', 'typecheck', 'type-check', 'build', 'check', 'format', 'fmt', 'format:check', 'lint:fix', 'coverage', 'test:unit', 'test:coverage', 'test:e2e', 'tsc', 'compile', 'validate', 'verify', 'docs', 'dev:check');
+    function nodeAllowed(cmd, args) {
+      const a = args.filter((x) => !x.startsWith('-'));
+      if (['npm', 'pnpm', 'yarn', 'bun'].includes(cmd)) {
+        const sub = a[0];
+        if (['ls', 'list', 'll', 'why', 'outdated', 'view', 'info', 'show', 'explain', 'audit', 'root', 'bin', 'prefix', 'config', 'pack'].includes(sub)) return sub !== 'config' || args.includes('get') || args.includes('list');
+        if (['test', 't', 'tst'].includes(sub)) return true;
+        if (sub === 'run' || sub === 'run-script') return SAFE_NPM_SCRIPTS.has(a[1]) || /^(test|lint|build|typecheck|check|format)(:|$)/.test(a[1] || '');
+        if (cmd !== 'npm' && SAFE_NPM_SCRIPTS.has(sub)) return true;    // pnpm test, yarn build, bun test …
+        if (sub === 'install' || sub === 'i' || sub === 'ci') return false; // downloads + runs install scripts => ask
+        return false;
+      }
+      if (cmd === 'npx' || cmd === 'pnpx') return ['tsc', 'eslint', 'prettier', 'vitest', 'jest', 'biome', 'tsx' && false, 'markdownlint', 'stylelint', 'knip', 'depcheck'].includes(a[0]) && !args.some((x) => ['--fix' , '-w', '--write'].includes(x) && false);
+      if (['tsc', 'eslint', 'prettier', 'vitest', 'jest', 'biome', 'playwright', 'cypress', 'mocha', 'ava', 'tap', 'stylelint', 'markdownlint', 'knip'].includes(cmd)) return !args.some((x) => ['--init', 'install', '--install'].includes(x));
+      if (['node', 'deno', 'bun'].includes(cmd)) return ['--version', '-v', '--help', '-h'].includes(args[0]);
+      if (['python', 'python3'].includes(cmd)) return ['--version', '-V', '--help', '-h'].includes(args[0]) || (args[0] === '-m' && ['pytest', 'unittest', 'mypy', 'ruff', 'black', 'flake8', 'pylint', 'pyright', 'compileall', 'json.tool'].includes(args[1]));
+      if (['pytest', 'mypy', 'ruff', 'black', 'flake8', 'pylint', 'pyright', 'isort', 'tox', 'nox', 'coverage'].includes(cmd)) return true;
+      if (cmd === 'cargo') return ['build', 'check', 'test', 'fmt', 'clippy', 'doc', 'tree', 'metadata', 'bench', 'version', '--version'].includes(args[0]);
+      if (cmd === 'go') return ['build', 'test', 'vet', 'fmt', 'list', 'version', 'env', 'mod'].includes(args[0]) && !(args[0] === 'mod' && !['tidy', 'verify', 'graph', 'why'].includes(args[1]));
+      if (['make', 'just', 'task', 'gradle', 'gradlew', 'mvn', 'mvnw', 'ant'].includes(cmd)) return args.some((x) => ['test', 'check', 'lint', 'build', 'compile', 'verify', 'typecheck', 'fmt', 'format'].includes(x)) && !args.some((x) => ['install', 'deploy', 'publish', 'release', 'clean', 'upload', 'push'].includes(x));
+      if (cmd === 'composer') return ['validate', 'show', 'outdated', 'test', 'lint', 'check-platform-reqs'].includes(args[0]);
+      if (cmd === 'php' && args[0] === 'artisan') return ['test', 'about', 'route:list', 'config:show', 'list', '--version', 'env', 'model:show', 'migrate:status', 'schedule:list'].includes(args[1]);
+      if (cmd === 'php' || cmd === 'ruby' || cmd === 'perl') return ['--version', '-v'].includes(args[0]);
+      if (cmd === 'artisan' || basename(cmd) === 'artisan') return ['test', 'about', 'route:list', 'config:show', 'list', '--version'].includes(args[0]);
+      return false;
+    }
+
+    /** HTTP reads: GET with no body/auth/cookies/output to a file, to a public https URL (never localhost/metadata/private). */
+    function safeFetch(cmd, args) {
+      if (!['curl', 'wget'].includes(cmd)) return false;
+      const urls = args.filter((a) => /^https?:\/\//i.test(a));
+      if (urls.length !== 1) return false;
+      const flags = args.filter((a) => a.startsWith('-'));
+      const allowed = cmd === 'curl' ? /^(-s|-S|-L|-I|--head|-f|--fail|--silent|--show-error|--location|--compressed|--max-time|-m|--connect-timeout|--retry|-sS|-sSL|-fsSL|-sL|-fsS|-4|-6|--no-progress-meter)$/ : /^(-q|--quiet|-O-|-qO-|--spider|--no-verbose|-nv|--timeout|-T|--tries|-t)$/;
+      if (!flags.every((f) => allowed.test(f) || /^--(max-time|connect-timeout|retry|timeout|tries)=\d+$/.test(f))) return false;
+      if (cmd === 'wget' && !args.some((a) => a === '-O-' || a === '-qO-' || a === '--spider')) return false; // wget writes files by default
+      const host = (/^https?:\/\/([^/:?#]+)/i.exec(urls[0]) || [])[1] || '';
+      if (/^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|169\.254\.|0\.0\.0\.0|\[?::1|.*\.local$|.*\.internal$|metadata\.google\.internal)/i.test(host)) return false;
+      if (!/^https:/i.test(urls[0])) return false;
+      return true;
+    }
+
+    /** sed/awk/etc. need arguments checked; other read-only commands need output-redirect control (handled by caller). */
+    function segmentAllowed(w) {
+      const cmd = basename(w[0]);
+      const args = w.slice(1);
+      if (cmd === 'git') {
+        const sub = gitSub(args);
+        if (!sub || gitHasUnsafeGlobals(sub.globals)) return false;
+        return gitAllowed(sub);
+      }
+      if (cmd === 'find') return safeFind(args);
+      if (cmd === 'sed') return safeSed(args);
+      if (cmd === 'awk' || cmd === 'gawk' || cmd === 'mawk') return safeAwk(args);
+      if (cmd === 'sort') return safeSort(args);
+      if (cmd === 'tree') return safeTree(args);
+      if (cmd === 'xargs') return false;
+      if (cmd === 'gh') {
+        const a = args.filter((x) => !x.startsWith('-'));
+        const verb = a[1];
+        if (a[0] === 'api') { return !args.some((x) => ['-X', '--method', '-f', '-F', '--field', '--raw-field', '--input'].includes(x)) && !/(-X|--method)[ =]?(?!GET)/i.test(args.join(' ')); }
+        if (['pr', 'issue', 'run', 'repo', 'release', 'workflow', 'gist', 'label', 'cache', 'project', 'ruleset', 'variable', 'search', 'status', 'browse'].includes(a[0])) return ['view', 'list', 'status', 'diff', 'checks', 'download', 'watch', 'search'].includes(verb) && !(a[0] === 'run' && verb === 'download' && false) || a[0] === 'search' || a[0] === 'status';
+        if (a[0] === 'auth' && a[1] === 'status') return true;
+        return ['--version', 'version'].includes(a[0]);
+      }
+      if (READ_ONLY.has(cmd)) {
+        if ((cmd === 'env' || cmd === 'printenv') && args.length === 0) return false; // dumps every secret in env into the transcript
+        if (cmd === 'cd' || cmd === 'pushd') return !targetsOutside(args.slice(0, 1)) || true;
+        if (cmd === 'cat' || cmd === 'head' || cmd === 'tail' || cmd === 'less' || cmd === 'more' || cmd === 'bat' || cmd === 'strings' || cmd === 'xxd' || cmd === 'hexdump' || cmd === 'od') return !args.some(touchesSecret);
+        if (cmd === 'grep' || cmd === 'rg' || cmd === 'ag' || cmd === 'egrep' || cmd === 'fgrep') return !args.some(touchesSecret) && !args.some((a) => a === '--pre' || a.startsWith('--pre=') || a === '--exec');
+        if (cmd === 'ps' || cmd === 'lsof' || cmd === 'top') return !args.some((a) => a === 'e' || a === 'eww' || /e/.test(a) && /^-?[a-z]*ww/.test(a));
+        return true;
+      }
+      if (nodeAllowed(cmd, args)) return true;
+      if (safeFetch(cmd, args)) return true;
+      if (cmd === 'mkdir' || cmd === 'touch') return !targetsOutside(args) && !args.some(touchesSecret);          // contained, reversible
+      if (cmd === 'cp') return !targetsOutside(args) && !args.some(touchesSecret) && !args.some((a) => a === '-f' && false);
+      if (cmd === 'mv') return !targetsOutside(args) && !args.some(touchesSecret);
+      if (cmd === 'ln') return false;
+      if (cmd === 'tee') return args.every((a) => a.startsWith('-') || (!targetsOutside([a]) && !touchesSecret(a)));
+      if (cmd === 'jq' || cmd === 'yq') return !args.some((a) => a === '-i' || a === '--in-place');
+      return false;
+    }
+
+    /** Where may a redirect write? Only inside the project (relative path, no ..), never a secret path, never a device. */
+    function redirectAllowed(r) {
+      const m = /^(\d?)(>>?|<|>&|<&)(.*)$/.exec(r) || /^(>>?|<|>&|<&)(.*)$/.exec(r);
+      if (!m) return false;
+      const op = m.length === 4 ? m[2] : m[1];
+      const target = (m.length === 4 ? m[3] : m[2]) || '';
+      if (op === '<' || op === '<&') return !touchesSecret(target);
+      if (op === '>&') return /^\d$/.test(target) || target === '-';          // 2>&1
+      if (target === '/dev/null') return true;
+      if (!target || target.startsWith('/') || target.startsWith('~') || target.includes('..') || target.startsWith('/dev/') || /\$/.test(target)) return false;
+      return !touchesSecret(target);
+    }
+
+    /* ─────────────────────────── public API ─────────────────────────── */
+
+    /**
+     * Classify one shell command line.
+     * @param {string} line
+     * @returns {{ verdict: 'allow'|'ask'|'deny', reason: string }}
+     */
+    function classifyCommand(line) {
+      if (typeof line !== 'string' || !line.trim()) return { verdict: 'ask', reason: 'empty or unreadable command' };
+      if (line.length > 4000) return { verdict: 'ask', reason: 'command too long to analyse' };
+      const segs = parse(line);
+      if (!segs) return { verdict: 'ask', reason: 'uses substitution, here-doc or escaping that cannot be statically checked' };
+      if (!segs.length) return { verdict: 'ask', reason: 'no command' };
+      let askReason = null;
+      for (let si = 0; si < segs.length; si++) {
+        const seg = segs[si];
+        const piped = si > 0 && segs[si - 1].op === '|';
+        if (seg.op === '&') { askReason = askReason || 'background job'; }
+        const stripped = stripPrefix(seg.words);
+        if (stripped === null) return { verdict: 'ask', reason: 'sets an environment variable that changes how programs load/run' };
+        if (!stripped.length) { // pure variable assignment e.g. FOO=bar
+          continue;
+        }
+        const deny = hardDenySegment(stripped, { piped });
+        if (deny) return { verdict: 'deny', reason: deny };
+        for (const r of seg.redirects) {
+          if (/^[\d]*>/.test(r) && !redirectAllowed(r)) {
+            const target = r.replace(/^\d?>>?&?/, '');
+            if (touchesSecret(target) || target.startsWith('/') || target.startsWith('~') || target.includes('..')) return { verdict: 'deny', reason: `writes outside the project or to a protected path (${target})` };
+            askReason = askReason || `unusual redirect (${r})`;
+          } else if (r.startsWith('<') && !redirectAllowed(r)) return { verdict: 'deny', reason: 'reads a secret/credential file' };
+        }
+        if (!segmentAllowed(stripped)) askReason = askReason || `not a known-safe command: ${basename(stripped[0])}`;
+      }
+      if (askReason) return { verdict: 'ask', reason: askReason };
+      return { verdict: 'allow', reason: 'all parts are read-only or contained in the project' };
+    }
+
+    /** Escalation reason handling: what the model asks for in `sandbox_permissions`. */
+    function classifyEscalation(reason, command) {
+      const esc = /escalate sandbox to ([\w-]+)/i.exec(String(reason || ''));
+      const requested = esc ? esc[1] : null;
+      const net = /network|approval required|\[network:/i.test(String(reason || ''));
+      return { requested, network: net };
+    }
+
+    return { classifyCommand, classifyEscalation, parse };
+    })();
+
+    // ───────────────────────── auto-approve (composer dropdown) ─────────────────────────
+    // Approval requests reach the client as `PendingApproval` objects ({ kind:'approval', toolName, callId,
+    // reason, answerable, answer(outcome) }) via useSessionStatus().pendingInteraction.
+    //
+    // Tiers (modelled on Claude Code auto mode, but deterministic — no model call):
+    //   1. read-only / inspection tools                       -> allow
+    //   2. shell commands: CLASSIFY.classifyCommand(command)   -> allow | ask | deny
+    //   3. sandbox escalations: read-only -> workspace-write only; full access / network -> ask
+    // 'safe'       approves tier results of 'allow'; everything else waits for the human.
+    // 'aggressive' approves everything EXCEPT hard 'deny' results, which still ask the human.
+    // After 3 consecutive auto-decisions that had to be handed back to the human, auto-approval pauses for the
+    // session (the agent is probably pushing against a boundary) until the user answers one request.
+    const SAFE_TOOLS = new Set([
+      'read', 'read_image', 'glob', 'grep', 'lsp', 'todo_write', 'skill', 'web_search',
+      'session_search', 'session_trace', 'session_event_read', 'session_event_search', 'session_event_trace',
+      'list_agents', 'list_subagent_models', 'job_list', 'job_output', 'schedule_list', 'terminal_list', 'terminal_read',
+      'get_goal', 'cordis_inspect_list', 'cordis_inspect_query', 'cordis_inspect_self', 'team_task_list', 'team_task_get',
+      'wait_agent', 'ask_user_question',
+    ]);
+    const SECRET_ARG = /(^|[\/"' =])(\.ssh|\.aws|\.gnupg|\.env(\.[\w.-]+)?|id_(rsa|ed25519)|credentials|\.netrc|[\w.-]+\.(pem|key|p12))(["' \/]|$)/i;
+
+    /** Command text of the tool call an approval belongs to (from the chat projection). */
+    function commandFromChat(snapshot, callId) {
+      if (!snapshot || !snapshot.nodes || callId == null) return undefined;
+      for (const node of snapshot.nodes.values()) {
+        const root = node.kind === 'tool-call' && node.data ? node.data.root : undefined;
+        if (root && String(root.callId) === String(callId) && !('kind' in root) && root.phase === 'start') {
+          try { const a = JSON.parse(root.argsRaw); return typeof a.command === 'string' ? a.command : undefined; } catch (_) { return undefined; }
+        }
+      }
+      return undefined;
+    }
+
+    /**
+     * Decide one approval. `args` is the parsed tool arguments when known.
+     * @returns {{verdict:'allow'|'ask'|'deny', reason:string}}
+     */
+    function decideApproval(p, command) {
+      const tool = String(p.toolName || '');
+      const reason = String(p.reason || '');
+      const esc = CLASSIFY.classifyEscalation(reason);
+      // The model's own justification text is NOT trusted as evidence ("reasoning-blind", like Claude Code's
+      // classifier): only the sandbox level it asks for and the command itself decide.
+      const askedFull = esc.requested === 'danger-full-access';
+      const askedNet = esc.network;               // set by the sandbox/permission layer for blocked network targets
+      if (SAFE_TOOLS.has(tool)) return { verdict: 'allow', reason: 'read-only tool' };
+      if (tool === 'bash' || tool === 'terminal_send' || tool === 'terminal_open') {
+        if (!command) return { verdict: 'ask', reason: 'command not visible' };
+        const c = CLASSIFY.classifyCommand(command);
+        if (c.verdict !== 'allow') return c;     // deny / ask propagate unchanged
+        // The command itself is read-only or project-contained. Asking for MORE sandbox than the command needs is
+        // fine for reads (e.g. reading a CI log over the GitHub API), but a command that is only "allowed" because
+        // it stays inside the project must not be granted network or full access it did not prove it needs.
+        if ((askedFull || askedNet) && !isPureRead(command)) return { verdict: 'ask', reason: 'asks for more access than a project-local command needs' };
+        return c;
+      }
+      if (askedNet) return { verdict: 'ask', reason: 'network access' };
+      if (askedFull) return { verdict: 'ask', reason: 'requests full filesystem/network access' };
+      if (tool === 'write' || tool === 'edit') {
+        const path = String(p.reason || '');
+        if (SECRET_ARG.test(path)) return { verdict: 'deny', reason: 'writes a secret/credential path' };
+        return esc.requested === 'workspace-write' ? { verdict: 'allow', reason: 'edit inside the workspace' } : { verdict: 'ask', reason: 'file write' };
+      }
+      if (esc.requested === 'workspace-write') return { verdict: 'allow', reason: 'workspace-write escalation' };
+      return { verdict: 'ask', reason: 'unknown tool' };
+    }
+    /** True when every segment is a pure read (no file writes, no installs): safe to run with wider sandbox access. */
+    function isPureRead(command) {
+      const segs = CLASSIFY.parse(command);
+      if (!segs) return false;
+      const MUTATING = new Set(['git', 'npm', 'pnpm', 'yarn', 'bun', 'mkdir', 'touch', 'cp', 'mv', 'tee', 'sed', 'npx', 'cargo', 'go', 'make', 'pytest']);
+      for (const seg of segs) {
+        if (seg.redirects.some((r) => /^\d?>>?[^&]/.test(r) && !/\/dev\/null$/.test(r))) return false;
+        const w = seg.words.filter((x) => !/^[A-Za-z_][A-Za-z0-9_]*=/.test(x));
+        if (!w.length) continue;
+        const cmd = w[0].split('/').pop();
+        if (cmd === 'git') { const sub = w.slice(1).find((x) => !x.startsWith('-')); if (!['status','log','diff','show','blame','rev-parse','rev-list','merge-base','ls-files','ls-tree','cat-file','branch','tag','remote','config','fetch','grep','describe','shortlog'].includes(sub)) return false; continue; }
+        if (cmd === 'gh') { if (!/^gh\s+(api\b(?!.*(-X|--method|-f|-F|--field|--input))|(pr|issue|run|repo|release|workflow|search|status)\s+(view|list|status|diff|checks|download|watch)|auth\s+status)/.test(w.join(' '))) return false; continue; }
+        if (cmd === 'curl') { if (w.some((x) => /^-(d|F|X|T|o|O|u|H)$/.test(x) || x.startsWith('--data') || x === '--output')) return false; continue; }
+        if (MUTATING.has(cmd)) return false;
+      }
+      return true;
+    }
+    const RISKY_TEXT = /danger-full-access|sudo|rm\s+-[a-z]*r|force[- ]push|--force|mkfs|dd\s+if=|DROP\s+TABLE|\.ssh/i;
+
+    function modeFor(sessionId) { return (store.get().autoApprove || {})[sessionId] || 'ask'; }
+    function setModeFor(sessionId, mode) {
+      const next = { ...(store.get().autoApprove || {}) };
+      if (mode === 'ask') delete next[sessionId]; else next[sessionId] = mode;
+      store.set({ autoApprove: next });
+    }
+
+    /**
+     * Invisible per-session component (rendered in a session-scoped slot, so it has `sessionId` and `useChat`):
+     * answers THIS session's pending approvals according to the session's mode.
+     */
+    function AutoApprover({ sessionId, useSessionStatus, useChat, t }) {
+      const pending = useSessionStatus((m) => { const st = m.get(sessionId); return st ? st.pendingInteraction : undefined; });
+      const chat = useChat((snap) => snap);
+      const modes = useSetting('autoApprove');
+      const handled = React.useRef(new Set());
+      const handedBack = React.useRef(0);
+      const [tick, setTick] = React.useState(0);
+      React.useEffect(() => {
+        const p = pending;
+        if (!p || p.kind !== 'approval' || !p.answerable || typeof p.answer !== 'function') return;
+        if (handled.current.has(p.key)) return;
+        const mode = modes[sessionId] || 'ask';
+        if (mode === 'ask') return;
+        const command = commandFromChat(chat, p.callId);
+        // the tool-call row may land a moment after the approval: give it one short retry before deciding
+        if (p.toolName === 'bash' && command === undefined && tick < 3) { const h2 = setTimeout(() => setTick((x) => x + 1), 120); return () => clearTimeout(h2); }
+        const d = decideApproval(p, command);
+        const approve = mode === 'aggressive' ? d.verdict !== 'deny' : d.verdict === 'allow';
+        handled.current.add(p.key);
+        setTick(0);
+        if (!approve) {
+          handedBack.current += 1;
+          if (handedBack.current >= 3) { setModeFor(sessionId, 'ask'); handedBack.current = 0; showToast(t('ap.paused')); }
+          return;
+        }
+        handedBack.current = 0;
+        Promise.resolve(p.answer('allowed-once')).then(
+          () => showToast(fmt(t('ap.toast'), { tool: command ? command.split(/\s+/)[0] : (p.toolName || '') })),
+          () => handled.current.delete(p.key));
+        if (handled.current.size > 200) handled.current.clear();
+      }, [pending, chat, modes, tick, sessionId, t]);
+      return null;
+    }
+
+    /** Composer-bar dropdown (same look as the permission control next to it). */
+    function AutoApproveSelect({ sessionId, locked, t }) {
+      const modes = useSetting('autoApprove');
+      const mode = modes[sessionId] || 'ask';
+      const [open, setOpen] = React.useState(false);
+      const ref = React.useRef(null);
+      const Menu = primitives.Menu, Chevron = primitives.IconChevronDownOutlineRegular;
+      if (!sessionId) return null;
+      const items = AP_MODES.map((id) => ({ id, label: t('ap.' + id) }));
+      const choose = (id) => {
+        setOpen(false);
+        if (id === mode) return;
+        if (id === 'aggressive' && !window.confirm(t('ap.confirm'))) return;
+        setModeFor(sessionId, id);
+      };
+      const trigger = h('button', {
+        ref, type: 'button', disabled: !!locked, className: 'majed-ap-trigger', 'data-mode': mode,
+        'aria-haspopup': 'menu', 'aria-expanded': open, 'aria-label': t('ap.aria'), title: t('ap.aria'),
+        onClick: () => setOpen((v) => !v),
+      },
+        h('span', { className: 'majed-ap-dot', 'aria-hidden': 'true' }),
+        h('span', { className: 'majed-ap-label' }, t('ap.' + mode)),
+        Chevron ? h(Chevron, { size: 12 }) : '▾');
+      if (!Menu) return trigger;
+      return h(Menu, { open, onClose: () => setOpen(false), items, selectedId: mode, onSelect: choose, side: 'top', align: 'start', portal: true, anchor: trigger });
+    }
+
+    // ───────────────────────── app-UI font size + font source ─────────────────────────
+    // Only TEXT grows: we read DSH's own stylesheets (<style data-plugin-css>) and, for every
+    // rule that sets a px font-size / line-height, emit an override
+    //   calc(<original px> + var(--majed-ui-d))      (d = chosen size - 14, in px)
+    // so spacing, icons and borders are untouched. Chat transcript sheets are skipped because
+    // the built-in "chat font size" already drives them.
+    const SKIP_SHEETS = /(AssistantMarkdown|MessageItem|ChatView|ToolDetails|ToolRow|bash-sample|FileDiff|TextPreview|TrajectoryTable|stat-dialog)\.module\.css$/;
+    const PX = /^(-?\d*\.?\d+)px$/;
+    // Additive, like DSH's own chat font size: size' = size + (chosen - 14)px, so the chrome's 14px body text
+    // becomes exactly the chosen number. `--majed-ui-d` carries that difference.
+    // Sizes bound to DSH's chat-size variables follow the CHAT font size; they are only re-based onto the
+    // UI size in shell sheets (<link> bundles), where they style app chrome such as menus.
+    const CONTENT_VAR = /^(?:var|calc|min|max)\(.*--dsh-content-font-size.*\)$/;
+    const scaled = (v, shell) => {
+      const t = String(v).trim().replace(/\s*!important$/, '');
+      const m = PX.exec(t);
+      if (m) return `calc(${m[1]}px + var(--majed-ui-d))`;
+      if (shell && CONTENT_VAR.test(t)) {
+        // evaluate the chat variables at their 14px defaults, then add the UI delta
+        const base = t.replace(/var\(--dsh-content-font-size-secondary\s*,\s*([\d.]+px)\)/g, '$1').replace(/var\(--dsh-content-font-size\s*,\s*([\d.]+px)\)/g, '$1');
+        return `calc((${base}) + var(--majed-ui-d))`;
+      }
+      return null;
+    };
+    // `font: [style] [weight] <size>[/<line-height>] <family>` — pull out a px size / px line-height.
+    const FONT_SHORTHAND = /^(.*?)(?:^|\s)(-?\d*\.?\d+px)(?:\s*\/\s*(-?\d*\.?\d+px|[\d.]+|normal))?\s+(\S.*)$/;
+
+    function declFor(style, shell) {
+      let fs = scaled(style.getPropertyValue('font-size'), shell);
+      let lh = scaled(style.getPropertyValue('line-height'));
+      const sh = style.getPropertyValue('font');
+      if (sh && !fs) {                       // shorthand carries size (+ optional line-height)
+        const m = FONT_SHORTHAND.exec(sh.trim());
+        if (m) { fs = scaled(m[2]); if (m[3] && PX.test(m[3])) lh = lh || scaled(m[3]); }
+      }
+      return (fs ? `font-size:${fs}!important;` : '') + (lh ? `line-height:${lh}!important;` : '');
+    }
+    function overridesFromRules(rules, wrap, out, shell) {
+      for (const rule of rules) {
+        if (rule.type === 1 /* STYLE */) {
+          const decl = declFor(rule.style, shell);
+          if (decl) out.push(wrap(`${rule.selectorText}{${decl}}`));
+        } else if (rule.type === 4 /* MEDIA */) {
+          const cond = rule.conditionText || rule.media.mediaText;
+          overridesFromRules(rule.cssRules, (t) => wrap(`@media ${cond}{${t}}`), out, shell);
+        } else if (rule.type === 12 /* SUPPORTS */) {
+          overridesFromRules(rule.cssRules, (t) => wrap(`@supports ${rule.conditionText}{${t}}`), out, shell);
+        }
+      }
+    }
+    // Chat-transcript sheets are skipped (the built-in chat font size drives them).
+    // Plugin sheets are <style data-plugin-css>; the app shell and shared primitives (Menu, popovers,
+    // account menu...) live in <link rel=stylesheet> bundles, so those are scanned too.
+    // Generated sheets of ours must never be re-scanned (it would compound the scale).
+    const OWN_GENERATED = ['data-majed-appearance', 'data-majed-ui-font', 'data-majed-bidi', 'data-majed-settings', 'data-majed-toast-style'];
+    function isOwnGenerated(el) { return OWN_GENERATED.some((a) => el.hasAttribute(a)); }
+    // Skin/theme/chat-reading sheets that should keep their own sizes.
+    const SKIP_TAGS = /\[data-genui|genui-dom-fence/;
+    function sheetEligible(el) {
+      if (!el.sheet || isOwnGenerated(el)) return false;
+      if (el.tagName === 'STYLE' && el.hasAttribute('data-plugin-css')) return !SKIP_SHEETS.test(el.dataset.pluginCss || '');
+      // Everything else: plugin-authored <style> blocks (skills-manager, vision toolkit, better-sidebar,
+      // permission-rules...), our own settings rows, and <link> bundles. GenUI's block sheet is skipped:
+      // generated UI inside answers is chat content and follows the chat font size.
+      if (el.tagName === 'STYLE' && /V1MMBW|_block\{|data-genui/.test((el.textContent || '').slice(0, 4000))) return false;
+      return el.tagName === 'STYLE' || el.tagName === 'LINK';
+    }
+    // `font: var(--dsw-font-xs-13)` shorthands carry their size inside DSH's design tokens, which a
+    // per-rule override can't see. Re-declare the non-markdown tokens on <body> with the factor applied;
+    // every rule that references them (57 in DSH itself) then scales with no per-rule override.
+    const TOKEN_RE = /(--dsw-font-(?!markdown|family)[\w-]+)\s*:\s*([^;}]+)/g;
+    function collectFontTokens() {
+      const found = new Map();
+      for (const el of document.querySelectorAll('style, link[rel~="stylesheet"]')) {
+        if (!el.sheet || isOwnGenerated(el)) continue;
+        let text = '';
+        try { for (const r of el.sheet.cssRules) if (r.type === 1 && /(^|,)\s*(:root|body|html)\b/.test(r.selectorText || '')) text += r.cssText + '\n'; } catch (_) { continue; }
+        for (const m of text.matchAll(TOKEN_RE)) found.set(m[1], m[2].trim());
+      }
+      return found;
+    }
+    function buildTokenOverrides() {
+      const lines = [];
+      for (const [name, value] of collectFontTokens()) {
+        const sized = name.endsWith('-font-size') || name.endsWith('-line-height');
+        if (sized) {
+          const v = scaled(value);
+          if (v) lines.push(`${name}:${v};`);
+          continue;
+        }
+        // composite token `weight size/line family` -> rebuild with scaled size (and line-height when px)
+        const m = /^(.*?)(?:^|\s)(-?\d*\.?\d+px)(?:\s*\/\s*(-?\d*\.?\d+px))?\s+(\S.*)$/.exec(value);
+        if (m) lines.push(`${name}:${m[1] ? m[1] + ' ' : ''}${scaled(m[2])}${m[3] ? '/' + scaled(m[3]) : ''} ${m[4]};`);
+      }
+      return lines.length ? `body{${lines.join('')}}` : '';
+    }
+    function buildFontSizeOverrides() {
+      const out = [];
+      document.querySelectorAll('style, link[rel~="stylesheet"]').forEach((el) => {
+        if (!sheetEligible(el)) return;
+        try { overridesFromRules(el.sheet.cssRules, (t) => t, out, el.tagName === 'LINK'); } catch (_) { /* cross-origin sheet */ }
+      });
+      const tok = buildTokenOverrides();
+      return out.join('\n') + (tok ? '\n' + tok : '');
+    }
+
+    // The OS UI font, with emoji/symbol fonts so emoji render natively (same stack as the system font in browsers).
+    const SYSTEM_FONT_STACK = '-apple-system-body, ui-sans-serif, -apple-system, system-ui, "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol"';
+    const NATIVE_FALLBACK = SYSTEM_FONT_STACK;
+    let fontFaceStyle = null, loadedFont = null;
+    /** Inject @font-face rules for one bundled font (all its subsets; the browser downloads only what is used). */
+    function ensureFontFaces(key) {
+      if (loadedFont === key) return;
+      removeFontFaces();
+      const family = BUNDLED_FONTS[key] && BUNDLED_FONTS[key].family;
+      if (!family) return;
+      const rules = FONT_FACES.filter((f) => f.f === family).map((f) =>
+        `@font-face{font-family:"${f.f}";font-style:normal;font-display:swap;font-weight:${f.w};` +
+        `src:url("${FONT_ROUTE}${f.u}") format("woff2");unicode-range:${f.r}}`);
+      fontFaceStyle = document.createElement('style');
+      fontFaceStyle.setAttribute('data-majed-fontfaces', '');
+      fontFaceStyle.textContent = rules.join('\n');
+      document.head.appendChild(fontFaceStyle);
+      loadedFont = key;
+    }
+    function removeFontFaces() {
+      if (fontFaceStyle) { fontFaceStyle.remove(); fontFaceStyle = null; }
+      loadedFont = null;
+    }
+    /** Font-family value for the current setting, or null for "DSH default" (leave DSH untouched). */
+    function fontStackFor(source) {
+      if (source === 'system') return SYSTEM_FONT_STACK;
+      if (BUNDLED_FONTS[source]) return `"${BUNDLED_FONTS[source].family}", ${NATIVE_FALLBACK}`;
+      return null;
+    }
+    // Variables that carry the UI typeface. DSH defines --dsw-font-family on <body> itself, and skins
+    // such as dsh-claude-style redefine it (and their own --dsh-claude-font-*) with higher specificity,
+    // so a stylesheet rule can lose. Inline `!important` on <body> beats every stylesheet rule, and
+    // because the markdown/typography tokens are also defined on <body>, they pick the value up too.
+    const FONT_VARS = [
+      '--dsw-font-family', '--dsw-font-family-brand', '--dsh-font-family-text-default',
+      '--dsh-claude-font-serif', '--dsh-claude-font-prose', '--dsh-claude-font-brand',
+    ];
+    function applyFontFamily(s) {
+      const style = document.body && document.body.style;
+      if (!style) return;
+      const stack = fontStackFor(s.fontSource);
+      if (BUNDLED_FONTS[s.fontSource]) ensureFontFaces(s.fontSource); else removeFontFaces();
+      for (const name of FONT_VARS) {
+        if (stack !== null) {
+          if (style.getPropertyValue(name) !== stack || style.getPropertyPriority(name) !== 'important') {
+            style.setProperty(name, stack, 'important');
+          }
+        } else if (style.getPropertyPriority(name) === 'important' && ownedValues().has(style.getPropertyValue(name))) {
+          style.removeProperty(name);
+        }
+      }
+    }
+    /** Every value this plugin may have written, so "DSH default" removes only our own overrides. */
+    function ownedValues() {
+      const set = new Set([SYSTEM_FONT_STACK]);
+      for (const k of Object.keys(BUNDLED_FONTS)) set.add(fontStackFor(k));
+      return set;
+    }
+
+    // ───────────────────────── RTL: persian-rtl chat CSS + genui mirroring ───
+    const CHAT_CSS = `
+/* dsh-persian-rtl: automatic per-paragraph direction for Persian text.
+   unicode-bidi: plaintext makes EACH paragraph follow its own first strong
+   character: Persian paragraphs go RTL, English ones stay LTR.
+   Covered surfaces:
+   - assistant answers, incl. while streaming (assistant-step)
+   - thinking/reasoning cells (turn-process members + inline reasoning)
+   - tool-call / tool-result cells (any data-tool row incl. ask_user_question)
+   - question boxes + plan-review cards (composer takeover cards)
+   - user + steering message bubbles (incl. submit echoes)
+   Plus logical-geometry fixes (lists, blockquotes, task checkboxes) so RTL
+   paragraphs also get correctly-sided bullets, quote bars and gaps. */
+/* A. Prose blocks: per-paragraph direction, logical alignment. */
+[data-chat-flow-kind="assistant-step"] :is(p, li, h1, h2, h3, h4, h5, h6, blockquote, td, th, figcaption, label, summary),
+[data-chat-flow-kind="tool-call"] :is(p, li, h1, h2, h3, h4, h5, h6, blockquote, td, th, figcaption, label, summary),
+[data-chat-flow-kind="tool-result"] :is(p, li, h1, h2, h3, h4, h5, h6, blockquote, td, th, figcaption, label, summary),
+[data-chat-flow-kind="reasoning"] :is(p, li, h1, h2, h3, h4, h5, h6, blockquote, td, th, figcaption, label, summary),
+[data-turn-process-member] :is(p, li, h1, h2, h3, h4, h5, h6, blockquote, td, th, figcaption, label, summary),
+[data-turn-process-inline] :is(p, li, h1, h2, h3, h4, h5, h6, blockquote, td, th, figcaption, label, summary),
+[data-tool] :is(p, li, h1, h2, h3, h4, h5, h6, blockquote, td, th, figcaption, label, summary),
+[data-question-key] :is(p, li, h1, h2, h3, h4, h5, h6, blockquote, td, th, figcaption, label, summary, span),
+[data-plan-review-key] :is(p, li, h1, h2, h3, h4, h5, h6, blockquote, td, th, figcaption, label, summary, span),
+[data-question-key],
+[data-plan-review-key] {
+  unicode-bidi: plaintext;
+  text-align: start;
+}
+/* Option buttons ship text-align:left (physical): Persian labels would stick
+   to the left. Scoped to the radiogroup/group options so footer/action
+   buttons keep their own alignment. */
+[data-question-key] :is([role="radiogroup"], [role="group"]) button {
+  text-align: start;
+}
+/* B. User + steering bubbles: plain-text content lives directly in nested
+   divs (no <p>), so the direction must be set on the divs themselves.
+   Includes composer submit echoes, which reuse the same bubble outside
+   the chat flow. Flex layout is untouched (text-align only aligns inline
+   content; row/stack alignment stays with align-items). */
+[data-chat-flow-kind="user"] :is(div),
+[data-chat-flow-kind="steering"] :is(div),
+[data-submission-echo],
+[data-submission-echo] :is(div),
+[data-pending-steering],
+[data-pending-steering] :is(div) {
+  unicode-bidi: plaintext;
+  text-align: start;
+}
+/* C. Latin runs (code, keys) keep LTR order inside Persian text; links are
+   isolated so surrounding punctuation does not jump, while Persian link
+   text still follows its paragraph. */
+[data-chat-flow-kind="assistant-step"] :is(pre, code, kbd, samp),
+[data-chat-flow-kind="tool-call"] :is(pre, code, kbd, samp),
+[data-chat-flow-kind="tool-result"] :is(pre, code, kbd, samp),
+[data-chat-flow-kind="reasoning"] :is(pre, code, kbd, samp),
+[data-turn-process-member] :is(pre, code, kbd, samp),
+[data-turn-process-inline] :is(pre, code, kbd, samp),
+[data-tool] :is(pre, code, kbd, samp),
+[data-question-key] :is(pre, code, kbd, samp),
+[data-plan-review-key] :is(pre, code, kbd, samp) {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+[data-chat-flow-kind="assistant-step"] :is(a),
+[data-chat-flow-kind="tool-call"] :is(a),
+[data-chat-flow-kind="tool-result"] :is(a),
+[data-chat-flow-kind="reasoning"] :is(a),
+[data-turn-process-member] :is(a),
+[data-turn-process-inline] :is(a),
+[data-tool] :is(a),
+[data-question-key] :is(a),
+[data-plan-review-key] :is(a) {
+  unicode-bidi: isolate;
+}
+[data-chat-flow-kind="assistant-step"] :is(pre),
+[data-chat-flow-kind="tool-call"] :is(pre),
+[data-chat-flow-kind="tool-result"] :is(pre),
+[data-turn-process-member] :is(pre),
+[data-turn-process-inline] :is(pre),
+[data-tool] :is(pre),
+[data-question-key] :is(pre),
+[data-plan-review-key] :is(pre) {
+  text-align: left;
+}
+/* D. Logical geometry: shipped sheets use physical left padding/border for
+   lists, blockquotes and task checkboxes, which puts RTL bullets, quote
+   bars and gaps on the wrong side. Swap to inline-start equivalents. */
+[data-chat-flow-kind="assistant-step"] :is(ul, ol),
+[data-chat-flow-kind="tool-call"] :is(ul, ol),
+[data-chat-flow-kind="tool-result"] :is(ul, ol),
+[data-turn-process-member] :is(ul, ol),
+[data-turn-process-inline] :is(ul, ol),
+[data-tool] :is(ul, ol),
+[data-question-key] :is(ul, ol),
+[data-plan-review-key] :is(ul, ol) {
+  padding-left: 0;
+  padding-inline-start: 18px;
+}
+[data-chat-flow-kind="assistant-step"] :is(ul, ol) :is(ol),
+[data-chat-flow-kind="tool-call"] :is(ul, ol) :is(ol),
+[data-chat-flow-kind="tool-result"] :is(ul, ol) :is(ol),
+[data-turn-process-member] :is(ul, ol) :is(ol),
+[data-turn-process-inline] :is(ul, ol) :is(ol),
+[data-tool] :is(ul, ol) :is(ol),
+[data-question-key] :is(ul, ol) :is(ol),
+[data-plan-review-key] :is(ul, ol) :is(ol) {
+  padding-inline-start: 0;
+}
+[data-chat-flow-kind="assistant-step"] :is(blockquote),
+[data-chat-flow-kind="tool-call"] :is(blockquote),
+[data-chat-flow-kind="tool-result"] :is(blockquote),
+[data-turn-process-member] :is(blockquote),
+[data-turn-process-inline] :is(blockquote),
+[data-tool] :is(blockquote),
+[data-question-key] :is(blockquote),
+[data-plan-review-key] :is(blockquote) {
+  border-left: 0 !important;
+  padding-left: 0 !important;
+  border-inline-start: 2px solid var(--dsw-alias-label-caption);
+  padding-inline-start: 14px;
+}
+[data-chat-flow-kind="assistant-step"] :is(input[type="checkbox"]),
+[data-tool] :is(input[type="checkbox"]),
+[data-question-key] :is(input[type="checkbox"]),
+[data-plan-review-key] :is(input[type="checkbox"]) {
+  margin: 0 !important;
+  margin-inline-end: 8px !important;
+}
+/* E. Detected RTL: elements marked with data-dsh-rtl / dir="rtl".
+   Overrides unicode-bidi: plaintext so that paragraphs starting with Latin
+   words (e.g. "React یک کتابخانه است") are strictly resolved as RTL base
+   direction instead of being treated as LTR by first-strong-character rules. */
+[data-dsh-rtl],
+:is(p, li, ul, ol, h1, h2, h3, h4, h5, h6, blockquote, td, th, figcaption, label, summary, div)[data-dsh-rtl],
+:is(p, li, ul, ol, h1, h2, h3, h4, h5, h6, blockquote, td, th, figcaption, label, summary, div)[dir="rtl"] {
+  direction: rtl !important;
+  unicode-bidi: isolate !important;
+  text-align: start !important;
+}
+`;
+
+    // GenUI ships CSS-module classes (hash_name). We match by the stable name part.
+    const c = (...names) =>
+      ':is(' + names.map((n) => `[class$="_${n}"],[class*="_${n} "]`).join(',') + ')';
+    const R = '[data-genui-rtl]';
+
+    const GENUI_CSS = `
+/* dsh-genui-rtl: mirrors @changfenhuang/dsh-genui components when a block is RTL.
+   A block gets [data-genui-rtl] + dir="rtl" from the client script when its text is mostly RTL. */
+
+/* 1. Physical text-align -> logical */
+${R} :is(${[
+      'thNum', 'tdNum', 'hbarLabel', 'hbarValue', 'cellBarText', 'sliderValue',
+    ].map((n) => c(n)).join(',')}) { text-align: end; }
+${R} :is(${[
+      'thSort', 'detailToggle', 'accHead', 'quizOpt', 'quizOptCorrect', 'quizOptWrong',
+      'quizOptReveal', 'ftNameBtn',
+    ].map((n) => c(n)).join(',')}) { text-align: start; }
+${R} ${c('thNum')} ${c('thSort')} { text-align: end; }
+${R} table th, ${R} table td { text-align: start; }
+${R} table th${c('thNum')}, ${R} table td${c('tdNum')} { text-align: end; }
+
+/* 2. Lists: dot + padding */
+${R} ${c('li')} { padding: 9px 16px 9px var(--dsl-g-gap-xs); }
+${R} ${c('li')}::before { left: auto; right: 2px; }
+
+/* 3. Steps connector */
+${R} ${c('step')}:not(:last-child)::before { left: auto; right: 11px; }
+
+/* 4. Stat cards: divider border */
+${R} ${c('grid')} > ${c('stat')}, ${R} ${c('row')} > ${c('stat')} {
+  border-left-color: var(--dsl-g-border-surface);
+  border-right-color: var(--dsl-g-border);
+}
+
+/* 5. margin-left:auto -> push to the end side */
+${R} :is(${['heroSpark', 'tlTime', 'panelChevron'].map((n) => c(n)).join(',')}) {
+  margin-left: 0; margin-right: auto;
+}
+${R} :is(${['btnSent'].map((n) => c(n)).join(',')}) { margin-left: 0; margin-right: var(--dsl-g-gap-sm); }
+${R} ${c('detailToggle')} { margin-right: 0; margin-left: 4px; }
+${R} ${c('groupToggle')} { margin-right: 0; margin-left: 7px; }
+${R} ${c('panelClose')} { margin-right: 0; margin-left: 8px; }
+${R} ${c('panelTpl')} { margin-right: 0; margin-left: 4px; }
+${R} ${c('detailCell')} { padding-left: 0; padding-right: var(--dsl-g-gap-sm); }
+${R} ${c('detailBody')} { box-shadow: inset -2px 0 0 color-mix(in srgb, var(--dsl-g-accent) 45%, transparent); }
+
+/* 6. Grouped table children guide rail */
+${R} tbody tr${c('groupChild')} td:first-child { padding-left: var(--dsl-g-gap-md); padding-right: calc(var(--dsl-g-gap-md) + 22px); }
+${R} tbody tr${c('groupChild')} td:first-child::before { left: auto; right: calc(var(--dsl-g-gap-md) + 8px); }
+
+/* 7. Switch knob */
+${R} ${c('switchKnob')} { left: auto; right: 3px; transition: right var(--dsl-g-dur-fast); }
+${R} ${c('switchOn')} ${c('switchKnob')} { left: auto; right: 19px; }
+
+/* 8. Chevrons point toward the reading direction */
+${R} :is(${['accChevron', 'detailChevron', 'groupChevron', 'ftChevron'].map((n) => c(n)).join(',')}):not([data-open="true"]) {
+  transform: scaleX(-1);
+}
+
+/* 9. Progress target marker + file tree (inline left -> mirrored via vars set by script) */
+${R} ${c('targetMark')} { left: auto !important; right: var(--dsh-rtl-start, 0); margin-left: 0; margin-right: -1px; }
+${R} ${c('ftRow')} { padding-left: 4px !important; padding-right: var(--dsh-rtl-start, 4px) !important; }
+${R} ${c('ftGuide')} { left: auto !important; right: var(--dsh-rtl-start, 0); }
+
+/* 10. Panel + fixed toasts */
+[data-genui-achievement-toasts] { right: auto; left: 16px; }
+
+/* 11. Content that must stay geometrically LTR: charts, diagrams, 3D, math, code. */
+${R} :is([data-genui-chart], [data-genui-line], [data-genui-donut], [data-genui-echart],
+  [data-genui-mermaid], [data-genui-scene3d], [data-genui-scene], [data-genui-plot],
+  [data-genui-svg], [data-genui-svg-fence], [data-genui-diagram], svg, canvas) {
+  direction: ltr;
+}
+${R} :is([data-genui-chart], [data-genui-line], [data-genui-donut], [data-genui-echart],
+  [data-genui-plot], [data-genui-diagram]) :is(span, div, text, p) { unicode-bidi: plaintext; }
+${R} :is(pre, code, kbd, samp, ${c('copyChip')}) { direction: ltr; unicode-bidi: isolate; text-align: left; }
+${R} :is(input[type="text"], input[type="number"], input[type="email"], input[type="url"], textarea) {
+  unicode-bidi: plaintext; text-align: start;
+}
+`;
+
+
+    const PROSE_SELECTOR = 'p, li, ul, ol, h1, h2, h3, h4, h5, h6, blockquote, td, th, figcaption, label, summary, [data-question-key] span, [data-plan-review-key] span';
+    const USER_BUBBLE_CONTAINERS = '[data-chat-flow-kind="user"], [data-chat-flow-kind="steering"], [data-submission-echo], [data-pending-steering]';
+
+    function updateElementDirection(el) {
+      if (!el || el.nodeType !== 1) return;
+      if (el.tagName === 'PRE' || el.tagName === 'CODE' || el.tagName === 'KBD' || el.tagName === 'SAMP') return;
+      if (el.closest('pre, code, kbd, samp')) return;
+
+      const isRtl = checkRtl(el.textContent);
+      const hadRtl = el.hasAttribute('data-dsh-rtl');
+
+      if (isRtl && !hadRtl) {
+        el.setAttribute('data-dsh-rtl', '');
+        el.setAttribute('dir', 'rtl');
+      } else if (!isRtl && hadRtl) {
+        el.removeAttribute('data-dsh-rtl');
+        el.removeAttribute('dir');
+      }
+    }
+
+    function findTargets(node, set) {
+      if (!node || node.nodeType !== 1) return;
+      if (node.tagName === 'PRE' || node.tagName === 'CODE' || node.tagName === 'KBD' || node.tagName === 'SAMP') return;
+      if (node.closest('pre, code, kbd, samp')) return;
+
+      if (node.matches(PROSE_SELECTOR)) {
+        set.add(node);
+      } else {
+        const ancestor = node.closest(PROSE_SELECTOR);
+        if (ancestor && !ancestor.closest('pre, code, kbd, samp')) {
+          set.add(ancestor);
+        }
+      }
+
+      const children = node.querySelectorAll(PROSE_SELECTOR);
+      for (let i = 0; i < children.length; i++) {
+        const child = children[i];
+        if (!child.closest('pre, code, kbd, samp')) {
+          set.add(child);
+        }
+      }
+
+      const bubble = node.closest(USER_BUBBLE_CONTAINERS);
+      if (bubble) {
+        const divs = bubble.querySelectorAll('div');
+        for (let i = 0; i < divs.length; i++) {
+          const d = divs[i];
+          if (!d.querySelector('div, p, ul, ol') && d.textContent.trim()) {
+            set.add(d);
+          }
+        }
+      } else {
+        const nestedBubbles = node.querySelectorAll(USER_BUBBLE_CONTAINERS);
+        for (let i = 0; i < nestedBubbles.length; i++) {
+          const divs = nestedBubbles[i].querySelectorAll('div');
+          for (let j = 0; j < divs.length; j++) {
+            const d = divs[j];
+            if (!d.querySelector('div, p, ul, ol') && d.textContent.trim()) {
+              set.add(d);
+            }
+          }
+        }
+      }
+    }
+
+
+    // genui detector
+    const ROOT_SEL = '[data-genui], [data-genui-plot], [data-genui-panel], [data-genui-tool]';
+
+    function genuiTextOf(root) {
+      // Ignore code blocks so a Persian answer with long code is still RTL.
+      let t = '';
+      const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+        acceptNode(n) {
+          const p = n.parentElement;
+          return p && p.closest('pre, code, script, style') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
+        },
+      });
+      while (w.nextNode()) t += w.currentNode.nodeValue + ' ';
+      return t;
+    }
+
+    function parseStart(el) {
+      // Original inline physical offset (left / padding-left / left %) that we mirror to the end side.
+      const s = el.style;
+      const v = s.left || s.paddingLeft;
+      return v || '';
+    }
+
+    function genuiSyncVars(root, on) {
+      const sel = `${c('targetMark')}, ${c('ftRow')}, ${c('ftGuide')}`;
+      root.querySelectorAll(sel).forEach((el) => {
+        if (!on) { el.style.removeProperty('--dsh-rtl-start'); return; }
+        // Cache the original value: after our CSS runs, React still keeps the inline original.
+        const v = parseStart(el);
+        if (v) el.style.setProperty('--dsh-rtl-start', v);
+      });
+    }
+
+    function updateGenui(root) {
+      if (!root.isConnected) return;
+      const on = isRtlText(genuiTextOf(root));
+      const has = root.hasAttribute('data-genui-rtl');
+      if (on && !has) {
+        root.setAttribute('data-genui-rtl', '');
+        root.setAttribute('dir', 'rtl');
+        root.setAttribute('data-genui-rtl-dir', '1');
+      } else if (!on && has) {
+        root.removeAttribute('data-genui-rtl');
+        if (root.hasAttribute('data-genui-rtl-dir')) {
+          root.removeAttribute('dir');
+          root.removeAttribute('data-genui-rtl-dir');
+        }
+      }
+      genuiSyncVars(root, on);
+    }
+
+
+    const RTL_RE = /[\u0590-\u05FF\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/g;
+    const LTR_RE = /[a-zA-Z\u00C0-\u024F]/g;
+    function isRtlText(text) {
+      if (!text) return false;
+      const rtl = text.match(RTL_RE);
+      if (!rtl) return false;
+      const ltr = text.match(LTR_RE);
+      return rtl.length / (rtl.length + (ltr ? ltr.length : 0)) >= 0.2;
+    }
+
+    const checkRtl = isRtlText;
+
+    /** Start the bidi engine; returns a stop() that removes every trace. */
+    function startBidi() {
+      const style = document.createElement('style');
+      style.setAttribute('data-majed-bidi', '');
+      style.textContent = CHAT_CSS + GENUI_CSS;
+      document.head.appendChild(style);
+
+      const chatQueue = new Set();
+      const genuiQueue = new Set();
+      let raf = null;
+      const flush = () => {
+        raf = null;
+        for (const el of chatQueue) if (el.isConnected) updateElementDirection(el);
+        chatQueue.clear();
+        for (const el of genuiQueue) updateGenui(el);
+        genuiQueue.clear();
+      };
+      const schedule = () => { if (raf === null) raf = requestAnimationFrame(flush); };
+      const GENUI_ROOTS = '[data-genui], [data-genui-plot], [data-genui-panel], [data-genui-tool]';
+      const collectGenui = (node) => {
+        const el = node.nodeType === 1 ? node : node.parentElement;
+        if (!el) return;
+        const up = el.closest(GENUI_ROOTS);
+        if (up) genuiQueue.add(up);
+        if (node.nodeType === 1) node.querySelectorAll(GENUI_ROOTS).forEach((r) => genuiQueue.add(r));
+      };
+      const observer = new MutationObserver((records) => {
+        for (const r of records) {
+          if (r.type === 'characterData') {
+            const parent = r.target.parentElement;
+            if (parent) { findTargets(parent, chatQueue); collectGenui(parent); }
+          } else if (r.type === 'childList') {
+            r.addedNodes.forEach((n) => {
+              if (n.nodeType === 1) { findTargets(n, chatQueue); collectGenui(n); }
+              else if (n.nodeType === 3 && n.parentElement) { findTargets(n.parentElement, chatQueue); collectGenui(n.parentElement); }
+            });
+            if (r.target.nodeType === 1) collectGenui(r.target);
+          }
+        }
+        if (chatQueue.size || genuiQueue.size) schedule();
+      });
+      observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+      findTargets(document.body, chatQueue);
+      document.querySelectorAll(GENUI_ROOTS).forEach((r) => genuiQueue.add(r));
+      flush();
+
+      return () => {
+        observer.disconnect();
+        if (raf !== null) cancelAnimationFrame(raf);
+        chatQueue.clear(); genuiQueue.clear();
+        document.querySelectorAll('[data-dsh-rtl]').forEach((el) => { el.removeAttribute('data-dsh-rtl'); el.removeAttribute('dir'); });
+        document.querySelectorAll('[data-genui-rtl]').forEach((el) => {
+          el.removeAttribute('data-genui-rtl');
+          if (el.hasAttribute('data-genui-rtl-dir')) { el.removeAttribute('dir'); el.removeAttribute('data-genui-rtl-dir'); }
+        });
+        document.querySelectorAll('[style*="--dsh-rtl-start"]').forEach((el) => el.style.removeProperty('--dsh-rtl-start'));
+        style.remove();
+      };
+    }
+
+    // ───────────────────────── plugin entry ─────────────────────────
+    return {
+      inject: ['slots', 'locale', 'uiWorkspace'],
+      apply(ctx) {
+        appCtx = ctx;
+        ctx.effect(() => () => { appCtx = null; live.forEach((n) => { try { n.close(); } catch (_) {} }); live.clear(); }, 'dsh-majed: notification cleanup');
+        ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsh-majed: dictionaries');
+
+        ctx.effect(() => {
+          const style = document.createElement('style');
+          style.setAttribute('data-majed-settings', '');
+          style.textContent = ROW_CSS;
+          document.head.appendChild(style);
+          return () => style.remove();
+        }, 'dsh-majed: settings row styles');
+
+        // Settings > General rows (same slot the built-in rows use).
+        ctx.slots.inject('settings.general.item', () => ctx.slots.register({
+          name: 'settings.general.item', id: 'majed-ui-font-size', order: 11.5, locale: NS,
+        }, UiFontSizeRow));
+        ctx.slots.inject('settings.general.item', () => ctx.slots.register({
+          name: 'settings.general.item', id: 'majed-font-source', order: 11.6, locale: NS,
+        }, FontSourceRow));
+        ctx.slots.inject('settings.general.item', () => ctx.slots.register({
+          name: 'settings.general.item', id: 'majed-bidi', order: 13, locale: NS,
+        }, BidiRow));
+
+        ctx.slots.inject('settings.general.item', () => ctx.slots.register({ name: 'settings.general.item', id: 'majed-notify-mode', order: 13.1, locale: NS }, NotifyModeRow));
+        ctx.slots.inject('settings.general.item', () => ctx.slots.register({ name: 'settings.general.item', id: 'majed-notify-done', order: 13.2, locale: NS }, NotifyDoneRow));
+        ctx.slots.inject('settings.general.item', () => ctx.slots.register({ name: 'settings.general.item', id: 'majed-notify-action', order: 13.3, locale: NS }, NotifyActionRow));
+        ctx.slots.inject('settings.general.item', () => ctx.slots.register({ name: 'settings.general.item', id: 'majed-account-menu', order: 13.4, locale: NS }, AccountMenuRow));
+        ctx.slots.inject('conversation.input.left', () => ctx.slots.register({ name: 'conversation.input.left', id: 'majed-auto-approve', order: 50, locale: NS }, AutoApproveSelect));
+        ctx.slots.inject('conversation.session.header.utilities', () => ctx.slots.register({ name: 'conversation.session.header.utilities', id: 'majed-auto-approver', order: 9999, locale: NS }, AutoApprover));
+        ctx.slots.inject('settings.general.item', () => ctx.slots.register({ name: 'settings.general.item', id: 'majed-auto-copy', order: 13.5, locale: NS }, AutoCopyRow));
+        ctx.effect(() => startAccountMenu(), 'dsh-majed: account menu grouping');
+        ctx.effect(() => {
+          let stop = null;
+          const t = ctx.locale.bind(NS);
+          const sync = (st) => { if (st.autoCopy && !stop) stop = startAutoCopy(() => showToast(t('copy.toast'))); else if (!st.autoCopy && stop) { stop(); stop = null; } };
+          sync(store.get());
+          const unsub = store.subscribe(sync);
+          return () => { unsub(); if (stop) stop(); disposeToast(); };
+        }, 'dsh-majed: copy on select');
+        // Invisible watcher on the frame-wide overlay layer: reads session status via the standard hook.
+        ctx.slots.inject('shell.overlay', () => ctx.slots.register({ name: 'shell.overlay', id: 'majed-notifications', locale: NS }, NotificationWatcher));
+
+        // Apply settings live.
+        ctx.effect(() => {
+          let stopBidi = null;
+          const varStyle = document.createElement('style');   // k + font family
+          varStyle.setAttribute('data-majed-appearance', '');
+          const sizeStyle = document.createElement('style');  // generated overrides
+          sizeStyle.setAttribute('data-majed-ui-font', '');
+          document.head.append(varStyle, sizeStyle);
+
+          let lastOverrides = null;
+          const regenerate = () => {
+            const s = store.get();
+            const css = s.uiFontSize === UI_BASE_PX ? '' : buildFontSizeOverrides();
+            if (css !== lastOverrides) { sizeStyle.textContent = css; lastOverrides = css; }
+          };
+          const apply = (s) => {
+            if (s.bidi && !stopBidi) stopBidi = startBidi();
+            else if (!s.bidi && stopBidi) { stopBidi(); stopBidi = null; }
+            varStyle.textContent = `:root{--majed-ui-d:${s.uiFontSize - UI_BASE_PX}px;}\n`;
+            applyFontFamily(s);
+            regenerate();
+          };
+
+          // DSH loads component stylesheets lazily: re-scan whenever a new one appears.
+          let timer = null;
+          const rescan = () => { clearTimeout(timer); timer = setTimeout(regenerate, 120); };
+          const isSheet = (n) => n.nodeType === 1 && (n.tagName === 'STYLE' || (n.tagName === 'LINK' && /stylesheet/.test(n.rel)));
+          const headObserver = new MutationObserver((records) => {
+            for (const r of records) for (const n of r.addedNodes) {
+              if (!isSheet(n) || isOwnGenerated(n)) continue;
+              rescan();
+              if (n.tagName === 'LINK') n.addEventListener('load', rescan, { once: true });
+              return;
+            }
+          });
+          headObserver.observe(document.head, { childList: true });
+          headObserver.observe(document.body, { childList: true });
+          const bodyObserver = new MutationObserver(() => applyFontFamily(store.get()));
+          bodyObserver.observe(document.body, { attributes: true, attributeFilter: ['style', 'data-dsh-claude-typeface', 'data-dsh-skin'] });
+
+          apply(store.get());
+          const unsub = store.subscribe(apply);
+          return () => {
+            unsub(); headObserver.disconnect(); bodyObserver.disconnect(); clearTimeout(timer);
+            applyFontFamily({ ...store.get(), fontSource: 'dsh' });
+            if (stopBidi) stopBidi();
+            varStyle.remove(); sizeStyle.remove();
+          };
+        }, 'dsh-majed: apply settings');
+
+        // Optional component setup must never interrupt the core registrations above.
+        try {
+          Promise.resolve(subscriptions.applySubscriptions(ctx)).catch((error) => console.error('dsh-majed: Subscriptions setup failed', error));
+        } catch (error) { console.error('dsh-majed: Subscriptions setup failed', error); }
+      },
+    };
+  },
+});

@@ -1,0 +1,200 @@
+# Subscriptions provenance
+
+## Plugin catalog icon — 2026-11-02
+
+The root icon.svg is copied from @deepseek-ai/dsh-experimental-plugin-market-bundle/icon.svg shipped in DSH0.2.1-rc.5, Copyright (c)2026 DeepSeek, MIT. Owner rejected the previous worktree-specific icon and requested a general/comprehensive symbol; the modules grid with an addition mark represents an extensible toolkit. Existing DeepSeek MIT notice below applies. Static asset only; no runtime dependency or host modification.
+
+## AI Providers identity and composer usage refinement — 2026-11-02
+
+The page provider-network SVG, localized navigation name, compact quota readout, anchored tooltip, close action and responsive menu presentation are independently authored over the existing attributed badge. Read the installed billion-context native client as a reference only; no code was copied and it did not expose the pictured native context-usage tooltip. The existing host anchoring hook and stats-row integration are retained; no new private imports, dependencies or host changes. Settings navigation exposes a string label but no icon extension, so only the owned page receives a custom icon. React useId accessibility guidance was consulted at https://react.dev/reference/react/useId. Existing attribution and license notices remain applicable.
+
+## #138 Owner-approved hierarchy revision — 2026-11-02
+
+The separated Subscription/API groups, shared single-active Add ownership, authored SVG disclosure, one-count/default-plan summary and initial first-provider expansion are independently authored presentation over the existing owned components. They retain the source-backed DSH semantic tokens and typography reference below. No additional external source, private imports, dependency, host/controller/store or authentication algorithm was introduced. Existing attribution and MIT notices remain unchanged. Prior synthetic captures do not verify this revised hierarchy.
+
+## #138 DSH-aligned presentation pass — 2026-11-02
+
+The shared row/control typography, semantic fallback colors, responsive account separators, inline Add surface, page Settings styling and EN/AR inventory copy are independently authored against `../DESIGN.md` and its source record `../docs/research/dsh-design-source-2026-11-02.md`. No additional third-party code was copied. The existing #136 native hierarchy attribution and DeepSeek MIT notice remain applicable; this pass adds no private imports, runtime dependencies, host changes or authentication algorithms. It does not establish standalone primitive-package compatibility or rendered/installed acceptance.
+
+## #138 partial API presentation corrections
+
+The credential-state labels/dot, DeepSeek Account unknown fallback and generic-editor exclusion, and in-place API Add entry/focus restoration are independently authored changes to the existing #136 adaptation. They introduce no additional third-party source or private imports. The existing DeepSeek MIT notice and #136 source attribution below remain applicable. Page-level Settings ownership is independently authored: existing ProxySettings and UsageBadgeDisplaySetting move unchanged into one semantic disclosure, with Proxy no longer mounted by CodexCard. The subsequent unified composition and optional provider-card presentation props are independently authored orchestration over these existing components: a mixed list, shared three-mode Add, configured account disclosure and selected authentication. Existing attributed controllers, account actions and dialogs remain the source of provider behavior; no further third-party source, private API, auth algorithm or durable store was introduced.
+
+## #137 OpenCode Zen candidate
+
+Source: https://github.com/FishBottle7/opencode2dsh tag `v0.3.14`, commit `1aa212063cf68b0ad6f3ed310bca4588cf06c008`, MIT copyright 2026 FishBottle7. Inspected pinned source `/tmp/majed137-reference-P9VoiY/source/packages/plugin/src/adapter/{ids,catalog,messages,zen-adapter}.ts`. `providers/zen.ts` adapts canonical inverted-timestamp/session memo and CLI headers, static roster, metadata/name free classification, protocol blocklist, bash/read gate schemas and muse Responses routing. Local changes: provider `opencode-zen`, owned RPC/effects/card data names, existing Majed translators and fetch transport, bounded response readers, generic secrecy-preserving errors and overall request deadline. No sidecar, adaptive inference probes, IP pool, dispatcher mutation, binary downloads, credential delegation or reference runtime dependency. Card independently authored using existing owned styles; English/Arabic are local presentation. No live verification. Full verification and independent Standards/Spec review remain incomplete.
+
+## #136 native API-provider surface
+
+`api-providers.ts` narrowly adapts the MIT native ModelsSection configured/addable split, row/header/actions and inset-editor hierarchy and applicable spacing/style structure, rather than importing its closure-private components. Source: `dsh-client-ui-settings-models/lib/client.js` lines 58, 1369, 2458–2465 and 2551–2614 at installed `0.2.1-rc.3`. Native exports at 4520–4523 contain no public component export. CSS selectors are owned `majed` names, not generated native hashes; no native apply/private import/runtime dependency is used. English/Arabic responsive wrapping, semantic colors, explicit spacing, model ID/name rows preserving untouched metadata, public-remotes logic and controlled tests are local adaptations. The DeepSeek MIT notice is retained in THIRD_PARTY_NOTICES.md. Contract reference: https://github.com/deepseek-ai/deepseek-harness, installed package version `0.2.1-rc.3`, extracted read-only to `/tmp/majed136-installed-source-aUugEO`. Relevant packages: `dsh-api-remotes`, `dsh-api-settings-controller`, `dsh-llm`, `dsh-llm-pi-ai`, and `dsh-client-ui-settings-models`. No repository commit is available for that installed artifact. Generated remote schemas establish settings describe/mutate/revision and credential presence/set/unset shapes, configurable directory/registered route union and discovery results. The native Models source establishes derived credential-reference naming, user/base deletion protection and separate settings/credential writes. These contract references complement the narrow UI adaptation above; none is a runtime dependency on another plugin. The copied/adapted UI structure carries the MIT notice.
+
+Majed reuses the native single durable store through injected public remotes. Ephemeral redacted snapshots and unsaved drafts are not a second store. Local adaptations: existing section placement, protected built-ins/deployment entries, field-level revision-aware mutation, generic localized errors, partial credential retry and English/Arabic controls. Optional empty names/endpoints remove user overrides instead of writing an invalid empty display name. Native settings and credentials are separate operations: no cross-service atomicity is claimed. Browser SDK availability/principal admission, installed synchronization and actual model discovery remain unverified operational gates.
+
+## #135 Antigravity owned port
+
+Source: https://github.com/V1ki/dsh-plugin-subscriptions v0.9.12, commit `b8023110864494acefc6f5963c2a197d85dda20c`, MIT (retained notice below). Ported `src/providers/antigravity.ts` and `src/translate/antigravity{,-schema,-thinking}.ts`. The OAuth client constant module is restored byte-for-byte from the locally preserved, reviewed pre-remediation candidate `0b8160bcc795bee99e8fac98194eb724af5a4c77`; its generated counterpart is rebuilt normally. The Owner explicitly asserts redistribution permission; no documentary license or Google authorization was independently verified. Upstream provenance alone is not an authorization finding. Resolution uses explicit config, environment, then the bundled desktop identity, without combining sources; malformed explicit overrides retain locally implemented provider-scoped guards. This restoration knowingly reintroduces the previously reported scanner flag without obfuscation or bypass; official push-protection disposition belongs to the Owner. Reference tests `test/antigravity.spec.ts` and `test/usage-window-filter.spec.ts` are adapted for owned paths and EN/AR rather than Chinese. Shared provider id `antigravity` is the deliberate ADR-0002 exception.
+
+Local adaptations: owned existing controller/card/Manage/account preferences and host registration seams; Majed RPC, storage, effect and data identifiers; user agent names our fork. Signal propagation covers token/project/onboarding/profile calls and bodies; owned reader cancellation releases its lock, interrupted sleeps remove listeners, refresh and usage have an overall deadline, and retry/stream exits cancel unused bodies. Capability lookup receives the selected account and signal. No reference runtime companion, credential import, installed state access or live-provider evidence. The card reuses owned account presentation rather than copying unrelated reference section code; this is an explicit port adaptation, with EN/AR fixture proof, not a claim of pixel equality.
+
+### #135 scoped review corrections
+
+Deliberate local translator adaptation: `streamAntigravity` passes its owner signal to the existing SSE parser. The parser's optional signal races each read with the proven owned `withAbortSignal`, cancels without awaiting an ignored/rejected transport cancellation and releases its lock. Calls without a signal retain existing framing, activity and cleanup behavior; normal translated chunks are unchanged. Provider JSON and OAuth/internal HTTP error bodies reuse the same owned reader pattern as the existing video tool, then delegate status/OAuth/rate-limit classification to the existing shared helpers and sanitize diagnostics. Controller stale-claim behavior is unchanged and now has explicit late-completion persistence proof. These are owned safety corrections, not upstream parity claims.
+
+## #133 overall video deadline correction
+
+Locally reuse the owned `deadlineSignal` and `withAbortSignal` helpers before video submission, composing caller cancellation across submission headers/body, poll headers/body, polling sleep and download headers/reader. Always release the budget; cancel late/unconsumed response bodies without awaiting a potentially stalled cancellation. Offline injected-transport tests reproduce the original unbounded submission and verify bounded settlement and cleanup. No upstream behavior or live-provider proof is claimed.
+
+## #133 continued acceptance corrections
+
+Independently implemented localized native-player error handling, owned video-directory lstat admission and size-bounded positional reads with post-read growth rejection. New controlled tests exercise registered Grok preferences and revocation, nested video text recovery, playback failure and object-URL replacement/unmount lifecycle. These changes are local, not copied upstream. Directory admission assumes the DSH home and its ancestor directories remain under the same trusted OS user; it is not a cross-user filesystem sandbox or an atomic defense against a malicious same-user process replacing ancestors.
+
+## #133 review remediation
+
+Owned corrections after the pinned port: per-attempt cancellation/deadline wrappers around discovery and full token-body exchange; saved Grok aliases in composed status; existing DSH media token/logical-position seams, parameter-free localized retry, focus restoration and decoded-thumbnail retry; no-follow leaf video reads with regular-file/current-uid/size/MP4 checks and bounded streamed provider downloads. These are local safety/integration adaptations, not claims that upstream supplied the fixes. Fixture coverage and remaining mandatory proof are recorded in `docs/ai/ticket-133-verification.md`; no provider or restart acceptance is implied.
+
+## #133 Grok and media port
+
+Pinned MIT source: V1ki/dsh-plugin-subscriptions v0.9.12, `b8023110864494acefc6f5963c2a197d85dda20c`.
+Added `providers/grok.ts`, `tools/video-generate.ts`, `tools/x-search.ts`, `ImageGallery.tsx`, `ImageGenerateToolview.tsx`, `VideoGenerateToolview.tsx`; extended the existing #130 `tools/image-generate.ts` rather than duplicating its pool or Codex search. Owned storage roots remain `plugins/majed/subscriptions`. Auth controller and card adapt the existing owned controller/card lifecycle; host composition adds Grok, settings, billing usage and durable media RPC. Browser contributions use owned IDs and both public/alias tool keys, withdraw with component/reference presence, and reuse the pinned gallery/lightbox behavior. Decorative tool icons are omitted to preserve lazy primitive failure isolation. Locale fallback and RPC facade are owned adaptations. Adapted pinned Grok and complete tools reference tests; fixture expectations now include approved Grok routes/tools. MIT notice below remains unchanged. No upstream runtime dependency or Copilot implementation added.
+
+
+- Source: https://github.com/V1ki/dsh-plugin-subscriptions
+- Version: v0.9.12
+- Commit: b802311
+- License: MIT (copyright notice retained below).
+- Scope carried over in #128: host exact Fetch RPC envelope/registration convention from src/auth/rpc.ts and browser closure-factory build recipe from tsdown.config.ts; no provider implementation.
+
+## #134 final lifecycle remediation
+
+Independently authored owned safety changes from `33f6b78`: ten-second editor-feed fetch/body deadline with fallback and shared-inflight release; stream callers race their own watchdog without aborting shared feed consumers. Token exchange and login/profile bodies share bounded lifecycle signals; controller cancel/dispose abort completion and retain claim checks before persistence. Moved the replay comment in source to prevent TypeScript emitting trailing whitespace; generated output is rebuilt, never hand-edited. New synthetic lifecycle fixtures are owned, not copied reference proof.
+
+## #134 review-remediation deviations
+
+Owned changes beyond v0.9.12: explicit Copilot Manage routing and force invalidation, selected-account capability/protocol lookup with caller cancellation, and early device-flow ownership reservation with a 30-second acquisition budget and expiry-bounded polling/body reads. Error descriptions from token responses are not echoed. These fixes intentionally diverge from reference defects; source equality is not a safety exemption. Dedicated `test/reference/chat-completions.spec.ts` ports the entire 17-case pinned translator suite with import-path adaptation only. Additional owned device and account fixtures exercise stale acquisition, cancellation, late token bodies and incompatible account metadata. Completion from `1d0af7d` adds independently authored owned regression fixtures only: actual React Manage composed with host RPC in EN/AR, incompatible per-account catalog/HTTP streaming differential and cancellation, plus device/controller lifecycle, deadlines, stale completions and error secrecy. No additional reference code or runtime behavior was changed. Controlled evidence and residual installed/live limits are recorded in ticket verification.
+
+## Every local change so far
+
+- Reduced host behavior to one presence endpoint, majed-subscriptions.status; no accounts, storage, tools, adapters or credentials.
+- Structural minimal host service types instead of reference dependencies.
+- Presence response contains component identity and package version.
+- Invalid envelopes receive HTTP 400; no provider dispatch/business errors.
+- Host emitted by TypeScript to dist instead of lib.
+- Browser closure factory is embedded inside the existing core factory in dist/client.js, the sole browser half; no second loader registration or runtime cross-package require.
+- Browser settings and presence lifecycle implemented independently: one empty two-part section, polling/reconnect reconciliation, disposal and English/Arabic copy.
+- Reference external module list retained; no provider wire imports, source maps, declaration emission or purity plugin needed in this presence-only slice.
+
+## #129 owned Codex fork
+
+Pinned source remains v0.9.12, full commit `b8023110864494acefc6f5963c2a197d85dda20c`.
+
+- Copied reference `auth/{store,jwt,pkce,oauth-flow}.ts`, `compat.ts`, `providers/{accounts,common,codex,codex-client-version,npm-cli-version,catalog-store,catalog-refresh,pool,pool-family,pool-health,pool-usage,rate-limit,reset-redemption,replay}.ts`, and `translate/{responses,resolved,sse}.ts`. Compiled counterparts ship under `dist/`.
+- Changed every reference storage root to `plugins/majed/subscriptions`; credential parent directory is explicitly 0700, atomic credential files remain 0600. Review remediation removed the inherited `plugins/router/auth.json` fallback/import/deletion entirely: missing owned credentials now mean an empty store. The original #129 candidate incorrectly retained that fallback; its earlier no-import assertion was false. Only in-place format migration of an explicitly owned file remains.
+- Replaced reference composition/RPC controller with Codex-only `subscriptions.ts` and `auth/controller.ts`, retaining account ownership, OAuth completion cancellation, authenticated envelope conventions and reset-redemption guards. Reference static Codex fallback models retained. Shared internal account families/pool/retry are wired without later-ticket management UI.
+- Replaced proxy transport with a lazy fetch facade in `http.ts`; no global dispatcher or proxy settings are installed in #129.
+- Adapted reference account/login/usage interaction into `codex-card.ts`, injected into the #128 browser section using DSH Button/Input primitives and tokens, English/Arabic only. No Manage, speed, badge, media or later-provider registration.
+- Adapted complete reference shared store/accounts/pool/health/usage/catalog/version/reset/SSE tests; selected Codex-only model, request-body, rate-limit and usage cases from mixed-provider suites. Imports and fixture storage paths changed; unrelated provider cases excluded. Additional assembled host and rendered browser fixtures cover owned behavior.
+- Review remediation additionally ports the Responses/shared-image portion of reference `test/translate.spec.ts` and shared/Codex parsing, classification and wait policy portion of `test/rate-limit.spec.ts`. Mixed Anthropic/chat assertions were removed, while generic Retry-After cases use the Codex reader. Assembled auth fixtures adapt reference `test/login.spec.ts` RPC and finalizing-claim race semantics without Claude credential access. Full source/test dispositions are recorded in `docs/ai/ticket-129-verification.md`.
+- Removed no reference license attribution. Generic shared-core provider type branches are retained for fidelity; they do not enable or register other providers.
+
+The #128 descriptions above describe historical scope, not the current #129 implementation. Live authorization, provider responses and installed-host acceptance are not implied by fixture tests.
+
+## #129 visual-parity correction
+
+- Ported the Codex-only render hierarchy and relevant `styles`, `ClientVersionTag`, `statusText`, `usageWindowLabel`, `usageBarColor` semantics from `src/client/SubscriptionsSection.tsx:186-339,853-1073,1078-1105` at the same pinned commit. Ported applicable input/button/focus styles from `src/client/provider-settings-styles.ts:70-185`; no runtime dependency on the reference.
+- Kept geometry, order, density, token colors, compact textual star controls and disclosure SVG. Replaced literal font sizes with DSH font tokens and physical layout properties with logical ones for Arabic. Added bdi isolation, progress semantics, remount-safe authorization link and disabled-empty-submit behavior. Existing owned RPC controller, usage dedup/pruning/cache force distinction and reset expiry remain unchanged.
+- Retained Button/Input injection with native fallback. Added the source introduction to the owned accounts part, with only one section-level coexistence explanation and concise card collision state. Used the reference native modal dialog surface while preserving the existing owned confirmed logout flow rather than reverting to window.confirm.
+- Reference reset-action guards were adapted inline, with the stronger existing usable-id/expiry filter. Retained reference warning and acknowledgement copy; expired credits remain identified and do not inflate the available count.
+- Deliberately excluded Manage/provider settings/model selection, proxy, badge display, composer Speed, media and all non-Codex provider surfaces; these belong to later tickets. Exact source map, differences and controlled-render limitations are in `docs/ai/ticket-129-ui-parity.md`.
+- `scripts/codex-visual-fixture.mjs` reads the pinned reference without modifying it, removes later-ticket surfaces only, and renders its real component beside the owned card with fake RPC. The temporary fixture dependencies are not shipped or added to package dependencies. Arabic comparison supplies our translation to the reference (it has English/Chinese only).
+
+## #129 login-navigation correction
+
+- Restored the pinned reference `src/client/SubscriptionsSection.tsx:649-678` post-RPC dispatch pattern (`window.open(response.authorizeUrl, '_blank', 'noopener')` at line 676). Local Codex card uses its existing `alive.current` guard before dispatch, login state and status refresh. Removed non-reference `about:blank` preallocation, returned-handle navigation and child cleanup; desktop denies child creation even when external dispatch succeeds, so a handle is not a success signal.
+- Preserved owned action error/pending handling, authorization fallback link, paste, cancel and status behavior. Added regressions at the existing rendered-card boundary with fake delayed RPC and null-returning open, never a real auth endpoint. This is a minimal adaptation of the same MIT source, not a new runtime dependency or a DSH host patch.
+
+## #130 settings port
+
+- Approved source remains v0.9.12 at the full commit above. Direct ports: `provider-settings.ts`, `model-defaults.ts`, `providers/account-preferences.ts`, `http.ts`, `providers/image-pool.ts`, `providers/codex-search.ts` (verbatim), `tools/registration.ts` (aliases renamed to `dsh_majed_*`, warning prefix `dsh-majed:`) and `tools/image-generate.ts` (Codex only: Grok session, rate-limit reset and body builders removed, provider enum reduced to `gpt`, images stored under `plugins/majed/subscriptions/images`). Storage paths are `plugins/majed/subscriptions` with private parent directories. No legacy import or global dispatcher replacement is performed.
+- `src/subscriptions.ts` follows the reference registration (`src/index.ts:1368-1434`): the Codex search provider is registered through `ctx.inject(['web'])` with a per-call `enabled` switch, `image_generate` through `ctx.inject(['tools'])` with `registerWithAlias`, and an `agent/created` listener restricts the registered name from the switches in force at the session's `createdAt`. The image pool is built from the reference `pool` configuration and cleared on account change.
+- Deliberately excluded: `x_search`, `video_generate`, Grok and every non-Codex provider (#131/#133).
+- **Pulled forward from #133 by Owner decision (2026-10-30):** the Codex `image_generate` tool and the Codex web-search provider with its image account pool ship in #130. #133 acceptance must audit and reuse these files and their tests, not duplicate them. Source map (reference v0.9.12 → owned): `src/tools/image-generate.ts` → `src/tools/image-generate.ts` (Codex only); `src/tools/registration.ts` → `src/tools/registration.ts`; `src/providers/image-pool.ts` → `src/providers/image-pool.ts`; `src/providers/codex-search.ts` → `src/providers/codex-search.ts`; registration wiring `src/index.ts:1368-1434` → `src/subscriptions.ts`; tests `test/image-tools.spec.ts`, `tool-registration.spec.ts`, `image-pool.spec.ts`, `codex-search.spec.ts` → `test/reference/*.spec.ts`, assembled in `test/tools-owned.test.mjs` and `test/lifecycle-owned.test.mjs`. Still #133: Grok image/video/`x_search`, the `image`/`video` RPC endpoints, inline gallery/lightbox tool views. Delivered in #131 (see the next section): the `speed`/`setSpeed` endpoints and the composer Speed control.
+- Diagnostic sanitizer `src/diagnostic.ts` (final #130 re-review fix) is independently designed: bounded input, linear scanners and structural JSON redaction. The reference was not consulted for it; no third-party code and no new license obligation.
+
+## #130 final-review remediation (reference parity)
+
+- `src/subscriptions.ts`: `families` follows reference `src/index.ts:1073-1110` (per-account `withTimeout(…, POOL_USAGE_TIMEOUT_MS)` with a per-account catch, `Object.hasOwn` policy lookup, outer catch). `readForce` and `readProxyTestPayload` follow reference `src/auth/rpc.ts:429-436` and `:478-520`; the owned dialog's extra draft fields (`enabled`, `bypass`, `password: null`) are validated beyond the reference. `modelDefaults` returns the reference `ModelDefaultsCatalog[]` with boolean `force` (invalidate version cache, account catalogs and pool, re-announce); the unadvertised-effort message names model and effort. The exported schemastery `Config` mirrors the reference `Config` (`strategy` union default `quota_aware`, `switchMargin` min 1 default 2, `autoAccounts` default true); the reference file exports no separate `validatedConfig`, so the same-named `Config` schema is the validation entry and the `Config` interface stays for typing.
+- `src/http.ts`: secret redaction now matches quoted and nested JSON members (`SECRET_PAIR`); `disposeProxyTransport` aborts in-flight probes and releases the resident password and load error; `proxyTestConnection` takes an optional caller `AbortSignal` (the reference has no such parameter; added so a cancelled RPC stops its probe).
+- `src/subscriptions.ts` (#130 boundary pass): `providerSettings`/`modelDefaults`/`setModelDefault` bound every read with `withTimeout`/`deadlineSignal` (reference `index.ts:1262-1330` bounds only the per-account list and per-model resolve); `browserSafeError` and the registration-collision text are owned additions (no reference counterpart); the cross-provider family warning follows reference `src/index.ts:1105`; `setProviderSettings` accepts `original` and calls `ProviderSettingsStore.update` (owned atomic patch, `src/preference-merge.ts`, extracted from the client `mergeIntent`).
+- `src/providers/common.ts`: `withTimeout` gains an optional parent signal and uses an explicit controller/timer; `deadlineSignal` is owned. `src/providers/codex.ts`: `discovered`, `resolveModel`, `contextLimits`, `supportsFastTier` and `fastCapableModels` take an optional signal and are bounded by `discoveryTimeoutMs`; `context_window` requires a positive safe integer; `contextLimits` clamps the default to the maximum. `src/http.ts`: `proxySetConfig` serializes writes; the connect-attempt helpers the reference calls from `apply` were not used by this package and are removed.
+- Dependency provenance (divergences from the reference, stated as facts only): the reference pins `react`/`react-dom` ^18.2.0 and `undici` ^7.0.0. This package's dev renderer is React 19 (`react`, `react-test-renderer` ^19.3.1, resolved 19.3.1) and its runtime dependency is `undici` ^7.30.1 (resolved 7.30.1); both were introduced in commit `ad0fd64`, and no earlier record states why those versions were chosen. Consequences: rendered proof in `test/manage-ui-matrix.test.mjs` and the adapted UI specs runs on React 19, not the reference's 18, and the owned client uses the host-injected React factory rather than bundling React, so no React version ships; `undici` is the only runtime dependency, used by `src/http.ts` (`ProxyAgent` and `fetch`) and a floor above the reference's. Re-verifying behaviour on React 18 and undici 7.0 was not done. `@deepseek-ai/schemastery` ^3.18.5 is a dev dependency (resolved 3.18.5, already present transitively) for the `Config` schema import; the reference declares it as a peer (`^3.18.1`), and the host provides it at runtime. `@deepseek-ai/dsh-agent` was removed from devDependencies: nothing in `src` or `test` imports it, and it still resolves as the required peer of `@deepseek-ai/dsh-tools` (`npm ls` confirms).
+- Browser manager/model editor and proxy controls retain the reference hierarchy and option semantics, adapted to the injected React factory and English/Arabic logical layout. `ProviderModelEditor.tsx` differs from the reference only in imports, the `original` field, the maximum-context bound, logical CSS and the `majed-` class prefix.
+- Reference tests ported with a provenance header: `tool-registration`, `image-pool`, `codex-search`, `tools` (Codex image subset), `account-manager-ui`, `model-filter`, plus the earlier provider-settings, model-defaults, account-preferences and proxy-host specs. Adapted as assembled tests with documented dispositions: `provider-settings-rpc`, `model-defaults-rpc`, `subagent-speed` (as `test/effective-settings.test.mjs`). Not ported: `model-defaults-view` (helpers unused by the pinned UI), the Playwright browser fixture, and the Grok/media/speed endpoints of `rpc.spec.ts`.
+
+## #131 composer usage badge, Speed control and `/fast`
+
+Source: V1ki/dsh-plugin-subscriptions v0.9.12 (`b8023110864494acefc6f5963c2a197d85dda20c`, MIT), read-only. Every global id is `majed`-prefixed (slot ids `majed-subscription-speed` / `majed-subscription-usage`, RPC `majed-subscriptions.*`, CSS classes `majed-subscription-*`, storage key `majed.subscriptions.usageBadgeMode`, event `majed:subscriptions:usage-badge-mode`); provider ids and the `speed`/`setSpeed` endpoint names stay shared (ADR-0002).
+
+| Reference | Owned | Disposition |
+| --- | --- | --- |
+| `src/client/SubscriptionUsageBadge.tsx` | `src/usage-badge/SubscriptionUsageBadge.tsx` | Faithful port; host primitives and `react-dom` resolved lazily (`host-modules.ts`); automatic usage reads send `force: false`; logical CSS properties for RTL; default-account star label localized. Multi-provider pure helpers are kept unchanged (later provider tickets reuse them). |
+| `src/client/UsageBadgeDisplaySetting.tsx`, `usage-badge-preferences.ts`, `usage-window-filter.ts`, `host-icons.ts` | `src/usage-badge/*` | Faithful port; majed storage key and event. |
+| `src/client/SpeedSelect.tsx`, `fast-command.ts` | `src/speed/*` | Faithful port; calls the owned `majed-subscriptions.speed`/`setSpeed` through `callSubscriptionsAuth`. |
+| shared types from `SubscriptionsSection.tsx` | `src/usage-badge/usage-types.ts`, `slot-types.ts` | Types and `usageBarColor` only; the card itself is the #129 fork. |
+| `src/auth/rpc.ts` `speed`/`setSpeed`, `src/index.ts` `speedBySession`/`selectedSpeed`/speed controller | `src/subscriptions.ts` | Same semantics: explicit per-session choice, subagent default from saved settings, Fast gated on the discovered catalog capability per request, per-account ids for independent-entry accounts. |
+| `src/client/index.ts` slot and `/fast` registration | `src/browser.ts` | Registered only while the component answers and the reference is not serving; withdrawn otherwise; each registration isolated. |
+| tests `client-speed`, `client-command`, `usage-badge-preferences`, `usage-window-filter`, `subscription-usage-badge` | `test/reference/*.spec.ts` | Ported; the media tool-view test belongs to #133 and the Antigravity copy test to #135. |
+
+## #132 Claude subscription
+
+Source: V1ki/dsh-plugin-subscriptions v0.9.12 (`b8023110864494acefc6f5963c2a197d85dda20c`, MIT), read-only. The provider id `claude` stays shared (ADR-0002); every id we own is `majed`-prefixed (RPC `majed-subscriptions.*`, storage `plugins/majed/subscriptions`, locale namespace, `data-majed-claude-*`). The provider code is a verbatim port apart from the changes listed.
+
+| Reference | Owned | Disposition |
+| --- | --- | --- |
+| `src/providers/claude.ts` | `src/providers/claude.ts` | Verbatim port apart from the debug log prefix `dsh-majed:`, an optional `AbortSignal` on `refreshClaude` that also keeps `keychainBound`, and exported `fetchClaudeProfile` taking an optional signal for bounded, cancellable identity lookup (remediation). |
+| `src/providers/claude-cli-version.ts` | `src/providers/claude-cli-version.ts` | Verbatim port. |
+| `src/translate/anthropic.ts` | `src/translate/anthropic.ts` | Verbatim port. |
+| `src/auth/claude-code-creds.ts` | `src/auth/claude-code-creds.ts` | Same credential sources, three-field merge and low-level prior-access-token check; the caller adds an identity gate before adoption/write-back. Every OS touch point (macOS Keychain via `/usr/bin/security`, `$CLAUDE_CONFIG_DIR` or `~/.claude/.credentials.json`) sits behind an injectable `ClaudeCredsIo` so tests use fakes; the default is the real store and is reached only from an explicit import and from the refresh of an imported (`keychainBound`) account. Local changes beyond the reference (remediation): `refreshClaudeSynced` keeps `keychainBound`, takes a lifecycle `AbortSignal`, and uses `ClaudeIdentityOptions` / `ClaudeProfileLookup` to resolve missing emails through the profile endpoint with a 5 s bound. Emails compare after `trim().toLowerCase()`; import records a learned email. Refresh-token continuity is a fallback only when neither email is known after lookup. A different or unproven source is never adopted or written back; the stored account can still refresh its own token. `writeFileRaw` refuses a symlink (non-atomic residual window). |
+| Claude branch of `src/auth/controller.ts` / `rpc.ts` / `index.ts` (login `method`, claim counter) | `src/auth/claude-controller.ts`, `src/subscriptions.ts` | Sibling of `CodexAuthController` so Codex is untouched; `method` validated by `readLoginMethod` before any side effect, for both providers. |
+| `presentedVersion` (`src/index.ts`) | `src/providers/npm-cli-version.ts` | Ported; the Claude CLI version lookup runs only while a Claude account exists. |
+| Claude registration, token manager, catalog, usage, pool/health branches, background sync timer, prompt cache lifetime (`src/index.ts`, `provider-settings.ts`) | `src/subscriptions.ts` | Ported; the timer is `unref()`ed, skips when registration collided and is cleared on dispose; `ApplyOptions.claudeCredsIo` is a host-only test seam (the host never passes it). Claude registers `AccountPreferencesAdapter` like Codex and joins the pool families; a lifecycle `AbortController` is aborted on disposal (remediation). |
+| Claude part of `SubscriptionsSection.tsx`, `ProviderAccountManager.tsx`, `locales.ts` | `src/claude-card.ts`, `src/settings/ProviderAccountManager.tsx`, `locale/{en,ar}.json` | Presentation port on our `codex-card` styles; owned RPC and attributes; Arabic written here. |
+| tests `claude-cache-ttl`, `claude-cli-version`, `claude-models`, `claude-rate-limit`, `claude-usage`, `anthropic-translation`, `detect-cli`, `image-request-limit` | `test/reference/*.spec.ts` | Ported and passing in our suite. |
+
+## #133 proof-only continuation
+
+The registered quota matrix, deterministic file-growth mutation, media RPC admission/cancellation and assembled public/Majed outlet execution tests added after `7ba57c5` are independently written controlled fixtures, not copied upstream implementations. Upstream `test/grok.spec.ts` at `b8023110864494acefc6f5963c2a197d85dda20c` contains two cache-affinity tests; both remain in the owned reference suite with no exclusions. The synthetic loopback fixture transport is test-only, not a DSH runtime companion. No provider/runtime/generated implementation changed in this proof slice. Browser connectivity was unavailable at that historical checkpoint; subsequent Lead-observed synthetic EN/AR light/dark native playback and localized-error evidence supersedes it (see `docs/ai/ticket-133-verification.md`). Fixture evidence does not establish installed/provider acceptance.
+
+## License
+
+MIT License
+
+Copyright (c) 2026 V1ki
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+## #134 GitHub Copilot
+
+Pinned source: https://github.com/V1ki/dsh-plugin-subscriptions v0.9.12,
+`b8023110864494acefc6f5963c2a197d85dda20c`, MIT, Copyright (c) 2026 V1ki.
+
+- Ported `providers/copilot.ts`, `auth/device-flow.ts`, `translate/chat-completions.ts` unchanged from the pin; reused the already owned store, token manager, Responses/image/SSE translation, retry, proxy, catalog and pool implementations.
+- Ported all `test/copilot.spec.ts` and `test/device-flow.spec.ts`, plus the ten Copilot cases and fixture helpers from `test/models.spec.ts` with source import paths adjusted for the owned reference-test directory. No real provider is used by these tests.
+- Added `auth/copilot-controller.ts` as the Copilot slice of reference auth composition, with claim/disposal checks and sanitized errors. Integrated into existing owned RPC, provider preferences, account presentation, Manage/model defaults and pools, without new RPC names or storage.
+- Added `copilot-card.ts`, adapting the existing owned account card plus reference device-code controls; EN/AR labels, logical styles, isolated code, clipboard error reporting and safe external link. No manual callback, CLI import or usage endpoint is invented for Copilot.
+- Shared provider id remains `copilot`; all new owned browser attributes and lifecycle labels use Majed prefixes. Built output lives in dist. This is a local candidate, not installed/live acceptance.

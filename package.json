@@ -1,7 +1,7 @@
 {
-  "name": "dsh-majed",
+  "name": "dsh-waycraft",
   "version": "0.2.0",
-  "description": "Majed's personal DeepSeek Harness toolkit: bidirectional (RTL/LTR) text support for Arabic, Persian and Hebrew, plus extra Settings > General options such as an app-UI font size.",
+  "description": "Waycraft for DSH: interface and workflow enhancements, bidirectional text, subscription providers and account usage controls for DeepSeek Harness.",
   "keywords": [
     "deepseek-harness",
     "dsh-plugin",
@@ -20,7 +20,10 @@
   },
   "exports": {
     ".": "./index.js",
-    "./client": "./client.js",
+    "./client": "./dist/client.js",
+    "./subscriptions": "./dist/subscriptions.js",
+    "./subscriptions/locale/*.json": "./subscriptions/locale/*.json",
+    "./subscriptions/icon": "./icon.svg",
     "./locale/*.json": "./locale/*.json",
     "./icon": "./icon.svg"
   },
@@ -34,7 +37,11 @@
     "fonts/manifest.json",
     "fonts/LICENSE-*.txt",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "dist",
+    "THIRD_PARTY_NOTICES.md",
+    "src/PROVENANCE.md",
+    "subscriptions/locale/*.json"
   ],
   "dsh": {
     "bundle": {
@@ -46,8 +53,37 @@
       "inject": [
         "@deepseek-ai/dsh-client-ui-settings-general",
         "@deepseek-ai/dsh-client-ui-conversation",
-        "@deepseek-ai/dsh-client-ui-chat"
+        "@deepseek-ai/dsh-client-ui-chat",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-connection",
+        "@deepseek-ai/dsh-api-remotes"
       ]
     }
+  },
+  "scripts": {
+    "build": "tsc && tsdown && node scripts/assemble-client.mjs",
+    "test": "node scripts/classifier-test-adapter.mjs && node test/classify.test.cjs && tsc -p tsconfig.reference.json && node --test lib-test/test/reference/*.spec.js test/*.test.mjs",
+    "check:build": "node scripts/check-build.mjs"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "^4.0.5",
+    "@deepseek-ai/dsh-attachment": "^0.2.1-rc.2",
+    "@deepseek-ai/dsh-client-connection": "^0.2.1-rc.2",
+    "@deepseek-ai/dsh-home-paths": "^0.2.1-rc.2",
+    "@deepseek-ai/dsh-llm": "^0.2.1-rc.2",
+    "@deepseek-ai/dsh-tools": "^0.2.1-rc.2",
+    "@deepseek-ai/dsh-web": "^0.2.1-rc.2",
+    "@deepseek-ai/schemastery": "^3.18.5",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-test-renderer": "^19.3.1",
+    "tsdown": "^0.15.0",
+    "typescript": "^5.8.0"
+  },
+  "dependencies": {
+    "undici": "^7.30.1"
   }
 }

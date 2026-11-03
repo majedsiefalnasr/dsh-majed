@@ -1,6 +1,6 @@
-# dsh-majed
+# Waycraft for DSH
 
-Majed's toolkit plugin for **DeepSeek Harness (DSH)**. It never patches DSH itself — everything is added through public client extension points when the plugin is enabled, and removed again when it is disabled.
+**Waycraft** (`dsh-waycraft`, formerly `dsh-majed`) is an interface, workflow and provider toolkit for **DeepSeek Harness (DSH)**. It never patches DSH itself — everything is added through public client extension points when the plugin is enabled, and removed again when it is disabled.
 
 ## Features
 
@@ -47,6 +47,12 @@ All text in this plugin's own UI (settings rows, dropdowns, toast, Approvals con
 
 Settings are stored per-browser/desktop profile in `localStorage` (`dsh-majed:settings:v1`).
 
+## Identity and upgrade compatibility
+
+The product is **Waycraft for DSH**, with package name `dsh-waycraft`. The source repository remains `majedsiefalnasr/dsh-majed`; a repository rename is a separate operation. Legacy `majed` Loader row ids, RPC/tool names, CSS hooks, font route, `window.__dshMajed`, browser settings keys and account storage paths intentionally remain stable so the branding change does not discard user data or break integrations. These are compatibility identifiers, not the current product name.
+
+Do not install Waycraft alongside the old package: both declare the same component ids and capabilities. An installed upgrade requires a separately approved replacement with backup/rollback, followed by a full DSH restart. This source rename does not change an already installed package or imply an npm release exists. Historical release notes, source attributions and evidence retain their original names.
+
 ## Install
 
 Via the Plugins page, or:
@@ -55,10 +61,10 @@ Via the Plugins page, or:
 dsh plugin install github:majedsiefalnasr/dsh-majed
 ```
 
-Then remove `dsh-persian-rtl` (this plugin supersedes it) and restart DSH.
+Then remove `dsh-persian-rtl` (this plugin supersedes it). After installing or updating, fully restart DSH: newly added component rows do not appear through in-place discovery without a restart (Owner-verified).
 
 ## Roadmap
-More Settings ▸ General options will be added here over time.
+Waycraft's scope includes interface and workflow improvements, provider integrations and future routing enhancements. Automatic model/provider selection is a roadmap direction, not a feature promised by this rename.
 
 ## Credits
 Chat direction CSS/logic adapted from [dsh-persian-rtl](https://github.com/ireza7/dsh-persian-rtl) (MIT).
