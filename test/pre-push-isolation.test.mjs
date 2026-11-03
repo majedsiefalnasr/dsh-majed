@@ -37,6 +37,19 @@ for (const status of [0, 23])
       writeFileSync(join(root, 'src/input.js'), 'staged');
       writeFileSync(join(root, 'dist/output.js'), 'original');
       writeFileSync(join(root, '.private/secret'), 'do not copy');
+      const excluded = [
+        'src/private',
+        'src/vendor',
+        'src/fixtures',
+        'src/fixture-data',
+        'src/__fixtures__',
+        'src/.hidden',
+        'src/PRIVATE',
+      ];
+      for (const name of [...excluded, '.github/workflows', '.githooks']) {
+        mkdirSync(join(root, name), { recursive: true });
+        writeFileSync(join(root, name, 'sentinel'), 'synthetic');
+      }
       execFileSync('git', ['init', '--quiet', root]);
       execFileSync('git', ['add', '--force', '.'], { cwd: root });
       writeFileSync(join(root, 'src/input.js'), 'working');
@@ -44,7 +57,7 @@ for (const status of [0, 23])
       const report = join(root, 'report');
       writeFileSync(
         join(root, 'bin/npm'),
-        `#!${process.execPath}\nconst fs = require('node:fs');\nconst cp = require('node:child_process');\nrequire('node:assert/strict').deepEqual(process.argv.slice(2), ['run', 'ci']);\nrequire('node:assert/strict').equal(fs.readFileSync('src/input.js', 'utf8'), 'working');\nfor (const name of ['src/untracked.js', '.private/secret']) require('node:assert/strict').equal(fs.existsSync(name), false);\nrequire('node:assert/strict').match(cp.execFileSync('git', ['ls-files'], {encoding:'utf8'}), /src\\/input.js/);\nfs.writeFileSync(${JSON.stringify(report)}, process.cwd());\nfs.writeFileSync('dist/output.js', 'mutated');\nfs.writeFileSync('src/input.js', 'mutated');\nprocess.exit(${status});\n`,
+        `#!${process.execPath}\nconst fs = require('node:fs');\nconst cp = require('node:child_process');\nrequire('node:assert/strict').deepEqual(process.argv.slice(2), ['run', 'ci']);\nrequire('node:assert/strict').equal(fs.readFileSync('src/input.js', 'utf8'), 'working');\nfor (const name of ${JSON.stringify(['src/untracked.js', '.private/secret', ...excluded])}) require('node:assert/strict').equal(fs.existsSync(name), false);\nrequire('node:assert/strict').match(cp.execFileSync('git', ['ls-files'], {encoding:'utf8'}), /src\\/input.js/);\nfor (const name of ['.github/workflows/sentinel', '.githooks/sentinel']) require('node:assert/strict').equal(fs.existsSync(name), true);\nfs.writeFileSync(${JSON.stringify(report)}, process.cwd());\nfs.writeFileSync('dist/output.js', 'mutated');\nfs.writeFileSync('src/input.js', 'mutated');\nprocess.exit(${status});\n`,
       );
       chmodSync(join(root, 'bin/npm'), 0o755);
       const index = readFileSync(join(root, '.git/index'));

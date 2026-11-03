@@ -43,9 +43,14 @@ const files = execFileSync(
   .filter(Boolean)
   .filter(
     (name) =>
-      !/(^|\/)(\.private[^/]*|\.local[^/]*|\.env[^/]*|private|vendor|fixtures?)(\/|$)/i.test(
-        name,
-      ),
+      !name
+        .split('/')
+        .some(
+          (part) =>
+            /^(?:\.|private|vendor|fixtures?(?:[.-]|$)|__fixtures__|node_modules)/i.test(
+              part,
+            ) && !['.github', '.githooks', '.gitignore'].includes(part),
+        ),
   )
   .filter((name) => {
     try {

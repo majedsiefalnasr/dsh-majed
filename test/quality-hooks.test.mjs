@@ -40,7 +40,20 @@ function fixture(t) {
     ],
     { cwd: dir },
   );
-  execFileSync('git', ['commit', '-m', 'init', '-q'], { cwd: dir });
+  execFileSync(
+    'git',
+    [
+      '-c',
+      'user.name=Quality Fixture',
+      '-c',
+      'user.email=fixture@example.invalid',
+      'commit',
+      '-m',
+      'init',
+      '-q',
+    ],
+    { cwd: dir },
+  );
   return dir;
 }
 function command(dir, args) {

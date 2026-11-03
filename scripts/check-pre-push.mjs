@@ -38,9 +38,14 @@ const files = execFileSync('git', ['ls-files', '-z', '--cached'], {
   )
   .filter(
     (name) =>
-      !/(^|\/)(\.private[^/]*|\.local[^/]*|\.env[^/]*|node_modules)(\/|$)/.test(
-        name,
-      ) &&
+      !name
+        .split('/')
+        .some(
+          (part) =>
+            /^(?:\.|private|vendor|fixtures?(?:[.-]|$)|__fixtures__|node_modules)/i.test(
+              part,
+            ) && !['.github', '.githooks', '.gitignore'].includes(part),
+        ) &&
       ![
         'scripts/unified-138.bundle.css',
         'scripts/unified-138.bundle.js',
