@@ -727,9 +727,14 @@ test('start, unmount, remount on the same auth controller, paste then cancel fre
       first.unmount();
       const next = fixture('en', {}, respond);
       next.render();
-      for (let i = 0; i < 10; i++)
-        await new Promise((resolve) => setImmediate(resolve));
-      await next.settle();
+      const deadline = Date.now() + 5000;
+      while (
+        !next.nodes().some((n) => n.tag === 'a') &&
+        Date.now() < deadline
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        await next.settle();
+      }
       const link = next.nodes().find((n) => n.tag === 'a');
       assert.ok(link);
       assert.deepEqual(Object.keys((await controller.status()).pendingAuth), [
