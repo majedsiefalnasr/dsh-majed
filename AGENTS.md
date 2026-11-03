@@ -19,6 +19,14 @@
 
 Before any project work, session/goal continuation or delegation, read [scope control](docs/ai/rules/scope-control.md) and [current work](docs/ai/current-work.md). Follow the recorded phase and approved work contract; a historical goal or generic continuation does not lift a freeze. Include these gates in delegated tasks. Reference plugins are learning sources, not required runtime companions.
 
+## Mandatory post-merge cleanup
+
+Every merge includes a cleanup phase before handoff or release preparation. Fetch/prune remote refs, confirm the merged commit and target branch, and inventory local/remote branches and worktrees. Remove obsolete worktrees and merged local/remote topic branches after verifying they have no unique work and no active PR or session; preserve the primary checkout, protected branches and current execution checkout until the session has moved safely.
+
+Before removing a worktree, inspect tracked changes, untracked and ignored paths. Archive unique work, local evidence and rollback material outside the checkout with a private manifest and verified contents; retain unmerged branch refs until their disposition is explicitly approved. Resolve and verify every deletion target. Use normal Git worktree/branch removal; forced removal is allowed only after explicit archive-and-remove approval and archive verification. Keep credentials/account state private and archives out of commits. Never use blanket cleanup to discard unknown files.
+
+Cleanup is complete when obsolete merged refs/worktrees are removed, remaining exceptions have an explicit reason and next action, repository connectivity and intended working-tree state are verified, and the handoff records the archive location and cleanup result. Local-only cleanup needs no commit; commit/push only intended tracked changes. Merge authorization includes this safe cleanup phase, not deletion of unmerged work or installation/publication.
+
 ## Cost-aware delegation and model selection
 
 Before resuming specification implementation, selecting a model or launching delegated work, read [the execution policy](docs/ai/rules/execution-policy.md) for the Owner's workflow, concurrency and model-fallback requirements.
