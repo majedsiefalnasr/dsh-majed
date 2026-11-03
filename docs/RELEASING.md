@@ -29,5 +29,13 @@ live verification in the DSH desktop app (see checklist).
 9. Create the GitHub release from the tag using the changelog section as notes
    (`gh release create vX.Y.Z --notes-file <section> [--prerelease]`; use `--prerelease` for `-rc`).
 
+## Automated npm publication
+
+The GitHub Actions workflow `.github/workflows/npm-publish.yml` runs when a non-prerelease GitHub Release is published. It checks out the release tag, requires `v` plus the exact package version, installs locked dependencies, runs tests and the byte-exact fresh-build check, then publishes with OIDC provenance. Existing npm versions are skipped, never overwritten. Registry errors fail closed. Ordinary pushes do not publish. Release approval is still a human gate; do not publish a Release before its source, tests, notes and desktop acceptance are approved.
+
+One-time Owner setup: in npm package **dsh-waycraft → Settings → Trusted publishing**, add GitHub Actions with organization/user `majedsiefalnasr`, repository `dsh-majed`, workflow filename `npm-publish.yml`, and no environment (this workflow declares none). Use GitHub-hosted runners and Node24's current npm with trusted publishing support. No npm token or OTP belongs in GitHub secrets or chat. Source: https://docs.npmjs.com/trusted-publishers/ . Workflow publication is not operationally verified until the first new approved release succeeds; configuring this file does not configure npm's trust.
+
+Version0.2.1 was published manually before automation. Its GitHub Release must not republish it. Subsequent releases follow source integration → exact version tag → approved GitHub Release → automated validation/publication. Do not claim all historical desktop checks were repeated for the narrow0.2.1 identity fix; its boot acceptance is the Owner's explicit restart confirmation.
+
 ## Rollback
 Preserve the exact previous approved package archive and its hash before replacing the installed bundle (`dsh-majed` for legacy installations, `dsh-waycraft` after cutover). Use the plugin manager for an explicitly approved replacement or rollback, not manual profile edits. Keep account/configuration directories intact, restore the previous archive if necessary and fully restart DSH. An archive rollback does not undo any separately authorized data migration.

@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-03
+
+- Fix the browser factory retaining the legacy package identity after the Waycraft rename, which prevented desktop web boot after restart. Register `dsh-waycraft` consistently with package metadata; retain legacy settings/account namespaces. Add source and assembled-client identity regression checks. Packaging and fresh-build checks pass; desktop restart verification remains required.
+
 ## [0.2.0] - 2026-11-03
 
 First Waycraft npm release; see [final release scope, upgrade and limitations](docs/RELEASE-0.2.0.md). The development entries below preserve their original checkpoint evidence and superseded designs; they are not a claim that every intermediate UI is shipped.
