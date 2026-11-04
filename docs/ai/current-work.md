@@ -1,5 +1,17 @@
 # Current work
 
+## #148 Categories, notes and navigation placement — started 2026-11-04
+
+Reconciled #147: Owner accepted it; commit `0eb24b5` is pushed to and verified on `feat/skill-manager`; issue #147 is CLOSED; `npm test` was 988/988. The #147 status paragraph below ("uncommitted") is historical. The Owner explicitly approved starting #148.
+
+Work contract (bounded `implement` route; base `0eb24b5`; isolated worktree `.agents/worktrees/impl/148-categories-notes-navigation`; no commit, push, issue edits, install or profile change; no agent spawning):
+- Acceptance: create/rename/delete/assign logical categories, bulk assign, drag/order and bulk toggle without moving files (deleting a category uncategorizes); persisted searchable custom notes kept separate from descriptions; persisted Settings/sidebar/both placement including sidebar-only, with EN/AR interactions. Scope isolation, policy enforcement, the 988 existing tests and the default-off Component are preserved.
+- TDD at the built registered host route (`dist/skills.js`) and the assembled registered client (`dist/client.js`) in EN and AR; RED before GREEN.
+- Budget: 20 minutes or two failed diagnostics, then stop and report. Reference: pinned v1.2.29 `49037a9`, read-only.
+- Out of scope: any #148-external work (self-updater, Chinese locale, create/import/trash/repositories/catalogs, #149+), host patches, dependency installs.
+
+Status: implementation and independent Standards/Spec reviews completed; focused re-review found no high-severity or blocking issues. Additional regression tests cover actual oversize-write rejection, project UI isolation, stale drag, and disposal during a pending placement save. Parent verification: build, quality, check:build and npm test (1010/1010). Ready for Lead local commit; publication and issue closure require Owner acceptance. The worker-only no-commit restriction above does not prohibit the Lead's approved local commit. Next allowed action after the local commit: request Owner approval to push to feat/skill-manager and close #148; do not start #149 without approval. Known limits: a successful, authoritative workspace-registry read that omits a project prunes that project's organization (a missing or throwing registry does not); a source whose scan reports diagnostics keeps its metadata unpruned, so a skill removed while a source also has an unrelated diagnostic keeps a stale entry until the next clean mutation. Live slot registration (sidebar.panellist, main, plugins.bundle.config, layout.selectPanel) is proven only by controlled harness tests, not in an installed app.
+
 ## #147 Registered projects and custom sources — started 2026-11-04
 
 Ticket: #147 "Skill manager: Registered projects and custom sources" (builds on #146, commit 771f79f on `feat/skill-manager`). Worktree `.agents/worktrees/impl/147-projects-sources`, branch `impl/147-projects-sources`; push only to `feat/skill-manager` with an explicit refspec after Owner acceptance, never `main`. Not authorized: installed app/profile changes, #148+ scope, new dependencies.

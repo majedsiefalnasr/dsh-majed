@@ -4,6 +4,8 @@
 
 #147's registered-project and custom-source behavior (`src/skills-sources.ts`, the project and custom-source logic in `src/skills.ts`, and the matching controls in `src/skills-browser.ts`) adapts the same pinned reference under Apache License 2.0; ranges and local changes are recorded in `src/PROVENANCE.md`.
 
+#148's category, note and navigation-placement behavior (the corresponding logic in `src/skills.ts` and `src/skills-browser.ts`) adapts the same pinned reference under Apache License 2.0; ranges and local changes are recorded in `src/PROVENANCE.md`.
+
 #146 uses `yaml` 2.8.1 (Eemeli Aro, ISC License) to parse skill frontmatter. It is a pinned runtime dependency in `package.json`; the built `dist/skills.js` imports it as an external package and does not embed it.
 
 #137 adapts OpenCode Zen client identification, free-lane catalog and gate schemas from https://github.com/FishBottle7/opencode2dsh `v0.3.14`, commit `1aa212063cf68b0ad6f3ed310bca4588cf06c008`. MIT License, Copyright (c) 2026 FishBottle7. The complete MIT permission, inclusion condition and warranty disclaimer reproduced below apply to these adapted portions as well. See `src/PROVENANCE.md` for local changes.

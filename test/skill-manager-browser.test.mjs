@@ -198,7 +198,7 @@ for (const language of ['en', 'ar'])
     );
     await act(async () => {
       view.root
-        .findByType('input')
+        .findByProps({ 'aria-label': dictionaries[language].search })
         .props.onChange({ target: { value: 'missing' } });
     });
     assert.match(

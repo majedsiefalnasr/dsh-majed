@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { lstat, mkdir, open, realpath, rename, rm, writeFile, } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
@@ -239,11 +239,39 @@ export function apply(ctx, config = {}) {
         })),
     ];
     const statePath = config.statePath ?? join(dshHome, 'majed-skills', 'state.json');
+    const PLACEMENTS = ['settings', 'sidebar', 'both'];
+    const CATEGORY_NAME_MAX = 24;
+    const CATEGORY_LIMIT = 64;
+    const NOTE_MAX = 500;
+    const NAME_MAX = 128;
+    const BULK_MAX = 100;
+    const MEMBER_MAX = 4096;
+    const NOTE_COUNT_MAX = 1024;
+    const SOURCES_PER_SCOPE_MAX = 256;
+    /** Serialized state must stay readable: the loader refuses files over READ_LIMIT. */
+    const STATE_WRITE_MAX = Math.floor(READ_LIMIT * 0.9);
+    const emptyOrg = () => ({
+        categories: [],
+        members: Object.create(null),
+        order: Object.create(null),
+        notes: Object.create(null),
+    });
+    const cloneOrg = (org) => {
+        const copy = emptyOrg();
+        copy.categories = org.categories.map((item) => ({ ...item }));
+        Object.assign(copy.members, org.members);
+        for (const [id, names] of Object.entries(org.order))
+            copy.order[id] = [...names];
+        Object.assign(copy.notes, org.notes);
+        return copy;
+    };
     const emptyState = () => ({
         sources: Object.create(null),
         copies: Object.create(null),
         customSources: [],
         projects: Object.create(null),
+        organization: Object.create(null),
+        placement: 'settings',
     });
     let state = emptyState();
     let corrupt = false;
@@ -294,7 +322,85 @@ export function apply(ctx, config = {}) {
                 copies: Object.assign(Object.create(null), item.copies),
             };
         }
+        const organization = Object.create(null);
+        const rawOrg = value.organization ?? {};
+        if (!rawOrg || typeof rawOrg !== 'object' || Array.isArray(rawOrg))
+            throw invalid();
+        const isMap = (x) => !!x && typeof x === 'object' && !Array.isArray(x);
+        const parseOrg = (entry) => {
+            const org = emptyOrg();
+            if (!Array.isArray(entry.categories))
+                throw invalid();
+            if (entry.categories.length > CATEGORY_LIMIT)
+                throw invalid();
+            const ids = new Set();
+            const names = new Set();
+            for (const item of entry.categories) {
+                if (!isMap(item) ||
+                    typeof item.id !== 'string' ||
+                    !/^[0-9a-f]{16}$/.test(item.id) ||
+                    typeof item.name !== 'string' ||
+                    !item.name ||
+                    item.name !== item.name.trim() ||
+                    item.name.length > CATEGORY_NAME_MAX ||
+                    ids.has(item.id) ||
+                    names.has(item.name))
+                    throw invalid();
+                ids.add(item.id);
+                names.add(item.name);
+                org.categories.push({ id: item.id, name: item.name });
+            }
+            if (!isMap(entry.members) || !isMap(entry.order) || !isMap(entry.notes))
+                throw invalid();
+            if (Object.keys(entry.members).length > MEMBER_MAX ||
+                Object.keys(entry.notes).length > NOTE_COUNT_MAX)
+                throw invalid();
+            for (const [skill, id] of Object.entries(entry.members)) {
+                if (skill === '__proto__' ||
+                    skill.length > NAME_MAX ||
+                    typeof id !== 'string' ||
+                    !ids.has(id))
+                    throw invalid();
+                org.members[skill] = id;
+            }
+            for (const [id, list] of Object.entries(entry.order)) {
+                if ((id && !ids.has(id)) ||
+                    !Array.isArray(list) ||
+                    list.length > MEMBER_MAX ||
+                    list.some((x) => typeof x !== 'string' || x.length > NAME_MAX))
+                    throw invalid();
+                org.order[id] = [...new Set(list)];
+            }
+            for (const [skill, note] of Object.entries(entry.notes)) {
+                if (skill === '__proto__' ||
+                    skill.length > NAME_MAX ||
+                    typeof note !== 'string' ||
+                    !note ||
+                    note.length > NOTE_MAX)
+                    throw invalid();
+                org.notes[skill] = note;
+            }
+            return org;
+        };
+        for (const [scope, sources] of Object.entries(rawOrg)) {
+            if (!(scope === 'global' || /^[0-9a-f]{16}$/.test(scope)) ||
+                !isMap(sources) ||
+                Object.keys(sources).length > SOURCES_PER_SCOPE_MAX)
+                throw invalid();
+            const bySource = Object.create(null);
+            for (const [sourceId, entry] of Object.entries(sources)) {
+                if (!sourceId || sourceId.length > NAME_MAX || !isMap(entry))
+                    throw invalid();
+                bySource[sourceId] = parseOrg(entry);
+            }
+            organization[scope] = bySource;
+        }
+        const placement = value.placement ?? 'settings';
+        if (typeof placement !== 'string' || !PLACEMENTS.includes(placement))
+            throw invalid();
         return {
+            organization,
+            placement,
             sources: Object.assign(Object.create(null), value.sources),
             copies: Object.assign(Object.create(null), value.copies),
             customSources: custom.map((item) => ({
@@ -620,11 +726,19 @@ export function apply(ctx, config = {}) {
                 sources: flags(item.sources),
                 copies: flags(item.copies),
             };
+        const organization = Object.create(null);
+        for (const [scope, sources] of Object.entries(state.organization)) {
+            organization[scope] = Object.create(null);
+            for (const [sourceId, org] of Object.entries(sources))
+                organization[scope][sourceId] = cloneOrg(org);
+        }
         return {
             sources: flags(state.sources),
             copies: flags(state.copies),
             customSources: state.customSources.map((item) => ({ ...item })),
             projects,
+            organization,
+            placement: state.placement,
         };
     };
     const fail = (status, code, params = {}) => Response.json({ code, params }, { status });
@@ -636,6 +750,13 @@ export function apply(ctx, config = {}) {
         available: project.available,
         code: project.code,
     });
+    /** Organization of one scope keyed by source id. */
+    const orgView = (scope) => {
+        const view = {};
+        for (const [sourceId, org] of Object.entries(state.organization[scope] ?? {}))
+            view[sourceId] = cloneOrg(org);
+        return view;
+    };
     const projectView = async (project) => {
         if (!project.available)
             return {
@@ -658,6 +779,7 @@ export function apply(ctx, config = {}) {
             })),
             copies: copies.map(strip),
             diagnostics,
+            organization: orgView(project.id),
         };
     };
     const payload = async (project, projects, expose = true) => {
@@ -669,6 +791,8 @@ export function apply(ctx, config = {}) {
             })),
             copies: copies.map(strip),
             corrupt,
+            placement: state.placement,
+            organization: orgView('global'),
             diagnostics: [...diagnostics, ...registryDiagnostics()],
             projects: expose ? projects.map(summarize) : [],
             ...(project ? { project: await projectView(project) } : {}),
@@ -777,6 +901,7 @@ export function apply(ctx, config = {}) {
             if (checked.path !== record.path) {
                 // Policy keyed by the old location must not silently apply to the new folder.
                 delete next.sources[record.id];
+                delete next.organization.global?.[record.id];
                 for (const path of Object.keys(next.copies))
                     if (isSameOrDescendant(record.path, path))
                         delete next.copies[path];
@@ -801,9 +926,251 @@ export function apply(ctx, config = {}) {
         const [removed] = next.customSources.splice(index, 1);
         // Only Waycraft state is edited: the folder and its skills are never touched.
         delete next.sources[id];
+        delete next.organization.global?.[id];
+        if (!Object.keys(next.organization.global ?? {}).length)
+            delete next.organization.global;
         for (const path of Object.keys(next.copies))
             if (isSameOrDescendant(removed.path, path))
                 delete next.copies[path];
+        await writeState(next);
+        return undefined;
+    };
+    const ORG_ACTIONS = [
+        'category-create',
+        'category-rename',
+        'category-delete',
+        'category-assign',
+        'category-move',
+        'category-toggle',
+        'note',
+        'placement',
+    ];
+    /** Category, note and placement mutations. Metadata only: skill files are never touched. */
+    const organize = async (body, project, projects) => {
+        if (closing)
+            return new Response('Skill manager is stopping', { status: 503 });
+        if (corrupt)
+            return new Response('Skill state is invalid', { status: 409 });
+        const next = cloneState();
+        if (body.action === 'placement') {
+            if (typeof body.location !== 'string' ||
+                !PLACEMENTS.includes(body.location))
+                return fail(400, 'placement-invalid');
+            next.placement = body.location;
+            await writeState(next);
+            return undefined;
+        }
+        if (project && !project.available)
+            return fail(409, project.code ?? 'project-unavailable');
+        const scope = project ? project.id : 'global';
+        const projectView2 = project ? await projectCatalog(project) : undefined;
+        const view = projectView2 ?? (await catalog());
+        // Every organization action targets one validated source: same-named skills elsewhere are separate.
+        const sourceId = body.source;
+        const sourceIds = projectView2
+            ? projectView2.list.map((item) => item.id)
+            : globalSources().map((item) => item.id);
+        if (typeof sourceId !== 'string' || !sourceId)
+            return fail(400, 'invalid-request');
+        if (!sourceIds.includes(sourceId))
+            return fail(404, 'source-unknown');
+        // Only a successful, authoritative registry read may drop organization of unregistered projects.
+        if (!registryUnavailable) {
+            const registered = new Set(projects.map((item) => item.id));
+            for (const key of Object.keys(next.organization))
+                if (key !== 'global' && !registered.has(key))
+                    delete next.organization[key];
+        }
+        next.organization[scope] ??= Object.create(null);
+        const org = (next.organization[scope][sourceId] ??= emptyOrg());
+        const copies = view.copies.filter((x) => x.source === sourceId &&
+            x.metadataValid !== false &&
+            x.name !== '__proto__');
+        const known = new Set(copies.map((x) => x.name));
+        // A source that could not be read cleanly may only look empty: never prune its metadata then.
+        const unreliable = view.diagnostics.some((item) => item.params.source === sourceId);
+        // Reconcile: forget members, notes and order entries of skills that vanished from this source.
+        if (!unreliable) {
+            for (const skill of Object.keys(org.members))
+                if (!known.has(skill))
+                    delete org.members[skill];
+            for (const skill of Object.keys(org.notes))
+                if (!known.has(skill))
+                    delete org.notes[skill];
+            for (const id of Object.keys(org.order))
+                org.order[id] = org.order[id].filter((x) => known.has(x) &&
+                    (org.members[x] ?? '') === id &&
+                    (!id || org.categories.some((c) => c.id === id)));
+        }
+        const label = (value) => {
+            const label = typeof value === 'string' ? value.trim() : '';
+            return label && label.length <= CATEGORY_NAME_MAX ? label : undefined;
+        };
+        const categoryId = (value) => typeof value === 'string' && org.categories.some((x) => x.id === value)
+            ? value
+            : undefined;
+        /** Saved order first, then any remaining members alphabetically: deterministic. */
+        const ordered = (group) => {
+            const available = [...known]
+                .filter((x) => (org.members[x] ?? '') === group)
+                .sort((a, b) => a.localeCompare(b));
+            const saved = (org.order[group] ?? []).filter((x) => available.includes(x));
+            return [...saved, ...available.filter((x) => !saved.includes(x))];
+        };
+        const place = (skill, id) => {
+            const previous = org.members[skill] ?? '';
+            if (previous === id)
+                return;
+            org.order[previous] = ordered(previous).filter((x) => x !== skill);
+            if (id)
+                org.members[skill] = id;
+            else
+                delete org.members[skill];
+            org.order[id] = [...ordered(id).filter((x) => x !== skill), skill];
+        };
+        const action = body.action;
+        if (action === 'category-create' || action === 'category-rename') {
+            if (typeof body.name !== 'string')
+                return fail(400, 'invalid-request');
+            const name = label(body.name);
+            if (!name)
+                return fail(400, 'category-name');
+            const target = action === 'category-rename' ? categoryId(body.category) : undefined;
+            if (action === 'category-rename' && !target)
+                return fail(404, 'category-unknown');
+            if (org.categories.some((x) => x.name === name && x.id !== target))
+                return fail(409, 'category-duplicate');
+            if (action === 'category-create') {
+                if (org.categories.length >= CATEGORY_LIMIT)
+                    return fail(409, 'category-limit', { limit: String(CATEGORY_LIMIT) });
+                const id = randomBytes(8).toString('hex');
+                org.categories.push({ id, name });
+                org.order[id] = [];
+            }
+            else
+                org.categories.find((x) => x.id === target).name =
+                    name;
+        }
+        else if (action === 'category-delete') {
+            if (typeof body.category !== 'string')
+                return fail(400, 'invalid-request');
+            const id = categoryId(body.category);
+            if (!id)
+                return fail(404, 'category-unknown');
+            // Members fall back to uncategorized, appended after the existing order; no skill file is involved.
+            const former = ordered(id);
+            const existing = ordered('');
+            org.categories = org.categories.filter((x) => x.id !== id);
+            delete org.order[id];
+            for (const [skill, member] of Object.entries(org.members))
+                if (member === id)
+                    delete org.members[skill];
+            org.order[''] = [...existing, ...former];
+        }
+        else if (action === 'category-assign') {
+            const names = body.names;
+            if (!Array.isArray(names) ||
+                !names.length ||
+                names.length > BULK_MAX ||
+                names.some((x) => typeof x !== 'string' || x.length > NAME_MAX) ||
+                (body.category !== '' && typeof body.category !== 'string'))
+                return fail(400, 'invalid-request');
+            const id = body.category === '' ? '' : categoryId(body.category);
+            if (id === undefined)
+                return fail(404, 'category-unknown');
+            if (names.some((x) => !known.has(x)))
+                return fail(404, 'skill-unknown');
+            for (const skill of new Set(names))
+                place(skill, id);
+        }
+        else if (action === 'category-move') {
+            const skill = body.name;
+            if (typeof skill !== 'string' ||
+                (body.category !== '' && typeof body.category !== 'string') ||
+                (body.target !== undefined &&
+                    body.target !== '' &&
+                    typeof body.target !== 'string'))
+                return fail(400, 'invalid-request');
+            const id = body.category === '' ? '' : categoryId(body.category);
+            if (id === undefined)
+                return fail(404, 'category-unknown');
+            if (!known.has(skill))
+                return fail(404, 'skill-unknown');
+            const position = body.position ?? 'before';
+            if (position !== 'before' && position !== 'after')
+                return fail(400, 'order-position');
+            const target = body.target;
+            if (typeof target === 'string' && target) {
+                if (!known.has(target))
+                    return fail(404, 'skill-unknown');
+                if ((org.members[target] ?? '') !== id)
+                    return fail(409, 'order-target');
+            }
+            const previous = org.members[skill] ?? '';
+            const from = ordered(previous).filter((x) => x !== skill);
+            const to = previous === id ? from : ordered(id).filter((x) => x !== skill);
+            let index = typeof target === 'string' && target ? to.indexOf(target) : -1;
+            if (index < 0)
+                index = to.length;
+            else if (position === 'after')
+                index++;
+            to.splice(index, 0, skill);
+            org.order[previous] = from;
+            org.order[id] = to;
+            if (id)
+                org.members[skill] = id;
+            else
+                delete org.members[skill];
+        }
+        else if (action === 'category-toggle') {
+            const group = body.category;
+            if (typeof body.enabled !== 'boolean' || typeof group !== 'string')
+                return fail(400, 'invalid-request');
+            if (group !== '*' && group !== '' && !categoryId(group))
+                return fail(404, 'category-unknown');
+            // Same persisted per-copy policy as a single toggle; it overrides earlier per-copy choices.
+            const flagsFor = project
+                ? (next.projects[project.id] ??= {
+                    sources: Object.create(null),
+                    copies: Object.create(null),
+                }).copies
+                : next.copies;
+            for (const copy of copies)
+                if (group === '*' || (org.members[copy.name] ?? '') === group)
+                    flagsFor[copy.path] = body.enabled;
+        }
+        else if (action === 'note') {
+            const skill = body.name;
+            if (typeof skill !== 'string' || typeof body.note !== 'string')
+                return fail(400, 'invalid-request');
+            if (!known.has(skill))
+                return fail(404, 'skill-unknown');
+            const note = body.note.trim();
+            if (note.length > NOTE_MAX)
+                return fail(409, 'note-too-long', { limit: String(NOTE_MAX) });
+            if (note)
+                org.notes[skill] = note;
+            else
+                delete org.notes[skill];
+        }
+        if (Object.keys(org.members).length > MEMBER_MAX ||
+            Object.keys(org.notes).length > NOTE_COUNT_MAX ||
+            Object.values(org.order).some((list) => list.length > MEMBER_MAX))
+            return fail(409, 'organization-limit');
+        // Drop empty entries so untouched sources never accumulate state.
+        for (const [scopeKey, sources] of Object.entries(next.organization)) {
+            for (const [key, value] of Object.entries(sources))
+                if (!value.categories.length &&
+                    !Object.keys(value.members).length &&
+                    !Object.keys(value.notes).length &&
+                    !Object.values(value.order).some((list) => list.length))
+                    delete sources[key];
+            if (!Object.keys(sources).length)
+                delete next.organization[scopeKey];
+        }
+        // The loader refuses oversized files: never write something that could not be read back.
+        if (Buffer.byteLength(JSON.stringify(next)) > STATE_WRITE_MAX)
+            return fail(413, 'state-too-large');
         await writeState(next);
         return undefined;
     };
@@ -865,6 +1232,7 @@ export function apply(ctx, config = {}) {
                         'custom-add',
                         'custom-update',
                         'custom-remove',
+                        ...ORG_ACTIONS,
                     ];
                     if (!body ||
                         typeof body !== 'object' ||
@@ -873,8 +1241,12 @@ export function apply(ctx, config = {}) {
                         (body.project !== undefined && typeof body.project !== 'string'))
                         return new Response('Invalid skill action', { status: 400 });
                     // Presence probe: proves the route exists without scanning any source.
-                    if (body.action === 'ping')
-                        return Response.json({ ok: true });
+                    if (body.action === 'ping') {
+                        if (body.include !== 'placement')
+                            return Response.json({ ok: true });
+                        await ready;
+                        return Response.json({ ok: true, placement: state.placement });
+                    }
                     // A project selector (and the project list itself) exposes workspace paths: marker only.
                     if (body.action === 'list' &&
                         body.project !== undefined &&
@@ -979,6 +1351,18 @@ export function apply(ctx, config = {}) {
                             ...(await payload(project, await projects())),
                             results,
                         });
+                    }
+                    if (ORG_ACTIONS.includes(body.action ?? '')) {
+                        if (!marked)
+                            return new Response('Mutation marker required', {
+                                status: 403,
+                            });
+                        const mutation = operations.then(async () => organize(body, project, await projects()));
+                        operations = mutation.catch(() => undefined);
+                        const error = await mutation;
+                        if (error)
+                            return error;
+                        return Response.json(await payload(project, await projects(), marked));
                     }
                     if (body.action === 'toggle') {
                         if (!marked)

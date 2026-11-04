@@ -176,7 +176,50 @@ function setupSkills(ctx, fail) {
 				removeNote: "This removes only the source entry. Skill files are not deleted",
 				confirmRemove: "Confirm removal",
 				added: "Source added",
-				registered: "This folder is already a source"
+				registered: "This folder is already a source",
+				categories: "Categories",
+				categoryName: "Category name",
+				addCategory: "Add category",
+				uncategorized: "Uncategorized",
+				renameCategory: "Rename category",
+				deleteCategory: "Delete category",
+				confirmDeleteCategory: "Confirm delete category",
+				deleteCategoryNote: "Skills in this category become uncategorized. No skill files are changed",
+				enableGroup: "Enable group",
+				disableGroup: "Disable group",
+				enableAll: "Enable all skills",
+				disableAll: "Disable all skills",
+				selectSkill: "Select skill",
+				assignTo: "Assign selected to",
+				assignSelected: "Assign selected",
+				moveUp: "Move up",
+				moveDown: "Move down",
+				filterCategory: "Category",
+				allCategories: "All categories",
+				note: "Note",
+				saveNote: "Save note",
+				noteHint: "Notes are searchable and never change the skill description",
+				noteLimit: "Up to 500 characters",
+				selectAll: "Select all skills",
+				bulkOverrideNote: "Bulk enable or disable applies to this source only and overrides earlier per-skill choices.",
+				"code.invalid-request": "The request was not valid",
+				"code.source-unknown": "This source is not available in this view",
+				"code.organization-limit": "Too many categories, notes or assignments for this source",
+				"code.state-too-large": "The saved organization data is too large; remove some notes or categories",
+				placement: "Entry placement",
+				placementHint: "Choose where the Skill manager appears: Settings, the sidebar or both",
+				placementBoth: "Both",
+				placementSidebar: "Sidebar only",
+				placementSettings: "Settings only",
+				"code.category-name": "Enter a category name of up to 24 characters",
+				"code.category-duplicate": "A category with this name already exists",
+				"code.category-unknown": "This category no longer exists",
+				"code.category-limit": "The limit of {limit} categories is reached",
+				"code.skill-unknown": "This skill is not available in this view",
+				"code.order-position": "The ordering position is invalid",
+				"code.order-target": "The ordering target is in another category",
+				"code.note-too-long": "The note is longer than {limit} characters",
+				"code.placement-invalid": "The entry placement is invalid"
 			},
 			ar: {
 				title: "مدير المهارات",
@@ -277,7 +320,50 @@ function setupSkills(ctx, fail) {
 				removeNote: "هذا يزيل إدخال المصدر فقط ولا تُحذف ملفات المهارات",
 				confirmRemove: "تأكيد الإزالة",
 				added: "أُضيف المصدر",
-				registered: "هذا المجلد مصدر بالفعل"
+				registered: "هذا المجلد مصدر بالفعل",
+				categories: "التصنيفات",
+				categoryName: "اسم التصنيف",
+				addCategory: "إضافة تصنيف",
+				uncategorized: "بدون تصنيف",
+				renameCategory: "إعادة تسمية التصنيف",
+				deleteCategory: "حذف التصنيف",
+				confirmDeleteCategory: "تأكيد حذف التصنيف",
+				deleteCategoryNote: "تصبح مهارات هذا التصنيف بلا تصنيف. لا تتغير أي ملفات مهارات",
+				enableGroup: "تفعيل المجموعة",
+				disableGroup: "تعطيل المجموعة",
+				enableAll: "تفعيل كل المهارات",
+				disableAll: "تعطيل كل المهارات",
+				selectSkill: "تحديد المهارة",
+				assignTo: "إسناد المحدد إلى",
+				assignSelected: "إسناد المحدد",
+				moveUp: "نقل للأعلى",
+				moveDown: "نقل للأسفل",
+				filterCategory: "التصنيف",
+				allCategories: "كل التصنيفات",
+				note: "ملاحظة",
+				saveNote: "حفظ الملاحظة",
+				noteHint: "الملاحظات قابلة للبحث ولا تغيّر وصف المهارة",
+				noteLimit: "حتى 500 حرف",
+				selectAll: "تحديد كل المهارات",
+				bulkOverrideNote: "التفعيل أو التعطيل الجماعي يسري على هذا المصدر فقط ويستبدل اختيارات المهارات السابقة.",
+				"code.invalid-request": "الطلب غير صالح",
+				"code.source-unknown": "هذا المصدر غير متاح في هذا العرض",
+				"code.organization-limit": "عدد التصنيفات أو الملاحظات أو الإسنادات لهذا المصدر كبير جدا",
+				"code.state-too-large": "بيانات التنظيم المحفوظة كبيرة جدا؛ احذف بعض الملاحظات أو التصنيفات",
+				placement: "موضع الدخول",
+				placementHint: "اختر مكان ظهور مدير المهارات: الإعدادات أو الشريط الجانبي أو كليهما",
+				placementBoth: "كلاهما",
+				placementSidebar: "الشريط الجانبي فقط",
+				placementSettings: "الإعدادات فقط",
+				"code.category-name": "أدخل اسم تصنيف لا يتجاوز 24 حرفاً",
+				"code.category-duplicate": "يوجد تصنيف بهذا الاسم بالفعل",
+				"code.category-unknown": "لم يعد هذا التصنيف موجوداً",
+				"code.category-limit": "بلغت الحد الأقصى وهو {limit} تصنيفاً",
+				"code.skill-unknown": "هذه المهارة غير متاحة في هذا العرض",
+				"code.order-position": "موضع الترتيب غير صالح",
+				"code.order-target": "هدف الترتيب في تصنيف آخر",
+				"code.note-too-long": "الملاحظة أطول من {limit} حرفاً",
+				"code.placement-invalid": "موضع الدخول غير صالح"
 			}
 		};
 		effect(() => ctx.locale.register("majed.skills", dictionaries), "majed-skills dictionaries");
@@ -316,7 +402,7 @@ function setupSkills(ctx, fail) {
 		};
 		const errorText = (failure) => failure?.code && dictionaries.en[`code.${failure.code}`] ? t(`code.${failure.code}`).replace("{limit}", String(failure.params?.limit ?? "")) : t("error");
 		function Section() {
-			const [data, setData] = React.useState(null), [error, setError] = React.useState(false), [query, setQuery] = React.useState(""), [source, setSource] = React.useState(""), [status, setStatus] = React.useState(""), [detail, setDetail] = React.useState(null), [detailError, setDetailError] = React.useState(false), [scope, setScope] = React.useState("global"), [project, setProject] = React.useState(""), [folderPath, setFolderPath] = React.useState(""), [candidates, setCandidates] = React.useState(null), [editing, setEditing] = React.useState(null), [removing, setRemoving] = React.useState(""), [pendingScan, setPendingScan] = React.useState(false), [loaded, setLoaded] = React.useState(""), [notice, setNotice] = React.useState(""), [managing, setManaging] = React.useState(false);
+			const [data, setData] = React.useState(null), [error, setError] = React.useState(false), [query, setQuery] = React.useState(""), [source, setSource] = React.useState(""), [status, setStatus] = React.useState(""), [detail, setDetail] = React.useState(null), [detailError, setDetailError] = React.useState(false), [scope, setScope] = React.useState("global"), [project, setProject] = React.useState(""), [folderPath, setFolderPath] = React.useState(""), [candidates, setCandidates] = React.useState(null), [editing, setEditing] = React.useState(null), [removing, setRemoving] = React.useState(""), [pendingScan, setPendingScan] = React.useState(false), [loaded, setLoaded] = React.useState(""), [notice, setNotice] = React.useState(""), [managing, setManaging] = React.useState(false), [catName, setCatName] = React.useState({}), [catEdit, setCatEdit] = React.useState(null), [catRemoving, setCatRemoving] = React.useState(""), [catFilter, setCatFilter] = React.useState(""), [picked, setPicked] = React.useState({}), [assignTarget, setAssignTarget] = React.useState({}), [noteDrafts, setNoteDrafts] = React.useState({}), [dragging, setDragging] = React.useState(null);
 			const dialog = React.useRef(null);
 			React.useEffect(() => {
 				if (!detail) return;
@@ -355,8 +441,18 @@ function setupSkills(ctx, fail) {
 			React.useEffect(() => {
 				setNotice("");
 				setCandidates(null);
+				setPicked({});
+				setCatFilter("");
+				setNoteDrafts({});
+				setDragging(null);
+				setCatEdit(null);
+				setCatRemoving("");
 				load();
 			}, [scope, project]);
+			React.useEffect(() => {
+				setDragging(null);
+				setCatFilter("");
+			}, [source]);
 			const toggle = async (kind, id, enabled) => {
 				if (busy.current || switching || lifetime.current.signal.aborted) return;
 				busy.current = true;
@@ -427,7 +523,19 @@ function setupSkills(ctx, fail) {
 				copies: [],
 				diagnostics: []
 			} : data;
-			const copies = (view?.copies ?? []).filter((copy) => (!source || copy.source === source) && (!query || `${copy.name} ${copy.description} ${copy.path}`.toLowerCase().includes(query.toLowerCase())) && (!status || copyStatus(copy) === status));
+			const orgOf = (sourceId) => ({
+				categories: [],
+				members: {},
+				order: {},
+				notes: {},
+				...view?.organization?.[sourceId] ?? {}
+			});
+			const filterCategories = source ? orgOf(source).categories : [];
+			const activeCat = catFilter === "__none" || filterCategories.some((c) => c.id === catFilter) ? catFilter : "";
+			const copies = (view?.copies ?? []).filter((copy) => {
+				const organization = orgOf(copy.source);
+				return (!source || copy.source === source) && (!query || `${copy.name} ${copy.description} ${copy.path} ${organization.notes[copy.name] ?? ""}`.toLowerCase().includes(query.toLowerCase())) && (!status || copyStatus(copy) === status) && (!activeCat || (activeCat === "__none" ? !organization.members[copy.name] : organization.members[copy.name] === activeCat));
+			});
 			const projects = data?.projects ?? [];
 			const projectOption = (x) => h("option", {
 				key: x.id,
@@ -440,6 +548,198 @@ function setupSkills(ctx, fail) {
 				value,
 				onChange: (e) => set(e.target.value)
 			});
+			const organize = (body, done) => mutate({
+				...body,
+				...selected
+			}, done);
+			const skillNames = (sourceId) => [...new Set((view?.copies ?? []).filter((c) => c.source === sourceId && c.metadataValid !== false).map((c) => c.name))];
+			const groupNames = (sourceId, id) => {
+				const organization = orgOf(sourceId);
+				const available = skillNames(sourceId).filter((n) => (organization.members[n] ?? "") === id).sort((a, b) => a.localeCompare(b));
+				const saved = (organization.order[id] ?? []).filter((n) => available.includes(n));
+				return [...saved, ...available.filter((n) => !saved.includes(n))];
+			};
+			/** Selection pruned against what the source really lists now. */
+			const pickedIn = (sourceId) => {
+				const names = skillNames(sourceId);
+				return (picked[sourceId] ?? []).filter((n) => names.includes(n));
+			};
+			const setPickedIn = (sourceId, names) => setPicked({
+				...picked,
+				[sourceId]: names
+			});
+			const move = (sourceId, name, category, target, position) => void organize({
+				action: "category-move",
+				source: sourceId,
+				name,
+				category,
+				target,
+				position
+			});
+			const draggedInto = (sourceId) => dragging && dragging.source === sourceId ? dragging.name : "";
+			const groupBlock = (sourceId, group) => {
+				const names = groupNames(sourceId, group.id);
+				const marked = pickedIn(sourceId);
+				const editKey = `${sourceId}/${group.id}`;
+				return h("section", {
+					key: group.id || "none",
+					"aria-label": group.name,
+					onDragOver: (e) => e.preventDefault?.(),
+					onDrop: (e) => {
+						e.preventDefault?.();
+						const dragged = draggedInto(sourceId);
+						setDragging(null);
+						if (dragged) move(sourceId, dragged, group.id);
+					}
+				}, h("h4", null, `${group.name} (${names.length})`), h("button", {
+					"aria-label": `${t("enableGroup")}: ${group.name}`,
+					onClick: () => void organize({
+						action: "category-toggle",
+						source: sourceId,
+						category: group.id,
+						enabled: true
+					})
+				}, t("enableGroup")), h("button", {
+					"aria-label": `${t("disableGroup")}: ${group.name}`,
+					onClick: () => void organize({
+						action: "category-toggle",
+						source: sourceId,
+						category: group.id,
+						enabled: false
+					})
+				}, t("disableGroup")), group.id ? catEdit?.key === editKey ? h("span", null, field(t("renameCategory"), catEdit.name, (v) => setCatEdit({
+					...catEdit,
+					name: v
+				})), h("button", {
+					"aria-label": `${t("save")}: ${group.name}`,
+					onClick: () => void organize({
+						action: "category-rename",
+						source: sourceId,
+						category: group.id,
+						name: catEdit.name
+					}, () => setCatEdit(null))
+				}, t("save")), h("button", {
+					"aria-label": `${t("cancel")}: ${group.name}`,
+					onClick: () => setCatEdit(null)
+				}, t("cancel"))) : catRemoving === editKey ? h("span", null, h("p", null, t("deleteCategoryNote")), h("button", {
+					"aria-label": `${t("confirmDeleteCategory")}: ${group.name}`,
+					onClick: () => void organize({
+						action: "category-delete",
+						source: sourceId,
+						category: group.id
+					}, () => setCatRemoving(""))
+				}, t("confirmDeleteCategory")), h("button", {
+					"aria-label": `${t("cancel")}: ${group.name}`,
+					onClick: () => setCatRemoving("")
+				}, t("cancel"))) : h("span", null, h("button", {
+					"aria-label": `${t("renameCategory")}: ${group.name}`,
+					onClick: () => setCatEdit({
+						key: editKey,
+						id: group.id,
+						name: group.name
+					})
+				}, t("renameCategory")), h("button", {
+					"aria-label": `${t("deleteCategory")}: ${group.name}`,
+					onClick: () => setCatRemoving(editKey)
+				}, t("deleteCategory"))) : null, ...names.map((name, i) => h("div", {
+					key: name,
+					"data-skill": name,
+					draggable: true,
+					onDragStart: (e) => {
+						e.dataTransfer?.setData?.("text/plain", name);
+						if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
+						setDragging({
+							source: sourceId,
+							name
+						});
+					},
+					onDragEnd: () => setDragging(null),
+					onDragOver: (e) => e.preventDefault?.(),
+					onDrop: (e) => {
+						e.stopPropagation?.();
+						e.preventDefault?.();
+						const dragged = draggedInto(sourceId);
+						setDragging(null);
+						if (dragged && dragged !== name) move(sourceId, dragged, group.id, name, "before");
+					}
+				}, h("input", {
+					type: "checkbox",
+					"aria-label": `${t("selectSkill")}: ${name}`,
+					checked: marked.includes(name),
+					onChange: (e) => setPickedIn(sourceId, e.target.checked ? [...marked, name] : marked.filter((x) => x !== name))
+				}), h("span", null, name), h("button", {
+					disabled: i === 0,
+					"aria-label": `${t("moveUp")}: ${name}`,
+					onClick: () => move(sourceId, name, group.id, names[i - 1], "before")
+				}, t("moveUp")), h("button", {
+					disabled: i === names.length - 1,
+					"aria-label": `${t("moveDown")}: ${name}`,
+					onClick: () => move(sourceId, name, group.id, names[i + 1], "after")
+				}, t("moveDown")))));
+			};
+			const organizer = (sourceId, label) => {
+				const organization = orgOf(sourceId);
+				const marked = pickedIn(sourceId);
+				const all = skillNames(sourceId);
+				const name = catName[sourceId] ?? "";
+				const target = assignTarget[sourceId] ?? "";
+				const toggleAll = (enabled) => void organize({
+					action: "category-toggle",
+					source: sourceId,
+					category: "*",
+					enabled
+				});
+				return h("div", {
+					"data-organizer": sourceId,
+					dir: isArabic() ? "rtl" : void 0
+				}, h("h3", null, `${t("categories")} · ${label}`), h("p", null, t("bulkOverrideNote")), field(`${t("categoryName")}: ${label}`, name, (v) => setCatName({
+					...catName,
+					[sourceId]: v
+				})), h("button", {
+					"aria-label": `${t("addCategory")}: ${label}`,
+					onClick: () => void organize({
+						action: "category-create",
+						source: sourceId,
+						name
+					}, () => setCatName({
+						...catName,
+						[sourceId]: ""
+					}))
+				}, t("addCategory")), h("button", {
+					"aria-label": `${t("enableAll")}: ${label}`,
+					onClick: () => toggleAll(true)
+				}, t("enableAll")), h("button", {
+					"aria-label": `${t("disableAll")}: ${label}`,
+					onClick: () => toggleAll(false)
+				}, t("disableAll")), h("input", {
+					type: "checkbox",
+					"aria-label": `${t("selectAll")}: ${label}`,
+					checked: !!all.length && marked.length === all.length,
+					onChange: (e) => setPickedIn(sourceId, e.target.checked ? all : [])
+				}), h("select", {
+					"aria-label": `${t("assignTo")}: ${label}`,
+					value: target,
+					onChange: (e) => setAssignTarget({
+						...assignTarget,
+						[sourceId]: e.target.value
+					})
+				}, h("option", { value: "" }, t("uncategorized")), ...organization.categories.map((c) => h("option", {
+					key: c.id,
+					value: c.id
+				}, c.name))), h("button", {
+					disabled: !marked.length,
+					"aria-label": `${t("assignSelected")}: ${label}`,
+					onClick: () => void organize({
+						action: "category-assign",
+						source: sourceId,
+						names: marked,
+						category: target
+					}, () => setPickedIn(sourceId, []))
+				}, t("assignSelected")), ...[...organization.categories, {
+					id: "",
+					name: t("uncategorized")
+				}].map((group) => groupBlock(sourceId, group)));
+			};
 			const manager = () => h("div", null, h("p", null, t("foldersHint")), field(t("folderPath"), folderPath, setFolderPath), h("button", {
 				disabled: pendingScan,
 				onClick: () => void scanFolder()
@@ -538,13 +838,42 @@ function setupSkills(ctx, fail) {
 			].map((x) => h("option", {
 				key: x,
 				value: x
-			}, t(x || "any")))), error ? h("div", { role: "alert" }, t("error"), h("button", { onClick: () => call({ action: "reload" }).then(setData, load) }, t("retry"))) : !data || switching ? h("p", { role: "status" }, t("loading")) : h(React.Fragment, null, inProject ? null : h("div", null, h("button", {
+			}, t(x || "any")))), h("select", {
+				"aria-label": t("filterCategory"),
+				value: activeCat,
+				onChange: (e) => setCatFilter(e.target.value)
+			}, h("option", { value: "" }, t("allCategories")), h("option", { value: "__none" }, t("uncategorized")), ...filterCategories.map((c) => h("option", {
+				key: c.id,
+				value: c.id
+			}, c.name))), notice && !managing ? h("p", { role: "status" }, notice) : null, error ? h("div", { role: "alert" }, t("error"), h("button", { onClick: () => call({ action: "reload" }).then(setData, load) }, t("retry"))) : !data || switching ? h("p", { role: "status" }, t("loading")) : h(React.Fragment, null, inProject ? null : h("div", null, h("button", {
 				"aria-expanded": managing,
 				onClick: () => setManaging(!managing)
 			}, t("folders")), managing ? manager() : null), inProject && data.project && !data.project.available ? h("p", { role: "alert" }, `${data.project.name}: ${t(`code.${data.project.code}`)}`) : null, ...(view.sources ?? []).filter((x) => !source || x.id === source).map((x) => h("details", {
 				key: x.id,
 				open: true
-			}, h("summary", null, `${sourceLabel(x)} (${view.copies.filter((c) => c.source === x.id).length})`), h("p", null, x.group ? `${x.group} · ` : null, h("bdi", { dir: "ltr" }, x.path)), x.readonly ? h("p", null, t("readOnlySource")) : h("button", { onClick: () => toggle("source", x.id, x.enabled === false) }, `${t("toggleSource")} ${sourceLabel(x)}`), x.custom ? customControls(x) : null, ...copies.filter((c) => c.source === x.id).map((copy) => h("article", { key: copy.path }, h("strong", null, copy.name), h("p", null, copy.description), h("span", null, t(copyStatus(copy))), h("button", {
+			}, h("summary", null, `${sourceLabel(x)} (${view.copies.filter((c) => c.source === x.id).length})`), h("p", null, x.group ? `${x.group} · ` : null, h("bdi", { dir: "ltr" }, x.path)), x.readonly ? h("p", null, t("readOnlySource")) : h("button", { onClick: () => toggle("source", x.id, x.enabled === false) }, `${t("toggleSource")} ${sourceLabel(x)}`), x.custom ? customControls(x) : null, data.corrupt ? null : organizer(x.id, sourceLabel(x)), ...copies.filter((c) => c.source === x.id).map((copy) => h("article", { key: copy.path }, h("strong", null, copy.name), h("p", null, copy.description), h("span", null, t(copyStatus(copy))), orgOf(copy.source).members[copy.name] ? h("span", null, orgOf(copy.source).categories.find((c) => c.id === orgOf(copy.source).members[copy.name])?.name) : null, orgOf(copy.source).notes[copy.name] ? h("p", { "data-note": true }, `${t("note")}: ${orgOf(copy.source).notes[copy.name]}`) : null, h("input", {
+				"aria-label": `${t("note")}: ${copy.name}`,
+				placeholder: t("noteHint"),
+				maxLength: 500,
+				title: t("noteLimit"),
+				value: noteDrafts[`${copy.source}/${copy.name}`] ?? orgOf(copy.source).notes[copy.name] ?? "",
+				onChange: (e) => setNoteDrafts({
+					...noteDrafts,
+					[`${copy.source}/${copy.name}`]: e.target.value
+				})
+			}), h("button", {
+				"aria-label": `${t("saveNote")}: ${copy.name}`,
+				onClick: () => void organize({
+					action: "note",
+					source: copy.source,
+					name: copy.name,
+					note: noteDrafts[`${copy.source}/${copy.name}`] ?? orgOf(copy.source).notes[copy.name] ?? ""
+				}, () => {
+					const next = { ...noteDrafts };
+					delete next[`${copy.source}/${copy.name}`];
+					setNoteDrafts(next);
+				})
+			}, t("saveNote")), h("button", {
 				disabled: x.enabled === false || data.corrupt,
 				"aria-label": `${t("copyCopy")}: ${copy.name} — ${copy.path}`,
 				onClick: () => toggle("copy", copy.path, !copy.eligible)
@@ -569,33 +898,149 @@ function setupSkills(ctx, fail) {
 				}
 			}, h("button", { onClick: () => setDetail(null) }, t("close")), h("h3", null, detail.name), h("p", null, detail.path), h("button", { onClick: () => navigator.clipboard.writeText(detail.content).catch(() => setDetailError(true)) }, t("copyText")), h("p", null, `${t("modelInvocation")}: ${detail.author?.modelInvocable ? t("allowed") : t("denied")} · ${t("userInvocation")}: ${detail.author?.userInvocable ? t("allowed") : t("denied")}`), detail.shadowedBy ? h("p", null, `${t("shadowedBy")}: ${detail.shadowedBy}`) : null, ...(detail.diagnostics ?? []).map((x, i) => h("p", { key: `${x.code}:${i}` }, diagnosticText(x))), h("pre", null, detail.content)) : null);
 		}
+		let placement = "settings";
+		let changePlacement = async () => {};
+		const placementListeners = /* @__PURE__ */ new Set();
+		let layout;
+		const notifyPlacement = () => {
+			for (const listener of placementListeners) listener();
+		};
+		function PlacementControl() {
+			const [, rerender] = React.useState(0);
+			const [problem, setProblem] = React.useState("");
+			React.useEffect(() => {
+				const listener = () => rerender((n) => n + 1);
+				placementListeners.add(listener);
+				return () => void placementListeners.delete(listener);
+			}, []);
+			return h("div", {
+				"data-majed-skills-placement": true,
+				dir: isArabic() ? "rtl" : void 0
+			}, h("strong", null, t("placement")), h("p", null, t("placementHint")), ...[
+				"both",
+				"sidebar",
+				"settings"
+			].map((value) => h("button", {
+				key: value,
+				"aria-pressed": placement === value,
+				onClick: () => {
+					setProblem("");
+					changePlacement(value).catch((failure) => setProblem(errorText(failure)));
+				}
+			}, t(`placement${value[0].toUpperCase()}${value.slice(1)}`))), problem ? h("p", { role: "alert" }, problem) : null);
+		}
+		const sidebarIcon = () => h("svg", {
+			viewBox: "0 0 16 16",
+			width: 16,
+			height: 16,
+			"aria-hidden": true
+		}, h("path", {
+			d: "M2 3h12v2H2zM2 7h12v2H2zM2 11h8v2H2z",
+			fill: "currentColor"
+		}));
 		effect(() => {
-			let off, disposed = false;
+			let offConfig, offSettings, offMain, offSidebar, disposed = false;
 			const controller = new AbortController();
-			let delay = 3e3;
-			let timer;
-			const schedule = () => {
-				if (!disposed) timer = setTimeout(() => void probe(), delay);
-			};
-			const probe = () => call({ action: "ping" }, controller.signal).then(() => {
-				delay = 3e3;
-				if (!disposed && !off) off = ctx.slots.inject("settings.section", () => ctx.slots.register({
+			const inSettings = () => placement === "both" || placement === "settings";
+			const inSidebar = () => placement === "both" || placement === "sidebar";
+			const reconcile = () => {
+				if (disposed) return;
+				if (inSettings() && !offSettings) offSettings = ctx.slots.inject("settings.section", () => ctx.slots.register({
 					name: "settings.section",
 					id: "majed-skills",
 					order: 91,
 					label: () => t("title")
 				}, Section));
+				else if (!inSettings() && offSettings) {
+					offSettings();
+					offSettings = void 0;
+				}
+				if (inSidebar() && !offSidebar) {
+					offMain = ctx.slots.register({
+						name: "main",
+						key: "majed-skills",
+						locale: "majed.skills",
+						inject: () => ({})
+					}, () => h(Section));
+					offSidebar = ctx.slots.register({
+						name: "sidebar.panellist",
+						id: "majed-skills",
+						order: 92,
+						label: () => t("title"),
+						locale: "majed.skills"
+					}, sidebarIcon);
+				} else if (!inSidebar() && offSidebar) {
+					try {
+						if (layout?.panelInfo?.getSnapshot?.().activePanelId === "majed-skills") layout.selectPanel?.(null);
+					} catch {}
+					offSidebar?.();
+					offMain?.();
+					offSidebar = offMain = void 0;
+				}
+			};
+			const apply = (next) => {
+				if (typeof next === "string" && [
+					"both",
+					"sidebar",
+					"settings"
+				].includes(next)) {
+					if (next !== placement) {
+						placement = next;
+						notifyPlacement();
+					}
+				}
+				reconcile();
+			};
+			changePlacement = async (value) => {
+				const previous = placement;
+				placement = value;
+				notifyPlacement();
+				reconcile();
+				try {
+					apply((await call({
+						action: "placement",
+						location: value
+					})).placement);
+				} catch (failure) {
+					placement = previous;
+					notifyPlacement();
+					reconcile();
+					throw failure;
+				}
+			};
+			ctx.inject?.(["layout"], (injected) => {
+				layout = injected?.layout ?? injected;
+			});
+			let delay = 3e3;
+			let timer;
+			const schedule = () => {
+				if (!disposed) timer = setTimeout(() => void probe(), delay);
+			};
+			const probe = () => call({
+				action: "ping",
+				include: "placement"
+			}, controller.signal).then((result) => {
+				delay = 3e3;
+				if (disposed) return;
+				if (!offConfig) offConfig = ctx.slots.inject("plugins.bundle.config", () => ctx.slots.register({
+					name: "plugins.bundle.config",
+					key: "majed-skills",
+					locale: "majed.skills"
+				}, (props) => props?.view === "summary" ? null : h(PlacementControl)));
+				apply(result?.placement);
 			}).catch(() => {
 				delay = Math.min(delay * 2, 6e4);
-				off?.();
-				off = void 0;
 			}).finally(schedule);
 			probe();
 			return () => {
 				disposed = true;
+				changePlacement = async () => {};
 				controller.abort();
 				clearTimeout(timer);
-				off?.();
+				offConfig?.();
+				offSettings?.();
+				offMain?.();
+				offSidebar?.();
 			};
 		}, "majed-skills presence");
 	}
