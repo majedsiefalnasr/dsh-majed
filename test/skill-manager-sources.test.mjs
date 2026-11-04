@@ -836,7 +836,7 @@ test(
     );
     assert.deepEqual(
       body.project.sources.map((s) => s.kind),
-      ['agents'],
+      ['dsh', 'agents'],
     );
   },
 );

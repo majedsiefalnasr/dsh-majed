@@ -78,6 +78,18 @@ function setupSkills(ctx, fail) {
 		const h = React.createElement;
 		const dictionaries = {
 			en: {
+				create: "Create skill",
+				skillName: "Skill name",
+				skillDescription: "Routing description",
+				skillBody: "Markdown instructions",
+				destination: "Creation destination",
+				created: "Skill created",
+				"code.create-invalid": "Enter a valid name, description and instructions",
+				"code.create-conflict": "A skill with this name already exists",
+				"code.create-readonly": "This source is read-only",
+				"code.create-linked-root": "Linked writable folders are not allowed",
+				"code.create-too-large": "Skill content exceeds the size limit",
+				"code.create-failed": "Unable to create the skill",
 				title: "Skill manager",
 				search: "Search skills",
 				all: "All sources",
@@ -222,6 +234,18 @@ function setupSkills(ctx, fail) {
 				"code.placement-invalid": "The entry placement is invalid"
 			},
 			ar: {
+				create: "إنشاء مهارة",
+				skillName: "اسم المهارة",
+				skillDescription: "وصف الاستخدام",
+				skillBody: "تعليمات Markdown",
+				destination: "وجهة الإنشاء",
+				created: "تم إنشاء المهارة",
+				"code.create-invalid": "أدخل اسمًا ووصفًا وتعليمات صالحة",
+				"code.create-conflict": "توجد مهارة بهذا الاسم بالفعل",
+				"code.create-readonly": "هذا المصدر للقراءة فقط",
+				"code.create-linked-root": "لا يُسمح بمجلدات كتابة مرتبطة",
+				"code.create-too-large": "محتوى المهارة يتجاوز الحد المسموح",
+				"code.create-failed": "تعذر إنشاء المهارة",
 				title: "مدير المهارات",
 				search: "البحث عن مهارات",
 				all: "كل المصادر",
@@ -402,7 +426,7 @@ function setupSkills(ctx, fail) {
 		};
 		const errorText = (failure) => failure?.code && dictionaries.en[`code.${failure.code}`] ? t(`code.${failure.code}`).replace("{limit}", String(failure.params?.limit ?? "")) : t("error");
 		function Section() {
-			const [data, setData] = React.useState(null), [error, setError] = React.useState(false), [query, setQuery] = React.useState(""), [source, setSource] = React.useState(""), [status, setStatus] = React.useState(""), [detail, setDetail] = React.useState(null), [detailError, setDetailError] = React.useState(false), [scope, setScope] = React.useState("global"), [project, setProject] = React.useState(""), [folderPath, setFolderPath] = React.useState(""), [candidates, setCandidates] = React.useState(null), [editing, setEditing] = React.useState(null), [removing, setRemoving] = React.useState(""), [pendingScan, setPendingScan] = React.useState(false), [loaded, setLoaded] = React.useState(""), [notice, setNotice] = React.useState(""), [managing, setManaging] = React.useState(false), [catName, setCatName] = React.useState({}), [catEdit, setCatEdit] = React.useState(null), [catRemoving, setCatRemoving] = React.useState(""), [catFilter, setCatFilter] = React.useState(""), [picked, setPicked] = React.useState({}), [assignTarget, setAssignTarget] = React.useState({}), [noteDrafts, setNoteDrafts] = React.useState({}), [dragging, setDragging] = React.useState(null);
+			const [data, setData] = React.useState(null), [error, setError] = React.useState(false), [query, setQuery] = React.useState(""), [source, setSource] = React.useState(""), [status, setStatus] = React.useState(""), [detail, setDetail] = React.useState(null), [detailError, setDetailError] = React.useState(false), [scope, setScope] = React.useState("global"), [project, setProject] = React.useState(""), [folderPath, setFolderPath] = React.useState(""), [candidates, setCandidates] = React.useState(null), [editing, setEditing] = React.useState(null), [removing, setRemoving] = React.useState(""), [pendingScan, setPendingScan] = React.useState(false), [loaded, setLoaded] = React.useState(""), [notice, setNotice] = React.useState(""), [managing, setManaging] = React.useState(false), [catName, setCatName] = React.useState({}), [catEdit, setCatEdit] = React.useState(null), [catRemoving, setCatRemoving] = React.useState(""), [catFilter, setCatFilter] = React.useState(""), [picked, setPicked] = React.useState({}), [assignTarget, setAssignTarget] = React.useState({}), [noteDrafts, setNoteDrafts] = React.useState({}), [dragging, setDragging] = React.useState(null), [creating, setCreating] = React.useState(false), [createName, setCreateName] = React.useState(""), [createDescription, setCreateDescription] = React.useState(""), [createBody, setCreateBody] = React.useState(""), [createSource, setCreateSource] = React.useState("user-dsh");
 			const dialog = React.useRef(null);
 			React.useEffect(() => {
 				if (!detail) return;
@@ -796,7 +820,42 @@ function setupSkills(ctx, fail) {
 			return h("section", {
 				"data-majed-skills": true,
 				dir: isArabic() ? "rtl" : void 0
-			}, h("h2", null, t("title")), h("select", {
+			}, h("h2", null, t("title")), h("button", {
+				disabled: switching || data?.corrupt || scope === "project" && !project,
+				onClick: () => setCreating(!creating)
+			}, t("create")), creating ? h("form", { onSubmit: (event) => {
+				event.preventDefault();
+				if (switching || data?.corrupt || scope === "project" && !project) return;
+				mutate({
+					action: "create",
+					...selected,
+					source: scope === "project" ? `project-dsh:${project}` : createSource,
+					name: createName,
+					description: createDescription,
+					body: createBody
+				}, () => {
+					setCreating(false);
+					setCreateName("");
+					setCreateDescription("");
+					setCreateBody("");
+					setNotice(t("created"));
+				});
+			} }, scope === "global" ? h("select", {
+				"aria-label": t("destination"),
+				value: createSource,
+				onChange: (event) => setCreateSource(event.target.value)
+			}, ...["user-dsh", "user-agents"].filter((id) => data?.sources?.some((item) => item.id === id)).map((id) => h("option", {
+				key: id,
+				value: id
+			}, id === "user-dsh" ? "DSH" : "Shared Agents"))) : h("p", null, "DSH"), field(t("skillName"), createName, setCreateName), field(t("skillDescription"), createDescription, setCreateDescription), h("textarea", {
+				"aria-label": t("skillBody"),
+				value: createBody,
+				maxLength: 262144,
+				onChange: (event) => setCreateBody(event.target.value)
+			}), h("button", { type: "submit" }, t("create")), h("button", {
+				type: "button",
+				onClick: () => setCreating(false)
+			}, t("cancel"))) : null, h("select", {
 				"aria-label": t("scope"),
 				value: scope,
 				onChange: (e) => {

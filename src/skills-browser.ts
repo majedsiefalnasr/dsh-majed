@@ -29,6 +29,19 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
     const h = React.createElement;
     const dictionaries = {
       en: {
+        create: 'Create skill',
+        skillName: 'Skill name',
+        skillDescription: 'Routing description',
+        skillBody: 'Markdown instructions',
+        destination: 'Creation destination',
+        created: 'Skill created',
+        'code.create-invalid':
+          'Enter a valid name, description and instructions',
+        'code.create-conflict': 'A skill with this name already exists',
+        'code.create-readonly': 'This source is read-only',
+        'code.create-linked-root': 'Linked writable folders are not allowed',
+        'code.create-too-large': 'Skill content exceeds the size limit',
+        'code.create-failed': 'Unable to create the skill',
         title: 'Skill manager',
         search: 'Search skills',
         all: 'All sources',
@@ -187,6 +200,18 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
         'code.placement-invalid': 'The entry placement is invalid',
       },
       ar: {
+        create: 'إنشاء مهارة',
+        skillName: 'اسم المهارة',
+        skillDescription: 'وصف الاستخدام',
+        skillBody: 'تعليمات Markdown',
+        destination: 'وجهة الإنشاء',
+        created: 'تم إنشاء المهارة',
+        'code.create-invalid': 'أدخل اسمًا ووصفًا وتعليمات صالحة',
+        'code.create-conflict': 'توجد مهارة بهذا الاسم بالفعل',
+        'code.create-readonly': 'هذا المصدر للقراءة فقط',
+        'code.create-linked-root': 'لا يُسمح بمجلدات كتابة مرتبطة',
+        'code.create-too-large': 'محتوى المهارة يتجاوز الحد المسموح',
+        'code.create-failed': 'تعذر إنشاء المهارة',
         title: 'مدير المهارات',
         search: 'البحث عن مهارات',
         all: 'كل المصادر',
@@ -416,7 +441,12 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
         [picked, setPicked] = React.useState({}),
         [assignTarget, setAssignTarget] = React.useState({}),
         [noteDrafts, setNoteDrafts] = React.useState({}),
-        [dragging, setDragging] = React.useState(null);
+        [dragging, setDragging] = React.useState(null),
+        [creating, setCreating] = React.useState(false),
+        [createName, setCreateName] = React.useState(''),
+        [createDescription, setCreateDescription] = React.useState(''),
+        [createBody, setCreateBody] = React.useState(''),
+        [createSource, setCreateSource] = React.useState('user-dsh');
       const dialog = React.useRef(null);
       React.useEffect(() => {
         if (!detail) return;
@@ -1113,6 +1143,91 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
           dir: isArabic() ? 'rtl' : undefined,
         },
         h('h2', null, t('title')),
+        h(
+          'button',
+          {
+            disabled:
+              switching || data?.corrupt || (scope === 'project' && !project),
+            onClick: () => setCreating(!creating),
+          },
+          t('create'),
+        ),
+        creating
+          ? h(
+              'form',
+              {
+                onSubmit: (event: any) => {
+                  event.preventDefault();
+                  if (
+                    switching ||
+                    data?.corrupt ||
+                    (scope === 'project' && !project)
+                  )
+                    return;
+                  void mutate(
+                    {
+                      action: 'create',
+                      ...selected,
+                      source:
+                        scope === 'project'
+                          ? `project-dsh:${project}`
+                          : createSource,
+                      name: createName,
+                      description: createDescription,
+                      body: createBody,
+                    },
+                    () => {
+                      setCreating(false);
+                      setCreateName('');
+                      setCreateDescription('');
+                      setCreateBody('');
+                      setNotice(t('created'));
+                    },
+                  );
+                },
+              },
+              scope === 'global'
+                ? h(
+                    'select',
+                    {
+                      'aria-label': t('destination'),
+                      value: createSource,
+                      onChange: (event: any) =>
+                        setCreateSource(event.target.value),
+                    },
+                    ...['user-dsh', 'user-agents']
+                      .filter((id) =>
+                        data?.sources?.some((item: any) => item.id === id),
+                      )
+                      .map((id) =>
+                        h(
+                          'option',
+                          { key: id, value: id },
+                          id === 'user-dsh' ? 'DSH' : 'Shared Agents',
+                        ),
+                      ),
+                  )
+                : h('p', null, 'DSH'),
+              field(t('skillName'), createName, setCreateName),
+              field(
+                t('skillDescription'),
+                createDescription,
+                setCreateDescription,
+              ),
+              h('textarea', {
+                'aria-label': t('skillBody'),
+                value: createBody,
+                maxLength: 262144,
+                onChange: (event: any) => setCreateBody(event.target.value),
+              }),
+              h('button', { type: 'submit' }, t('create')),
+              h(
+                'button',
+                { type: 'button', onClick: () => setCreating(false) },
+                t('cancel'),
+              ),
+            )
+          : null,
         h(
           'select',
           {

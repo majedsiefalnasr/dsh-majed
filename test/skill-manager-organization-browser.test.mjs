@@ -22,7 +22,7 @@ const code = await readFile(
 const doc = (name) =>
   `---\nname: ${name}\ndescription: About ${name}\n---\nBody`;
 
-async function mount(t, language, initial) {
+async function mount(t, language, initial, creation = false) {
   const root = await realpath(
     await mkdtemp(join(tmpdir(), 'waycraft-org-ui-')),
   );
@@ -91,8 +91,8 @@ async function mount(t, language, initial) {
     },
     {
       sources: [
-        { id: 'base', path: base },
-        { id: 'other', path: other },
+        { id: creation ? 'user-dsh' : 'base', path: base },
+        { id: creation ? 'user-agents' : 'other', path: other },
       ],
       statePath,
     },
@@ -253,6 +253,120 @@ async function mount(t, language, initial) {
         )
         .then((r) => r.json()),
   };
+}
+
+for (const language of ['en', 'ar']) {
+  test(`registered ${language} creation form publishes and reports conflicts`, async (t) => {
+    const ui = await mount(t, language, undefined, true);
+    const view = await ui.render(ui.slot('settings.section')[0].component);
+    const tools = ui.tools(view);
+    await ui.act2(() => tools.button(ui.d.create).props.onClick());
+    await ui.act2(() =>
+      tools
+        .field(ui.d.skillName)
+        .props.onChange({ target: { value: 'Fresh Skill' } }),
+    );
+    await ui.act2(() =>
+      tools
+        .field(ui.d.skillDescription)
+        .props.onChange({ target: { value: 'Use for fresh work' } }),
+    );
+    await ui.act2(() =>
+      view.root
+        .findByType('textarea')
+        .props.onChange({ target: { value: '# Fresh instructions' } }),
+    );
+    await ui.act2(() =>
+      view.root.findByType('form').props.onSubmit({ preventDefault() {} }),
+    );
+    assert.match(tools.text(), /fresh-skill/);
+    assert.ok(tools.text().includes(ui.d.created));
+    const catalog = await ui.hostFetch({ action: 'list' });
+    const entry = catalog.copies.find((x) => x.name === 'fresh-skill');
+    assert.match(await readFile(entry.path, 'utf8'), /Fresh instructions/);
+    await ui.act2(() => tools.button(ui.d.create).props.onClick());
+    await ui.act2(() =>
+      tools
+        .field(ui.d.skillName)
+        .props.onChange({ target: { value: 'Fresh Skill' } }),
+    );
+    await ui.act2(() =>
+      tools
+        .field(ui.d.skillDescription)
+        .props.onChange({ target: { value: 'Another description' } }),
+    );
+    await ui.act2(() =>
+      view.root
+        .findByType('textarea')
+        .props.onChange({ target: { value: 'Do not overwrite' } }),
+    );
+    await ui.act2(() =>
+      view.root.findByType('form').props.onSubmit({ preventDefault() {} }),
+    );
+    assert.ok(tools.text().includes(ui.d['code.create-conflict']));
+    assert.match(await readFile(entry.path, 'utf8'), /Fresh instructions/);
+    await ui.act2(() =>
+      tools
+        .field(ui.d.skillName)
+        .props.onChange({ target: { value: '../escape' } }),
+    );
+    await ui.act2(() =>
+      view.root.findByType('form').props.onSubmit({ preventDefault() {} }),
+    );
+    assert.ok(tools.text().includes(ui.d['code.create-invalid']));
+    await ui.act2(() =>
+      tools
+        .field(ui.d.destination)
+        .props.onChange({ target: { value: 'user-agents' } }),
+    );
+    await ui.act2(() =>
+      tools
+        .field(ui.d.skillName)
+        .props.onChange({ target: { value: 'Shared Skill' } }),
+    );
+    await ui.act2(() =>
+      view.root.findByType('form').props.onSubmit({ preventDefault() {} }),
+    );
+    assert.ok(
+      (await ui.hostFetch({ action: 'list' })).copies.some(
+        (x) => x.name === 'shared-skill' && x.source === 'user-agents',
+      ),
+    );
+    const projectId = catalog.projects.find((x) => x.available).id;
+    await ui.act2(() =>
+      tools.field(ui.d.scope).props.onChange({ target: { value: 'project' } }),
+    );
+    await ui.act2(() =>
+      tools
+        .field(ui.d.project)
+        .props.onChange({ target: { value: projectId } }),
+    );
+    await ui.act2(() => tools.button(ui.d.create).props.onClick());
+    await ui.act2(() =>
+      tools
+        .field(ui.d.skillName)
+        .props.onChange({ target: { value: 'Project Skill' } }),
+    );
+    await ui.act2(() =>
+      tools
+        .field(ui.d.skillDescription)
+        .props.onChange({ target: { value: 'Use in project' } }),
+    );
+    await ui.act2(() =>
+      view.root
+        .findByType('textarea')
+        .props.onChange({ target: { value: '# Project instructions' } }),
+    );
+    await ui.act2(() =>
+      view.root.findByType('form').props.onSubmit({ preventDefault() {} }),
+    );
+    assert.ok(tools.text().includes(ui.d.created));
+    const local = (
+      await ui.hostFetch({ action: 'list', project: projectId })
+    ).project.copies.find((x) => x.name === 'project-skill');
+    assert.ok(local, tools.text());
+    assert.match(await readFile(local.path, 'utf8'), /Project instructions/);
+  });
 }
 
 const names = (view, source) =>

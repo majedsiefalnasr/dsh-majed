@@ -25,6 +25,7 @@ function policyValue(value, fallback) {
 }
 const READ_LIMIT = 1024 * 1024;
 const MAX_REQUEST = 16384;
+const CREATE_REQUEST = 2 * 1024 * 1024;
 /** Reads at most `limit` bytes; `oversized` reports a longer file (text is then the prefix). */
 async function readBounded(path, limit) {
     const handle = await open(path, 'r');
@@ -486,8 +487,22 @@ export function apply(ctx, config = {}) {
             const id = `project-${entry.kind}:${project.id}`;
             const path = join(project.root, entry.dir, 'skills');
             const info = await lstat(path).catch(() => undefined);
-            if (!info)
+            if (!info) {
+                const destination = await comparisonPath(path);
+                if (entry.kind === 'dsh' &&
+                    isSameOrDescendant(project.root, destination) &&
+                    ![...protectedPaths, ...found.map((x) => x.path)].some((other) => overlapsResolved(destination, other)))
+                    found.push({
+                        id,
+                        path,
+                        label: entry.label,
+                        rank: entry.rank,
+                        kind: entry.kind,
+                        project: project.id,
+                        absent: true,
+                    });
                 continue;
+            }
             const real = await realpath(path).catch(() => undefined);
             if (!real || !(await lstat(real).catch(() => undefined))?.isDirectory())
                 continue;
@@ -515,7 +530,9 @@ export function apply(ctx, config = {}) {
     /** Scans the sources; state is applied synchronously afterwards so the result is never stale. */
     const scanSources = async (list, signal, extra = []) => {
         const scanDiagnostics = [...extra];
-        const raw = (await Promise.all(list.map((source, i) => scan(source, i, signal, scanDiagnostics).catch(() => {
+        const raw = (await Promise.all(list.map((source, i) => (source.absent
+            ? Promise.resolve([])
+            : scan(source, i, signal, scanDiagnostics)).catch(() => {
             scanDiagnostics.push(diag('source-unavailable', { source: source.id }, `${source.id}: source unavailable`));
             return [];
         })))).flat();
@@ -935,6 +952,164 @@ export function apply(ctx, config = {}) {
         await writeState(next);
         return undefined;
     };
+    /** One serialized write path shared by the browser and the optional creation tool. */
+    const createSkill = async (body, project) => {
+        await ready;
+        if (closing)
+            return fail(503, 'stopping');
+        if (corrupt)
+            return fail(409, 'state-invalid');
+        const source = project
+            ? project.available &&
+                project.root &&
+                body.source === `project-dsh:${project.id}`
+                ? { path: join(project.root, '.dsh', 'skills') }
+                : undefined
+            : baseSources.find((item) => item.id === body.source &&
+                ['user-dsh', 'user-agents'].includes(item.id));
+        if (!source)
+            return fail(403, 'create-readonly');
+        if (typeof body.name !== 'string' ||
+            typeof body.description !== 'string' ||
+            typeof body.body !== 'string')
+            return fail(400, 'create-invalid');
+        const requested = body.name.trim();
+        // Never turn path syntax into a different, apparently safe skill name.
+        const name = requested
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '');
+        const description = body.description.trim();
+        const content = body.body.trim();
+        if (!name ||
+            name.length > 128 ||
+            /[\\/\\\\.\u0000]/.test(requested) ||
+            !description ||
+            !content)
+            return fail(400, 'create-invalid');
+        if (description.length > 500 || content.length > 262144)
+            return fail(413, 'create-too-large');
+        const root = resolve(source.path);
+        // Inspect every component, including existing ancestors of an absent writable root.
+        const checkedRoot = async () => {
+            for (let current = root;; current = dirname(current)) {
+                const info = await lstat(current).catch((error) => {
+                    if (error.code === 'ENOENT')
+                        return undefined;
+                    throw error;
+                });
+                if (info && (!info.isDirectory() || info.isSymbolicLink()))
+                    return false;
+                if (dirname(current) === current)
+                    return true;
+            }
+        };
+        if (!(await checkedRoot()))
+            return fail(409, 'create-linked-root');
+        await mkdir(root, { recursive: true });
+        if (!(await checkedRoot()))
+            return fail(409, 'create-linked-root');
+        const target = join(root, name);
+        const stage = join(root, `.create-${randomUUID()}`);
+        let stageCreated = false;
+        try {
+            if ((await lstat(target).catch(() => undefined)) ||
+                (await lstat(join(root, `${name}.md`)).catch(() => undefined)))
+                return fail(409, 'create-conflict');
+            await mkdir(stage);
+            stageCreated = true;
+            const document = join(stage, 'SKILL.md');
+            await writeFile(document, `---\nname: ${name}\ndescription: ${JSON.stringify(description)}\n---\n\n${content}\n`, { flag: 'wx' });
+            if (!(await checkedRoot()))
+                return fail(409, 'create-linked-root');
+            // Publish the complete folder. Manager writes are serialized; this is not
+            // an atomic no-replace guarantee against external filesystem writers.
+            if (await lstat(target).catch(() => undefined))
+                return fail(409, 'create-conflict');
+            await rename(stage, target);
+            stageCreated = false;
+            revision++;
+            for (const control of controls)
+                control.invalidate();
+            return { name, path: join(target, 'SKILL.md'), source: body.source };
+        }
+        catch (error) {
+            return fail(error.code === 'EEXIST' ? 409 : 400, error.code === 'EEXIST'
+                ? 'create-conflict'
+                : 'create-failed');
+        }
+        finally {
+            if (stageCreated)
+                await rm(stage, { recursive: true, force: true });
+        }
+    };
+    ctx.effect(() => {
+        const tools = ctx.get?.('tools');
+        if (!tools || tools.get('create_skill'))
+            return () => { };
+        const stopGate = ctx.on?.('tools/pre-execute', async (exec, next) => exec.name === 'create_skill'
+            ? {
+                kind: 'ask',
+                reason: 'Create a reusable skill only with explicit user approval.',
+                displayReason: {
+                    en: 'Create this reusable DSH skill?',
+                    ar: 'هل تريد إنشاء مهارة DSH القابلة لإعادة الاستخدام؟',
+                },
+            }
+            : next());
+        // Without the approval hook the model-facing mutation is not exposed.
+        if (!stopGate)
+            return () => { };
+        const stopTool = tools.register({
+            name: 'create_skill',
+            description: 'Create a new local DSH skill. Use only when the user explicitly asks to create or save a reusable skill.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    name: {
+                        type: 'string',
+                        description: 'Skill name, normalized to kebab-case.',
+                    },
+                    description: {
+                        type: 'string',
+                        description: 'Routing description (up to 500 characters).',
+                    },
+                    body: {
+                        type: 'string',
+                        description: 'Markdown instructions (up to 262144 characters).',
+                    },
+                },
+                required: ['name', 'description', 'body'],
+                additionalProperties: false,
+            },
+            output: {
+                schema: { type: 'object' },
+                render: (_args, value) => [
+                    { type: 'text', text: JSON.stringify(value) },
+                ],
+            },
+            async execute(args) {
+                const operation = operations.then(async () => {
+                    const result = await createSkill({
+                        ...args,
+                        source: 'user-dsh',
+                    });
+                    return result instanceof Response ? result.json() : result;
+                });
+                operations = operation.catch(() => undefined);
+                return operation;
+            },
+            presentCall: () => ({
+                card: 'generic',
+                title: 'Create DSH skill',
+                kind: 'edit',
+            }),
+        });
+        return () => {
+            stopTool();
+            stopGate();
+        };
+    }, 'majed-skills create tool');
     const ORG_ACTIONS = [
         'category-create',
         'category-rename',
@@ -1194,7 +1369,7 @@ export function apply(ctx, config = {}) {
                 if (request.headers.get('sec-fetch-site') === 'cross-site')
                     return new Response('Origin rejected', { status: 403 });
                 const declared = Number(request.headers.get('content-length'));
-                if (Number.isFinite(declared) && declared > MAX_REQUEST)
+                if (Number.isFinite(declared) && declared > CREATE_REQUEST)
                     return new Response('Request too large', { status: 413 });
                 try {
                     const reader = request.body?.getReader();
@@ -1208,7 +1383,7 @@ export function apply(ctx, config = {}) {
                                 if (part.done)
                                     break;
                                 length += part.value.byteLength;
-                                if (length > MAX_REQUEST) {
+                                if (length > CREATE_REQUEST) {
                                     await reader.cancel();
                                     return new Response('Request too large', { status: 413 });
                                 }
@@ -1221,6 +1396,9 @@ export function apply(ctx, config = {}) {
                         }
                     }
                     const body = JSON.parse(requestText);
+                    if (body.action !== 'create' &&
+                        (length > MAX_REQUEST || declared > MAX_REQUEST))
+                        return new Response('Request too large', { status: 413 });
                     const marked = request.headers.get('x-majed-skills') === '1';
                     const actions = [
                         'list',
@@ -1228,6 +1406,7 @@ export function apply(ctx, config = {}) {
                         'toggle',
                         'ping',
                         'reload',
+                        'create',
                         'custom-scan',
                         'custom-add',
                         'custom-update',
@@ -1280,6 +1459,28 @@ export function apply(ctx, config = {}) {
                         project = (await projects()).find((item) => item.id === body.project);
                         if (!project)
                             return fail(404, 'project-unregistered');
+                    }
+                    if (body.action === 'create') {
+                        if (!marked)
+                            return fail(403, 'forbidden');
+                        const mutation = operations.then(async () => {
+                            // Re-read the registry inside the write queue, not from an earlier selector snapshot.
+                            const current = body.project === undefined
+                                ? undefined
+                                : (await registeredProjects()).find((item) => item.id === body.project);
+                            if (body.project !== undefined &&
+                                (registryUnavailable || !current))
+                                return fail(404, 'project-unregistered');
+                            return createSkill(body, current);
+                        });
+                        operations = mutation.catch(() => undefined);
+                        const created = await mutation;
+                        if (created instanceof Response)
+                            return created;
+                        return Response.json({
+                            ...(await payload(project, await registeredProjects(), marked)),
+                            created,
+                        });
                     }
                     if (body.action === 'detail') {
                         if (!marked)
