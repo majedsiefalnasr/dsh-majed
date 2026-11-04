@@ -117,7 +117,66 @@ function setupSkills(ctx, fail) {
 				"diag.invalid-metadata": "Invalid metadata",
 				"diag.invalid-policy": "Invalid invocation policy",
 				"diag.linked-outside-root": "Skill document is linked from outside its source",
-				"diag.state-invalid": "Invalid skill state; managed skills are disabled"
+				"diag.state-invalid": "Invalid skill state; managed skills are disabled",
+				"diag.project-unavailable": "Project unavailable",
+				"diag.project-missing": "Project folder is missing",
+				"diag.project-unreadable": "Project folder is not readable",
+				"diag.project-source-outside": "Project skill folder resolves outside the project",
+				"diag.project-source-overlap": "Project skill folder overlaps another source",
+				scope: "View",
+				scopeGlobal: "Global skills",
+				scopeProject: "Project skills",
+				project: "Project",
+				projectNone: "Select a registered project",
+				projectEmpty: "No registered projects yet",
+				projectHint: "Project skills are read from the project and switched only for that project",
+				readOnlySource: "Project DSH skills have no source switch",
+				"code.project-missing": "folder missing",
+				"code.project-unreadable": "not readable",
+				"code.project-unavailable": "unavailable",
+				"code.project-unregistered": "Project is not registered",
+				"code.project-dsh-source": "Project DSH skills have no source switch",
+				"code.root-not-absolute": "Enter an absolute folder path",
+				"code.root-too-long": "The folder path is too long",
+				"code.root-not-found": "The folder does not exist",
+				"code.root-not-directory": "The path is not a folder",
+				"code.root-reserved": "This folder is reserved by the Skill manager",
+				"code.root-overlap": "This folder overlaps another skill source",
+				"code.custom-limit": "The limit of {limit} custom sources is reached",
+				"code.custom-label": "The name or group is invalid or too long",
+				"code.custom-unknown": "This custom source no longer exists",
+				"code.scan-aborted": "The folder preview was cancelled",
+				"code.forbidden": "The request was rejected; reload the page and retry",
+				"code.unsupported": "The request format is not supported",
+				"code.stopping": "The Skill manager is stopping; try again shortly",
+				"code.state-invalid": "Skill state is invalid; reload the state before changing sources",
+				"diag.registry-unavailable": "The workspace registry is unavailable; project policy may not apply",
+				addSourceNamed: "Add source",
+				editNamed: "Edit",
+				removeNamed: "Remove source",
+				confirmNamed: "Confirm removal",
+				folders: "Source folders",
+				foldersHint: "Preview a folder first; nothing is registered until you add it. Removing a source never deletes files",
+				folderPath: "Folder path",
+				scanFolder: "Preview folder",
+				addFolder: "Add folder",
+				addSource: "Add source",
+				candidates: "Candidate sources",
+				noCandidates: "No skill folders found within two levels",
+				candidateRegistered: "Registered",
+				candidateConflict: "Overlaps another source",
+				skillCount: "skills",
+				customBadge: "Custom folder",
+				edit: "Edit",
+				save: "Save",
+				cancel: "Cancel",
+				label: "Name",
+				group: "Group",
+				remove: "Remove source",
+				removeNote: "This removes only the source entry. Skill files are not deleted",
+				confirmRemove: "Confirm removal",
+				added: "Source added",
+				registered: "This folder is already a source"
 			},
 			ar: {
 				title: "مدير المهارات",
@@ -159,7 +218,66 @@ function setupSkills(ctx, fail) {
 				"diag.invalid-metadata": "بيانات وصفية غير صالحة",
 				"diag.invalid-policy": "سياسة استدعاء غير صالحة",
 				"diag.linked-outside-root": "وثيقة المهارة مرتبطة من خارج مصدرها",
-				"diag.state-invalid": "حالة المهارات غير صالحة؛ المهارات المُدارة معطلة"
+				"diag.state-invalid": "حالة المهارات غير صالحة؛ المهارات المُدارة معطلة",
+				"diag.project-unavailable": "المشروع غير متاح",
+				"diag.project-missing": "مجلد المشروع غير موجود",
+				"diag.project-unreadable": "تتعذر قراءة مجلد المشروع",
+				"diag.project-source-outside": "مجلد مهارات المشروع يشير إلى خارج المشروع",
+				"diag.project-source-overlap": "مجلد مهارات المشروع يتداخل مع مصدر آخر",
+				scope: "العرض",
+				scopeGlobal: "المهارات العامة",
+				scopeProject: "مهارات المشروع",
+				project: "المشروع",
+				projectNone: "اختر مشروعاً مسجلاً",
+				projectEmpty: "لا توجد مشاريع مسجلة بعد",
+				projectHint: "تُقرأ مهارات المشروع من المشروع نفسه وتُبدَّل لذلك المشروع فقط",
+				readOnlySource: "مهارات DSH في المشروع بلا مفتاح تبديل للمصدر",
+				"code.project-missing": "المجلد غير موجود",
+				"code.project-unreadable": "تتعذر قراءته",
+				"code.project-unavailable": "غير متاح",
+				"code.project-unregistered": "المشروع غير مسجل",
+				"code.project-dsh-source": "مهارات DSH في المشروع بلا مفتاح تبديل للمصدر",
+				"code.root-not-absolute": "أدخل مسار مجلد مطلقاً",
+				"code.root-too-long": "مسار المجلد طويل جداً",
+				"code.root-not-found": "المجلد غير موجود",
+				"code.root-not-directory": "المسار ليس مجلداً",
+				"code.root-reserved": "هذا المجلد محجوز لمدير المهارات",
+				"code.root-overlap": "هذا المجلد يتداخل مع مصدر مهارات آخر",
+				"code.custom-limit": "بلغت الحد الأقصى وهو {limit} مصدراً مخصصاً",
+				"code.custom-label": "الاسم أو المجموعة غير صالح أو طويل جداً",
+				"code.custom-unknown": "هذا المصدر المخصص لم يعد موجوداً",
+				"code.scan-aborted": "أُلغيت معاينة المجلد",
+				"code.forbidden": "رُفض الطلب؛ أعد تحميل الصفحة وحاول مجدداً",
+				"code.unsupported": "صيغة الطلب غير مدعومة",
+				"code.stopping": "مدير المهارات قيد الإيقاف؛ حاول بعد قليل",
+				"code.state-invalid": "حالة المهارات غير صالحة؛ أعد قراءة الحالة قبل تغيير المصادر",
+				"diag.registry-unavailable": "سجل مساحات العمل غير متاح؛ قد لا تُطبَّق سياسة المشاريع",
+				addSourceNamed: "إضافة مصدر",
+				editNamed: "تعديل",
+				removeNamed: "إزالة المصدر",
+				confirmNamed: "تأكيد الإزالة",
+				folders: "مجلدات المصادر",
+				foldersHint: "عاين المجلد أولاً؛ لا يُسجَّل شيء حتى تضيفه. إزالة المصدر لا تحذف أي ملفات",
+				folderPath: "مسار المجلد",
+				scanFolder: "معاينة المجلد",
+				addFolder: "إضافة المجلد",
+				addSource: "إضافة مصدر",
+				candidates: "المصادر المرشحة",
+				noCandidates: "لا توجد مجلدات مهارات ضمن مستويين",
+				candidateRegistered: "مسجل",
+				candidateConflict: "يتداخل مع مصدر آخر",
+				skillCount: "مهارات",
+				customBadge: "مجلد مخصص",
+				edit: "تعديل",
+				save: "حفظ",
+				cancel: "إلغاء",
+				label: "الاسم",
+				group: "المجموعة",
+				remove: "إزالة المصدر",
+				removeNote: "هذا يزيل إدخال المصدر فقط ولا تُحذف ملفات المهارات",
+				confirmRemove: "تأكيد الإزالة",
+				added: "أُضيف المصدر",
+				registered: "هذا المجلد مصدر بالفعل"
 			}
 		};
 		effect(() => ctx.locale.register("majed.skills", dictionaries), "majed-skills dictionaries");
@@ -183,11 +301,22 @@ function setupSkills(ctx, fail) {
 				body: JSON.stringify(body),
 				signal
 			});
-			if (!response.ok) throw new Error(String(response.status));
+			if (!response.ok) {
+				const failure = new Error(String(response.status));
+				const body$1 = await response.json().catch(() => ({}));
+				failure.params = body$1.params;
+				failure.code = body$1.code ?? {
+					403: "forbidden",
+					415: "unsupported",
+					503: "stopping"
+				}[response.status] ?? (response.status === 409 ? "state-invalid" : void 0);
+				throw failure;
+			}
 			return response.json();
 		};
+		const errorText = (failure) => failure?.code && dictionaries.en[`code.${failure.code}`] ? t(`code.${failure.code}`).replace("{limit}", String(failure.params?.limit ?? "")) : t("error");
 		function Section() {
-			const [data, setData] = React.useState(null), [error, setError] = React.useState(false), [query, setQuery] = React.useState(""), [source, setSource] = React.useState(""), [status, setStatus] = React.useState(""), [detail, setDetail] = React.useState(null), [detailError, setDetailError] = React.useState(false);
+			const [data, setData] = React.useState(null), [error, setError] = React.useState(false), [query, setQuery] = React.useState(""), [source, setSource] = React.useState(""), [status, setStatus] = React.useState(""), [detail, setDetail] = React.useState(null), [detailError, setDetailError] = React.useState(false), [scope, setScope] = React.useState("global"), [project, setProject] = React.useState(""), [folderPath, setFolderPath] = React.useState(""), [candidates, setCandidates] = React.useState(null), [editing, setEditing] = React.useState(null), [removing, setRemoving] = React.useState(""), [pendingScan, setPendingScan] = React.useState(false), [loaded, setLoaded] = React.useState(""), [notice, setNotice] = React.useState(""), [managing, setManaging] = React.useState(false);
 			const dialog = React.useRef(null);
 			React.useEffect(() => {
 				if (!detail) return;
@@ -198,44 +327,192 @@ function setupSkills(ctx, fail) {
 			const lifetime = React.useRef(new AbortController());
 			const busy = React.useRef(false);
 			const controller = React.useRef(null);
+			const selected = scope === "project" && project ? { project } : {};
+			const key = scope === "project" && project ? project : "";
+			const keyRef = React.useRef(key);
+			keyRef.current = key;
+			const switching = loaded !== key;
 			const load = () => {
+				const requested = key;
 				controller.current?.abort();
-				controller.current = new AbortController();
+				const current = controller.current = new AbortController();
 				setError(false);
-				return call({ action: "list" }, controller.current.signal).then(setData).catch((error$1) => {
-					if (error$1.name !== "AbortError") setError(true);
+				return call({
+					action: "list",
+					...selected
+				}, current.signal).then((value) => {
+					if (keyRef.current !== requested) return;
+					setData(value);
+					setLoaded(requested);
+				}).catch((error$1) => {
+					if (error$1.name !== "AbortError" && keyRef.current === requested) setError(true);
 				});
 			};
-			React.useEffect(() => {
-				load();
-				return () => {
-					controller.current?.abort();
-					lifetime.current.abort();
-				};
+			React.useEffect(() => () => {
+				controller.current?.abort();
+				lifetime.current.abort();
 			}, []);
+			React.useEffect(() => {
+				setNotice("");
+				setCandidates(null);
+				load();
+			}, [scope, project]);
 			const toggle = async (kind, id, enabled) => {
-				if (busy.current || lifetime.current.signal.aborted) return;
+				if (busy.current || switching || lifetime.current.signal.aborted) return;
 				busy.current = true;
 				try {
+					const requested = key;
 					await call({
 						action: "toggle",
 						kind,
 						id,
-						enabled
+						enabled,
+						...selected
 					}, lifetime.current.signal);
-					if (!lifetime.current.signal.aborted) await load();
+					if (!lifetime.current.signal.aborted && keyRef.current === requested) await load();
 				} catch {
-					if (!lifetime.current.signal.aborted) setError(true);
+					if (!lifetime.current.signal.aborted && keyRef.current === key) setError(true);
 				} finally {
 					busy.current = false;
 				}
 			};
+			const mutate = async (body, done) => {
+				if (busy.current || lifetime.current.signal.aborted) return;
+				busy.current = true;
+				setNotice("");
+				const requested = key;
+				try {
+					const value = await call(body, lifetime.current.signal);
+					if (lifetime.current.signal.aborted || keyRef.current !== requested) return;
+					setData(value);
+					done?.(value);
+				} catch (failure) {
+					if (!lifetime.current.signal.aborted && keyRef.current === requested) setNotice(errorText(failure));
+				} finally {
+					busy.current = false;
+				}
+			};
+			const addFolders = (items) => mutate({
+				action: "custom-add",
+				items
+			}, (value) => {
+				const result = value.results?.[0];
+				setCandidates(null);
+				setNotice(result?.status === "rejected" ? errorText(result) : result?.status === "registered" ? t("registered") : t("added"));
+			});
+			const scanFolder = async () => {
+				if (pendingScan) return;
+				setPendingScan(true);
+				setNotice("");
+				const requested = key;
+				try {
+					const found = await call({
+						action: "custom-scan",
+						path: folderPath
+					}, lifetime.current.signal);
+					if (!lifetime.current.signal.aborted && keyRef.current === requested) setCandidates(found.candidates);
+				} catch (failure) {
+					if (!lifetime.current.signal.aborted && keyRef.current === requested) {
+						setCandidates(null);
+						setNotice(errorText(failure));
+					}
+				} finally {
+					setPendingScan(false);
+				}
+			};
 			const copyStatus = (copy) => copy.metadataValid === false || !copy.policyValid ? "invalid" : !copy.eligible ? "disabled" : copy.shadowedBy ? "shadowed" : copy.author && !copy.author.modelInvocable && !copy.author.userInvocable ? "blocked" : "enabled";
-			const copies = (data?.copies ?? []).filter((copy) => (!source || copy.source === source) && (!query || `${copy.name} ${copy.description} ${copy.path}`.toLowerCase().includes(query.toLowerCase())) && (!status || copyStatus(copy) === status));
+			const inProject = scope === "project";
+			const view = inProject ? data?.project ?? {
+				sources: [],
+				copies: [],
+				diagnostics: []
+			} : data;
+			const copies = (view?.copies ?? []).filter((copy) => (!source || copy.source === source) && (!query || `${copy.name} ${copy.description} ${copy.path}`.toLowerCase().includes(query.toLowerCase())) && (!status || copyStatus(copy) === status));
+			const projects = data?.projects ?? [];
+			const projectOption = (x) => h("option", {
+				key: x.id,
+				value: x.id,
+				disabled: !x.available
+			}, x.available ? x.name : `${x.name} · ${t(`code.${x.code}`)}`);
+			const field = (label, value, set) => h("input", {
+				"aria-label": label,
+				placeholder: label,
+				value,
+				onChange: (e) => set(e.target.value)
+			});
+			const manager = () => h("div", null, h("p", null, t("foldersHint")), field(t("folderPath"), folderPath, setFolderPath), h("button", {
+				disabled: pendingScan,
+				onClick: () => void scanFolder()
+			}, t("scanFolder")), h("button", { onClick: () => void addFolders([{ path: folderPath }]) }, t("addFolder")), notice ? h("p", { role: "status" }, notice) : null, candidates ? h("div", null, h("h4", null, t("candidates")), candidates.length ? null : h("p", null, t("noCandidates")), ...candidates.map((c) => h("div", { key: c.path }, h("strong", null, c.label), h("p", null, h("bdi", { dir: "ltr" }, c.path), ` · ${c.skillCount} ${t("skillCount")}`), c.registered ? h("span", null, t("candidateRegistered")) : c.conflict ? h("span", null, t("candidateConflict")) : h("button", {
+				"aria-label": `${t("addSourceNamed")}: ${c.label}`,
+				onClick: () => void addFolders([{
+					path: c.path,
+					label: c.label,
+					group: c.group
+				}])
+			}, t("addSource"))))) : null);
+			const customControls = (x) => editing?.id === x.id ? h("div", null, field(t("label"), editing.label, (v) => setEditing({
+				...editing,
+				label: v
+			})), field(t("group"), editing.group, (v) => setEditing({
+				...editing,
+				group: v
+			})), field(`${t("edit")}: ${t("folderPath")}`, editing.path, (v) => setEditing({
+				...editing,
+				path: v
+			})), h("button", {
+				"aria-label": `${t("save")}: ${x.label ?? x.id}`,
+				onClick: () => void mutate({
+					action: "custom-update",
+					id: x.id,
+					label: editing.label,
+					group: editing.group,
+					path: editing.path
+				}, () => setEditing(null))
+			}, t("save")), h("button", {
+				"aria-label": `${t("cancel")}: ${x.label ?? x.id}`,
+				onClick: () => setEditing(null)
+			}, t("cancel"))) : removing === x.id ? h("div", null, h("p", null, t("removeNote")), h("button", {
+				"aria-label": `${t("confirmNamed")}: ${x.label ?? x.id}`,
+				onClick: () => void mutate({
+					action: "custom-remove",
+					id: x.id
+				}, () => setRemoving(""))
+			}, t("confirmRemove")), h("button", {
+				"aria-label": `${t("cancel")}: ${x.label ?? x.id}`,
+				onClick: () => setRemoving("")
+			}, t("cancel"))) : h("div", null, h("span", null, t("customBadge")), h("button", {
+				"aria-label": `${t("editNamed")}: ${x.label ?? x.id}`,
+				onClick: () => setEditing({
+					id: x.id,
+					label: x.label ?? "",
+					group: x.group ?? "",
+					path: x.path
+				})
+			}, t("edit")), h("button", {
+				"aria-label": `${t("removeNamed")}: ${x.label ?? x.id}`,
+				onClick: () => setRemoving(x.id)
+			}, t("remove")));
 			return h("section", {
 				"data-majed-skills": true,
 				dir: isArabic() ? "rtl" : void 0
-			}, h("h2", null, t("title")), h("input", {
+			}, h("h2", null, t("title")), h("select", {
+				"aria-label": t("scope"),
+				value: scope,
+				onChange: (e) => {
+					setScope(e.target.value);
+					setSource("");
+					setNotice("");
+				}
+			}, h("option", { value: "global" }, t("scopeGlobal")), h("option", { value: "project" }, t("scopeProject"))), inProject ? h("select", {
+				"aria-label": t("project"),
+				value: project,
+				onChange: (e) => {
+					setProject(e.target.value);
+					setSource("");
+					setNotice("");
+				}
+			}, h("option", { value: "" }, projects.length ? t("projectNone") : t("projectEmpty")), ...projects.map(projectOption)) : null, inProject ? h("p", null, t("projectHint")) : null, h("input", {
 				"aria-label": t("search"),
 				placeholder: t("search"),
 				value: query,
@@ -244,7 +521,7 @@ function setupSkills(ctx, fail) {
 				"aria-label": t("source"),
 				value: source,
 				onChange: (e) => setSource(e.target.value)
-			}, h("option", { value: "" }, t("all")), ...(data?.sources ?? []).map((x) => h("option", {
+			}, h("option", { value: "" }, t("all")), ...(view?.sources ?? []).map((x) => h("option", {
 				key: x.id,
 				value: x.id
 			}, sourceLabel(x)))), h("select", {
@@ -261,16 +538,20 @@ function setupSkills(ctx, fail) {
 			].map((x) => h("option", {
 				key: x,
 				value: x
-			}, t(x || "any")))), error ? h("div", { role: "alert" }, t("error"), h("button", { onClick: () => call({ action: "reload" }).then(setData, load) }, t("retry"))) : !data ? h("p", { role: "status" }, t("loading")) : h(React.Fragment, null, ...(data.sources ?? []).filter((x) => !source || x.id === source).map((x) => h("details", {
+			}, t(x || "any")))), error ? h("div", { role: "alert" }, t("error"), h("button", { onClick: () => call({ action: "reload" }).then(setData, load) }, t("retry"))) : !data || switching ? h("p", { role: "status" }, t("loading")) : h(React.Fragment, null, inProject ? null : h("div", null, h("button", {
+				"aria-expanded": managing,
+				onClick: () => setManaging(!managing)
+			}, t("folders")), managing ? manager() : null), inProject && data.project && !data.project.available ? h("p", { role: "alert" }, `${data.project.name}: ${t(`code.${data.project.code}`)}`) : null, ...(view.sources ?? []).filter((x) => !source || x.id === source).map((x) => h("details", {
 				key: x.id,
 				open: true
-			}, h("summary", null, `${sourceLabel(x)} (${data.copies.filter((c) => c.source === x.id).length})`), h("p", null, x.path), h("button", { onClick: () => toggle("source", x.id, x.enabled === false) }, `${t("toggleSource")} ${sourceLabel(x)}`), ...copies.filter((c) => c.source === x.id).map((copy) => h("article", { key: copy.path }, h("strong", null, copy.name), h("p", null, copy.description), h("span", null, t(copyStatus(copy))), h("button", {
+			}, h("summary", null, `${sourceLabel(x)} (${view.copies.filter((c) => c.source === x.id).length})`), h("p", null, x.group ? `${x.group} · ` : null, h("bdi", { dir: "ltr" }, x.path)), x.readonly ? h("p", null, t("readOnlySource")) : h("button", { onClick: () => toggle("source", x.id, x.enabled === false) }, `${t("toggleSource")} ${sourceLabel(x)}`), x.custom ? customControls(x) : null, ...copies.filter((c) => c.source === x.id).map((copy) => h("article", { key: copy.path }, h("strong", null, copy.name), h("p", null, copy.description), h("span", null, t(copyStatus(copy))), h("button", {
 				disabled: x.enabled === false || data.corrupt,
 				"aria-label": `${t("copyCopy")}: ${copy.name} — ${copy.path}`,
 				onClick: () => toggle("copy", copy.path, !copy.eligible)
 			}, t("toggle")), h("button", { onClick: () => call({
 				action: "detail",
-				id: copy.path
+				id: copy.path,
+				...selected
 			}, lifetime.current.signal).then((value) => {
 				if (!lifetime.current.signal.aborted) {
 					setDetailError(false);
@@ -278,7 +559,7 @@ function setupSkills(ctx, fail) {
 				}
 			}).catch(() => {
 				if (!lifetime.current.signal.aborted) setDetailError(true);
-			}) }, t("details")))))), data.corrupt ? h("div", { role: "alert" }, t("stateLocked"), h("button", { onClick: () => call({ action: "reload" }).then(setData, load) }, t("reloadState"))) : null, copies.length ? null : h("p", null, t("empty")), ...(data.diagnostics ?? []).map((x, i) => h("p", { key: `${x.code}:${i}` }, diagnosticText(x)))), detailError ? h("p", { role: "alert" }, t("error")) : null, detail ? h("div", {
+			}) }, t("details")))))), data.corrupt ? h("div", { role: "alert" }, t("stateLocked"), h("button", { onClick: () => call({ action: "reload" }).then(setData, load) }, t("reloadState"))) : null, copies.length ? null : h("p", null, t("empty")), ...(view.diagnostics ?? []).map((x, i) => h("p", { key: `${x.code}:${i}` }, diagnosticText(x)))), detailError ? h("p", { role: "alert" }, t("error")) : null, detail ? h("div", {
 				role: "dialog",
 				"aria-label": t("details"),
 				ref: dialog,

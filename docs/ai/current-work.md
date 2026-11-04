@@ -1,5 +1,21 @@
 # Current work
 
+## #147 Registered projects and custom sources — started 2026-11-04
+
+Ticket: #147 "Skill manager: Registered projects and custom sources" (builds on #146, commit 771f79f on `feat/skill-manager`). Worktree `.agents/worktrees/impl/147-projects-sources`, branch `impl/147-projects-sources`; push only to `feat/skill-manager` with an explicit refspec after Owner acceptance, never `main`. Not authorized: installed app/profile changes, #148+ scope, new dependencies.
+
+Status: implemented and independently reviewed; review fixes applied, uncommitted. Gates (`npm run build`, `npm run quality`, `npm run check:build`, `npm test`) are recorded in the handoff. Host `src/skills-sources.ts` (bounded preview, path validation, project resolution) is wired into `src/skills.ts`; per-project policy lives under `projects[<id>]` in the Waycraft state; custom ranks are 535+10i. Not proven: real native project discovery combined with the overlay, full Loader boot, installed app, visual EN/AR layout, Windows paths.
+
+Known limits: custom "reset" is the same as remove; project DSH has no source switch; project overlays reach the native provider only for the registered project containing `cwd`; if the workspace registry has never been available since start, project deny policy cannot be restored until it returns (last-known set is used afterwards, with a persistent diagnostic).
+
+KNOWN LIMITS (#147 review):
+- (a) A registry that responds successfully with an empty or shortened workspace list replaces the last-known set, so project deny policy stops applying without a diagnostic. Only a missing or throwing registry is fail-closed.
+- (b) A single directory's readdir entry count is unbounded; `MAX_SCAN_VISITED` bounds directories only.
+- (c) `workspaceRegistry` is read via `ctx.get` at request time and is not in `inject`; live availability is unproven.
+- (d) Mid-walk abort is not tested; only a pre-aborted request is covered.
+
+Deferred / not implemented: built-in external-source path override and reset-to-default (reference `src/core.ts:895-960`); "Add all" candidates action; project-DSH always-listed and symlink rejection (revisit in #149); unavailable-project alert is mostly dead UI; label is optional on edit; per-item batch results; state pruning for unregistered projects; reservation of the `~/.dsh` sensitive tree for custom roots.
+
 ## #146 independent-review fixes — 2026-11-04
 
 Changed (worktree `.agents/worktrees/impl/146-skill-manager`, uncommitted, baseline 9eec14a): `reload` is chained on the serialized operations and needs the `x-majed-skills` marker, as do `detail` and `toggle`; own diagnostics survive invalid-frontmatter/yaml/metadata files; agent-scoped providers share one source scan per revision (a toggle/reload rescans); the UI presence ping backs off 3s to 60s while failing and resets on success; the `yaml` notice is reworded (external runtime dependency); new tests for 413/415/503/403, reload races, scan sharing and ping backoff.

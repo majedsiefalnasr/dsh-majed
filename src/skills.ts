@@ -1,9 +1,34 @@
-import { mkdir, open, realpath, rename, rm, writeFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
+import {
+  lstat,
+  mkdir,
+  open,
+  realpath,
+  rename,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { dirname, join, resolve, sep } from 'node:path';
+import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import { parseDocument } from 'yaml';
 import { discoverReadonlyEntries } from './skills-discovery.js';
+import {
+  CUSTOM_ID,
+  CUSTOM_RANK_BASE,
+  CUSTOM_RANK_STEP,
+  comparisonPath,
+  customSlug,
+  isSameOrDescendant,
+  MAX_CUSTOM_SOURCES,
+  MAX_LABEL,
+  overlapsResolved,
+  PROJECT_SOURCES,
+  type Project,
+  prepareRoots,
+  resolveProject,
+  scanCandidates,
+  validateRootPath,
+} from './skills-sources.js';
 
 export const name = 'dsh-waycraft/skills';
 export const inject = ['skills'];
@@ -30,7 +55,6 @@ interface Candidate {
   /** Raw author policy, kept so source/copy state can be applied without rescanning. */
   author?: Policy;
   original?: string;
-  order?: number;
   diagnostics?: Diagnostic[];
 }
 interface Control {
@@ -39,7 +63,7 @@ interface Control {
 }
 interface Provider {
   name: string;
-  list(): Promise<Candidate[]>;
+  list(options?: { cwd?: string; signal?: AbortSignal }): Promise<Candidate[]>;
   get(candidate: Candidate): Promise<Candidate | undefined>;
 }
 interface Agent {
@@ -57,6 +81,9 @@ interface HostContext {
   get?(
     name: 'connection',
   ): { fetch: { register(route: object): () => void } } | undefined;
+  get?(
+    name: 'workspaceRegistry',
+  ): { list(): Array<{ path?: string; cwd?: string }> } | undefined;
   inject?(names: string[], callback: (ctx: HostContext) => void): void;
 }
 interface Source {
@@ -65,6 +92,12 @@ interface Source {
   label?: string;
   enabled?: boolean;
   rank?: number;
+  group?: string;
+  custom?: boolean;
+  /** Project id for project-scoped sources. */
+  project?: string;
+  /** Project source kind (dsh, agents, ...). */
+  kind?: string;
 }
 interface Config {
   sources?: Source[];
@@ -167,7 +200,6 @@ async function scan(
     provider: 'majed-skills',
     source: sourceId,
     rank,
-    order,
     eligible: true,
   };
   const invalid = (path: string, text: string, own: Diagnostic[]) =>
@@ -360,7 +392,7 @@ export function apply(ctx: HostContext, config: Config = {}) {
     lingma: 'Lingma',
     antigravity: 'Antigravity',
   };
-  const sources: Source[] = config.sources ?? [
+  const baseSources: Source[] = config.sources ?? [
     { id: 'user-dsh', label: 'DSH', path: join(dshHome, 'skills'), rank: 400 },
     {
       id: 'user-agents',
@@ -380,40 +412,98 @@ export function apply(ctx: HostContext, config: Config = {}) {
   ];
   const statePath =
     config.statePath ?? join(dshHome, 'majed-skills', 'state.json');
+  interface CustomRecord {
+    id: string;
+    label: string;
+    path: string;
+    group?: string;
+  }
+  interface ProjectState {
+    sources: Record<string, boolean>;
+    copies: Record<string, boolean>;
+  }
   type State = {
     sources: Record<string, boolean>;
     copies: Record<string, boolean>;
+    customSources: CustomRecord[];
+    /** Per-project policy keyed by project id; never consulted for global copies. */
+    projects: Record<string, ProjectState>;
   };
-  let state: State = {
+  const emptyState = (): State => ({
     sources: Object.create(null),
     copies: Object.create(null),
-  };
+    customSources: [],
+    projects: Object.create(null),
+  });
+  let state: State = emptyState();
   let corrupt = false;
+  const isFlags = (value: unknown): value is Record<string, boolean> =>
+    !!value &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    Object.values(value).every((x) => typeof x === 'boolean');
+  const parseState = (parsed: unknown): State => {
+    const invalid = () => new Error('Invalid skill state');
+    if (!parsed || typeof parsed !== 'object') throw invalid();
+    const value = parsed as Partial<State>;
+    if (!isFlags(value.sources) || !isFlags(value.copies)) throw invalid();
+    const custom = value.customSources ?? [];
+    if (!Array.isArray(custom) || custom.length > MAX_CUSTOM_SOURCES)
+      throw invalid();
+    const seen = new Set<string>();
+    for (const item of custom as CustomRecord[]) {
+      if (
+        !item ||
+        typeof item !== 'object' ||
+        typeof item.id !== 'string' ||
+        !CUSTOM_ID.test(item.id) ||
+        seen.has(item.id) ||
+        typeof item.label !== 'string' ||
+        !item.label ||
+        item.label.length > MAX_LABEL ||
+        typeof item.path !== 'string' ||
+        !isAbsolute(item.path) ||
+        (item.group !== undefined &&
+          (typeof item.group !== 'string' || item.group.length > MAX_LABEL))
+      )
+        throw invalid();
+      seen.add(item.id);
+    }
+    const projects = value.projects ?? {};
+    if (!projects || typeof projects !== 'object' || Array.isArray(projects))
+      throw invalid();
+    const nextProjects: Record<string, ProjectState> = Object.create(null);
+    for (const [id, entry] of Object.entries(projects)) {
+      const item = entry as Partial<ProjectState> | undefined;
+      if (
+        !/^[0-9a-f]{16}$/.test(id) ||
+        !item ||
+        !isFlags(item.sources) ||
+        !isFlags(item.copies)
+      )
+        throw invalid();
+      nextProjects[id] = {
+        sources: Object.assign(Object.create(null), item.sources),
+        copies: Object.assign(Object.create(null), item.copies),
+      };
+    }
+    return {
+      sources: Object.assign(Object.create(null), value.sources),
+      copies: Object.assign(Object.create(null), value.copies),
+      customSources: (custom as CustomRecord[]).map((item) => ({
+        id: item.id,
+        label: item.label,
+        path: item.path,
+        ...(item.group ? { group: item.group } : {}),
+      })),
+      projects: nextProjects,
+    };
+  };
   const loadState = () =>
     readBounded(statePath, READ_LIMIT)
       .then(({ text, oversized }) => {
         if (oversized) throw new Error('Invalid skill state');
-        const parsed: unknown = JSON.parse(text);
-        if (!parsed || typeof parsed !== 'object')
-          throw new Error('Invalid skill state');
-        const value = parsed as State;
-        if (
-          !value.sources ||
-          typeof value.sources !== 'object' ||
-          Array.isArray(value.sources) ||
-          !value.copies ||
-          typeof value.copies !== 'object' ||
-          Array.isArray(value.copies) ||
-          [
-            ...Object.values(value.sources),
-            ...Object.values(value.copies),
-          ].some((x) => typeof x !== 'boolean')
-        )
-          throw new Error('Invalid skill state');
-        state = {
-          sources: Object.assign(Object.create(null), value.sources),
-          copies: Object.assign(Object.create(null), value.copies),
-        };
+        state = parseState(JSON.parse(text));
         corrupt = false;
       })
       .catch((error: NodeJS.ErrnoException) => {
@@ -422,14 +512,127 @@ export function apply(ctx: HostContext, config: Config = {}) {
   let ready = loadState();
   const controls = new Set<Control>();
   let revision = 0;
+  /**
+   * Custom sources rank after every built-in (see CUSTOM_RANK_BASE), by registration order. They
+   * therefore never share a rank, or an overlay rank, with a native root such as custom-300.
+   */
+  const customSource = (item: CustomRecord, index: number): Source => ({
+    id: item.id,
+    path: item.path,
+    label: item.label,
+    ...(item.group ? { group: item.group } : {}),
+    custom: true,
+    rank: CUSTOM_RANK_BASE + index * CUSTOM_RANK_STEP,
+  });
+  const globalSources = (): Source[] => [
+    ...baseSources,
+    ...(corrupt ? [] : state.customSources).map(customSource),
+  ];
+  const reservedFolders = () => [dirname(statePath)];
+  // ---- registered projects: always re-resolved from the host registry, never from the client ----
+  /** Last workspace list the host reported successfully; reused when the registry later fails. */
+  let knownWorkspaces: string[] = [];
+  let registryUnavailable = false;
+  const registeredProjects = async (): Promise<Project[]> => {
+    let paths = knownWorkspaces;
+    try {
+      const registry = ctx.get?.('workspaceRegistry');
+      if (typeof registry?.list !== 'function')
+        throw new Error('Workspace registry unavailable');
+      paths = registry
+        .list()
+        .map((item) => item.path ?? item.cwd)
+        .filter((value): value is string => typeof value === 'string');
+      knownWorkspaces = paths;
+      registryUnavailable = false;
+    } catch {
+      // Fail closed: keep the last known-good project set so disabled project skills stay denied.
+      registryUnavailable = true;
+    }
+    const resolved = await Promise.all(
+      [...new Set(paths)].map((path) => resolveProject(path)),
+    );
+    const seen = new Set<string>();
+    return resolved.filter((item) => !seen.has(item.id) && seen.add(item.id));
+  };
+  /** Persistent while the registry cannot be read and there is project state to protect. */
+  const registryDiagnostics = (): Diagnostic[] =>
+    registryUnavailable &&
+    (knownWorkspaces.length || Object.keys(state.projects).length)
+      ? [
+          diag(
+            'registry-unavailable',
+            {},
+            'Workspace registry unavailable; project policy may not apply',
+          ),
+        ]
+      : [];
+  /** Project skill roots: agent-specific hidden folders that stay inside the project root. */
+  const globalResolved = () =>
+    Promise.all(globalSources().map((item) => comparisonPath(item.path)));
+  const projectSources = async (
+    project: Project,
+    protectedResolved?: string[],
+  ): Promise<{ sources: Source[]; diagnostics: Diagnostic[] }> => {
+    const found: Source[] = [];
+    const diagnostics: Diagnostic[] = [];
+    if (!project.available || !project.root)
+      return { sources: found, diagnostics };
+    const protectedPaths = protectedResolved ?? (await globalResolved());
+    for (const entry of PROJECT_SOURCES) {
+      const id = `project-${entry.kind}:${project.id}`;
+      const path = join(project.root, entry.dir, 'skills');
+      const info = await lstat(path).catch(() => undefined);
+      if (!info) continue;
+      const real = await realpath(path).catch(() => undefined);
+      if (!real || !(await lstat(real).catch(() => undefined))?.isDirectory())
+        continue;
+      if (!isSameOrDescendant(project.root, real)) {
+        diagnostics.push(
+          diag(
+            'project-source-outside',
+            { source: id, project: project.id },
+            `${entry.label}: project skill folder resolves outside the project`,
+          ),
+        );
+        continue;
+      }
+      // `real` is a realpath and every comparison path is already resolved.
+      const clash = [...protectedPaths, ...found.map((x) => x.path)].some(
+        (other) => overlapsResolved(real, other),
+      );
+      if (clash) {
+        diagnostics.push(
+          diag(
+            'project-source-overlap',
+            { source: id, project: project.id },
+            `${entry.label}: project skill folder overlaps another source`,
+          ),
+        );
+        continue;
+      }
+      found.push({
+        id,
+        path: real,
+        label: entry.label,
+        rank: entry.rank,
+        kind: entry.kind,
+        project: project.id,
+      });
+    }
+    return { sources: found, diagnostics };
+  };
   type Finalized = Candidate & { shadowedBy?: string };
   /** Scans the sources; state is applied synchronously afterwards so the result is never stale. */
-  const scanAll = async (signal?: AbortSignal) => {
-    await ready;
-    const scanDiagnostics: Diagnostic[] = [];
+  const scanSources = async (
+    list: Source[],
+    signal?: AbortSignal,
+    extra: Diagnostic[] = [],
+  ) => {
+    const scanDiagnostics: Diagnostic[] = [...extra];
     const raw = (
       await Promise.all(
-        sources.map((source, i) =>
+        list.map((source, i) =>
           scan(source, i, signal, scanDiagnostics).catch(() => {
             scanDiagnostics.push(
               diag(
@@ -445,18 +648,28 @@ export function apply(ctx: HostContext, config: Config = {}) {
     ).flat();
     return { raw, scanDiagnostics };
   };
-  const finalize = (raw: Candidate[], scanDiagnostics: Diagnostic[]) => {
+  const scanAll = async (signal?: AbortSignal) => {
+    await ready;
+    return scanSources(globalSources(), signal);
+  };
+  const scanProject = async (project: Project, signal?: AbortSignal) => {
+    await ready;
+    const { sources: list, diagnostics } = await projectSources(project);
+    return { list, ...(await scanSources(list, signal, diagnostics)) };
+  };
+  /** Same-rank copies are ordered by source identity then path, never by registration order. */
+  const precedence = (a: Candidate, b: Candidate) =>
+    a.rank - b.rank ||
+    (a.source < b.source ? -1 : a.source > b.source ? 1 : 0) ||
+    (a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
+  const settle = (
+    raw: Candidate[],
+    sourceOn: (copy: Candidate) => boolean,
+    copyOn: (copy: Candidate) => boolean,
+  ) => {
     const copies: Finalized[] = raw.map((copy) => {
-      const sourceOn =
-        !corrupt &&
-        (state.sources[copy.source] ??
-          sources.find((x) => x.id === copy.source)?.enabled ??
-          true);
       const eligible =
-        copy.eligible &&
-        sourceOn &&
-        !corrupt &&
-        state.copies[copy.path] !== false;
+        copy.eligible && !corrupt && sourceOn(copy) && copyOn(copy);
       return {
         ...copy,
         eligible,
@@ -471,13 +684,16 @@ export function apply(ctx: HostContext, config: Config = {}) {
       if (copy.metadataValid !== false)
         byName.set(copy.name, [...(byName.get(copy.name) ?? []), copy]);
     for (const group of byName.values()) {
-      group.sort((a, b) => a.rank - b.rank || (a.order ?? 0) - (b.order ?? 0));
+      group.sort(precedence);
       const winner = group.find((copy) => copy.eligible);
       for (const copy of group)
         if (winner && copy !== winner && copy.eligible)
           copy.shadowedBy = winner.path;
     }
-    const diagnostics = corrupt
+    return { copies, groups: byName };
+  };
+  const stateDiagnostics = (scanDiagnostics: Diagnostic[]) =>
+    corrupt
       ? [
           diag(
             'state-invalid',
@@ -487,7 +703,34 @@ export function apply(ctx: HostContext, config: Config = {}) {
           ...scanDiagnostics,
         ]
       : scanDiagnostics;
-    return { copies, groups: byName, diagnostics };
+  const finalize = (raw: Candidate[], scanDiagnostics: Diagnostic[]) => {
+    const list = globalSources();
+    const { copies, groups } = settle(
+      raw,
+      (copy) =>
+        state.sources[copy.source] ??
+        list.find((x) => x.id === copy.source)?.enabled ??
+        true,
+      (copy) => state.copies[copy.path] !== false,
+    );
+    return { copies, groups, diagnostics: stateDiagnostics(scanDiagnostics) };
+  };
+  const projectState = (id: string): ProjectState =>
+    state.projects[id] ?? { sources: {}, copies: {} };
+  const finalizeProject = (
+    project: Project,
+    list: Source[],
+    raw: Candidate[],
+    scanDiagnostics: Diagnostic[],
+  ) => {
+    const own = projectState(project.id);
+    const kinds = new Map(list.map((item) => [item.id, item.kind ?? '']));
+    const { copies, groups } = settle(
+      raw,
+      (copy) => own.sources[kinds.get(copy.source) ?? ''] ?? true,
+      (copy) => own.copies[copy.path] !== false,
+    );
+    return { copies, groups, diagnostics: stateDiagnostics(scanDiagnostics) };
   };
   // Provider listings share one scan per revision; state is applied after it, so deny state is never stale.
   let scanCache:
@@ -498,6 +741,20 @@ export function apply(ctx: HostContext, config: Config = {}) {
       scanCache = { revision, scan: scanAll() };
     return scanCache.scan;
   };
+  let projectScans = {
+    revision: -1,
+    scans: new Map<string, ReturnType<typeof scanProject>>(),
+  };
+  const sharedProjectScan = (project: Project) => {
+    if (projectScans.revision !== revision)
+      projectScans = { revision, scans: new Map() };
+    let scanned = projectScans.scans.get(project.id);
+    if (!scanned) {
+      scanned = scanProject(project);
+      projectScans.scans.set(project.id, scanned);
+    }
+    return scanned;
+  };
   const catalog = async () => {
     // The manager UI always rescans, which also refreshes the shared cache.
     const scan = scanAll();
@@ -505,11 +762,31 @@ export function apply(ctx: HostContext, config: Config = {}) {
     const { raw, scanDiagnostics } = await scan;
     return finalize(raw, scanDiagnostics);
   };
+  const projectCatalog = async (project: Project) => {
+    const { list, raw, scanDiagnostics } = await scanProject(project);
+    return { list, ...finalizeProject(project, list, raw, scanDiagnostics) };
+  };
+  /** The registered, available project whose root contains `cwd`, if any. */
+  const projectForCwd = async (cwd: string | undefined) => {
+    if (typeof cwd !== 'string' || !isAbsolute(cwd)) return undefined;
+    // A cwd that no longer exists still resolves through its nearest existing ancestor, so a
+    // vanished subdirectory of a project keeps that project's deny policy.
+    const real = await comparisonPath(cwd);
+    let best: Project | undefined;
+    for (const project of await registeredProjects())
+      if (
+        project.available &&
+        project.root &&
+        isSameOrDescendant(project.root, real) &&
+        (!best?.root || project.root.length > best.root.length)
+      )
+        best = project;
+    return best;
+  };
   const native = ({
     author: _author,
     original: _original,
     diagnostics: _diagnostics,
-    order: _order,
     shadowedBy: _shadowedBy,
     ...candidate
   }: Finalized): Candidate => candidate;
@@ -520,20 +797,30 @@ export function apply(ctx: HostContext, config: Config = {}) {
       control.signal.addEventListener('abort', () => controls.delete(control), {
         once: true,
       });
-      let snapshot: Candidate[] = [];
+      let snapshot = new Map<string, Candidate>();
       let snapshotRevision = -1;
+      /** One overlay candidate per same-name group, ranked just ahead of the group's best copy. */
+      const overlay = (group: Finalized[]) => {
+        const winner = group.find((copy) => copy.eligible) ?? group[0];
+        // Source-relative policy overlay preserves unrelated runtime/project precedence.
+        return {
+          ...native(winner),
+          rank: Math.min(...group.map((copy) => copy.rank)) - 1,
+        };
+      };
       return {
         name: 'majed-skills',
-        async list() {
+        async list(options?: { cwd?: string; signal?: AbortSignal }) {
           if (control.signal.aborted) return [];
           const { raw, scanDiagnostics } = await sharedScan();
           if (control.signal.aborted) return [];
           // State is read after the scan completes, so a toggle that landed meanwhile is
           // already reflected and the deny overlay never disappears.
           const { copies, groups } = finalize(raw, scanDiagnostics);
-          snapshot = copies.map(native);
+          if (snapshotRevision !== revision) snapshot = new Map();
           snapshotRevision = revision;
-          return [...groups.values()]
+          for (const copy of copies) snapshot.set(copy.path, native(copy));
+          const result = [...groups.values()]
             .filter((group) => {
               const only = group[0];
               return (
@@ -544,19 +831,33 @@ export function apply(ctx: HostContext, config: Config = {}) {
                 state.copies[only.path] !== undefined
               );
             })
-            .map((group) => {
-              const winner = group.find((copy) => copy.eligible) ?? group[0];
-              // Source-relative policy overlay preserves unrelated runtime/project precedence.
-              return {
-                ...native(winner),
-                rank: Math.min(...group.map((copy) => copy.rank)) - 1,
-              };
-            });
+            .map(overlay);
+          // Project overlays only for the registered project that contains the caller's cwd.
+          const project = await projectForCwd(options?.cwd);
+          if (project && !control.signal.aborted) {
+            const scanned = await sharedProjectScan(project);
+            if (control.signal.aborted) return [];
+            const own = finalizeProject(
+              project,
+              scanned.list,
+              scanned.raw,
+              scanned.scanDiagnostics,
+            );
+            if (snapshotRevision !== revision) return result;
+            for (const copy of own.copies)
+              snapshot.set(copy.path, native(copy));
+            // Only the .dsh and .agents project roots are discovered natively; the other project roots
+            // exist only here, so they too surface only as overlays where policy deviates.
+            for (const group of own.groups.values())
+              if (group.some((copy) => !copy.eligible || !copy.policyValid))
+                result.push(overlay(group));
+          }
+          return result;
         },
         async get(candidate) {
           if (control.signal.aborted || snapshotRevision !== revision)
             return undefined;
-          return snapshot.find((copy) => copy.path === candidate.path);
+          return snapshot.get(candidate.path);
         },
       };
     });
@@ -569,6 +870,247 @@ export function apply(ctx: HostContext, config: Config = {}) {
     },
     'majed-skills pending state writes',
   );
+  /** Atomic, owner-only state replacement; callers hold the serialized `operations` slot. */
+  const writeState = async (next: State) => {
+    await mkdir(dirname(statePath), { recursive: true });
+    const temporary = `${statePath}.${process.pid}.${randomUUID()}.tmp`;
+    try {
+      await writeFile(temporary, JSON.stringify(next), { mode: 0o600 });
+      await rename(temporary, statePath);
+    } finally {
+      await rm(temporary, { force: true });
+    }
+    state = next;
+    revision++;
+    for (const control of controls) control.invalidate();
+  };
+  const flags = (value: Record<string, boolean>): Record<string, boolean> =>
+    Object.assign(Object.create(null), value);
+  const cloneState = (): State => {
+    const projects: Record<string, ProjectState> = Object.create(null);
+    for (const [id, item] of Object.entries(state.projects))
+      projects[id] = {
+        sources: flags(item.sources),
+        copies: flags(item.copies),
+      };
+    return {
+      sources: flags(state.sources),
+      copies: flags(state.copies),
+      customSources: state.customSources.map((item) => ({ ...item })),
+      projects,
+    };
+  };
+  const fail = (
+    status: number,
+    code: string,
+    params: Record<string, string> = {},
+  ) => Response.json({ code, params }, { status });
+  const strip = ({
+    content: _content,
+    original: _original,
+    ...summary
+  }: Finalized) => summary;
+  const summarize = (project: Project) => ({
+    id: project.id,
+    name: project.name,
+    path: project.path,
+    available: project.available,
+    code: project.code,
+  });
+  const projectView = async (project: Project) => {
+    if (!project.available)
+      return {
+        ...summarize(project),
+        sources: [],
+        copies: [],
+        diagnostics: [
+          diag(
+            project.code ?? 'project-unavailable',
+            { project: project.id },
+            `${project.name}: project unavailable`,
+          ),
+        ],
+      };
+    const { list, copies, diagnostics } = await projectCatalog(project);
+    const own = projectState(project.id);
+    return {
+      ...summarize(project),
+      sources: list.map((item) => ({
+        ...item,
+        // Project DSH keeps the reference restriction: no source-level switch.
+        readonly: item.kind === 'dsh',
+        enabled: !corrupt && (own.sources[item.kind ?? ''] ?? true),
+      })),
+      copies: copies.map(strip),
+      diagnostics,
+    };
+  };
+  const payload = async (
+    project: Project | undefined,
+    projects: Project[],
+    expose = true,
+  ) => {
+    const { copies, diagnostics } = await catalog();
+    return {
+      sources: globalSources().map((source) => ({
+        ...source,
+        enabled:
+          !corrupt && (state.sources[source.id] ?? source.enabled ?? true),
+      })),
+      copies: copies.map(strip),
+      corrupt,
+      diagnostics: [...diagnostics, ...registryDiagnostics()],
+      projects: expose ? projects.map(summarize) : [],
+      ...(project ? { project: await projectView(project) } : {}),
+    };
+  };
+  /** Every folder a new custom source must not overlap: global roots and available project roots. */
+  const protectedRoots = async (projects: Project[]) => {
+    const others = globalSources().map(({ id, path }) => ({ id, path }));
+    const resolved = await globalResolved();
+    for (const project of projects)
+      for (const item of (await projectSources(project, resolved)).sources)
+        others.push({ id: item.id, path: item.path });
+    return others;
+  };
+  const text = (value: unknown, limit = MAX_LABEL) =>
+    typeof value === 'string' && value.trim().length <= limit
+      ? value.trim()
+      : undefined;
+  const customAdd = async (
+    items: Array<Record<string, unknown>>,
+    projects: Project[],
+  ) => {
+    const next = cloneState();
+    const results: Array<Record<string, unknown>> = [];
+    // Protected roots are resolved once; each added source joins the prepared set.
+    const prepared = await prepareRoots(
+      [
+        ...(await protectedRoots(projects)),
+        ...next.customSources.map(({ id, path }) => ({ id, path })),
+      ].filter(
+        (value, index, all) =>
+          all.findIndex((other) => other.id === value.id) === index,
+      ),
+      reservedFolders(),
+    );
+    for (const item of items) {
+      const requested = typeof item.path === 'string' ? item.path : '';
+      const label =
+        item.label === undefined
+          ? undefined
+          : text(item.label) || (item.label === '' ? undefined : null);
+      const group = item.group === undefined ? undefined : text(item.group);
+      if (label === null || (item.group !== undefined && group === undefined)) {
+        results.push({ status: 'rejected', code: 'custom-label' });
+        continue;
+      }
+      const checked = await validateRootPath(requested, prepared);
+      if (!checked.ok) {
+        // The same folder (even through a link) is already registered: idempotent success.
+        const other = checked.params.other
+          ? next.customSources.find((x) => x.id === checked.params.other)
+          : undefined;
+        if (
+          checked.code === 'root-overlap' &&
+          other &&
+          (await comparisonPath(other.path)) ===
+            (await comparisonPath(requested))
+        )
+          results.push({ status: 'registered', id: other.id });
+        else
+          results.push({
+            status: 'rejected',
+            code: checked.code,
+            params: { path: requested },
+          });
+        continue;
+      }
+      if (next.customSources.length >= MAX_CUSTOM_SOURCES) {
+        results.push({
+          status: 'rejected',
+          code: 'custom-limit',
+          params: { limit: String(MAX_CUSTOM_SOURCES) },
+        });
+        continue;
+      }
+      const name = label || basename(checked.path) || 'source';
+      const id = customSlug(name, new Set(next.customSources.map((x) => x.id)));
+      if (!id) {
+        results.push({
+          status: 'rejected',
+          code: 'custom-limit',
+          params: { limit: String(MAX_CUSTOM_SOURCES) },
+        });
+        continue;
+      }
+      next.customSources.push({
+        id,
+        label: name.slice(0, MAX_LABEL),
+        path: checked.path,
+        ...(group ? { group } : {}),
+      });
+      prepared.others.push({ id, path: checked.path });
+      results.push({ status: 'added', id });
+    }
+    if (results.some((x) => x.status === 'added')) await writeState(next);
+    return results;
+  };
+  const customUpdate = async (
+    body: Record<string, unknown>,
+    projects: Project[],
+  ) => {
+    const next = cloneState();
+    const record = next.customSources.find((x) => x.id === body.id);
+    if (!record) return fail(404, 'custom-unknown');
+    if (typeof body.label !== 'string' || !body.label.trim())
+      return fail(400, 'custom-label');
+    if (body.label.trim().length > MAX_LABEL) return fail(409, 'custom-label');
+    if (body.group !== undefined && typeof body.group !== 'string')
+      return fail(400, 'custom-label');
+    if (typeof body.group === 'string' && body.group.trim().length > MAX_LABEL)
+      return fail(409, 'custom-label');
+    if (body.path !== undefined) {
+      const checked = await validateRootPath(
+        body.path,
+        await prepareRoots(
+          [
+            ...(await protectedRoots(projects)),
+            ...next.customSources.map(({ id, path }) => ({ id, path })),
+          ],
+          reservedFolders(),
+        ),
+        record.id,
+      );
+      if (!checked.ok) return fail(409, checked.code, checked.params);
+      if (checked.path !== record.path) {
+        // Policy keyed by the old location must not silently apply to the new folder.
+        delete next.sources[record.id];
+        for (const path of Object.keys(next.copies))
+          if (isSameOrDescendant(record.path, path)) delete next.copies[path];
+      }
+      record.path = checked.path;
+    }
+    record.label = body.label.trim();
+    if (typeof body.group === 'string') {
+      if (body.group.trim()) record.group = body.group.trim();
+      else delete record.group;
+    }
+    await writeState(next);
+    return undefined;
+  };
+  const customRemove = async (id: string) => {
+    const next = cloneState();
+    const index = next.customSources.findIndex((x) => x.id === id);
+    if (index < 0) return fail(404, 'custom-unknown');
+    const [removed] = next.customSources.splice(index, 1);
+    // Only Waycraft state is edited: the folder and its skills are never touched.
+    delete next.sources[id];
+    for (const path of Object.keys(next.copies))
+      if (isSameOrDescendant(removed.path, path)) delete next.copies[path];
+    await writeState(next);
+    return undefined;
+  };
   ctx.inject?.(['connection'], (target) => {
     const connection = target.get?.('connection');
     if (!connection) return;
@@ -596,7 +1138,7 @@ export function apply(ctx: HostContext, config: Config = {}) {
               return new Response('Request too large', { status: 413 });
             try {
               const reader = request.body?.getReader();
-              let payload = '';
+              let requestText = '';
               let length = 0;
               if (reader) {
                 try {
@@ -609,33 +1151,58 @@ export function apply(ctx: HostContext, config: Config = {}) {
                       await reader.cancel();
                       return new Response('Request too large', { status: 413 });
                     }
-                    payload += decoder.decode(part.value, { stream: true });
+                    requestText += decoder.decode(part.value, { stream: true });
                   }
-                  payload += decoder.decode();
+                  requestText += decoder.decode();
                 } finally {
                   reader.releaseLock();
                 }
               }
-              const body = JSON.parse(payload) as {
+              const body = JSON.parse(requestText) as {
                 action?: string;
                 kind?: string;
                 id?: string;
                 enabled?: boolean;
+                project?: string;
+                path?: unknown;
+                label?: unknown;
+                group?: unknown;
+                items?: unknown;
               };
+              const marked = request.headers.get('x-majed-skills') === '1';
+              const actions = [
+                'list',
+                'detail',
+                'toggle',
+                'ping',
+                'reload',
+                'custom-scan',
+                'custom-add',
+                'custom-update',
+                'custom-remove',
+              ];
               if (
                 !body ||
                 typeof body !== 'object' ||
                 Array.isArray(body) ||
-                !['list', 'detail', 'toggle', 'ping', 'reload'].includes(
-                  body.action ?? 'list',
-                )
+                !actions.includes(body.action ?? 'list') ||
+                (body.project !== undefined && typeof body.project !== 'string')
               )
                 return new Response('Invalid skill action', { status: 400 });
               // Presence probe: proves the route exists without scanning any source.
               if (body.action === 'ping') return Response.json({ ok: true });
+              // A project selector (and the project list itself) exposes workspace paths: marker only.
+              if (
+                body.action === 'list' &&
+                body.project !== undefined &&
+                !marked
+              )
+                return new Response('Mutation marker required', {
+                  status: 403,
+                });
               if (body.action === 'reload') {
                 // Retry path for a corrupt state file: re-read it once the user fixed it.
-                if (request.headers.get('x-majed-skills') !== '1')
+                if (!marked)
                   return new Response('Mutation marker required', {
                     status: 403,
                   });
@@ -649,20 +1216,106 @@ export function apply(ctx: HostContext, config: Config = {}) {
                 for (const control of controls) control.invalidate();
               }
               await ready;
+              // The project is always re-resolved from the host registry; the id is only a selector.
+              let projectsOnce: Promise<Project[]> | undefined;
+              // Resolved at most once per request and shared by every step below.
+              const projects = () => (projectsOnce ??= registeredProjects());
+              let project: Project | undefined;
+              if (body.project !== undefined) {
+                project = (await projects()).find(
+                  (item) => item.id === body.project,
+                );
+                if (!project) return fail(404, 'project-unregistered');
+              }
               if (body.action === 'detail') {
-                if (request.headers.get('x-majed-skills') !== '1')
+                if (!marked)
                   return new Response('Mutation marker required', {
                     status: 403,
                   });
-                const { copies } = await catalog();
+                const { copies } = project
+                  ? await projectCatalog(project)
+                  : await catalog();
                 const copy = copies.find((copy) => copy.path === body.id);
                 if (!copy)
                   return new Response('Unknown skill', { status: 404 });
                 const { content: _content, original, ...rest } = copy;
                 return Response.json({ ...rest, content: original ?? '' });
               }
+              if (body.action === 'custom-scan') {
+                if (!marked)
+                  return new Response('Mutation marker required', {
+                    status: 403,
+                  });
+                const found = await scanCandidates(
+                  body.path,
+                  await prepareRoots(
+                    await protectedRoots(await projects()),
+                    reservedFolders(),
+                  ),
+                  state.customSources.map((x) => x.path),
+                  request.signal,
+                );
+                if (!found.ok) return fail(409, found.code, found.params);
+                return Response.json(found);
+              }
+              if (body.action?.startsWith('custom-')) {
+                if (!marked)
+                  return new Response('Mutation marker required', {
+                    status: 403,
+                  });
+                const items = body.items;
+                if (
+                  (body.action === 'custom-add' &&
+                    (!Array.isArray(items) ||
+                      !items.length ||
+                      items.length > 64 ||
+                      items.some(
+                        (x) => !x || typeof x !== 'object' || Array.isArray(x),
+                      ))) ||
+                  (body.action === 'custom-update' &&
+                    (typeof body.id !== 'string' ||
+                      typeof body.label !== 'string' ||
+                      !body.label.trim())) ||
+                  (body.action === 'custom-remove' &&
+                    typeof body.id !== 'string')
+                )
+                  return new Response('Invalid custom source request', {
+                    status: 400,
+                  });
+                let results: Array<Record<string, unknown>> | undefined;
+                const mutation = operations.then(async () => {
+                  if (closing)
+                    return new Response('Skill manager is stopping', {
+                      status: 503,
+                    });
+                  if (corrupt)
+                    return new Response('Skill state is invalid', {
+                      status: 409,
+                    });
+                  if (body.action === 'custom-add') {
+                    results = await customAdd(
+                      items as Array<Record<string, unknown>>,
+                      await projects(),
+                    );
+                    return undefined;
+                  }
+                  return body.action === 'custom-update'
+                    ? customUpdate(
+                        body as Record<string, unknown>,
+                        await projects(),
+                      )
+                    : customRemove(body.id as string);
+                });
+                operations = mutation.catch(() => undefined);
+                const error = await mutation;
+                if (error) return error;
+                return Response.json({
+                  ...(await payload(project, await projects())),
+                  results,
+                });
+              }
               if (body.action === 'toggle') {
-                if (request.headers.get('x-majed-skills') !== '1')
+                if (!marked)
                   return new Response('Mutation marker required', {
                     status: 403,
                   });
@@ -680,57 +1333,59 @@ export function apply(ctx: HostContext, config: Config = {}) {
                     typeof body.id !== 'string'
                   )
                     return new Response('Invalid toggle', { status: 400 });
-                  const { copies } = await catalog();
-                  const valid =
-                    body.kind === 'source'
-                      ? sources.some((x) => x.id === body.id)
-                      : body.kind === 'copy' &&
-                        copies.some((x) => x.path === body.id);
-                  if (!valid)
-                    return new Response('Unknown skill target', {
-                      status: 400,
+                  const next = cloneState();
+                  if (project) {
+                    const view = project.available
+                      ? await projectCatalog(project)
+                      : undefined;
+                    const own = (next.projects[project.id] ??= {
+                      sources: Object.create(null),
+                      copies: Object.create(null),
                     });
-                  const next: State = {
-                    sources: { ...state.sources },
-                    copies: { ...state.copies },
-                  };
-                  (body.kind === 'source' ? next.sources : next.copies)[
-                    body.id
-                  ] = body.enabled;
-                  await mkdir(dirname(statePath), { recursive: true });
-                  const temporary = `${statePath}.${process.pid}.${randomUUID()}.tmp`;
-                  try {
-                    await writeFile(temporary, JSON.stringify(next), {
-                      mode: 0o600,
-                    });
-                    await rename(temporary, statePath);
-                  } finally {
-                    await rm(temporary, { force: true });
+                    if (body.kind === 'source') {
+                      const source = view?.list.find((x) => x.id === body.id);
+                      if (!source)
+                        return new Response('Unknown skill target', {
+                          status: 400,
+                        });
+                      // Reference restriction: the project DSH source has no switch.
+                      if (source.kind === 'dsh')
+                        return fail(409, 'project-dsh-source');
+                      own.sources[source.kind ?? ''] = body.enabled;
+                    } else if (
+                      body.kind === 'copy' &&
+                      view?.copies.some((x) => x.path === body.id)
+                    )
+                      own.copies[body.id] = body.enabled;
+                    else
+                      return new Response('Unknown skill target', {
+                        status: 400,
+                      });
+                  } else {
+                    const { copies } = await catalog();
+                    const valid =
+                      body.kind === 'source'
+                        ? globalSources().some((x) => x.id === body.id)
+                        : body.kind === 'copy' &&
+                          copies.some((x) => x.path === body.id);
+                    if (!valid)
+                      return new Response('Unknown skill target', {
+                        status: 400,
+                      });
+                    (body.kind === 'source' ? next.sources : next.copies)[
+                      body.id
+                    ] = body.enabled;
                   }
-                  state = next;
-                  revision++;
-                  for (const control of controls) control.invalidate();
+                  await writeState(next);
                   return undefined;
                 });
                 operations = mutation.catch(() => undefined);
                 const error = await mutation;
                 if (error) return error;
               }
-              const { copies, diagnostics } = await catalog();
-              return Response.json({
-                sources: sources.map((source) => ({
-                  ...source,
-                  enabled:
-                    !corrupt &&
-                    (state.sources[source.id] ?? source.enabled ?? true),
-                })),
-                copies: copies.map(
-                  ({ content: _content, original: _original, ...summary }) =>
-                    summary,
-                ),
-                corrupt,
-                diagnostics,
-              });
+              return Response.json(
+                await payload(project, await projects(), marked),
+              );
             } catch {
               return new Response('Skill operation failed', { status: 400 });
             }
