@@ -1,5 +1,11 @@
 # Subscriptions provenance
 
+## #146 Skill manager policy overlay — 2026-11-04
+
+The bounded read-only traversal in src/skills-discovery.ts adapts the same reference's src/readonly-discovery.ts:1–153, retaining depth 6, directory 2000 and entry 20000 limits, bundle leaves, directory-link cycle checks and top-level Markdown compatibility. Product comments are English and local structural types replace upstream imports. The built-in source inventory adapts src/core.ts:147–375 with reference environment overrides and separate Waycraft state.
+
+The conditional source-relative policy overlay in src/skills.ts adapts the algorithm in dsh-skills-manager v1.2.29, commit 49037a919b87b000de9003a49930425ae9742632, src/core.ts:4017–4099 and 4165–4189. The pinned reference package declares Apache-2.0; its complete license is preserved in skills/LICENSE-APACHE-2.0. Local changes use public DSH providers, independently authored bounded YAML scanning and persisted source/copy policy, native filesystem user ranks 400/500, and no upstream updater, repository, project or installation code. Untouched single native user copies need no overlay; disabled/invalid/duplicate copies use a source-relative overlay instead of an unconditional highest-priority candidate. The reference was executed in an isolated temporary HOME before adapting this logic. This is not a claim of full reference parity or completed #146 acceptance.
+
 ## Plugin catalog icon — 2026-11-02
 
 The root icon.svg is copied from @deepseek-ai/dsh-experimental-plugin-market-bundle/icon.svg shipped in DSH0.2.1-rc.5, Copyright (c)2026 DeepSeek, MIT. Owner rejected the previous worktree-specific icon and requested a general/comprehensive symbol; the modules grid with an addition mark represents an extensible toolkit. Existing DeepSeek MIT notice below applies. Static asset only; no runtime dependency or host modification.

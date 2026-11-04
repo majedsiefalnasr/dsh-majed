@@ -1,4 +1,8 @@
 // Independently implemented presence lifecycle; reference recipe and slot conventions only.
+import { applySkills } from './skills-browser.js';
+
+export { applySkills };
+
 import {
   ImageGenerateToolview,
   createImageLoader,

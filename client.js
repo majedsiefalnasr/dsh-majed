@@ -4487,6 +4487,11 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
           };
         }, 'dsh-majed: apply settings');
 
+        try {
+          subscriptions.applySkills(ctx);
+        } catch (error) {
+          console.error('dsh-majed: Skill manager setup failed', error);
+        }
         // Optional component setup must never interrupt the core registrations above.
         try {
           Promise.resolve(subscriptions.applySubscriptions(ctx)).catch(

@@ -1,5 +1,9 @@
 # Third-party notices
 
+#146's conditional source-relative skill policy overlay adapts dsh-skills-manager v1.2.29, commit `49037a919b87b000de9003a49930425ae9742632`, under Apache License 2.0. The complete upstream license is retained in `skills/LICENSE-APACHE-2.0`; precise source ranges and local changes are recorded in `src/PROVENANCE.md`. Other skill-manager implementation is locally authored.
+
+#146 uses `yaml` 2.8.1 (Eemeli Aro, ISC License) to parse skill frontmatter. It is a pinned runtime dependency in `package.json`; the built `dist/skills.js` imports it as an external package and does not embed it.
+
 #137 adapts OpenCode Zen client identification, free-lane catalog and gate schemas from https://github.com/FishBottle7/opencode2dsh `v0.3.14`, commit `1aa212063cf68b0ad6f3ed310bca4588cf06c008`. MIT License, Copyright (c) 2026 FishBottle7. The complete MIT permission, inclusion condition and warranty disclaimer reproduced below apply to these adapted portions as well. See `src/PROVENANCE.md` for local changes.
 
 #136's native API-provider UI narrowly adapts ModelsSection structure and styles from DeepSeek Harness `dsh-client-ui-settings-models` `0.2.1-rc.3`, https://github.com/deepseek-ai/deepseek-harness, under MIT. The precise source ranges and local adaptations are recorded in `src/PROVENANCE.md`. Controlled tests and public-remotes composition are locally authored.

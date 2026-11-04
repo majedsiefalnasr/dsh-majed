@@ -52,6 +52,275 @@ react = __toESM(react);
 let react_jsx_runtime = require("react/jsx-runtime");
 react_jsx_runtime = __toESM(react_jsx_runtime);
 
+//#region src/skills-browser.ts
+function applySkills(root) {
+	const fail = (error) => console.error("dsh-majed: Skill manager setup failed", error);
+	try {
+		Promise.resolve(root.inject(["slots", "locale"], (ctx) => {
+			try {
+				setupSkills(ctx, fail);
+			} catch (error) {
+				fail(error);
+			}
+		})).catch(fail);
+	} catch (error) {
+		fail(error);
+	}
+}
+function setupSkills(ctx, fail) {
+	{
+		const effect = (run, label) => {
+			const result = ctx.effect(run, label);
+			Promise.resolve(result).catch(fail);
+			return result;
+		};
+		const React = require("react");
+		const h = React.createElement;
+		const dictionaries = {
+			en: {
+				title: "Skill manager",
+				search: "Search skills",
+				all: "All sources",
+				any: "All statuses",
+				enabled: "Enabled",
+				disabled: "Disabled",
+				invalid: "Invalid",
+				shadowed: "Shadowed",
+				retry: "Retry",
+				loading: "Loading skills…",
+				error: "Unable to load skills",
+				details: "Details",
+				close: "Close",
+				empty: "No matching skills",
+				source: "Source",
+				toggle: "Toggle",
+				diagnostics: "Diagnostics",
+				blocked: "Blocked by author",
+				copyText: "Copy text",
+				copyCopy: "Toggle copy",
+				toggleSource: "Toggle source",
+				modelInvocation: "Model invocation",
+				userInvocation: "User invocation",
+				allowed: "Allowed",
+				denied: "Denied",
+				shadowedBy: "Shadowed by",
+				reloadState: "Reload state",
+				stateLocked: "Skill state is invalid; changes are locked",
+				"diag.discovery-truncated": "Discovery stopped at the safe limit",
+				"diag.source-unavailable": "Source unavailable",
+				"diag.unreadable-entries": "Some entries could not be read",
+				"diag.unreadable-skill": "Skill could not be read",
+				"diag.oversized-skill": "Skill exceeds the size limit",
+				"diag.empty-skill": "Skill file is empty",
+				"diag.invalid-frontmatter": "Invalid frontmatter",
+				"diag.invalid-yaml": "Invalid YAML",
+				"diag.invalid-metadata": "Invalid metadata",
+				"diag.invalid-policy": "Invalid invocation policy",
+				"diag.linked-outside-root": "Skill document is linked from outside its source",
+				"diag.state-invalid": "Invalid skill state; managed skills are disabled"
+			},
+			ar: {
+				title: "مدير المهارات",
+				search: "البحث عن مهارات",
+				all: "كل المصادر",
+				any: "كل الحالات",
+				enabled: "مفعلة",
+				disabled: "معطلة",
+				invalid: "غير صالحة",
+				shadowed: "محجوبة بنسخة أعلى أولوية",
+				retry: "إعادة المحاولة",
+				loading: "جارٍ تحميل المهارات…",
+				error: "تعذر تحميل المهارات",
+				details: "التفاصيل",
+				close: "إغلاق",
+				empty: "لا توجد مهارات مطابقة",
+				source: "المصدر",
+				toggle: "تبديل",
+				diagnostics: "التشخيصات",
+				blocked: "محجوبة بقيد المؤلف",
+				copyText: "نسخ النص",
+				copyCopy: "تبديل النسخة",
+				toggleSource: "تبديل المصدر",
+				modelInvocation: "استدعاء النموذج",
+				userInvocation: "استدعاء المستخدم",
+				allowed: "مسموح",
+				denied: "مرفوض",
+				shadowedBy: "محجوبة بواسطة",
+				reloadState: "إعادة قراءة الحالة",
+				stateLocked: "حالة المهارات غير صالحة؛ التغييرات مقفلة",
+				"diag.discovery-truncated": "توقف الاكتشاف عند الحد الآمن",
+				"diag.source-unavailable": "المصدر غير متاح",
+				"diag.unreadable-entries": "تعذرت قراءة بعض العناصر",
+				"diag.unreadable-skill": "تعذرت قراءة المهارة",
+				"diag.oversized-skill": "حجم المهارة يتجاوز الحد",
+				"diag.empty-skill": "ملف المهارة فارغ",
+				"diag.invalid-frontmatter": "بيانات وصفية غير صالحة",
+				"diag.invalid-yaml": "بيانات YAML غير صالحة",
+				"diag.invalid-metadata": "بيانات وصفية غير صالحة",
+				"diag.invalid-policy": "سياسة استدعاء غير صالحة",
+				"diag.linked-outside-root": "وثيقة المهارة مرتبطة من خارج مصدرها",
+				"diag.state-invalid": "حالة المهارات غير صالحة؛ المهارات المُدارة معطلة"
+			}
+		};
+		effect(() => ctx.locale.register("majed.skills", dictionaries), "majed-skills dictionaries");
+		const t = ctx.locale.bind("majed.skills");
+		const isArabic = () => ctx.locale.language?.getSnapshot?.() === "ar";
+		const sourceLabel = (source) => source.label ?? source.name ?? source.id;
+		const diagnosticText = (item) => {
+			const label = dictionaries.en[`diag.${item.code}`] ? t(`diag.${item.code}`) : item.message ?? item.code;
+			const where = item.params?.path ?? item.params?.source;
+			return where ? `${label} — ${where}` : label;
+		};
+		const call = async (body, signal) => {
+			const base = new URL(document.baseURI);
+			if (!base.pathname.endsWith("/")) base.pathname += "/";
+			const response = await fetch(new URL("api/majed-skills.catalog", base), {
+				method: "POST",
+				headers: {
+					"content-type": "application/json",
+					"x-majed-skills": "1"
+				},
+				body: JSON.stringify(body),
+				signal
+			});
+			if (!response.ok) throw new Error(String(response.status));
+			return response.json();
+		};
+		function Section() {
+			const [data, setData] = React.useState(null), [error, setError] = React.useState(false), [query, setQuery] = React.useState(""), [source, setSource] = React.useState(""), [status, setStatus] = React.useState(""), [detail, setDetail] = React.useState(null), [detailError, setDetailError] = React.useState(false);
+			const dialog = React.useRef(null);
+			React.useEffect(() => {
+				if (!detail) return;
+				const previous = document.activeElement;
+				dialog.current?.focus?.();
+				return () => previous?.focus?.();
+			}, [detail]);
+			const lifetime = React.useRef(new AbortController());
+			const busy = React.useRef(false);
+			const controller = React.useRef(null);
+			const load = () => {
+				controller.current?.abort();
+				controller.current = new AbortController();
+				setError(false);
+				return call({ action: "list" }, controller.current.signal).then(setData).catch((error$1) => {
+					if (error$1.name !== "AbortError") setError(true);
+				});
+			};
+			React.useEffect(() => {
+				load();
+				return () => {
+					controller.current?.abort();
+					lifetime.current.abort();
+				};
+			}, []);
+			const toggle = async (kind, id, enabled) => {
+				if (busy.current || lifetime.current.signal.aborted) return;
+				busy.current = true;
+				try {
+					await call({
+						action: "toggle",
+						kind,
+						id,
+						enabled
+					}, lifetime.current.signal);
+					if (!lifetime.current.signal.aborted) await load();
+				} catch {
+					if (!lifetime.current.signal.aborted) setError(true);
+				} finally {
+					busy.current = false;
+				}
+			};
+			const copyStatus = (copy) => copy.metadataValid === false || !copy.policyValid ? "invalid" : !copy.eligible ? "disabled" : copy.shadowedBy ? "shadowed" : copy.author && !copy.author.modelInvocable && !copy.author.userInvocable ? "blocked" : "enabled";
+			const copies = (data?.copies ?? []).filter((copy) => (!source || copy.source === source) && (!query || `${copy.name} ${copy.description} ${copy.path}`.toLowerCase().includes(query.toLowerCase())) && (!status || copyStatus(copy) === status));
+			return h("section", {
+				"data-majed-skills": true,
+				dir: isArabic() ? "rtl" : void 0
+			}, h("h2", null, t("title")), h("input", {
+				"aria-label": t("search"),
+				placeholder: t("search"),
+				value: query,
+				onChange: (e) => setQuery(e.target.value)
+			}), h("select", {
+				"aria-label": t("source"),
+				value: source,
+				onChange: (e) => setSource(e.target.value)
+			}, h("option", { value: "" }, t("all")), ...(data?.sources ?? []).map((x) => h("option", {
+				key: x.id,
+				value: x.id
+			}, sourceLabel(x)))), h("select", {
+				"aria-label": t("any"),
+				value: status,
+				onChange: (e) => setStatus(e.target.value)
+			}, ...[
+				"",
+				"enabled",
+				"disabled",
+				"invalid",
+				"shadowed",
+				"blocked"
+			].map((x) => h("option", {
+				key: x,
+				value: x
+			}, t(x || "any")))), error ? h("div", { role: "alert" }, t("error"), h("button", { onClick: () => call({ action: "reload" }).then(setData, load) }, t("retry"))) : !data ? h("p", { role: "status" }, t("loading")) : h(React.Fragment, null, ...(data.sources ?? []).filter((x) => !source || x.id === source).map((x) => h("details", {
+				key: x.id,
+				open: true
+			}, h("summary", null, `${sourceLabel(x)} (${data.copies.filter((c) => c.source === x.id).length})`), h("p", null, x.path), h("button", { onClick: () => toggle("source", x.id, x.enabled === false) }, `${t("toggleSource")} ${sourceLabel(x)}`), ...copies.filter((c) => c.source === x.id).map((copy) => h("article", { key: copy.path }, h("strong", null, copy.name), h("p", null, copy.description), h("span", null, t(copyStatus(copy))), h("button", {
+				disabled: x.enabled === false || data.corrupt,
+				"aria-label": `${t("copyCopy")}: ${copy.name} — ${copy.path}`,
+				onClick: () => toggle("copy", copy.path, !copy.eligible)
+			}, t("toggle")), h("button", { onClick: () => call({
+				action: "detail",
+				id: copy.path
+			}, lifetime.current.signal).then((value) => {
+				if (!lifetime.current.signal.aborted) {
+					setDetailError(false);
+					setDetail(value);
+				}
+			}).catch(() => {
+				if (!lifetime.current.signal.aborted) setDetailError(true);
+			}) }, t("details")))))), data.corrupt ? h("div", { role: "alert" }, t("stateLocked"), h("button", { onClick: () => call({ action: "reload" }).then(setData, load) }, t("reloadState"))) : null, copies.length ? null : h("p", null, t("empty")), ...(data.diagnostics ?? []).map((x, i) => h("p", { key: `${x.code}:${i}` }, diagnosticText(x)))), detailError ? h("p", { role: "alert" }, t("error")) : null, detail ? h("div", {
+				role: "dialog",
+				"aria-label": t("details"),
+				ref: dialog,
+				tabIndex: -1,
+				onKeyDown: (event) => {
+					if (event.key === "Escape") setDetail(null);
+				}
+			}, h("button", { onClick: () => setDetail(null) }, t("close")), h("h3", null, detail.name), h("p", null, detail.path), h("button", { onClick: () => navigator.clipboard.writeText(detail.content).catch(() => setDetailError(true)) }, t("copyText")), h("p", null, `${t("modelInvocation")}: ${detail.author?.modelInvocable ? t("allowed") : t("denied")} · ${t("userInvocation")}: ${detail.author?.userInvocable ? t("allowed") : t("denied")}`), detail.shadowedBy ? h("p", null, `${t("shadowedBy")}: ${detail.shadowedBy}`) : null, ...(detail.diagnostics ?? []).map((x, i) => h("p", { key: `${x.code}:${i}` }, diagnosticText(x))), h("pre", null, detail.content)) : null);
+		}
+		effect(() => {
+			let off, disposed = false;
+			const controller = new AbortController();
+			let delay = 3e3;
+			let timer;
+			const schedule = () => {
+				if (!disposed) timer = setTimeout(() => void probe(), delay);
+			};
+			const probe = () => call({ action: "ping" }, controller.signal).then(() => {
+				delay = 3e3;
+				if (!disposed && !off) off = ctx.slots.inject("settings.section", () => ctx.slots.register({
+					name: "settings.section",
+					id: "majed-skills",
+					order: 91,
+					label: () => t("title")
+				}, Section));
+			}).catch(() => {
+				delay = Math.min(delay * 2, 6e4);
+				off?.();
+				off = void 0;
+			}).finally(schedule);
+			probe();
+			return () => {
+				disposed = true;
+				controller.abort();
+				clearTimeout(timer);
+				off?.();
+			};
+		}, "majed-skills presence");
+	}
+}
+
+//#endregion
 //#region src/ImageGallery.tsx
 /** Display box for a lone image (platform rule): long edge 240px with the
 * rendered aspect ratio clamped to [0.25, 4] — the overflow is cropped by
@@ -6905,6 +7174,7 @@ function applySubscriptions(root) {
 }
 
 //#endregion
+exports.applySkills = applySkills;
 exports.applySubscriptions = applySubscriptions;
 return module.exports; };
     const subscriptions = majedSubscriptionsFactory(require);
@@ -11373,6 +11643,11 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
           };
         }, 'dsh-majed: apply settings');
 
+        try {
+          subscriptions.applySkills(ctx);
+        } catch (error) {
+          console.error('dsh-majed: Skill manager setup failed', error);
+        }
         // Optional component setup must never interrupt the core registrations above.
         try {
           Promise.resolve(subscriptions.applySubscriptions(ctx)).catch(

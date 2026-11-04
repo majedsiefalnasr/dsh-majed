@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Waycraft Skill manager",
+    "description": "Global skill sources, read-only details and availability policy. Disabled by default."
+  }
+}

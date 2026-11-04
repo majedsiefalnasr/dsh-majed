@@ -22,6 +22,9 @@
     ".": "./index.js",
     "./client": "./dist/client.js",
     "./subscriptions": "./dist/subscriptions.js",
+    "./skills": "./dist/skills.js",
+    "./skills/locale/*.json": "./skills/locale/*.json",
+    "./skills/icon": "./icon.svg",
     "./subscriptions/locale/*.json": "./subscriptions/locale/*.json",
     "./subscriptions/icon": "./icon.svg",
     "./locale/*.json": "./locale/*.json",
@@ -41,7 +44,9 @@
     "dist",
     "THIRD_PARTY_NOTICES.md",
     "src/PROVENANCE.md",
-    "subscriptions/locale/*.json"
+    "subscriptions/locale/*.json",
+    "skills/locale/*.json",
+    "skills/LICENSE-APACHE-2.0"
   ],
   "dsh": {
     "bundle": {
@@ -96,6 +101,7 @@
     "typescript": "^5.8.0"
   },
   "dependencies": {
-    "undici": "^7.30.1"
+    "undici": "^7.30.1",
+    "yaml": "2.8.1"
   }
 }

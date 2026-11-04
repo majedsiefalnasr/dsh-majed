@@ -1342,8 +1342,17 @@ test('assembled core entry completes registrations when Subscriptions setup thro
     assert.ok(registrations.includes('majed-notifications'), failure);
     assert.ok(registrations.includes('majed-ui-font-size'), failure);
     assert.ok(effects.includes('dsh-majed: apply settings'), failure);
-    assert.equal(errors.length, 1, failure);
-    assert.match(errors[0][0], /^dsh-majed: Subscriptions/);
+    // The independent Skill manager component may log its own isolated setup failure; Subscriptions reports exactly one.
+    const subscriptionErrors = errors.filter(([message]) =>
+      /^dsh-majed: Subscriptions/.test(message),
+    );
+    assert.equal(subscriptionErrors.length, 1, failure);
+    assert.ok(
+      errors.every(([message]) =>
+        /^dsh-majed: (Subscriptions|Skill manager)/.test(message),
+      ),
+      failure,
+    );
   }
 });
 test('Arabic copy covers every new key and rendered content uses logical alignment', async () => {

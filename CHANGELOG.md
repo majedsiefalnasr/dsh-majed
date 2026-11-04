@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+- Add a default-off Skill manager Component with global built-in sources, bounded read-only discovery, source/copy availability policy and English/Arabic catalog controls. Isolated checks cover native provider precedence and consumer enforcement; installed acceptance and full reference parity are not claimed.
+
 ## [0.2.2] - 2026-11-03
 
 - Add owned-source formatting, explicit correctness lint, host/browser/reference type checks, indexed pre-commit checks and isolated pre-push CI without changing account storage or provider behavior.

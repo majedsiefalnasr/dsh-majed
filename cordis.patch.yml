@@ -4,3 +4,6 @@
     - id: majed-subscriptions
       name: 'dsh-waycraft/subscriptions'
       disabled: true
+    - id: majed-skills
+      name: 'dsh-waycraft/skills'
+      disabled: true
