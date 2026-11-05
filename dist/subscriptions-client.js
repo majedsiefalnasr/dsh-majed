@@ -54,6 +54,29 @@ function setupSkills(ctx, fail) {
 		const h = React.createElement;
 		const dictionaries = {
 			en: {
+				trash: "Trash",
+				moveTrash: "Move to Trash",
+				restoreTrash: "Restore original",
+				deleteTrash: "Delete permanently",
+				confirmTrash: "Confirm permanent deletion",
+				trashWarning: "This permanently deletes the recoverable files. This cannot be undone.",
+				trashOrigin: "Original location",
+				trashEmpty: "Trash is empty",
+				"code.trash-conflict": "The original location already contains a skill",
+				"code.trash-readonly": "This source is read-only",
+				"code.trash-unavailable": "Trash storage is unavailable; the skill catalog is still available",
+				"code.trash-linked": "Linked or special write targets are not allowed",
+				"code.trash-failed": "The operation failed; check the original and Trash before retrying",
+				"code.trash-cancelled": "The operation was cancelled",
+				"code.trash-limit": "The skill exceeds safe processing limits",
+				"code.trash-overflow": "Trash has too many entries to list safely; organization data is kept",
+				"code.trash-skipped": "Some Trash records are unreadable; organization data is kept",
+				"code.trash-invalid": "The original location is no longer valid",
+				"code.trash-missing": "This Trash entry no longer exists",
+				"code.trash-confirm": "Confirm permanent deletion first",
+				"code.trash-cleanup": "Operation completed; remaining files need cleanup",
+				"code.trash-recovery": "Original removal failed; the complete Trash copy was retained for recovery",
+				"code.trash-state": "Files deleted, but annotation cleanup failed; reload state before retrying",
 				importSkills: "Import skills",
 				importPath: "Local absolute path",
 				previewImport: "Preview local import",
@@ -243,6 +266,29 @@ function setupSkills(ctx, fail) {
 				"code.placement-invalid": "The entry placement is invalid"
 			},
 			ar: {
+				trash: "سلة المحذوفات",
+				moveTrash: "نقل إلى سلة المحذوفات",
+				restoreTrash: "استعادة إلى المصدر",
+				deleteTrash: "حذف نهائي",
+				confirmTrash: "تأكيد الحذف النهائي",
+				trashWarning: "سيتم حذف الملفات القابلة للاستعادة نهائياً. لا يمكن التراجع.",
+				trashOrigin: "الموقع الأصلي",
+				trashEmpty: "سلة المحذوفات فارغة",
+				"code.trash-conflict": "يوجد بالفعل مهارة في الموقع الأصلي",
+				"code.trash-readonly": "هذا المصدر للقراءة فقط",
+				"code.trash-unavailable": "تخزين سلة المحذوفات غير متاح؛ ما زال كتالوج المهارات متاحًا",
+				"code.trash-linked": "لا يُسمح بالكتابة إلى روابط أو ملفات خاصة",
+				"code.trash-failed": "فشلت العملية؛ افحص المصدر والسلة قبل المحاولة مجدداً",
+				"code.trash-cancelled": "أُلغيت العملية",
+				"code.trash-limit": "تتجاوز المهارة حدود المعالجة الآمنة",
+				"code.trash-overflow": "عدد عناصر سلة المحذوفات أكبر من أن يُعرض بأمان؛ بيانات التنظيم محفوظة",
+				"code.trash-skipped": "بعض سجلات سلة المحذوفات غير قابلة للقراءة؛ بيانات التنظيم محفوظة",
+				"code.trash-invalid": "لم يعد الموقع الأصلي صالحاً",
+				"code.trash-missing": "لم يعد هذا العنصر في سلة المحذوفات",
+				"code.trash-confirm": "أكد الحذف النهائي أولاً",
+				"code.trash-cleanup": "اكتملت العملية؛ تحتاج الملفات المتبقية إلى تنظيف",
+				"code.trash-recovery": "فشل حذف المصدر؛ حُفظت نسخة كاملة في السلة للاستعادة",
+				"code.trash-state": "حُذفت الملفات لكن فشل تنظيف التعليقات؛ أعد تحميل الحالة",
 				importSkills: "استيراد مهارات",
 				importPath: "المسار المحلي المطلق",
 				previewImport: "معاينة الاستيراد المحلي",
@@ -468,7 +514,7 @@ function setupSkills(ctx, fail) {
 		};
 		const errorText = (failure) => failure?.code && dictionaries.en[`code.${failure.code}`] ? t(`code.${failure.code}`).replace("{limit}", String(failure.params?.limit ?? "")) : t("error");
 		function Section() {
-			const [data, setData] = React.useState(null), [error, setError] = React.useState(false), [query, setQuery] = React.useState(""), [source, setSource] = React.useState(""), [status, setStatus] = React.useState(""), [detail, setDetail] = React.useState(null), [detailError, setDetailError] = React.useState(false), [scope, setScope] = React.useState("global"), [project, setProject] = React.useState(""), [folderPath, setFolderPath] = React.useState(""), [candidates, setCandidates] = React.useState(null), [editing, setEditing] = React.useState(null), [removing, setRemoving] = React.useState(""), [pendingScan, setPendingScan] = React.useState(false), [loaded, setLoaded] = React.useState(""), [notice, setNotice] = React.useState(""), [managing, setManaging] = React.useState(false), [catName, setCatName] = React.useState({}), [catEdit, setCatEdit] = React.useState(null), [catRemoving, setCatRemoving] = React.useState(""), [catFilter, setCatFilter] = React.useState(""), [picked, setPicked] = React.useState({}), [assignTarget, setAssignTarget] = React.useState({}), [noteDrafts, setNoteDrafts] = React.useState({}), [dragging, setDragging] = React.useState(null), [importing, setImporting] = React.useState(false), [importPath, setImportPath] = React.useState(""), [importFiles, setImportFiles] = React.useState([]), [importConflict, setImportConflict] = React.useState(""), [importResult, setImportResult] = React.useState(null), [importBusy, setImportBusy] = React.useState(false), [creating, setCreating] = React.useState(false), [createName, setCreateName] = React.useState(""), [createDescription, setCreateDescription] = React.useState(""), [createBody, setCreateBody] = React.useState(""), [createSource, setCreateSource] = React.useState("user-dsh");
+			const [data, setData] = React.useState(null), [error, setError] = React.useState(false), [query, setQuery] = React.useState(""), [source, setSource] = React.useState(""), [status, setStatus] = React.useState(""), [detail, setDetail] = React.useState(null), [detailError, setDetailError] = React.useState(false), [scope, setScope] = React.useState("global"), [project, setProject] = React.useState(""), [folderPath, setFolderPath] = React.useState(""), [candidates, setCandidates] = React.useState(null), [editing, setEditing] = React.useState(null), [removing, setRemoving] = React.useState(""), [pendingScan, setPendingScan] = React.useState(false), [loaded, setLoaded] = React.useState(""), [notice, setNotice] = React.useState(""), [managing, setManaging] = React.useState(false), [catName, setCatName] = React.useState({}), [catEdit, setCatEdit] = React.useState(null), [catRemoving, setCatRemoving] = React.useState(""), [catFilter, setCatFilter] = React.useState(""), [picked, setPicked] = React.useState({}), [assignTarget, setAssignTarget] = React.useState({}), [noteDrafts, setNoteDrafts] = React.useState({}), [dragging, setDragging] = React.useState(null), [importing, setImporting] = React.useState(false), [importPath, setImportPath] = React.useState(""), [importFiles, setImportFiles] = React.useState([]), [importConflict, setImportConflict] = React.useState(""), [importResult, setImportResult] = React.useState(null), [importBusy, setImportBusy] = React.useState(false), [trashDeleting, setTrashDeleting] = React.useState(""), [creating, setCreating] = React.useState(false), [createName, setCreateName] = React.useState(""), [createDescription, setCreateDescription] = React.useState(""), [createBody, setCreateBody] = React.useState(""), [createSource, setCreateSource] = React.useState("user-dsh");
 			const dialog = React.useRef(null);
 			React.useEffect(() => {
 				if (!detail) return;
@@ -621,7 +667,11 @@ function setupSkills(ctx, fail) {
 			};
 			const copyStatus = (copy) => copy.metadataValid === false || !copy.policyValid ? "invalid" : !copy.eligible ? "disabled" : copy.shadowedBy ? "shadowed" : copy.author && !copy.author.modelInvocable && !copy.author.userInvocable ? "blocked" : "enabled";
 			const inProject = scope === "project";
-			const view = inProject ? data?.project ?? {
+			const view = scope === "trash" ? {
+				sources: [],
+				copies: [],
+				diagnostics: []
+			} : inProject ? data?.project ?? {
 				sources: [],
 				copies: [],
 				diagnostics: []
@@ -899,7 +949,25 @@ function setupSkills(ctx, fail) {
 			return h("section", {
 				"data-majed-skills": true,
 				dir: isArabic() ? "rtl" : void 0
-			}, h("h2", null, t("title")), h("button", {
+			}, h("h2", null, t("title")), data?.trashError ? h("p", { role: "alert" }, t(`code.${data.trashError}`)) : null, scope === "trash" ? h("div", { "data-majed-trash": true }, h("h3", null, t("trash")), !data?.trashError && !data?.trash?.length ? h("p", null, t("trashEmpty")) : null, ...(data?.trash ?? []).map((item) => h("article", { key: item.id }, h("strong", null, item.name), h("p", null, `${t("trashOrigin")}: ${item.origin}`), h("p", null, `${item.source} — ${item.deletedAt}`), h("button", {
+				"aria-label": `${t("restoreTrash")}: ${item.name}`,
+				onClick: () => void mutate({
+					action: "trash-restore",
+					id: item.id
+				}, (value) => {
+					if (value.result?.warning) setNotice(`${t(`code.${value.result.warning}`)} ${value.result.path ?? ""}`);
+				})
+			}, t("restoreTrash")), h("button", {
+				"aria-label": `${t("deleteTrash")}: ${item.name}`,
+				onClick: () => setTrashDeleting(item.id)
+			}, t("deleteTrash")), trashDeleting === item.id ? h("div", { role: "alert" }, h("p", null, t("trashWarning")), h("button", { onClick: () => void mutate({
+				action: "trash-delete",
+				id: item.id,
+				confirm: true
+			}, (value) => {
+				setTrashDeleting("");
+				if (value.result?.warning) setNotice(t(`code.${value.result.warning}`));
+			}) }, t("confirmTrash")), h("button", { onClick: () => setTrashDeleting("") }, t("cancel"))) : null))) : null, h("button", {
 				disabled: switching || data?.corrupt || scope === "project" && !project,
 				onClick: () => setImporting(!importing)
 			}, t("importSkills")), importing ? h("div", { "data-majed-import": true }, h("p", null, t("importHint")), scope === "global" ? h("select", {
@@ -995,7 +1063,7 @@ function setupSkills(ctx, fail) {
 					setSource("");
 					setNotice("");
 				}
-			}, h("option", { value: "global" }, t("scopeGlobal")), h("option", { value: "project" }, t("scopeProject"))), inProject ? h("select", {
+			}, h("option", { value: "global" }, t("scopeGlobal")), h("option", { value: "project" }, t("scopeProject")), h("option", { value: "trash" }, t("trash"))), inProject ? h("select", {
 				"aria-label": t("project"),
 				value: project,
 				onChange: (e) => {
@@ -1042,7 +1110,18 @@ function setupSkills(ctx, fail) {
 			}, t("folders")), managing ? manager() : null), inProject && data.project && !data.project.available ? h("p", { role: "alert" }, `${data.project.name}: ${t(`code.${data.project.code}`)}`) : null, ...(view.sources ?? []).filter((x) => !source || x.id === source).map((x) => h("details", {
 				key: x.id,
 				open: true
-			}, h("summary", null, `${sourceLabel(x)} (${view.copies.filter((c) => c.source === x.id).length})`), h("p", null, x.group ? `${x.group} · ` : null, h("bdi", { dir: "ltr" }, x.path)), x.readonly ? h("p", null, t("readOnlySource")) : h("button", { onClick: () => toggle("source", x.id, x.enabled === false) }, `${t("toggleSource")} ${sourceLabel(x)}`), x.custom ? customControls(x) : null, data.corrupt ? null : organizer(x.id, sourceLabel(x)), ...copies.filter((c) => c.source === x.id).map((copy) => h("article", { key: copy.path }, h("strong", null, copy.name), h("p", null, copy.description), h("span", null, t(copyStatus(copy))), orgOf(copy.source).members[copy.name] ? h("span", null, orgOf(copy.source).categories.find((c) => c.id === orgOf(copy.source).members[copy.name])?.name) : null, orgOf(copy.source).notes[copy.name] ? h("p", { "data-note": true }, `${t("note")}: ${orgOf(copy.source).notes[copy.name]}`) : null, h("input", {
+			}, h("summary", null, `${sourceLabel(x)} (${view.copies.filter((c) => c.source === x.id).length})`), h("p", null, x.group ? `${x.group} · ` : null, h("bdi", { dir: "ltr" }, x.path)), x.readonly ? h("p", null, t("readOnlySource")) : h("button", { onClick: () => toggle("source", x.id, x.enabled === false) }, `${t("toggleSource")} ${sourceLabel(x)}`), x.custom ? customControls(x) : null, data.corrupt ? null : organizer(x.id, sourceLabel(x)), ...copies.filter((c) => c.source === x.id).map((copy) => h("article", { key: copy.path }, h("strong", null, copy.name), ["user-dsh", "user-agents"].includes(copy.source) || copy.source === `project-dsh:${project}` ? h("button", {
+				"aria-label": `${t("moveTrash")}: ${copy.name}`,
+				disabled: switching || data.corrupt,
+				onClick: () => void mutate({
+					action: "trash",
+					id: copy.path,
+					source: copy.source,
+					...selected
+				}, (value) => {
+					if (value.result?.warning) setNotice(`${t(`code.${value.result.warning}`)} ${value.result.path ?? ""}`);
+				})
+			}, t("moveTrash")) : null, h("p", null, copy.description), h("span", null, t(copyStatus(copy))), orgOf(copy.source).members[copy.name] ? h("span", null, orgOf(copy.source).categories.find((c) => c.id === orgOf(copy.source).members[copy.name])?.name) : null, orgOf(copy.source).notes[copy.name] ? h("p", { "data-note": true }, `${t("note")}: ${orgOf(copy.source).notes[copy.name]}`) : null, h("input", {
 				"aria-label": `${t("note")}: ${copy.name}`,
 				placeholder: t("noteHint"),
 				maxLength: 500,

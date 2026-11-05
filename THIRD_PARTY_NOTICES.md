@@ -1,5 +1,7 @@
 # Third-party notices
 
+#151 Trash workflows (`src/skills-trash.ts`, host actions and EN/AR controls) adapt the same pinned dsh-skills-manager v1.2.29 under Apache-2.0; checked source ranges and local transaction differences are recorded in `src/PROVENANCE.md`. The full Apache license remains in `skills/LICENSE-APACHE-2.0`.
+
 #150 local import/upload behavior (`src/skills-import.ts`, host routes and client controls) adapts the same pinned dsh-skills-manager v1.2.29 under Apache-2.0; checked ranges/local differences are in `src/PROVENANCE.md`. The existing complete Apache license is retained. `fflate` 0.8.3 (Copyright (c) 2026 Arjun Barrett, MIT) is a pinned external runtime dependency; no fflate source is embedded in generated output.
 
 #146's conditional source-relative skill policy overlay adapts dsh-skills-manager v1.2.29, commit `49037a919b87b000de9003a49930425ae9742632`, under Apache License 2.0. The complete upstream license is retained in `skills/LICENSE-APACHE-2.0`; precise source ranges and local changes are recorded in `src/PROVENANCE.md`. Other skill-manager implementation is locally authored.

@@ -260,6 +260,114 @@ async function mount(t, language, initial, creation = false) {
 }
 
 for (const language of ['en', 'ar']) {
+  test(`registered ${language} catalog remains visible and Trash reports its unavailable storage`, async (t) => {
+    const ui = await mount(t, language, undefined, true);
+    const view = await ui.render(ui.slot('settings.section')[0].component);
+    const tools = ui.tools(view);
+    await writeFile(join(ui.statePath, '..'), 'not a directory');
+    await ui.act2(() =>
+      tools.field(ui.d.scope).props.onChange({ target: { value: 'trash' } }),
+    );
+    assert.ok(tools.text().includes(ui.d['code.trash-unavailable']));
+    assert.ok(!tools.text().includes(ui.d.trashEmpty));
+    await ui.act2(() =>
+      tools.field(ui.d.scope).props.onChange({ target: { value: 'global' } }),
+    );
+    assert.ok(tools.text().includes('alpha'));
+    assert.ok(tools.text().includes(ui.d['code.trash-unavailable']));
+  });
+
+  test(`registered ${language} Trash controls restore original bytes and require permanent-delete confirmation`, async (t) => {
+    const ui = await mount(t, language, undefined, true);
+    const view = await ui.render(ui.slot('settings.section')[0].component);
+    const tools = ui.tools(view);
+    assert.ok(ui.d.moveTrash);
+    await ui.act2(() =>
+      tools.button(`${ui.d.moveTrash}: beta`).props.onClick(),
+    );
+    await ui.act2(() =>
+      tools.field(ui.d.scope).props.onChange({ target: { value: 'trash' } }),
+    );
+    assert.ok(tools.text().includes(ui.d.trashOrigin));
+    await ui.act2(() =>
+      tools.button(`${ui.d.restoreTrash}: beta`).props.onClick(),
+    );
+    await ui.act2(() =>
+      tools.field(ui.d.scope).props.onChange({ target: { value: 'global' } }),
+    );
+    await ui.act2(() =>
+      tools.button(`${ui.d.moveTrash}: beta`).props.onClick(),
+    );
+    await ui.act2(() =>
+      tools.field(ui.d.scope).props.onChange({ target: { value: 'trash' } }),
+    );
+    await ui.act2(() =>
+      tools.button(`${ui.d.deleteTrash}: beta`).props.onClick(),
+    );
+    assert.ok(tools.text().includes(ui.d.trashWarning));
+    assert.equal((await ui.hostFetch({ action: 'list' })).trash.length, 1);
+    await ui.act2(() => tools.button(ui.d.confirmTrash).props.onClick());
+    assert.equal((await ui.hostFetch({ action: 'list' })).trash.length, 0);
+    assert.ok(tools.text().includes(ui.d.trashEmpty));
+    // Shared Agents and registered-project DSH use their own exact origins.
+    await ui.act2(() =>
+      tools.field(ui.d.scope).props.onChange({ target: { value: 'global' } }),
+    );
+    await ui.act2(() =>
+      tools.button(`${ui.d.moveTrash}: delta`).props.onClick(),
+    );
+    let trashed = (await ui.hostFetch({ action: 'list' })).trash;
+    assert.equal(trashed[0].source, 'user-agents');
+    const sharedOrigin = trashed[0].origin;
+    assert.equal(
+      (await ui.hostFetch({ action: 'trash-restore', id: trashed[0].id }))
+        .result.warning,
+      undefined,
+    );
+    assert.equal(
+      await readFile(join(sharedOrigin, 'SKILL.md'), 'utf8'),
+      doc('delta'),
+    );
+    await ui.act2(() =>
+      tools.field(ui.d.scope).props.onChange({ target: { value: 'project' } }),
+    );
+    const projectId = (await ui.hostFetch({ action: 'list' })).projects[0].id;
+    await ui.act2(() =>
+      tools
+        .field(ui.d.project)
+        .props.onChange({ target: { value: projectId } }),
+    );
+    const created = await ui.hostFetch({
+      action: 'create',
+      project: projectId,
+      source: `project-dsh:${projectId}`,
+      name: 'project-trash',
+      description: 'Project',
+      body: 'Project bytes',
+    });
+    await ui.act2(() =>
+      tools.field(ui.d.scope).props.onChange({ target: { value: 'global' } }),
+    );
+    await ui.act2(() =>
+      tools.field(ui.d.scope).props.onChange({ target: { value: 'project' } }),
+    );
+    await ui.act2(() =>
+      tools.button(`${ui.d.moveTrash}: project-trash`).props.onClick(),
+    );
+    trashed = (await ui.hostFetch({ action: 'list' })).trash;
+    assert.equal(trashed[0].scope, projectId);
+    await ui.act2(() =>
+      tools.field(ui.d.scope).props.onChange({ target: { value: 'trash' } }),
+    );
+    await ui.act2(() =>
+      tools.button(`${ui.d.restoreTrash}: project-trash`).props.onClick(),
+    );
+    assert.ok(
+      (await readFile(created.created.path, 'utf8')).includes('Project bytes'),
+    );
+    if (language === 'ar')
+      assert.equal(view.root.findByType('section').props.dir, 'rtl');
+  });
   test(`registered ${language} upload controls import real ZIP, folder and Markdown bytes`, async (t) => {
     const ui = await mount(t, language, undefined, true);
     const view = await ui.render(ui.slot('settings.section')[0].component);

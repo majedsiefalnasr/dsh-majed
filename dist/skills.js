@@ -4,6 +4,7 @@ import { homedir } from 'node:os';
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import { parseDocument } from 'yaml';
 import { discoverReadonlyEntries } from './skills-discovery.js';
+import { checkedTrashPath, listTrash, scanTrash, trashEntry, restoreEntry, deleteEntry, } from './skills-trash.js';
 import { localItems, uploadedItems, zipItems, uploadBatch, publishImports, } from './skills-import.js';
 import { CUSTOM_ID, CUSTOM_RANK_BASE, CUSTOM_RANK_STEP, comparisonPath, customSlug, isSameOrDescendant, MAX_CUSTOM_SOURCES, MAX_LABEL, overlapsResolved, PROJECT_SOURCES, prepareRoots, resolveProject, scanCandidates, validateRootPath, } from './skills-sources.js';
 export const name = 'dsh-waycraft/skills';
@@ -775,6 +776,7 @@ export function apply(ctx, config = {}) {
             view[sourceId] = cloneOrg(org);
         return view;
     };
+    const trashRoot = join(dirname(statePath), 'trash');
     const projectView = async (project) => {
         if (!project.available)
             return {
@@ -802,12 +804,34 @@ export function apply(ctx, config = {}) {
     };
     const payload = async (project, projects, expose = true) => {
         const { copies, diagnostics } = await catalog();
+        // Trash safety/read failures must not take the ordinary catalog offline.
+        // Mutations still use strict listTrash/preflight and never trust this fallback.
+        let trash = [];
+        let trashError;
+        if (expose) {
+            try {
+                const scan = await scanTrash(trashRoot);
+                trash = scan.items;
+                if (scan.overLimit)
+                    trashError = 'trash-overflow';
+                else if (scan.skipped)
+                    trashError = 'trash-skipped';
+            }
+            catch (error) {
+                trashError =
+                    error instanceof Error && error.message === 'trash-linked'
+                        ? 'trash-linked'
+                        : 'trash-unavailable';
+            }
+        }
         return {
             sources: globalSources().map((source) => ({
                 ...source,
                 enabled: !corrupt && (state.sources[source.id] ?? source.enabled ?? true),
             })),
             copies: copies.map(strip),
+            trash,
+            ...(trashError ? { trashError } : {}),
             corrupt,
             placement: state.placement,
             organization: orgView('global'),
@@ -1163,8 +1187,22 @@ export function apply(ctx, config = {}) {
             x.metadataValid !== false &&
             x.name !== '__proto__');
         const known = new Set(copies.map((x) => x.name));
+        // Trash retains annotations until restore or confirmed permanent deletion.
+        // An unavailable, over-limit or partly unreadable Trash may hide recoverable skills: never prune then.
+        let trashUnreliable = false;
+        try {
+            const scan = await scanTrash(trashRoot);
+            trashUnreliable = scan.overLimit || scan.skipped > 0;
+            for (const item of scan.items)
+                if (item.scope === scope && item.source === sourceId)
+                    known.add(item.name);
+        }
+        catch {
+            trashUnreliable = true;
+        }
         // A source that could not be read cleanly may only look empty: never prune its metadata then.
-        const unreliable = view.diagnostics.some((item) => item.params.source === sourceId);
+        const unreliable = trashUnreliable ||
+            view.diagnostics.some((item) => item.params.source === sourceId);
         // Reconcile: forget members, notes and order entries of skills that vanished from this source.
         if (!unreliable) {
             for (const skill of Object.keys(org.members))
@@ -1411,6 +1449,9 @@ export function apply(ctx, config = {}) {
                         'create',
                         'import',
                         'upload',
+                        'trash',
+                        'trash-restore',
+                        'trash-delete',
                         'custom-scan',
                         'custom-add',
                         'custom-update',
@@ -1463,6 +1504,131 @@ export function apply(ctx, config = {}) {
                         project = (await projects()).find((item) => item.id === body.project);
                         if (!project)
                             return fail(404, 'project-unregistered');
+                    }
+                    if (['trash', 'trash-restore', 'trash-delete'].includes(body.action ?? '')) {
+                        if (!marked)
+                            return fail(403, 'forbidden');
+                        const mutation = operations.then(async () => {
+                            if (closing || request.signal.aborted)
+                                return fail(409, 'trash-cancelled');
+                            if (corrupt)
+                                return fail(409, 'state-invalid');
+                            try {
+                                const items = await listTrash(trashRoot);
+                                const item = items.find((entry) => entry.id === body.id);
+                                const scope = body.action === 'trash'
+                                    ? (body.project ?? 'global')
+                                    : item?.scope;
+                                const current = scope === 'global'
+                                    ? undefined
+                                    : (await registeredProjects()).find((entry) => entry.id === scope);
+                                if (scope !== 'global' &&
+                                    (!current?.available || registryUnavailable))
+                                    return fail(404, 'project-unregistered');
+                                const sourceId = body.action === 'trash' ? body.source : item?.source;
+                                const sourceRoot = current?.root && sourceId === `project-dsh:${current.id}`
+                                    ? join(current.root, '.dsh', 'skills')
+                                    : scope === 'global'
+                                        ? baseSources.find((entry) => entry.id === sourceId &&
+                                            ['user-dsh', 'user-agents'].includes(entry.id))?.path
+                                        : undefined;
+                                if (!sourceRoot)
+                                    return fail(403, 'trash-readonly');
+                                await checkedTrashPath(sourceRoot, true);
+                                const cancelled = () => closing || request.signal.aborted;
+                                let result;
+                                if (body.action === 'trash') {
+                                    const view = current
+                                        ? await projectCatalog(current)
+                                        : await catalog();
+                                    const copy = view.copies.find((entry) => entry.path === body.id && entry.source === sourceId);
+                                    if (!copy)
+                                        return fail(404, 'trash-missing');
+                                    // Resolve the discovered document, never a caller-supplied write path.
+                                    const origin = basename(copy.path).toLowerCase() === 'skill.md'
+                                        ? dirname(copy.path)
+                                        : copy.path;
+                                    if ((await comparisonPath(origin)) ===
+                                        (await comparisonPath(sourceRoot)) ||
+                                        !isSameOrDescendant(resolve(sourceRoot), origin))
+                                        return fail(403, 'trash-readonly');
+                                    result = await trashEntry(trashRoot, {
+                                        name: copy.name,
+                                        source: String(sourceId),
+                                        scope: String(scope),
+                                        root: resolve(sourceRoot),
+                                        origin,
+                                    }, cancelled);
+                                }
+                                else {
+                                    if (!item)
+                                        return fail(404, 'trash-missing');
+                                    if ((await comparisonPath(item.root)) !==
+                                        (await comparisonPath(resolve(sourceRoot))) ||
+                                        !isSameOrDescendant(item.root, item.origin) ||
+                                        (await comparisonPath(item.root)) ===
+                                            (await comparisonPath(item.origin)))
+                                        return fail(409, 'trash-invalid');
+                                    if (body.action === 'trash-restore')
+                                        result = await restoreEntry(trashRoot, item, cancelled);
+                                    else {
+                                        if (body.confirm !== true)
+                                            return fail(400, 'trash-confirm');
+                                        await deleteEntry(trashRoot, item);
+                                        // Do not erase a newer active copy's annotations or policy.
+                                        const view = current
+                                            ? await projectCatalog(current)
+                                            : await catalog();
+                                        if (!view.copies.some((entry) => entry.source === item.source &&
+                                            entry.name === item.name) &&
+                                            !items.some((entry) => entry.id !== item.id &&
+                                                entry.scope === item.scope &&
+                                                entry.source === item.source &&
+                                                entry.name === item.name)) {
+                                            const next = cloneState();
+                                            const org = next.organization[item.scope]?.[item.source];
+                                            if (org) {
+                                                delete org.members[item.name];
+                                                delete org.notes[item.name];
+                                                for (const key of Object.keys(org.order))
+                                                    org.order[key] = org.order[key].filter((name) => name !== item.name);
+                                            }
+                                            const copies = current
+                                                ? next.projects[current.id]?.copies
+                                                : next.copies;
+                                            if (copies) {
+                                                delete copies[join(item.origin, 'SKILL.md')];
+                                                delete copies[item.origin];
+                                            }
+                                            try {
+                                                await writeState(next);
+                                            }
+                                            catch {
+                                                result = { warning: 'trash-state' };
+                                            }
+                                        }
+                                    }
+                                }
+                                revision++;
+                                for (const control of controls)
+                                    control.invalidate();
+                                return result ?? {};
+                            }
+                            catch (error) {
+                                return fail(409, error instanceof Error &&
+                                    error.message.startsWith('trash-')
+                                    ? error.message
+                                    : 'trash-failed');
+                            }
+                        });
+                        operations = mutation.catch(() => undefined);
+                        const result = await mutation;
+                        if (result instanceof Response)
+                            return result;
+                        return Response.json({
+                            ...(await payload(project, await registeredProjects(), marked)),
+                            result,
+                        });
                     }
                     if (body.action === 'import' || body.action === 'upload') {
                         if (!marked)

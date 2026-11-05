@@ -29,6 +29,37 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
     const h = React.createElement;
     const dictionaries = {
       en: {
+        trash: 'Trash',
+        moveTrash: 'Move to Trash',
+        restoreTrash: 'Restore original',
+        deleteTrash: 'Delete permanently',
+        confirmTrash: 'Confirm permanent deletion',
+        trashWarning:
+          'This permanently deletes the recoverable files. This cannot be undone.',
+        trashOrigin: 'Original location',
+        trashEmpty: 'Trash is empty',
+        'code.trash-conflict': 'The original location already contains a skill',
+        'code.trash-readonly': 'This source is read-only',
+        'code.trash-unavailable':
+          'Trash storage is unavailable; the skill catalog is still available',
+        'code.trash-linked': 'Linked or special write targets are not allowed',
+        'code.trash-failed':
+          'The operation failed; check the original and Trash before retrying',
+        'code.trash-cancelled': 'The operation was cancelled',
+        'code.trash-limit': 'The skill exceeds safe processing limits',
+        'code.trash-overflow':
+          'Trash has too many entries to list safely; organization data is kept',
+        'code.trash-skipped':
+          'Some Trash records are unreadable; organization data is kept',
+        'code.trash-invalid': 'The original location is no longer valid',
+        'code.trash-missing': 'This Trash entry no longer exists',
+        'code.trash-confirm': 'Confirm permanent deletion first',
+        'code.trash-cleanup':
+          'Operation completed; remaining files need cleanup',
+        'code.trash-recovery':
+          'Original removal failed; the complete Trash copy was retained for recovery',
+        'code.trash-state':
+          'Files deleted, but annotation cleanup failed; reload state before retrying',
         importSkills: 'Import skills',
         importPath: 'Local absolute path',
         previewImport: 'Preview local import',
@@ -237,6 +268,37 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
         'code.placement-invalid': 'The entry placement is invalid',
       },
       ar: {
+        trash: 'سلة المحذوفات',
+        moveTrash: 'نقل إلى سلة المحذوفات',
+        restoreTrash: 'استعادة إلى المصدر',
+        deleteTrash: 'حذف نهائي',
+        confirmTrash: 'تأكيد الحذف النهائي',
+        trashWarning:
+          'سيتم حذف الملفات القابلة للاستعادة نهائياً. لا يمكن التراجع.',
+        trashOrigin: 'الموقع الأصلي',
+        trashEmpty: 'سلة المحذوفات فارغة',
+        'code.trash-conflict': 'يوجد بالفعل مهارة في الموقع الأصلي',
+        'code.trash-readonly': 'هذا المصدر للقراءة فقط',
+        'code.trash-unavailable':
+          'تخزين سلة المحذوفات غير متاح؛ ما زال كتالوج المهارات متاحًا',
+        'code.trash-linked': 'لا يُسمح بالكتابة إلى روابط أو ملفات خاصة',
+        'code.trash-failed':
+          'فشلت العملية؛ افحص المصدر والسلة قبل المحاولة مجدداً',
+        'code.trash-cancelled': 'أُلغيت العملية',
+        'code.trash-limit': 'تتجاوز المهارة حدود المعالجة الآمنة',
+        'code.trash-overflow':
+          'عدد عناصر سلة المحذوفات أكبر من أن يُعرض بأمان؛ بيانات التنظيم محفوظة',
+        'code.trash-skipped':
+          'بعض سجلات سلة المحذوفات غير قابلة للقراءة؛ بيانات التنظيم محفوظة',
+        'code.trash-invalid': 'لم يعد الموقع الأصلي صالحاً',
+        'code.trash-missing': 'لم يعد هذا العنصر في سلة المحذوفات',
+        'code.trash-confirm': 'أكد الحذف النهائي أولاً',
+        'code.trash-cleanup':
+          'اكتملت العملية؛ تحتاج الملفات المتبقية إلى تنظيف',
+        'code.trash-recovery':
+          'فشل حذف المصدر؛ حُفظت نسخة كاملة في السلة للاستعادة',
+        'code.trash-state':
+          'حُذفت الملفات لكن فشل تنظيف التعليقات؛ أعد تحميل الحالة',
         importSkills: 'استيراد مهارات',
         importPath: 'المسار المحلي المطلق',
         previewImport: 'معاينة الاستيراد المحلي',
@@ -523,6 +585,7 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
         [importConflict, setImportConflict] = React.useState(''),
         [importResult, setImportResult] = React.useState(null),
         [importBusy, setImportBusy] = React.useState(false),
+        [trashDeleting, setTrashDeleting] = React.useState(''),
         [creating, setCreating] = React.useState(false),
         [createName, setCreateName] = React.useState(''),
         [createDescription, setCreateDescription] = React.useState(''),
@@ -724,9 +787,12 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
                 : 'enabled';
       const inProject = scope === 'project';
       // Project view: sources, copies and diagnostics come from the selected project only.
-      const view = inProject
-        ? (data?.project ?? { sources: [], copies: [], diagnostics: [] })
-        : data;
+      const view =
+        scope === 'trash'
+          ? { sources: [], copies: [], diagnostics: [] }
+          : inProject
+            ? (data?.project ?? { sources: [], copies: [], diagnostics: [] })
+            : data;
       const orgOf = (sourceId: string) => ({
         categories: [] as any[],
         members: {} as Record<string, string>,
@@ -1275,6 +1341,86 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
           dir: isArabic() ? 'rtl' : undefined,
         },
         h('h2', null, t('title')),
+        data?.trashError
+          ? h('p', { role: 'alert' }, t(`code.${data.trashError}`))
+          : null,
+        scope === 'trash'
+          ? h(
+              'div',
+              { 'data-majed-trash': true },
+              h('h3', null, t('trash')),
+              !data?.trashError && !data?.trash?.length
+                ? h('p', null, t('trashEmpty'))
+                : null,
+              ...(data?.trash ?? []).map((item: any) =>
+                h(
+                  'article',
+                  { key: item.id },
+                  h('strong', null, item.name),
+                  h('p', null, `${t('trashOrigin')}: ${item.origin}`),
+                  h('p', null, `${item.source} — ${item.deletedAt}`),
+                  h(
+                    'button',
+                    {
+                      'aria-label': `${t('restoreTrash')}: ${item.name}`,
+                      onClick: () =>
+                        void mutate(
+                          { action: 'trash-restore', id: item.id },
+                          (value: any) => {
+                            if (value.result?.warning)
+                              setNotice(
+                                `${t(`code.${value.result.warning}`)} ${value.result.path ?? ''}`,
+                              );
+                          },
+                        ),
+                    },
+                    t('restoreTrash'),
+                  ),
+                  h(
+                    'button',
+                    {
+                      'aria-label': `${t('deleteTrash')}: ${item.name}`,
+                      onClick: () => setTrashDeleting(item.id),
+                    },
+                    t('deleteTrash'),
+                  ),
+                  trashDeleting === item.id
+                    ? h(
+                        'div',
+                        { role: 'alert' },
+                        h('p', null, t('trashWarning')),
+                        h(
+                          'button',
+                          {
+                            onClick: () =>
+                              void mutate(
+                                {
+                                  action: 'trash-delete',
+                                  id: item.id,
+                                  confirm: true,
+                                },
+                                (value: any) => {
+                                  setTrashDeleting('');
+                                  if (value.result?.warning)
+                                    setNotice(
+                                      t(`code.${value.result.warning}`),
+                                    );
+                                },
+                              ),
+                          },
+                          t('confirmTrash'),
+                        ),
+                        h(
+                          'button',
+                          { onClick: () => setTrashDeleting('') },
+                          t('cancel'),
+                        ),
+                      )
+                    : null,
+                ),
+              ),
+            )
+          : null,
         h(
           'button',
           {
@@ -1495,6 +1641,7 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
           },
           h('option', { value: 'global' }, t('scopeGlobal')),
           h('option', { value: 'project' }, t('scopeProject')),
+          h('option', { value: 'trash' }, t('trash')),
         ),
         inProject
           ? h(
@@ -1636,6 +1783,32 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
                             'article',
                             { key: copy.path },
                             h('strong', null, copy.name),
+                            ['user-dsh', 'user-agents'].includes(copy.source) ||
+                              copy.source === `project-dsh:${project}`
+                              ? h(
+                                  'button',
+                                  {
+                                    'aria-label': `${t('moveTrash')}: ${copy.name}`,
+                                    disabled: switching || data.corrupt,
+                                    onClick: () =>
+                                      void mutate(
+                                        {
+                                          action: 'trash',
+                                          id: copy.path,
+                                          source: copy.source,
+                                          ...selected,
+                                        },
+                                        (value: any) => {
+                                          if (value.result?.warning)
+                                            setNotice(
+                                              `${t(`code.${value.result.warning}`)} ${value.result.path ?? ''}`,
+                                            );
+                                        },
+                                      ),
+                                  },
+                                  t('moveTrash'),
+                                )
+                              : null,
                             h('p', null, copy.description),
                             h('span', null, t(copyStatus(copy))),
                             orgOf(copy.source).members[copy.name]
