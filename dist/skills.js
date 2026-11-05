@@ -7,6 +7,7 @@ import { discoverReadonlyEntries } from './skills-discovery.js';
 import { checkedTrashPath, listTrash, scanTrash, trashEntry, restoreEntry, deleteEntry, } from './skills-trash.js';
 import { localItems, uploadedItems, zipItems, uploadBatch, publishImports, } from './skills-import.js';
 import { createRepositories, RepoError, } from './skills-repos.js';
+import { createCatalogs } from './skills-catalogs.js';
 import { CUSTOM_ID, CUSTOM_RANK_BASE, CUSTOM_RANK_STEP, comparisonPath, customSlug, isSameOrDescendant, MAX_CUSTOM_SOURCES, MAX_LABEL, overlapsResolved, PROJECT_SOURCES, prepareRoots, resolveProject, scanCandidates, validateRootPath, } from './skills-sources.js';
 export const name = 'dsh-waycraft/skills';
 export const inject = ['skills'];
@@ -799,6 +800,22 @@ export function apply(ctx, config = {}) {
         },
     });
     ctx.effect(() => () => repos.close(), 'majed-skills repository operations');
+    const catalogs = createCatalogs({
+        config: config.catalogs,
+        stateDir: dirname(statePath),
+        trashRoot,
+        destination: (id) => {
+            const found = baseSources.find((item) => item.id === id && ['user-dsh', 'user-agents'].includes(item.id));
+            return found ? { id: found.id, root: found.path } : undefined;
+        },
+        exclusive,
+        changed: () => {
+            revision++;
+            for (const control of controls)
+                control.invalidate();
+        },
+    });
+    ctx.effect(() => () => catalogs.close(), 'majed-skills catalog operations');
     const projectView = async (project) => {
         if (!project.available)
             return {
@@ -847,8 +864,10 @@ export function apply(ctx, config = {}) {
             }
         }
         const repoView = await repos.view(expose, trashError ? undefined : new Set(trash.map((item) => item.id)));
+        const catalogView = await catalogs.view(expose, trashError ? undefined : new Set(trash.map((item) => item.id)));
         return {
             ...repoView,
+            ...catalogView,
             sources: globalSources().map((source) => ({
                 ...source,
                 enabled: !corrupt && (state.sources[source.id] ?? source.enabled ?? true),
@@ -1487,6 +1506,13 @@ export function apply(ctx, config = {}) {
                         'repo-update',
                         'repo-rollback-preview',
                         'repo-rollback',
+                        'catalog-clawhub-list',
+                        'catalog-clawhub-search',
+                        'catalog-skillsh-search',
+                        'catalog-detail',
+                        'catalog-install',
+                        'catalog-uninstall',
+                        'catalog-forget',
                         'custom-scan',
                         'custom-add',
                         'custom-update',
@@ -1602,6 +1628,8 @@ export function apply(ctx, config = {}) {
                                     }, cancelled);
                                     if (scope === 'global')
                                         await repos.noteTrashed(resolve(sourceRoot), origin, result.id);
+                                    if (scope === 'global')
+                                        await catalogs.noteTrashed(resolve(sourceRoot), origin, result.id);
                                 }
                                 else {
                                     if (!item)
@@ -1615,12 +1643,14 @@ export function apply(ctx, config = {}) {
                                     if (body.action === 'trash-restore') {
                                         result = await restoreEntry(trashRoot, item, cancelled);
                                         await repos.noteRestored(item.id);
+                                        await catalogs.noteRestored(item.id);
                                     }
                                     else {
                                         if (body.confirm !== true)
                                             return fail(400, 'trash-confirm');
                                         await deleteEntry(trashRoot, item);
                                         await repos.noteDeleted(item.id);
+                                        await catalogs.noteDeleted(item.id);
                                         // Do not erase a newer active copy's annotations or policy.
                                         const view = current
                                             ? await projectCatalog(current)
@@ -1675,6 +1705,65 @@ export function apply(ctx, config = {}) {
                             ...(await payload(project, await registeredProjects(), marked)),
                             result,
                         });
+                    }
+                    if (String(body.action).startsWith('catalog-')) {
+                        if (!marked)
+                            return fail(403, 'forbidden');
+                        const cancelled = () => closing || request.signal.aborted;
+                        if (closing)
+                            return fail(503, 'stopping');
+                        try {
+                            if (corrupt)
+                                return fail(409, 'state-invalid');
+                            const signal = request.signal;
+                            // Browse/search/detail are read-only answers; mutations also return the refreshed list.
+                            if (body.action === 'catalog-clawhub-list')
+                                return Response.json(await catalogs.clawhubList({
+                                    limit: body.limit,
+                                    cursor: body.cursor,
+                                    sort: body.sort,
+                                }, signal));
+                            if (body.action === 'catalog-clawhub-search')
+                                return Response.json(await catalogs.clawhubSearch({ q: body.q, limit: body.limit }, signal));
+                            if (body.action === 'catalog-skillsh-search')
+                                return Response.json(await catalogs.skillsShSearch({ q: body.q }, signal));
+                            if (body.action === 'catalog-detail')
+                                return Response.json(await catalogs.detail(body.skill, signal));
+                            let result;
+                            if (body.action === 'catalog-install')
+                                result = await catalogs.install({
+                                    skill: body.skill,
+                                    destination: body.destination ?? 'user-dsh',
+                                    confirm: body.confirm,
+                                    reassociate: body.reassociate,
+                                }, cancelled, signal);
+                            else if (body.action === 'catalog-uninstall')
+                                result = await catalogs.uninstall(body.installId, cancelled);
+                            else if (body.action === 'catalog-forget') {
+                                // A record whose Trash entry vanished outside the app may be forgotten; only a clean Trash scan proves that.
+                                let trashIds;
+                                try {
+                                    const scan = await scanTrash(trashRoot);
+                                    if (!scan.overLimit && !scan.skipped)
+                                        trashIds = new Set(scan.items.map((item) => item.id));
+                                }
+                                catch {
+                                    trashIds = undefined;
+                                }
+                                result = await catalogs.forget(body.installId, trashIds);
+                            }
+                            else
+                                return fail(400, 'catalog-action');
+                            return Response.json({
+                                ...(await payload(project, await registeredProjects(), marked)),
+                                result,
+                            });
+                        }
+                        catch (error) {
+                            if (error instanceof RepoError)
+                                return fail(error.status, error.code);
+                            return fail(400, 'catalog-failed');
+                        }
                     }
                     if (String(body.action).startsWith('repo-')) {
                         if (!marked)

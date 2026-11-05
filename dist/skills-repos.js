@@ -67,15 +67,15 @@ const HARD = {
 const MAX_DEPTH = 12;
 const MAX_FILE = 32 * 1024 * 1024;
 const MAX_SKILLS = 500;
-const SKILL_DOC_MAX = 256 * 1024;
-const SKILL_FILE_MAX = 1024 * 1024;
-const SKILL_TOTAL_MAX = 8 * 1024 * 1024;
-const SKILL_ENTRY_MAX = 512;
+export const SKILL_DOC_MAX = 256 * 1024;
+export const SKILL_FILE_MAX = 1024 * 1024;
+export const SKILL_TOTAL_MAX = 8 * 1024 * 1024;
+export const SKILL_ENTRY_MAX = 512;
 const MAX_URL = 2048;
 // Files sit at most MAX_DEPTH + 1 levels deep (the ingest walk's depth), each part at most 255 units.
 const MAX_RELATIVE = (MAX_DEPTH + 2) * 256;
-const SKILL_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const sha256 = (data) => createHash('sha256').update(data).digest('hex');
+export const SKILL_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+export const sha256 = (data) => createHash('sha256').update(data).digest('hex');
 // ---------------------------------------------------------------- input parsing
 const RESERVED = /^(con|prn|aux|nul|com[0-9]|lpt[0-9])(?:\.|$)/i;
 function safeSubdirectory(value) {
@@ -304,7 +304,7 @@ export function privateAddress(address) {
     );
 }
 /** Preflight only: the name is resolved again by Git, but redirects are never followed. */
-async function assertPublicHost(url) {
+export async function assertPublicHost(url) {
     const host = new URL(url).hostname.toLowerCase();
     const literal = host.replace(/^\[|\]$/g, '');
     if (host === 'localhost' ||
@@ -329,7 +329,7 @@ async function assertPublicHost(url) {
         throw fail('repo-host');
 }
 // ---------------------------------------------------------------- cancellable run
-class Run {
+export class Run {
     controller = new AbortController();
     reason;
     timer;
@@ -450,13 +450,13 @@ async function subtree(base, subdirectory) {
     }
     return current;
 }
-const treeHashOf = (files) => sha256([...files]
+export const treeHashOf = (files) => sha256([...files]
     .sort((a, b) => (a.path < b.path ? -1 : 1))
     // The executable bit only extends the line for executable files, so plain trees keep their digest.
     .map((file) => `${file.path}\0${file.hash}${file.x ? '\0x' : ''}\n`)
     .join(''));
 // ---------------------------------------------------------------- skill scanning
-function frontMatter(bytes) {
+export function frontMatter(bytes) {
     let text;
     try {
         text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
@@ -722,7 +722,7 @@ async function acquireGit(config, source, work, out, run) {
     }
 }
 // ---------------------------------------------------------------- GitHub archive
-async function readCapped(response, limit, run) {
+export async function readCapped(response, limit, run) {
     const declared = Number(response.headers.get('content-length'));
     if (Number.isFinite(declared) && declared > limit)
         throw fail('repo-limit');
@@ -750,7 +750,9 @@ async function readCapped(response, limit, run) {
     }
     return Buffer.concat(chunks);
 }
-function extractArchive(bytes, limits) {
+export function extractArchive(bytes, limits, 
+/** `flat`: no single GitHub-style root folder is required or stripped (catalog packages). */
+layout = 'rooted') {
     const files = [];
     const seen = new Set();
     let count = 0;
@@ -762,7 +764,8 @@ function extractArchive(bytes, limits) {
             throw fail('repo-limit');
         const directory = file.name.endsWith('/');
         const parts = (directory ? file.name.slice(0, -1) : file.name).split('/');
-        if (parts.length < (directory ? 1 : 2) ||
+        const flat = layout === 'flat';
+        if (parts.length < (directory || flat ? 1 : 2) ||
             parts.length > MAX_DEPTH + 2 ||
             parts.some((part) => !part ||
                 part === '.' ||
@@ -770,12 +773,14 @@ function extractArchive(bytes, limits) {
                 part.length > 200 ||
                 /[\\:\u0000-\u001f]/.test(part)))
             throw fail('repo-archive');
-        root ??= parts[0];
-        if (parts[0] !== root)
-            throw fail('repo-archive');
+        if (!flat) {
+            root ??= parts[0];
+            if (parts[0] !== root)
+                throw fail('repo-archive');
+        }
         if (directory)
             return;
-        const path = parts.slice(1).join('/');
+        const path = (flat ? parts : parts.slice(1)).join('/');
         if (seen.has(path.toLowerCase()))
             throw fail('repo-archive');
         seen.add(path.toLowerCase());
@@ -901,7 +906,7 @@ const emptyState = () => ({
     repositories: [],
     installs: [],
 });
-const HEX = (length) => new RegExp(`^[0-9a-f]{${length}}$`);
+export const HEX = (length) => new RegExp(`^[0-9a-f]{${length}}$`);
 const KIND_OF_FINGERPRINT = {
     'git-commit': /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/,
     'archive-sha256': HEX(64),
@@ -912,10 +917,10 @@ const KIND_OF_SOURCE = {
     github: ['archive-sha256'],
     local: ['folder-sha256'],
 };
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-const DESTINATIONS = ['user-dsh', 'user-agents'];
+export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+export const DESTINATIONS = ['user-dsh', 'user-agents'];
 /** Relative, traversal-free, forward-slash path (a skill folder or file inside a snapshot). */
-function relativePath(value, allowDot = false) {
+export function relativePath(value, allowDot = false) {
     if (typeof value !== 'string' || value.length > MAX_RELATIVE)
         return false;
     if (allowDot && value === '.')

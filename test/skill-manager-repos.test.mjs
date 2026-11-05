@@ -323,7 +323,13 @@ test('Git processing is time-bounded and a hung git process is killed', async (t
   const result = await add({ url: folder });
   assert.equal(result.body.code, 'repo-timeout');
   assert.ok(Date.now() - started < 5000);
-  const pid = Number((await readFile(join(record, 'pid'), 'utf8')).trim());
+  // Under load the shell may write its pid file a moment after the timeout fired: wait for it.
+  let pidText = '';
+  for (let i = 0; i < 40 && !pidText; i++) {
+    pidText = await readFile(join(record, 'pid'), 'utf8').catch(() => '');
+    if (!pidText) await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  const pid = Number(pidText.trim());
   await new Promise((resolve) => setTimeout(resolve, 200));
   assert.throws(() => process.kill(pid, 0), { code: 'ESRCH' });
 });

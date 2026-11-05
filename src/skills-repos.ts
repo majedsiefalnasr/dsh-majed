@@ -164,15 +164,15 @@ const HARD = {
 const MAX_DEPTH = 12;
 const MAX_FILE = 32 * 1024 * 1024;
 const MAX_SKILLS = 500;
-const SKILL_DOC_MAX = 256 * 1024;
-const SKILL_FILE_MAX = 1024 * 1024;
-const SKILL_TOTAL_MAX = 8 * 1024 * 1024;
-const SKILL_ENTRY_MAX = 512;
+export const SKILL_DOC_MAX = 256 * 1024;
+export const SKILL_FILE_MAX = 1024 * 1024;
+export const SKILL_TOTAL_MAX = 8 * 1024 * 1024;
+export const SKILL_ENTRY_MAX = 512;
 const MAX_URL = 2048;
 // Files sit at most MAX_DEPTH + 1 levels deep (the ingest walk's depth), each part at most 255 units.
 const MAX_RELATIVE = (MAX_DEPTH + 2) * 256;
-const SKILL_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const sha256 = (data: string | Uint8Array) =>
+export const SKILL_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+export const sha256 = (data: string | Uint8Array) =>
   createHash('sha256').update(data).digest('hex');
 
 // ---------------------------------------------------------------- input parsing
@@ -415,7 +415,7 @@ export function privateAddress(address: string): boolean {
   );
 }
 /** Preflight only: the name is resolved again by Git, but redirects are never followed. */
-async function assertPublicHost(url: string) {
+export async function assertPublicHost(url: string) {
   const host = new URL(url).hostname.toLowerCase();
   const literal = host.replace(/^\[|\]$/g, '');
   if (
@@ -443,7 +443,7 @@ async function assertPublicHost(url: string) {
 }
 
 // ---------------------------------------------------------------- cancellable run
-class Run {
+export class Run {
   private readonly controller = new AbortController();
   reason?: string;
   private readonly timer: NodeJS.Timeout;
@@ -475,7 +475,7 @@ class Run {
 }
 
 // ---------------------------------------------------------------- bounded filesystem walking
-interface Limits {
+export interface Limits {
   entries: number;
   total: number;
 }
@@ -486,7 +486,7 @@ interface Entry {
   size: number;
   x?: true;
 }
-type Tracked = { path: string; hash: string; x?: true };
+export type Tracked = { path: string; hash: string; x?: true };
 async function treeBytes(path: string, limit: number): Promise<number> {
   let total = 0;
   const stack = [path];
@@ -575,7 +575,7 @@ async function subtree(base: string, subdirectory: string): Promise<string> {
   }
   return current;
 }
-const treeHashOf = (files: Tracked[]) =>
+export const treeHashOf = (files: Tracked[]) =>
   sha256(
     [...files]
       .sort((a, b) => (a.path < b.path ? -1 : 1))
@@ -585,7 +585,7 @@ const treeHashOf = (files: Tracked[]) =>
   );
 
 // ---------------------------------------------------------------- skill scanning
-function frontMatter(
+export function frontMatter(
   bytes: Uint8Array,
 ): { name: string; description: string } | undefined {
   let text: string;
@@ -896,7 +896,7 @@ async function acquireGit(
 }
 
 // ---------------------------------------------------------------- GitHub archive
-async function readCapped(
+export async function readCapped(
   response: Response,
   limit: number,
   run: Run,
@@ -924,9 +924,11 @@ async function readCapped(
   }
   return Buffer.concat(chunks);
 }
-function extractArchive(
+export function extractArchive(
   bytes: Uint8Array,
   limits: Limits,
+  /** `flat`: no single GitHub-style root folder is required or stripped (catalog packages). */
+  layout: 'rooted' | 'flat' = 'rooted',
 ): Array<{ path: string; data: Uint8Array }> {
   const files: Array<{ path: string; data: Uint8Array }> = [];
   const seen = new Set<string>();
@@ -938,8 +940,9 @@ function extractArchive(
     if (++count > limits.entries) throw fail('repo-limit');
     const directory = file.name.endsWith('/');
     const parts = (directory ? file.name.slice(0, -1) : file.name).split('/');
+    const flat = layout === 'flat';
     if (
-      parts.length < (directory ? 1 : 2) ||
+      parts.length < (directory || flat ? 1 : 2) ||
       parts.length > MAX_DEPTH + 2 ||
       parts.some(
         (part) =>
@@ -951,10 +954,12 @@ function extractArchive(
       )
     )
       throw fail('repo-archive');
-    root ??= parts[0];
-    if (parts[0] !== root) throw fail('repo-archive');
+    if (!flat) {
+      root ??= parts[0];
+      if (parts[0] !== root) throw fail('repo-archive');
+    }
     if (directory) return;
-    const path = parts.slice(1).join('/');
+    const path = (flat ? parts : parts.slice(1)).join('/');
     if (seen.has(path.toLowerCase())) throw fail('repo-archive');
     seen.add(path.toLowerCase());
     if (file.originalSize !== undefined && file.originalSize > MAX_FILE)
@@ -1122,7 +1127,7 @@ const emptyState = (): RepositoryState => ({
   repositories: [],
   installs: [],
 });
-const HEX = (length: number) => new RegExp(`^[0-9a-f]{${length}}$`);
+export const HEX = (length: number) => new RegExp(`^[0-9a-f]{${length}}$`);
 const KIND_OF_FINGERPRINT: Record<string, RegExp> = {
   'git-commit': /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/,
   'archive-sha256': HEX(64),
@@ -1133,10 +1138,11 @@ const KIND_OF_SOURCE: Record<string, string[]> = {
   github: ['archive-sha256'],
   local: ['folder-sha256'],
 };
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-const DESTINATIONS = ['user-dsh', 'user-agents'];
+export const UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+export const DESTINATIONS = ['user-dsh', 'user-agents'];
 /** Relative, traversal-free, forward-slash path (a skill folder or file inside a snapshot). */
-function relativePath(value: unknown, allowDot = false): boolean {
+export function relativePath(value: unknown, allowDot = false): boolean {
   if (typeof value !== 'string' || value.length > MAX_RELATIVE) return false;
   if (allowDot && value === '.') return true;
   return (

@@ -237,7 +237,7 @@ for (const language of ['en', 'ar']) {
     const view = await ui.render();
     const u = ui.tools(view);
     await ui.act2(() =>
-      u.field(d.scope).props.onChange({ target: { value: 'repositories' } }),
+      u.field(d.scope).props.onChange({ target: { value: 'discover' } }),
     );
     assert.ok(u.text().includes(d.repoEmpty));
     // Validation errors come from the host and are localized.
@@ -358,7 +358,7 @@ for (const language of ['en', 'ar']) {
     );
     await ui.act2(() => u.button(`${d.restoreTrash}: alpha`).props.onClick());
     await ui.act2(() =>
-      u.field(d.scope).props.onChange({ target: { value: 'repositories' } }),
+      u.field(d.scope).props.onChange({ target: { value: 'discover' } }),
     );
     // Uninstall to Trash, restore from Trash.
     await ui.act2(() => u.button(`${d.repoUninstall}: alpha`).props.onClick());
@@ -375,7 +375,7 @@ for (const language of ['en', 'ar']) {
       [1, 2, 3],
     );
     await ui.act2(() =>
-      u.field(d.scope).props.onChange({ target: { value: 'repositories' } }),
+      u.field(d.scope).props.onChange({ target: { value: 'discover' } }),
     );
     assert.ok(text().includes(d['repoStatus.installed']));
     // Unsubscribe keeps the installed files and their attribution.
@@ -416,7 +416,7 @@ for (const language of ['en', 'ar']) {
     const view = await ui.render();
     const u = ui.tools(view);
     await ui.act2(() =>
-      u.field(d.scope).props.onChange({ target: { value: 'repositories' } }),
+      u.field(d.scope).props.onChange({ target: { value: 'discover' } }),
     );
     await ui.act2(() =>
       u.field(d.repoUrl).props.onChange({ target: { value: source } }),
@@ -489,7 +489,7 @@ for (const language of ['en', 'ar']) {
       ui.act2(() =>
         u.field(d.scope).props.onChange({ target: { value: target } }),
       );
-    await change('repositories');
+    await change('discover');
     for (const [field, value] of [
       [d.repoUrl, source],
       [d.repoRef, 'main'],
@@ -619,7 +619,7 @@ for (const language of ['en', 'ar']) {
     const u = ui.tools(view);
     const text = () => u.text();
     await ui.act2(() =>
-      u.field(d.scope).props.onChange({ target: { value: 'repositories' } }),
+      u.field(d.scope).props.onChange({ target: { value: 'discover' } }),
     );
     for (const [field, value] of [
       [d.repoUrl, source],
@@ -714,7 +714,7 @@ for (const language of ['en', 'ar']) {
     const u = ui.tools(view);
     const text = () => u.text();
     await ui.act2(() =>
-      u.field(d.scope).props.onChange({ target: { value: 'repositories' } }),
+      u.field(d.scope).props.onChange({ target: { value: 'discover' } }),
     );
     for (const [field, value] of [
       [d.repoUrl, source],

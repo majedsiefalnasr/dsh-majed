@@ -78,6 +78,74 @@ function setupSkills(ctx, fail) {
 				"code.trash-recovery": "Original removal failed; the complete Trash copy was retained for recovery",
 				"code.trash-state": "Files deleted, but annotation cleanup failed; reload state before retrying",
 				repositories: "Repositories",
+				scopeDiscover: "Discover Skills",
+				tabGit: "Git Repos",
+				catSourceLabel: "Discover sources",
+				catSourceClawhub: "ClawHub",
+				catSourceSkillsh: "skills.sh",
+				catSearchClawhub: "Search ClawHub",
+				catSearchSkillsh: "Search skills.sh",
+				catSearch: "Search",
+				catPopularNote: "ClawHub download ranking · Up to 100; sort only displayed items",
+				catSkillshHint: "skills.sh offers search only; enter a query to find skills.",
+				catLoading: "Loading…",
+				catLoadingMore: "Loading more…",
+				catLoadMore: "Load 10 more",
+				catEmpty: "No skills to show",
+				catSearchEmpty: "No skills match this search",
+				catLoadError: "Failed to load the catalog. Check your connection and retry.",
+				catRetry: "Retry",
+				catDownloads: "downloads",
+				catInstalls: "installs",
+				catStars: "stars",
+				catSort: "Sort displayed items",
+				catSortDownloads: "Downloads (ranking)",
+				catSortInstalls: "Installs (high to low)",
+				catSortName: "Name (A–Z)",
+				catStatusFilter: "Catalog status",
+				catStatusAll: "All statuses",
+				catStatusAvailable: "Not installed",
+				catStatusInstalled: "Installed",
+				catInstalled: "Installed",
+				catDetails: "Catalog details",
+				catInstall: "Install from catalog",
+				catInstallElsewhere: "Install elsewhere",
+				catUninstall: "Uninstall catalog copy",
+				catForget: "Forget catalog record",
+				catReassociate: "Adopt identical existing copy",
+				catCopy: "Copy SKILL.md",
+				catCopied: "Copied",
+				catCopyFailed: "Copy failed",
+				catClose: "Close",
+				catOrigin: "Origin",
+				catDetailLoading: "Loading details…",
+				catInstallTitle: "Install from catalog",
+				catInstallConfirm: "Confirm install",
+				catInstallDone: "Installed from catalog",
+				catCopies: "Installed copies",
+				catUninstallTitle: "Uninstall catalog copy",
+				catUninstallBody: "This moves \"{name}\" from {where} to Trash. You can restore it from Trash.",
+				catForgetTitle: "Forget catalog record",
+				catForgetBody: "This removes the catalog record for \"{name}\" only. No files are changed or deleted.",
+				catSharedWarning: "This copy is in the shared agents folder. Other tools that read this folder will stop seeing it.",
+				catConfirmUninstall: "Move to Trash",
+				catConfirmForget: "Forget record",
+				"catHint.trashed": "A copy is in Trash. Restore it from Trash, or install into a different destination.",
+				"catHint.missing": "Its Trash entry no longer exists. Forget the record, then install again.",
+				"catHint.invalid-root": "The copy location is unavailable. Forget the record, then install again.",
+				"catStatus.installed": "Installed",
+				"catStatus.modified": "Modified locally",
+				"catStatus.missing": "Missing from disk",
+				"catStatus.trashed": "In Trash",
+				"catStatus.invalid-root": "Location unavailable",
+				"code.catalog-query": "The search or paging request is not valid",
+				"code.catalog-upstream": "The catalog could not be reached",
+				"code.catalog-response": "The catalog returned an unusable response",
+				"code.catalog-identity": "This catalog skill identity is not valid",
+				"code.catalog-package": "The catalog package is not a valid skill",
+				"code.catalog-confirm": "Confirm the installation first",
+				"code.catalog-action": "This catalog action is not supported",
+				"code.catalog-failed": "The catalog operation failed",
 				repoAddTitle: "Subscribe to a repository",
 				repoUrl: "Repository (owner/name, https URL or absolute folder)",
 				repoRef: "Branch or tag (optional)",
@@ -392,6 +460,74 @@ function setupSkills(ctx, fail) {
 				"code.trash-recovery": "فشل حذف المصدر؛ حُفظت نسخة كاملة في السلة للاستعادة",
 				"code.trash-state": "حُذفت الملفات لكن فشل تنظيف التعليقات؛ أعد تحميل الحالة",
 				repositories: "المستودعات",
+				scopeDiscover: "اكتشاف المهارات",
+				tabGit: "مستودعات Git",
+				catSourceLabel: "مصادر الاكتشاف",
+				catSourceClawhub: "ClawHub",
+				catSourceSkillsh: "skills.sh",
+				catSearchClawhub: "ابحث في ClawHub",
+				catSearchSkillsh: "ابحث في skills.sh",
+				catSearch: "بحث",
+				catPopularNote: "ترتيب ClawHub حسب التنزيلات · حتى 100؛ الفرز للعناصر المعروضة فقط",
+				catSkillshHint: "يوفّر skills.sh البحث فقط؛ أدخل عبارة بحث للعثور على المهارات.",
+				catLoading: "جارٍ التحميل…",
+				catLoadingMore: "جارٍ تحميل المزيد…",
+				catLoadMore: "تحميل 10 أخرى",
+				catEmpty: "لا توجد مهارات للعرض",
+				catSearchEmpty: "لا توجد مهارات مطابقة لهذا البحث",
+				catLoadError: "تعذر تحميل الفهرس. تحقق من الاتصال وأعد المحاولة.",
+				catRetry: "إعادة المحاولة",
+				catDownloads: "تنزيل",
+				catInstalls: "تثبيت",
+				catStars: "نجمة",
+				catSort: "فرز العناصر المعروضة",
+				catSortDownloads: "التنزيلات (الترتيب)",
+				catSortInstalls: "التثبيتات (من الأعلى)",
+				catSortName: "الاسم (أ–ي)",
+				catStatusFilter: "حالة الفهرس",
+				catStatusAll: "كل الحالات",
+				catStatusAvailable: "غير مثبتة",
+				catStatusInstalled: "مثبتة",
+				catInstalled: "مثبتة",
+				catDetails: "تفاصيل الفهرس",
+				catInstall: "تثبيت من الفهرس",
+				catInstallElsewhere: "تثبيت في موضع آخر",
+				catUninstall: "إزالة نسخة الفهرس",
+				catForget: "نسيان سجل الفهرس",
+				catReassociate: "تبنّي النسخة المطابقة الموجودة",
+				catCopy: "نسخ SKILL.md",
+				catCopied: "تم النسخ",
+				catCopyFailed: "فشل النسخ",
+				catClose: "إغلاق",
+				catOrigin: "المصدر",
+				catDetailLoading: "جارٍ تحميل التفاصيل…",
+				catInstallTitle: "تثبيت من الفهرس",
+				catInstallConfirm: "تأكيد التثبيت",
+				catInstallDone: "تم التثبيت من الفهرس",
+				catCopies: "النسخ المثبتة",
+				catUninstallTitle: "إزالة نسخة الفهرس",
+				catUninstallBody: "سيُنقل \"{name}\" من {where} إلى السلة. يمكنك استعادته من السلة.",
+				catForgetTitle: "نسيان سجل الفهرس",
+				catForgetBody: "سيُزال سجل الفهرس الخاص بـ \"{name}\" فقط. لن تتغير أي ملفات ولن تُحذف.",
+				catSharedWarning: "هذه النسخة في مجلد الوكلاء المشترك. ستتوقف الأدوات الأخرى التي تقرأ هذا المجلد عن رؤيتها.",
+				catConfirmUninstall: "نقل إلى السلة",
+				catConfirmForget: "نسيان السجل",
+				"catHint.trashed": "توجد نسخة في السلة. استعدها من السلة أو ثبّت في وجهة مختلفة.",
+				"catHint.missing": "لم يعد عنصرها في السلة. انسَ السجل ثم ثبّت مرة أخرى.",
+				"catHint.invalid-root": "موضع النسخة غير متاح. انسَ السجل ثم ثبّت مرة أخرى.",
+				"catStatus.installed": "مثبتة",
+				"catStatus.modified": "معدّلة محلياً",
+				"catStatus.missing": "مفقودة من القرص",
+				"catStatus.trashed": "في السلة",
+				"catStatus.invalid-root": "الموقع غير متاح",
+				"code.catalog-query": "طلب البحث أو التصفح غير صالح",
+				"code.catalog-upstream": "تعذر الوصول إلى الفهرس",
+				"code.catalog-response": "أعاد الفهرس استجابة غير صالحة للاستخدام",
+				"code.catalog-identity": "هوية مهارة الفهرس غير صالحة",
+				"code.catalog-package": "حزمة الفهرس ليست مهارة صالحة",
+				"code.catalog-confirm": "أكّد التثبيت أولاً",
+				"code.catalog-action": "إجراء الفهرس هذا غير مدعوم",
+				"code.catalog-failed": "فشلت عملية الفهرس",
 				repoAddTitle: "الاشتراك في مستودع",
 				repoUrl: "المستودع (owner/name أو رابط https أو مجلد مطلق)",
 				repoRef: "الفرع أو الوسم (اختياري)",
@@ -716,9 +852,261 @@ function setupSkills(ctx, fail) {
 			}
 			return response.json();
 		};
+		const copyText = (text) => {
+			const clipboard = typeof navigator === "undefined" ? void 0 : navigator.clipboard;
+			if (!clipboard || typeof clipboard.writeText !== "function") return Promise.reject(/* @__PURE__ */ new Error("clipboard-unavailable"));
+			return Promise.resolve().then(() => clipboard.writeText(text));
+		};
 		const errorText = (failure) => failure?.code && dictionaries.en[`code.${failure.code}`] ? t(`code.${failure.code}`).replace("{limit}", String(failure.params?.limit ?? "")).replace("{recovery}", String(failure.params?.recovery ?? "")) : t("error");
+		const CATALOG_CAP = 100;
+		function CatalogDialog(props) {
+			const ref = React.useRef(null);
+			React.useEffect(() => {
+				const previous = document.activeElement;
+				ref.current?.focus?.();
+				return () => previous?.focus?.();
+			}, []);
+			return h("div", {
+				role: "dialog",
+				"aria-modal": true,
+				"aria-label": props.label,
+				dir: isArabic() ? "rtl" : void 0,
+				ref,
+				tabIndex: -1,
+				onKeyDown: (event) => {
+					if (event.key === "Escape") {
+						event.stopPropagation?.();
+						props.onClose();
+					}
+				}
+			}, props.children);
+		}
+		function CatalogPanel(props) {
+			const { kind, data, setData, setNotice } = props;
+			const [typed, setTyped] = React.useState(""), [committed, setCommitted] = React.useState(""), [items, setItems] = React.useState([]), [cursor, setCursor] = React.useState(null), [phase, setPhase] = React.useState("loading"), [more, setMore] = React.useState(false), [attempt, setAttempt] = React.useState(0), [sort, setSort] = React.useState("downloads"), [status, setStatus] = React.useState(""), [detail, setDetail] = React.useState(null), [copy, setCopy] = React.useState(""), [installing, setInstalling] = React.useState(null), [target, setTarget] = React.useState("user-dsh"), [conflict, setConflict] = React.useState(false), [confirming, setConfirming] = React.useState(null), [working, setWorking] = React.useState(""), [message, setMessage] = React.useState("");
+			const request = React.useRef(null);
+			const sending = React.useRef(false);
+			const searching = committed !== "";
+			const recordsOf = (item) => (data?.catalogInstalls ?? []).filter((entry) => entry.catalogId === item.id);
+			const copiesOf = (item) => recordsOf(item).filter((entry) => entry.status === "installed" || entry.status === "modified");
+			const bodyFor = (item) => item.catalog === "clawhub" ? {
+				catalog: "clawhub",
+				owner: item.owner,
+				slug: item.slug
+			} : {
+				catalog: "skillsh",
+				source: item.source,
+				skillId: item.skillId
+			};
+			const load = (after) => {
+				request.current?.abort();
+				const current = request.current = new AbortController();
+				if (after) setMore(true);
+				else {
+					setPhase("loading");
+					setItems([]);
+					setCursor(null);
+				}
+				return call(kind === "skillsh" ? {
+					action: "catalog-skillsh-search",
+					q: committed
+				} : searching ? {
+					action: "catalog-clawhub-search",
+					q: committed
+				} : {
+					action: "catalog-clawhub-list",
+					...after ? { cursor: after } : {}
+				}, current.signal).then((value) => {
+					if (request.current !== current) return;
+					setItems((all) => after ? [...all, ...value.items].slice(0, CATALOG_CAP) : value.items);
+					setCursor(value.nextCursor ?? null);
+					setPhase("ready");
+					setMore(false);
+				}).catch((failure) => {
+					if (failure?.name === "AbortError" || request.current !== current) return;
+					setPhase("error");
+					setMore(false);
+				});
+			};
+			React.useEffect(() => {
+				if (kind === "skillsh" && !committed) {
+					request.current?.abort();
+					setItems([]);
+					setPhase("idle");
+					return;
+				}
+				load();
+				return () => request.current?.abort();
+			}, [
+				kind,
+				committed,
+				attempt
+			]);
+			React.useEffect(() => {
+				const handle = setTimeout(() => setCommitted(typed.trim()), 300);
+				return () => clearTimeout(handle);
+			}, [typed]);
+			const shown = items.filter((item) => {
+				const copies = copiesOf(item).length;
+				return !status || (status === "installed" ? copies > 0 : copies === 0);
+			}).slice().sort((a, b) => sort === "name" ? a.name.localeCompare(b.name) : sort === "installs" ? (b.installs ?? 0) - (a.installs ?? 0) : 0);
+			const sourceName = (id) => {
+				const found = (data?.sources ?? []).find((entry) => entry.id === id);
+				return found ? sourceLabel(found) : id;
+			};
+			const send = async (busyKey, body, done) => {
+				if (working || sending.current) return;
+				sending.current = true;
+				setWorking(busyKey);
+				setNotice("");
+				setMessage("");
+				try {
+					const value = await call(body);
+					setData(value);
+					done?.(value);
+				} catch (failure) {
+					setNotice(errorText(failure));
+					if (failure?.code === "repo-conflict") setConflict(true);
+				} finally {
+					sending.current = false;
+					setWorking("");
+				}
+			};
+			const openDetail = async (item) => {
+				setCopy("");
+				setDetail({
+					item,
+					loading: true
+				});
+				try {
+					setDetail({
+						item,
+						value: await call({
+							action: "catalog-detail",
+							skill: bodyFor(item)
+						})
+					});
+				} catch (failure) {
+					setDetail(null);
+					setNotice(errorText(failure));
+				}
+			};
+			const confirmInstall = (reassociate) => send(`install:${installing.id}`, {
+				action: "catalog-install",
+				skill: bodyFor(installing),
+				destination: target,
+				confirm: true,
+				...reassociate ? { reassociate: true } : {}
+			}, () => {
+				setInstalling(null);
+				setConflict(false);
+				setMessage(t("catInstallDone"));
+			});
+			const metadata = (item) => [h("bdi", {
+				key: "origin",
+				dir: "ltr"
+			}, item.catalog === "clawhub" ? `${item.owner}/${item.slug}` : `${item.source}/${item.skillId}`), ...[
+				item.downloads !== void 0 ? `${item.downloads} ${t("catDownloads")}` : "",
+				item.installs !== void 0 ? `${item.installs} ${t("catInstalls")}` : "",
+				item.stars !== void 0 ? `${item.stars} ${t("catStars")}` : ""
+			].filter(Boolean).map((part) => ` · ${part}`)];
+			const shared = (entry) => entry.source === "user-agents";
+			const confirmAction = () => send(`${confirming.action}:${confirming.entry.id}`, {
+				action: confirming.action === "uninstall" ? "catalog-uninstall" : "catalog-forget",
+				installId: confirming.entry.id
+			}, () => setConfirming(null));
+			return h("div", { "data-majed-catalogs": true }, h("form", { onSubmit: (event) => {
+				event.preventDefault();
+				setCommitted(typed.trim());
+				setAttempt((n) => n + 1);
+			} }, h("input", {
+				"aria-label": kind === "clawhub" ? t("catSearchClawhub") : t("catSearchSkillsh"),
+				placeholder: kind === "clawhub" ? t("catSearchClawhub") : t("catSearchSkillsh"),
+				maxLength: 100,
+				value: typed,
+				onChange: (event) => setTyped(event.target.value)
+			}), h("button", { type: "submit" }, t("catSearch"))), kind === "clawhub" && !searching ? h("p", null, t("catPopularNote")) : null, kind === "skillsh" && !searching ? h("p", null, t("catSkillshHint")) : null, !searching || kind === "skillsh" ? h("select", {
+				"aria-label": t("catStatusFilter"),
+				value: status,
+				onChange: (event) => setStatus(event.target.value)
+			}, h("option", { value: "" }, t("catStatusAll")), h("option", { value: "available" }, t("catStatusAvailable")), h("option", { value: "installed" }, t("catStatusInstalled"))) : null, kind === "clawhub" && !searching ? h("select", {
+				"aria-label": t("catSort"),
+				value: sort,
+				onChange: (event) => setSort(event.target.value)
+			}, h("option", { value: "downloads" }, t("catSortDownloads")), h("option", { value: "installs" }, t("catSortInstalls")), h("option", { value: "name" }, t("catSortName"))) : null, message ? h("p", { role: "status" }, message) : null, phase === "loading" ? h("p", { role: "status" }, t("catLoading")) : null, phase === "error" ? h("div", { role: "alert" }, h("p", null, t("catLoadError")), h("button", { onClick: () => setAttempt((n) => n + 1) }, t("catRetry"))) : null, phase === "ready" && !shown.length ? h("p", null, searching ? t("catSearchEmpty") : t("catEmpty")) : null, h("ul", null, ...shown.map((item) => {
+				const copies = copiesOf(item);
+				return h("li", {
+					key: item.id,
+					"data-majed-catalog-item": item.id
+				}, h("strong", null, item.name), item.summary ? h("p", null, item.summary) : null, h("small", null, ...metadata(item)), copies.length ? h("span", null, ` ${t("catInstalled")}`) : null, !copies.length && recordsOf(item).length ? h("p", { role: "note" }, t(`catHint.${recordsOf(item)[0].status}`)) : null, h("button", {
+					"aria-label": `${t("catDetails")}: ${item.name}`,
+					onClick: () => void openDetail(item)
+				}, t("details")), h("button", {
+					"aria-label": `${copies.length ? t("catInstallElsewhere") : t("catInstall")}: ${item.name}`,
+					disabled: !!working,
+					onClick: () => {
+						setInstalling(item);
+						setConflict(false);
+						setTarget("user-dsh");
+					}
+				}, copies.length ? t("catInstallElsewhere") : t("catInstall")), recordsOf(item).length ? h("ul", { "aria-label": `${t("catCopies")}: ${item.name}` }, ...recordsOf(item).map((entry) => h("li", {
+					key: entry.id,
+					"data-majed-catalog-copy": entry.id
+				}, `${sourceName(entry.source)} · `, h("bdi", { dir: "ltr" }, `${entry.root}/${entry.name}`), ` · ${t(`catStatus.${entry.status}`)}`, entry.status === "invalid-root" || entry.status === "missing" ? h("button", {
+					"aria-label": `${t("catForget")}: ${item.name}`,
+					disabled: !!working,
+					onClick: () => setConfirming({
+						action: "forget",
+						entry,
+						item
+					})
+				}, t("catForget")) : entry.status === "trashed" ? null : h("button", {
+					"aria-label": `${t("catUninstall")}: ${item.name}`,
+					disabled: !!working,
+					onClick: () => setConfirming({
+						action: "uninstall",
+						entry,
+						item
+					})
+				}, t("catUninstall"))))) : null);
+			})), kind === "clawhub" && !searching && cursor && items.length < CATALOG_CAP ? h("button", {
+				disabled: more,
+				"aria-live": "polite",
+				"aria-busy": more,
+				onClick: () => void load(cursor)
+			}, more ? t("catLoadingMore") : t("catLoadMore")) : null, detail ? h(CatalogDialog, {
+				label: t("catDetails"),
+				onClose: () => setDetail(null)
+			}, h("h4", null, detail.item.name), detail.loading ? h("p", { role: "status" }, t("catDetailLoading")) : h("div", null, h("p", null, detail.value.description), h("p", null, `${t("catOrigin")}: `, h("bdi", { dir: "ltr" }, detail.value.origin)), h("textarea", {
+				readOnly: true,
+				"aria-label": "SKILL.md",
+				value: detail.value.body
+			}), h("button", { onClick: () => copyText(detail.value.body).then(() => setCopy(t("catCopied")), () => setCopy(t("catCopyFailed"))) }, t("catCopy")), copy ? h("span", { role: "status" }, copy) : null), h("button", { onClick: () => setDetail(null) }, t("catClose"))) : null, installing ? h(CatalogDialog, {
+				label: t("catInstallTitle"),
+				onClose: () => setInstalling(null)
+			}, h("h4", null, `${t("catInstallTitle")}: ${installing.name}`), h("p", null, ...metadata(installing)), h("select", {
+				"aria-label": t("repoDestination"),
+				value: target,
+				onChange: (event) => setTarget(event.target.value)
+			}, ...["user-dsh", "user-agents"].map((id) => h("option", {
+				key: id,
+				value: id
+			}, sourceName(id)))), h("button", {
+				disabled: !!working,
+				onClick: () => void confirmInstall(false)
+			}, t("catInstallConfirm")), conflict ? h("button", {
+				disabled: !!working,
+				onClick: () => void confirmInstall(true)
+			}, t("catReassociate")) : null, h("button", { onClick: () => setInstalling(null) }, t("cancel"))) : null, confirming ? h(CatalogDialog, {
+				label: confirming.action === "uninstall" ? t("catUninstallTitle") : t("catForgetTitle"),
+				onClose: () => setConfirming(null)
+			}, h("h4", null, confirming.action === "uninstall" ? t("catUninstallTitle") : t("catForgetTitle")), h("p", null, (confirming.action === "uninstall" ? t("catUninstallBody") : t("catForgetBody")).replace("{name}", confirming.item.name).replace("{where}", `${sourceName(confirming.entry.source)} (${confirming.entry.root}/${confirming.entry.name})`)), confirming.action === "uninstall" && shared(confirming.entry) ? h("p", { role: "alert" }, t("catSharedWarning")) : null, h("button", {
+				disabled: !!working,
+				onClick: () => void confirmAction()
+			}, confirming.action === "uninstall" ? t("catConfirmUninstall") : t("catConfirmForget")), h("button", { onClick: () => setConfirming(null) }, t("cancel"))) : null);
+		}
 		function Section() {
-			const [data, setData] = React.useState(null), [error, setError] = React.useState(false), [query, setQuery] = React.useState(""), [source, setSource] = React.useState(""), [status, setStatus] = React.useState(""), [detail, setDetail] = React.useState(null), [detailError, setDetailError] = React.useState(false), [scope, setScope] = React.useState("global"), [project, setProject] = React.useState(""), [folderPath, setFolderPath] = React.useState(""), [candidates, setCandidates] = React.useState(null), [editing, setEditing] = React.useState(null), [removing, setRemoving] = React.useState(""), [pendingScan, setPendingScan] = React.useState(false), [loaded, setLoaded] = React.useState(""), [notice, setNotice] = React.useState(""), [managing, setManaging] = React.useState(false), [catName, setCatName] = React.useState({}), [catEdit, setCatEdit] = React.useState(null), [catRemoving, setCatRemoving] = React.useState(""), [catFilter, setCatFilter] = React.useState(""), [picked, setPicked] = React.useState({}), [assignTarget, setAssignTarget] = React.useState({}), [noteDrafts, setNoteDrafts] = React.useState({}), [dragging, setDragging] = React.useState(null), [importing, setImporting] = React.useState(false), [importPath, setImportPath] = React.useState(""), [importFiles, setImportFiles] = React.useState([]), [importConflict, setImportConflict] = React.useState(""), [importResult, setImportResult] = React.useState(null), [importBusy, setImportBusy] = React.useState(false), [trashDeleting, setTrashDeleting] = React.useState(""), [repoForm, setRepoForm] = React.useState({
+			const [data, setData] = React.useState(null), [error, setError] = React.useState(false), [query, setQuery] = React.useState(""), [source, setSource] = React.useState(""), [status, setStatus] = React.useState(""), [detail, setDetail] = React.useState(null), [detailError, setDetailError] = React.useState(false), [scope, setScope] = React.useState("global"), [tab, setTab] = React.useState("git"), [project, setProject] = React.useState(""), [folderPath, setFolderPath] = React.useState(""), [candidates, setCandidates] = React.useState(null), [editing, setEditing] = React.useState(null), [removing, setRemoving] = React.useState(""), [pendingScan, setPendingScan] = React.useState(false), [loaded, setLoaded] = React.useState(""), [notice, setNotice] = React.useState(""), [managing, setManaging] = React.useState(false), [catName, setCatName] = React.useState({}), [catEdit, setCatEdit] = React.useState(null), [catRemoving, setCatRemoving] = React.useState(""), [catFilter, setCatFilter] = React.useState(""), [picked, setPicked] = React.useState({}), [assignTarget, setAssignTarget] = React.useState({}), [noteDrafts, setNoteDrafts] = React.useState({}), [dragging, setDragging] = React.useState(null), [importing, setImporting] = React.useState(false), [importPath, setImportPath] = React.useState(""), [importFiles, setImportFiles] = React.useState([]), [importConflict, setImportConflict] = React.useState(""), [importResult, setImportResult] = React.useState(null), [importBusy, setImportBusy] = React.useState(false), [trashDeleting, setTrashDeleting] = React.useState(""), [repoForm, setRepoForm] = React.useState({
 				url: "",
 				ref: "",
 				subdirectory: ""
@@ -925,7 +1313,7 @@ function setupSkills(ctx, fail) {
 			};
 			const copyStatus = (copy) => copy.metadataValid === false || !copy.policyValid ? "invalid" : !copy.eligible ? "disabled" : copy.shadowedBy ? "shadowed" : copy.author && !copy.author.modelInvocable && !copy.author.userInvocable ? "blocked" : "enabled";
 			const inProject = scope === "project";
-			const view = scope === "trash" || scope === "repositories" ? {
+			const view = scope === "trash" || scope === "discover" ? {
 				sources: [],
 				copies: [],
 				diagnostics: []
@@ -1227,7 +1615,37 @@ function setupSkills(ctx, fail) {
 			}, (value) => {
 				setTrashDeleting("");
 				if (value.result?.warning) setNotice(t(`code.${value.result.warning}`));
-			}) }, t("confirmTrash")), h("button", { onClick: () => setTrashDeleting("") }, t("cancel"))) : null))) : null, scope === "repositories" ? h("div", { "data-majed-repositories": true }, h("h3", null, t("repositories")), h("form", { onSubmit: (event) => {
+			}) }, t("confirmTrash")), h("button", { onClick: () => setTrashDeleting("") }, t("cancel"))) : null))) : null, scope === "discover" ? h("div", {
+				role: "tablist",
+				"aria-label": t("scopeDiscover"),
+				"data-majed-discover-tabs": true
+			}, ...[
+				["git", t("tabGit")],
+				["clawhub", t("catSourceClawhub")],
+				["skillsh", t("catSourceSkillsh")]
+			].map(([id, label], index, all) => h("button", {
+				key: id,
+				type: "button",
+				role: "tab",
+				id: `majed-discover-tab-${id}`,
+				"aria-selected": tab === id,
+				"aria-controls": "majed-discover-panel",
+				tabIndex: tab === id ? 0 : -1,
+				onClick: () => setTab(id),
+				onKeyDown: (event) => {
+					const step = event.key === "ArrowRight" ? isArabic() ? -1 : 1 : event.key === "ArrowLeft" ? isArabic() ? 1 : -1 : 0;
+					const next = (event.key === "Home" ? 0 : event.key === "End" ? all.length - 1 : void 0) ?? (step ? (index + step + all.length) % all.length : void 0);
+					if (next === void 0) return;
+					event.preventDefault?.();
+					setTab(all[next][0]);
+					(document.getElementById?.(`majed-discover-tab-${all[next][0]}`))?.focus?.();
+				}
+			}, label))) : null, scope === "discover" && tab === "git" ? h("div", {
+				id: "majed-discover-panel",
+				role: "tabpanel",
+				"aria-labelledby": "majed-discover-tab-git",
+				"data-majed-repositories": true
+			}, h("h3", null, t("repositories")), h("form", { onSubmit: (event) => {
 				event.preventDefault();
 				repoAction("add", {
 					action: "repo-add",
@@ -1385,7 +1803,21 @@ function setupSkills(ctx, fail) {
 			}, t("repoConfirmForgetYes")), h("button", {
 				"aria-label": `${t("cancel")}: ${record.name}`,
 				onClick: () => setRepoForgetting("")
-			}, t("cancel"))) : null))) : null, h("button", {
+			}, t("cancel"))) : null))) : null, scope === "discover" && tab !== "git" && data && data.corrupt ? h("div", {
+				id: "majed-discover-panel",
+				role: "tabpanel",
+				"aria-labelledby": `majed-discover-tab-${tab}`
+			}) : null, scope === "discover" && tab !== "git" && data && !data.corrupt ? h("div", {
+				id: "majed-discover-panel",
+				role: "tabpanel",
+				"aria-labelledby": `majed-discover-tab-${tab}`
+			}, h(CatalogPanel, {
+				key: tab,
+				kind: tab,
+				data,
+				setData,
+				setNotice
+			})) : null, h("button", {
 				disabled: switching || data?.corrupt || scope === "project" && !project,
 				onClick: () => setImporting(!importing)
 			}, t("importSkills")), importing ? h("div", { "data-majed-import": true }, h("p", null, t("importHint")), scope === "global" ? h("select", {
@@ -1481,7 +1913,7 @@ function setupSkills(ctx, fail) {
 					setSource("");
 					setNotice("");
 				}
-			}, h("option", { value: "global" }, t("scopeGlobal")), h("option", { value: "project" }, t("scopeProject")), h("option", { value: "trash" }, t("trash")), h("option", { value: "repositories" }, t("repositories"))), inProject ? h("select", {
+			}, h("option", { value: "global" }, t("scopeGlobal")), h("option", { value: "project" }, t("scopeProject")), h("option", { value: "discover" }, t("scopeDiscover")), h("option", { value: "trash" }, t("trash"))), inProject ? h("select", {
 				"aria-label": t("project"),
 				value: project,
 				onChange: (e) => {
@@ -1584,7 +2016,7 @@ function setupSkills(ctx, fail) {
 				onKeyDown: (event) => {
 					if (event.key === "Escape") setDetail(null);
 				}
-			}, h("button", { onClick: () => setDetail(null) }, t("close")), h("h3", null, detail.name), h("p", null, detail.path), h("button", { onClick: () => navigator.clipboard.writeText(detail.content).catch(() => setDetailError(true)) }, t("copyText")), h("p", null, `${t("modelInvocation")}: ${detail.author?.modelInvocable ? t("allowed") : t("denied")} · ${t("userInvocation")}: ${detail.author?.userInvocable ? t("allowed") : t("denied")}`), detail.shadowedBy ? h("p", null, `${t("shadowedBy")}: ${detail.shadowedBy}`) : null, ...(detail.diagnostics ?? []).map((x, i) => h("p", { key: `${x.code}:${i}` }, diagnosticText(x))), h("pre", null, detail.content)) : null);
+			}, h("button", { onClick: () => setDetail(null) }, t("close")), h("h3", null, detail.name), h("p", null, detail.path), h("button", { onClick: () => copyText(detail.content).catch(() => setDetailError(true)) }, t("copyText")), h("p", null, `${t("modelInvocation")}: ${detail.author?.modelInvocable ? t("allowed") : t("denied")} · ${t("userInvocation")}: ${detail.author?.userInvocable ? t("allowed") : t("denied")}`), detail.shadowedBy ? h("p", null, `${t("shadowedBy")}: ${detail.shadowedBy}`) : null, ...(detail.diagnostics ?? []).map((x, i) => h("p", { key: `${x.code}:${i}` }, diagnosticText(x))), h("pre", null, detail.content)) : null);
 		}
 		let placement = "settings";
 		let changePlacement = async () => {};

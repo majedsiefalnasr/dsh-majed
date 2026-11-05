@@ -16,7 +16,11 @@
 
 ### Skill repositories
 
-The skill manager's **Repositories** scope subscribes to GitHub (`owner/name` or URL), HTTP(S) Git and local folders, and installs tracked copies into the DSH or Shared Agents folder. Requirements: the system `git` executable is needed for Git and local-Git sources (GitHub archives and plain folders do not need it); cleartext `http://` Git hosts are allowed (credentials in URLs are refused, loopback/private hosts are blocked); the `repositories` option (git binary, archive base URL, limits, `allowPrivateHosts`) is trusted host configuration, not user input. Known limitation: a hostname is checked once before Git resolves it again, so DNS rebinding in between is not prevented.
+The skill manager's **Discover Skills → Git Repos** tab subscribes to GitHub (`owner/name` or URL), HTTP(S) Git and local folders, and installs tracked copies into the DSH or Shared Agents folder. Requirements: the system `git` executable is needed for Git and local-Git sources (GitHub archives and plain folders do not need it); cleartext `http://` Git hosts are allowed (credentials in URLs are refused, loopback/private hosts are blocked); the `repositories` option (git binary, archive base URL, limits, `allowPrivateHosts`) is trusted host configuration, not user input. Known limitation: a hostname is checked once before Git resolves it again, so DNS rebinding in between is not prevented.
+
+### Skill catalogs
+
+The skill manager's **Discover Skills** scope (sub-tabs **Git Repos**, **ClawHub**, **skills.sh**) browses ClawHub's download ranking (up to 100 items; sorting and the status filter only reorder what is shown), searches ClawHub and skills.sh, shows details with a copyable SKILL.md, and installs a confirmed copy into the DSH or Shared Agents folder. Catalog installs can be uninstalled (after a confirmation) to Trash and restored; Forget removes only the record; catalog version updates are not offered. Network access goes only to the fixed ClawHub and skills.sh endpoints; the feature was verified against local stubs, not the live services. Known limitation: a catalog hostname is checked once before the request resolves it again, so DNS rebinding in between is not prevented.
 
 ### Notifications on phones (remote web access)
 Mobile browsers are stricter than desktop:
