@@ -346,6 +346,15 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
         denied: 'Denied',
         shadowedBy: 'Shadowed by',
         reloadState: 'Reload state',
+        refresh: 'Refresh',
+        refreshAria: 'Refresh skills',
+        refreshing: 'Refreshing…',
+        statSkill: 'skill',
+        statSkills: 'skills',
+        statEnabled: 'enabled',
+        statDisabled: 'disabled',
+        statDiagnostic: 'diagnostic',
+        statDiagnostics: 'diagnostics',
         stateLocked: 'Skill state is invalid; changes are locked',
         'diag.discovery-truncated': 'Discovery stopped at the safe limit',
         'diag.source-unavailable': 'Source unavailable',
@@ -782,6 +791,15 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
         denied: 'مرفوض',
         shadowedBy: 'محجوبة بواسطة',
         reloadState: 'إعادة قراءة الحالة',
+        refresh: 'تحديث',
+        refreshAria: 'تحديث المهارات',
+        refreshing: 'جارٍ التحديث…',
+        statSkill: 'مهارة',
+        statSkills: 'مهارات',
+        statEnabled: 'مفعلة',
+        statDisabled: 'معطلة',
+        statDiagnostic: 'تشخيص',
+        statDiagnostics: 'تشخيصات',
         stateLocked: 'حالة المهارات غير صالحة؛ التغييرات مقفلة',
         'diag.discovery-truncated': 'توقف الاكتشاف عند الحد الآمن',
         'diag.source-unavailable': 'المصدر غير متاح',
@@ -1670,6 +1688,7 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
         [repoOverwrites, setRepoOverwrites] = React.useState(
           {} as Record<string, boolean>,
         ),
+        [refreshing, setRefreshing] = React.useState(false),
         [creating, setCreating] = React.useState(false),
         [createName, setCreateName] = React.useState(''),
         [createDescription, setCreateDescription] = React.useState(''),
@@ -1956,6 +1975,33 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
           : inProject
             ? (data?.project ?? { sources: [], copies: [], diagnostics: [] })
             : data;
+      // Totals cover every copy of the scope (never the search or filters), as in the reference manager.
+      const totals = { total: 0, enabled: 0, disabled: 0, invalid: 0 };
+      for (const copy of view?.copies ?? []) {
+        const state = copyStatus(copy);
+        totals.total++;
+        if (state === 'enabled') totals.enabled++;
+        else if (state === 'disabled') totals.disabled++;
+        else if (state === 'invalid') totals.invalid++;
+      }
+      // Reloads the catalog through the existing reload action; a failure shows in the usual notice.
+      const refresh = async () => {
+        if (refreshing || switching || busy.current) return;
+        setRefreshing(true);
+        try {
+          await mutate({ action: 'reload', ...selected });
+        } finally {
+          setRefreshing(false);
+        }
+      };
+      const stat = (count: number, one: string, other: string) =>
+        h(
+          'div',
+          { key: other },
+          h('strong', null, h('bdi', null, String(count))),
+          ' ',
+          t(count === 1 ? one : other),
+        );
       const orgOf = (sourceId: string) => ({
         categories: [] as any[],
         members: {} as Record<string, string>,
@@ -3473,6 +3519,19 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
             h('option', { key: c.id, value: c.id }, c.name),
           ),
         ),
+        scope === 'global' || scope === 'project'
+          ? h(
+              'button',
+              {
+                type: 'button',
+                'data-majed-skills-refresh': true,
+                'aria-label': t('refreshAria'),
+                disabled: refreshing || switching || (inProject && !project),
+                onClick: () => void refresh(),
+              },
+              t(refreshing ? 'refreshing' : 'refresh'),
+            )
+          : null,
         notice && !managing ? h('p', { role: 'status' }, notice) : null,
         error
           ? h(
@@ -3492,6 +3551,16 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
             : h(
                 React.Fragment,
                 null,
+                scope === 'global' || (inProject && data.project?.available)
+                  ? h(
+                      'div',
+                      { 'data-majed-skills-stats': true },
+                      stat(totals.total, 'statSkill', 'statSkills'),
+                      stat(totals.enabled, 'statEnabled', 'statEnabled'),
+                      stat(totals.disabled, 'statDisabled', 'statDisabled'),
+                      stat(totals.invalid, 'statDiagnostic', 'statDiagnostics'),
+                    )
+                  : null,
                 inProject
                   ? null
                   : h(

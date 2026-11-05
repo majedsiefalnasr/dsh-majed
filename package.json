@@ -40,6 +40,7 @@
     "fonts/manifest.json",
     "fonts/LICENSE-*.txt",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE",
     "dist",
     "THIRD_PARTY_NOTICES.md",

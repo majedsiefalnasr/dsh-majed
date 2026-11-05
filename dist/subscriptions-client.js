@@ -323,6 +323,15 @@ function setupSkills(ctx, fail) {
 				denied: "Denied",
 				shadowedBy: "Shadowed by",
 				reloadState: "Reload state",
+				refresh: "Refresh",
+				refreshAria: "Refresh skills",
+				refreshing: "Refreshing…",
+				statSkill: "skill",
+				statSkills: "skills",
+				statEnabled: "enabled",
+				statDisabled: "disabled",
+				statDiagnostic: "diagnostic",
+				statDiagnostics: "diagnostics",
 				stateLocked: "Skill state is invalid; changes are locked",
 				"diag.discovery-truncated": "Discovery stopped at the safe limit",
 				"diag.source-unavailable": "Source unavailable",
@@ -710,6 +719,15 @@ function setupSkills(ctx, fail) {
 				denied: "مرفوض",
 				shadowedBy: "محجوبة بواسطة",
 				reloadState: "إعادة قراءة الحالة",
+				refresh: "تحديث",
+				refreshAria: "تحديث المهارات",
+				refreshing: "جارٍ التحديث…",
+				statSkill: "مهارة",
+				statSkills: "مهارات",
+				statEnabled: "مفعلة",
+				statDisabled: "معطلة",
+				statDiagnostic: "تشخيص",
+				statDiagnostics: "تشخيصات",
 				stateLocked: "حالة المهارات غير صالحة؛ التغييرات مقفلة",
 				"diag.discovery-truncated": "توقف الاكتشاف عند الحد الآمن",
 				"diag.source-unavailable": "المصدر غير متاح",
@@ -1179,7 +1197,7 @@ function setupSkills(ctx, fail) {
 				url: "",
 				ref: "",
 				subdirectory: ""
-			}), [repoFilter, setRepoFilter] = React.useState(""), [repoStatusFilter, setRepoStatusFilter] = React.useState(""), [repoRepoFilter, setRepoRepoFilter] = React.useState(""), [repoUnsubscribing, setRepoUnsubscribing] = React.useState(""), [repoForgetting, setRepoForgetting] = React.useState(""), [repoTarget, setRepoTarget] = React.useState("user-dsh"), [repoBusy, setRepoBusy] = React.useState(""), [repoSummary, setRepoSummary] = React.useState(""), [repoPreviews, setRepoPreviews] = React.useState({}), [repoOverwrites, setRepoOverwrites] = React.useState({}), [creating, setCreating] = React.useState(false), [createName, setCreateName] = React.useState(""), [createDescription, setCreateDescription] = React.useState(""), [createBody, setCreateBody] = React.useState(""), [createSource, setCreateSource] = React.useState("user-dsh");
+			}), [repoFilter, setRepoFilter] = React.useState(""), [repoStatusFilter, setRepoStatusFilter] = React.useState(""), [repoRepoFilter, setRepoRepoFilter] = React.useState(""), [repoUnsubscribing, setRepoUnsubscribing] = React.useState(""), [repoForgetting, setRepoForgetting] = React.useState(""), [repoTarget, setRepoTarget] = React.useState("user-dsh"), [repoBusy, setRepoBusy] = React.useState(""), [repoSummary, setRepoSummary] = React.useState(""), [repoPreviews, setRepoPreviews] = React.useState({}), [repoOverwrites, setRepoOverwrites] = React.useState({}), [refreshing, setRefreshing] = React.useState(false), [creating, setCreating] = React.useState(false), [createName, setCreateName] = React.useState(""), [createDescription, setCreateDescription] = React.useState(""), [createBody, setCreateBody] = React.useState(""), [createSource, setCreateSource] = React.useState("user-dsh");
 			const dialog = React.useRef(null);
 			const repoDestination = validDestination(data, repoTarget);
 			React.useEffect(() => {
@@ -1397,6 +1415,32 @@ function setupSkills(ctx, fail) {
 				copies: [],
 				diagnostics: []
 			} : data;
+			const totals = {
+				total: 0,
+				enabled: 0,
+				disabled: 0,
+				invalid: 0
+			};
+			for (const copy of view?.copies ?? []) {
+				const state = copyStatus(copy);
+				totals.total++;
+				if (state === "enabled") totals.enabled++;
+				else if (state === "disabled") totals.disabled++;
+				else if (state === "invalid") totals.invalid++;
+			}
+			const refresh = async () => {
+				if (refreshing || switching || busy.current) return;
+				setRefreshing(true);
+				try {
+					await mutate({
+						action: "reload",
+						...selected
+					});
+				} finally {
+					setRefreshing(false);
+				}
+			};
+			const stat = (count, one, other) => h("div", { key: other }, h("strong", null, h("bdi", null, String(count))), " ", t(count === 1 ? one : other));
 			const orgOf = (sourceId) => ({
 				categories: [],
 				members: {},
@@ -2029,7 +2073,13 @@ function setupSkills(ctx, fail) {
 			}, h("option", { value: "" }, t("allCategories")), h("option", { value: "__none" }, t("uncategorized")), ...filterCategories.map((c) => h("option", {
 				key: c.id,
 				value: c.id
-			}, c.name))), notice && !managing ? h("p", { role: "status" }, notice) : null, error ? h("div", { role: "alert" }, t("error"), h("button", { onClick: () => call({ action: "reload" }).then(setData, load) }, t("retry"))) : !data || switching ? h("p", { role: "status" }, t("loading")) : h(React.Fragment, null, inProject ? null : h("div", null, h("button", {
+			}, c.name))), scope === "global" || scope === "project" ? h("button", {
+				type: "button",
+				"data-majed-skills-refresh": true,
+				"aria-label": t("refreshAria"),
+				disabled: refreshing || switching || inProject && !project,
+				onClick: () => void refresh()
+			}, t(refreshing ? "refreshing" : "refresh")) : null, notice && !managing ? h("p", { role: "status" }, notice) : null, error ? h("div", { role: "alert" }, t("error"), h("button", { onClick: () => call({ action: "reload" }).then(setData, load) }, t("retry"))) : !data || switching ? h("p", { role: "status" }, t("loading")) : h(React.Fragment, null, scope === "global" || inProject && data.project?.available ? h("div", { "data-majed-skills-stats": true }, stat(totals.total, "statSkill", "statSkills"), stat(totals.enabled, "statEnabled", "statEnabled"), stat(totals.disabled, "statDisabled", "statDisabled"), stat(totals.invalid, "statDiagnostic", "statDiagnostics")) : null, inProject ? null : h("div", null, h("button", {
 				"aria-expanded": managing,
 				onClick: () => setManaging(!managing)
 			}, t("folders")), managing ? manager() : null), inProject && data.project && !data.project.available ? h("p", { role: "alert" }, `${data.project.name}: ${t(`code.${data.project.code}`)}`) : null, ...(view.sources ?? []).filter((x) => !source || x.id === source).map((x) => h("details", {
