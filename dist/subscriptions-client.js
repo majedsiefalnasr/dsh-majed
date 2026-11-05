@@ -179,6 +179,7 @@ function setupSkills(ctx, fail) {
 				"code.project-unreadable": "not readable",
 				"code.project-unavailable": "unavailable",
 				"code.project-unregistered": "Project is not registered",
+				"code.project-mismatch": "The selected project does not match this item",
 				"code.project-dsh-source": "Project DSH skills have no source switch",
 				"code.root-not-absolute": "Enter an absolute folder path",
 				"code.root-too-long": "The folder path is too long",
@@ -391,6 +392,7 @@ function setupSkills(ctx, fail) {
 				"code.project-unreadable": "تتعذر قراءته",
 				"code.project-unavailable": "غير متاح",
 				"code.project-unregistered": "المشروع غير مسجل",
+				"code.project-mismatch": "المشروع المحدد لا يطابق هذا العنصر",
 				"code.project-dsh-source": "مهارات DSH في المشروع بلا مفتاح تبديل للمصدر",
 				"code.root-not-absolute": "أدخل مسار مجلد مطلقاً",
 				"code.root-too-long": "مسار المجلد طويل جداً",
@@ -690,6 +692,8 @@ function setupSkills(ctx, fail) {
 				return (!source || copy.source === source) && (!query || `${copy.name} ${copy.description} ${copy.path} ${organization.notes[copy.name] ?? ""}`.toLowerCase().includes(query.toLowerCase())) && (!status || copyStatus(copy) === status) && (!activeCat || (activeCat === "__none" ? !organization.members[copy.name] : organization.members[copy.name] === activeCat));
 			});
 			const projects = data?.projects ?? [];
+			const projectName = (id) => projects.find((x) => x.id === id)?.name ?? id;
+			const destinationName = () => `${projectName(project)} — DSH`;
 			const projectOption = (x) => h("option", {
 				key: x.id,
 				value: x.id,
@@ -949,7 +953,7 @@ function setupSkills(ctx, fail) {
 			return h("section", {
 				"data-majed-skills": true,
 				dir: isArabic() ? "rtl" : void 0
-			}, h("h2", null, t("title")), data?.trashError ? h("p", { role: "alert" }, t(`code.${data.trashError}`)) : null, scope === "trash" ? h("div", { "data-majed-trash": true }, h("h3", null, t("trash")), !data?.trashError && !data?.trash?.length ? h("p", null, t("trashEmpty")) : null, ...(data?.trash ?? []).map((item) => h("article", { key: item.id }, h("strong", null, item.name), h("p", null, `${t("trashOrigin")}: ${item.origin}`), h("p", null, `${item.source} — ${item.deletedAt}`), h("button", {
+			}, h("h2", null, t("title")), data?.trashError ? h("p", { role: "alert" }, t(`code.${data.trashError}`)) : null, scope === "trash" ? h("div", { "data-majed-trash": true }, h("h3", null, t("trash")), !data?.trashError && !data?.trash?.length ? h("p", null, t("trashEmpty")) : null, ...(data?.trash ?? []).map((item) => h("article", { key: item.id }, h("strong", null, item.name), h("p", null, `${t("trashOrigin")}: ${item.origin}`), item.scope !== "global" ? h("p", null, `${t("project")}: ${projectName(item.scope)}`) : null, h("p", null, `${item.source} — ${item.deletedAt}`), h("button", {
 				"aria-label": `${t("restoreTrash")}: ${item.name}`,
 				onClick: () => void mutate({
 					action: "trash-restore",
@@ -960,7 +964,7 @@ function setupSkills(ctx, fail) {
 			}, t("restoreTrash")), h("button", {
 				"aria-label": `${t("deleteTrash")}: ${item.name}`,
 				onClick: () => setTrashDeleting(item.id)
-			}, t("deleteTrash")), trashDeleting === item.id ? h("div", { role: "alert" }, h("p", null, t("trashWarning")), h("button", { onClick: () => void mutate({
+			}, t("deleteTrash")), trashDeleting === item.id ? h("div", { role: "alert" }, h("p", null, item.scope !== "global" ? `${t("trashWarning")} (${projectName(item.scope)})` : t("trashWarning")), h("button", { onClick: () => void mutate({
 				action: "trash-delete",
 				id: item.id,
 				confirm: true
@@ -977,7 +981,7 @@ function setupSkills(ctx, fail) {
 			}, ...["user-dsh", "user-agents"].filter((id) => data?.sources?.some((s) => s.id === id)).map((id) => h("option", {
 				key: id,
 				value: id
-			}, id === "user-dsh" ? "DSH" : "Shared Agents"))) : h("p", null, "DSH"), field(t("importPath"), importPath, (value) => {
+			}, id === "user-dsh" ? "DSH" : "Shared Agents"))) : h("p", null, `${t("destination")}: ${destinationName()}`), field(t("importPath"), importPath, (value) => {
 				setImportPath(value);
 				setImportFiles([]);
 				setImportResult(null);
@@ -1047,7 +1051,7 @@ function setupSkills(ctx, fail) {
 			}, ...["user-dsh", "user-agents"].filter((id) => data?.sources?.some((item) => item.id === id)).map((id) => h("option", {
 				key: id,
 				value: id
-			}, id === "user-dsh" ? "DSH" : "Shared Agents"))) : h("p", null, "DSH"), field(t("skillName"), createName, setCreateName), field(t("skillDescription"), createDescription, setCreateDescription), h("textarea", {
+			}, id === "user-dsh" ? "DSH" : "Shared Agents"))) : h("p", null, `${t("destination")}: ${destinationName()}`), field(t("skillName"), createName, setCreateName), field(t("skillDescription"), createDescription, setCreateDescription), h("textarea", {
 				"aria-label": t("skillBody"),
 				value: createBody,
 				maxLength: 262144,

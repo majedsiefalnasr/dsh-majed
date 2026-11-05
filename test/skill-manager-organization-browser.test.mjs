@@ -368,6 +368,59 @@ for (const language of ['en', 'ar']) {
     if (language === 'ar')
       assert.equal(view.root.findByType('section').props.dir, 'rtl');
   });
+  test(`registered ${language} project create, import and Trash show the explicit project destination and confirmation`, async (t) => {
+    const ui = await mount(t, language, undefined, true);
+    const view = await ui.render(ui.slot('settings.section')[0].component);
+    const tools = ui.tools(view);
+    const projectId = (await ui.hostFetch({ action: 'list' })).projects[0].id;
+    await ui.act2(() =>
+      tools.field(ui.d.scope).props.onChange({ target: { value: 'project' } }),
+    );
+    await ui.act2(() =>
+      tools
+        .field(ui.d.project)
+        .props.onChange({ target: { value: projectId } }),
+    );
+    await ui.act2(() => tools.button(ui.d.create).props.onClick());
+    assert.ok(tools.text().includes(`${ui.d.destination}: app`), 'create');
+    await ui.act2(() => tools.button(ui.d.importSkills).props.onClick());
+    assert.ok(
+      tools.text().split(`${ui.d.destination}: app`).length > 2,
+      'import',
+    );
+    const created = await ui.hostFetch({
+      action: 'create',
+      project: projectId,
+      source: `project-dsh:${projectId}`,
+      name: 'scoped-trash',
+      description: 'Project',
+      body: 'Project bytes',
+    });
+    await ui.act2(() =>
+      tools.field(ui.d.scope).props.onChange({ target: { value: 'global' } }),
+    );
+    await ui.act2(() =>
+      tools.field(ui.d.scope).props.onChange({ target: { value: 'project' } }),
+    );
+    await ui.act2(() =>
+      tools.button(`${ui.d.moveTrash}: scoped-trash`).props.onClick(),
+    );
+    await ui.act2(() =>
+      tools.field(ui.d.scope).props.onChange({ target: { value: 'trash' } }),
+    );
+    assert.ok(tools.text().includes(`${ui.d.project}: app`), 'trash scope');
+    await ui.act2(() =>
+      tools.button(`${ui.d.deleteTrash}: scoped-trash`).props.onClick(),
+    );
+    assert.ok(tools.text().includes(ui.d.trashWarning));
+    assert.ok(tools.text().includes('app'));
+    await ui.act2(() =>
+      tools.button(`${ui.d.restoreTrash}: scoped-trash`).props.onClick(),
+    );
+    assert.ok(
+      (await readFile(created.created.path, 'utf8')).includes('Project bytes'),
+    );
+  });
   test(`registered ${language} upload controls import real ZIP, folder and Markdown bytes`, async (t) => {
     const ui = await mount(t, language, undefined, true);
     const view = await ui.render(ui.slot('settings.section')[0].component);

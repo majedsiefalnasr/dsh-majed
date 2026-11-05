@@ -1,5 +1,11 @@
 # Current work
 
+## #152 Project-scoped file management — 2026-11-05
+
+Work contract: Owner-approved ticket #152 (parent #145), branch impl/152-project-files, base 5dc3d23. Acceptance: create/import/upload/Trash/restore complete in explicitly selected registered-project DSH destinations; unavailable/unregistered/mismatched targets rejected with no global/other-project fallback; real scoped operations and EN/AR destination/confirmation proven. Allowed writes: `src/skills.ts`, `src/skills-browser.ts`, generated dist, `test/skill-manager-project-files.test.mjs`, `test/skill-manager-organization-browser.test.mjs`, CHANGELOG, this file. Verification: built registered host + assembled EN/AR tests, then build/quality/check:build/full npm test. Budget 20 min / two unexpected diagnostics. Stop: report checkpoint. Sole writer, no delegates/commit/push/deps/core/profile.
+
+Audit: create/import/upload/trash already re-resolved project from registry and required `project-dsh:<id>` source (create-readonly 403 / project-unregistered 404). Gap found (RED): `trash-restore`/`trash-delete` ignored `body.project`, so a mismatched project id acted on the item's own project. Fix: explicit project must equal item scope else 409 `project-mismatch` (EN/AR text). UI gap: project create/import showed bare "DSH"; now "Destination: <project> — DSH"; project Trash items show project name and the permanent-delete confirmation names it. Result: new `test/skill-manager-project-files.test.mjs` (2 host tests) + EN/AR assembled test in `test/skill-manager-organization-browser.test.mjs`; RED first (mismatched restore/delete 200; bare "DSH" label), now GREEN. Build, quality, fresh check:build and full npm test PASS 1048/1048 (`/tmp/waycraft-152-gates.log`). Zero unexpected diagnostics. Not proven: installed/paired/visual/crash. Staged, uncommitted. Next: parent review and Owner disposition.
+
 ## #151 review-finding fixes — 2026-11-05
 
 Fixed independent findings in `src/skills-trash.ts`, `src/skills.ts`, `src/skills-browser.ts`: Trash listing (`scanTrash`) filters valid ids before the 2000 cap; over-cap reports `trashError: trash-overflow`, unreadable records report `trash-skipped` (EN/AR text), and organization reconcile skips pruning when Trash is over-limit, partly unreadable, linked or unavailable (no longer throws). Missing paths report `trash-missing`, not `trash-linked`. Mutation checks stay strict. New tests in `test/skill-manager-trash.test.mjs` (junk-slot, >2000, unreadable record, linked Trash, missing/tampered, delete-with-active-copy); 5 were RED on old dist. Uncommitted, staged; still no installed/paired/visual/crash proof. Next: parent re-review and Owner disposition.
@@ -58,7 +64,7 @@ Owner m01839 (parent relay) approves ONLY permission registration UNKNOWN_TOOL a
 
 Focused-proof outcome: both remaining tests PASS without product changes. UNKNOWN_TOOL root cause was the fixture's Object.create(ctx) pseudo-context plus overridden effect ownership; replacing it with the existing public ctx.plugin({ apply }, config) fiber pattern registers the optional tool correctly. Test asserts actual registration, tools.execute missing-approval/rejected/cancelled errors with no skill writes, allowed-once creates the real skill, and pre-aborted execution leaves only the approved skill. The previous negative-path assertions were not evidence until this approved path passed. Permission fixture remains active, not skipped or weakened.
 
-Deterministic lifecycle proof mocks only the existing Node fs.rename seam (syncBuiltinESMExports, restored afterward): pauses when a fully written .create-* directory reaches publication, reads complete staged SKILL.md, proves final directory absent, starts shutdown and proves it has not drained, releases rename and proves successful complete publication/drain with no stage leftovers. Calls after stop return stopping. A fresh apply against the same root rejects same-name retry as create-conflict and successfully creates a new skill. This proves orderly shutdown/re-entry, not crash durability or excluded malicious external-writer races.
+Deterministic lifecycle proof mocks only the existing Node fs.rename seam (syncBuiltinESMExports, restored afterward): pauses when a fully written .create-\* directory reaches publication, reads complete staged SKILL.md, proves final directory absent, starts shutdown and proves it has not drained, releases rename and proves successful complete publication/drain with no stage leftovers. Calls after stop return stopping. A fresh apply against the same root rejects same-name retry as create-conflict and successfully creates a new skill. This proves orderly shutdown/re-entry, not crash durability or excluded malicious external-writer races.
 
 Final proof gates PASS: format/build/full quality/check:build; full npm test 1017 total / 1017 pass / 0 fail. Logs /tmp/waycraft-149-proof-format.log, /tmp/waycraft-149-proof-build.log, /tmp/waycraft-149-proof-quality.log, /tmp/waycraft-149-proof-check-build.log, /tmp/waycraft-149-proof-tests.log (:2201–2204 counts). No unexpected diagnostic failures in this focused allocation. All inputs staged uncommitted; no product changes in this round, no delegates/dependencies/core/installed/commit/push. Next: parent independent Standards/Spec re-review against authoritative primary specification and narrowed approved threat model; automated proof is not acceptance or installed/live verification.
 
@@ -119,6 +125,7 @@ Setup lookup stop resolved by parent: the authoritative specification is the int
 Reconciled #147: Owner accepted it; commit `0eb24b5` is pushed to and verified on `feat/skill-manager`; issue #147 is CLOSED; `npm test` was 988/988. The #147 status paragraph below ("uncommitted") is historical. The Owner explicitly approved starting #148.
 
 Work contract (bounded `implement` route; base `0eb24b5`; isolated worktree `.agents/worktrees/impl/148-categories-notes-navigation`; no commit, push, issue edits, install or profile change; no agent spawning):
+
 - Acceptance: create/rename/delete/assign logical categories, bulk assign, drag/order and bulk toggle without moving files (deleting a category uncategorizes); persisted searchable custom notes kept separate from descriptions; persisted Settings/sidebar/both placement including sidebar-only, with EN/AR interactions. Scope isolation, policy enforcement, the 988 existing tests and the default-off Component are preserved.
 - TDD at the built registered host route (`dist/skills.js`) and the assembled registered client (`dist/client.js`) in EN and AR; RED before GREEN.
 - Budget: 20 minutes or two failed diagnostics, then stop and report. Reference: pinned v1.2.29 `49037a9`, read-only.
@@ -135,6 +142,7 @@ Status: implemented and independently reviewed; review fixes applied, uncommitte
 Known limits: custom "reset" is the same as remove; project DSH has no source switch; project overlays reach the native provider only for the registered project containing `cwd`; if the workspace registry has never been available since start, project deny policy cannot be restored until it returns (last-known set is used afterwards, with a persistent diagnostic).
 
 KNOWN LIMITS (#147 review):
+
 - (a) A registry that responds successfully with an empty or shortened workspace list replaces the last-known set, so project deny policy stops applying without a diagnostic. Only a missing or throwing registry is fail-closed.
 - (b) A single directory's readdir entry count is unbounded; `MAX_SCAN_VISITED` bounds directories only.
 - (c) `workspaceRegistry` is read via `ctx.get` at request time and is not in `inject`; live availability is unproven.
@@ -506,7 +514,7 @@ Direct continuation at `2d0cf6e`, branch `impl/138-unified-ui`. Read scope/execu
 
 Concrete original harness mechanism: interval callbacks return void (`void refreshStatus()`), so awaiting one setImmediate does not await file-backed status RPC completion or follow-on React effects/group RPC. Tracking dispatch promises and draining inside act reached admission, authRevision, Add-close, one-group, count-refresh and focus-callback assertions for all three identities/all five providers in the second run. Nevertheless NO valid deterministic pass: final denied-HTTP assertion fails for all five on unmodeled Zen metadata request `https://models.dev/api.json`. All HTTP stayed intercepted; no live request. No product defect demonstrated or patched.
 
-Renewed two-unexpected-failure cap reached: first run `ui138-host-settlement.log` failed on unmodeled Zen/catalog/version/reset-credit requests and stale Antigravity existing-account selector; candidate adds explicit dummy responses for observed requests and corrects Antigravity to addAccountOAuth. Second run `ui138-host-settlement-green.log` (name does NOT mean pass) fails all five at final denied assertion on models.dev metadata. No further repair/retry after cap. Candidate remains outside test/*.test.mjs; full/focused/buildmatch/diffcheck and scoped commit NOT performed. Cancellation/import/failure/late outcome extensions remain unimplemented. Next allowed action: Lead reconcile preserved candidate and evidence, obtain renewed budget before completing narrow fake HTTP contract and rerunning deterministic proof. Independent review, deferred browser, package/byte match and separately approved installed/live acceptance remain open. No full-flow or visual completion claim.
+Renewed two-unexpected-failure cap reached: first run `ui138-host-settlement.log` failed on unmodeled Zen/catalog/version/reset-credit requests and stale Antigravity existing-account selector; candidate adds explicit dummy responses for observed requests and corrects Antigravity to addAccountOAuth. Second run `ui138-host-settlement-green.log` (name does NOT mean pass) fails all five at final denied assertion on models.dev metadata. No further repair/retry after cap. Candidate remains outside test/\*.test.mjs; full/focused/buildmatch/diffcheck and scoped commit NOT performed. Cancellation/import/failure/late outcome extensions remain unimplemented. Next allowed action: Lead reconcile preserved candidate and evidence, obtain renewed budget before completing narrow fake HTTP contract and rerunning deterministic proof. Independent review, deferred browser, package/byte match and separately approved installed/live acceptance remain open. No full-flow or visual completion claim.
 
 ## #138 UI-to-real-controller proof attempt — stopped 2026-11-01
 
@@ -824,8 +832,6 @@ Direct Owner authorization supersedes the historical phase below only for login 
 - Stop: #129 candidate only, with coherent conventional commits, committed `dist`, provenance/notices/changelog, verification document and tarball. Owner live acceptance is explicitly not fixture proof. Per-blocker investigation cap: two failed attempts or 20 minutes, then report concrete impact.
 - Current state: independent review rejected initial #129 candidate e33d77f; all five remediation areas are addressed in this worktree: foreign-store fallback removed, usage appearance/dedup/pruning, safe host pending-auth remount recovery, reset expiry/prepared context, expanded applicable reference tests and explicit exclusions. Exact red/green evidence, final gate counts and packaged artifact/hash are recorded in `docs/ai/ticket-129-verification.md`. Owner installed/live acceptance and independent Lead re-review remain pending. No #130+ work started.
 
-
-
 ## Plan of record
 
 - One feature at a time. The first feature is **Subscriptions**: every feature and UI of the reference plugin V1ki/dsh-plugin-subscriptions v0.9.12, plus an API providers part (DSH's own model settings, managed from our UI) and OpenCode Zen (method from FishBottle7/opencode2dsh). The next feature is discussed only after Subscriptions is specified and ticketed.
@@ -863,18 +869,18 @@ Direct Owner authorization supersedes the historical phase below only for login 
 
 ## Tickets
 
-| # | Ticket | Blocked by |
-|---|---|---|
-| #128 | Component row and empty Subscriptions section | none |
-| #129 | Codex end to end with the shared core | #128 |
-| #130 | Manage dialog, model list, account pool and proxy | #129 |
-| #131 | Composer usage badge, Speed control and `/fast` | #129 |
-| #132 | Claude | #129, #130 |
-| #133 | Grok and agent media and search tools | #129, #130 |
-| #134 | GitHub Copilot | #129 |
-| #135 | Google Antigravity | #129, #130 |
-| #136 | API providers part | #128 |
-| #137 | OpenCode Zen | #129 |
+| #    | Ticket                                            | Blocked by |
+| ---- | ------------------------------------------------- | ---------- |
+| #128 | Component row and empty Subscriptions section     | none       |
+| #129 | Codex end to end with the shared core             | #128       |
+| #130 | Manage dialog, model list, account pool and proxy | #129       |
+| #131 | Composer usage badge, Speed control and `/fast`   | #129       |
+| #132 | Claude                                            | #129, #130 |
+| #133 | Grok and agent media and search tools             | #129, #130 |
+| #134 | GitHub Copilot                                    | #129       |
+| #135 | Google Antigravity                                | #129, #130 |
+| #136 | API providers part                                | #128       |
+| #137 | OpenCode Zen                                      | #129       |
 
 Worked in this order, one at a time; each closes only after the Owner's live acceptance on the installed build.
 

@@ -172,6 +172,8 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
         'code.project-unreadable': 'not readable',
         'code.project-unavailable': 'unavailable',
         'code.project-unregistered': 'Project is not registered',
+        'code.project-mismatch':
+          'The selected project does not match this item',
         'code.project-dsh-source': 'Project DSH skills have no source switch',
         'code.root-not-absolute': 'Enter an absolute folder path',
         'code.root-too-long': 'The folder path is too long',
@@ -408,6 +410,7 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
         'code.project-unreadable': 'تتعذر قراءته',
         'code.project-unavailable': 'غير متاح',
         'code.project-unregistered': 'المشروع غير مسجل',
+        'code.project-mismatch': 'المشروع المحدد لا يطابق هذا العنصر',
         'code.project-dsh-source':
           'مهارات DSH في المشروع بلا مفتاح تبديل للمصدر',
         'code.root-not-absolute': 'أدخل مسار مجلد مطلقاً',
@@ -822,6 +825,9 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
         );
       });
       const projects = data?.projects ?? [];
+      const projectName = (id: string) =>
+        projects.find((x: any) => x.id === id)?.name ?? id;
+      const destinationName = () => `${projectName(project)} — DSH`;
       const projectOption = (x: any) =>
         h(
           'option',
@@ -1358,6 +1364,13 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
                   { key: item.id },
                   h('strong', null, item.name),
                   h('p', null, `${t('trashOrigin')}: ${item.origin}`),
+                  item.scope !== 'global'
+                    ? h(
+                        'p',
+                        null,
+                        `${t('project')}: ${projectName(item.scope)}`,
+                      )
+                    : null,
                   h('p', null, `${item.source} — ${item.deletedAt}`),
                   h(
                     'button',
@@ -1388,7 +1401,13 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
                     ? h(
                         'div',
                         { role: 'alert' },
-                        h('p', null, t('trashWarning')),
+                        h(
+                          'p',
+                          null,
+                          item.scope !== 'global'
+                            ? `${t('trashWarning')} (${projectName(item.scope)})`
+                            : t('trashWarning'),
+                        ),
                         h(
                           'button',
                           {
@@ -1456,7 +1475,7 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
                         ),
                       ),
                   )
-                : h('p', null, 'DSH'),
+                : h('p', null, `${t('destination')}: ${destinationName()}`),
               field(t('importPath'), importPath, (value: string) => {
                 setImportPath(value);
                 setImportFiles([]);
@@ -1607,7 +1626,7 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
                         ),
                       ),
                   )
-                : h('p', null, 'DSH'),
+                : h('p', null, `${t('destination')}: ${destinationName()}`),
               field(t('skillName'), createName, setCreateName),
               field(
                 t('skillDescription'),

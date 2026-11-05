@@ -1917,6 +1917,14 @@ export function apply(ctx: HostContext, config: Config = {}) {
                       body.action === 'trash'
                         ? (body.project ?? 'global')
                         : item?.scope;
+                    // An explicit project must be the Trash item's own scope: never act on another scope.
+                    if (
+                      body.action !== 'trash' &&
+                      body.project !== undefined &&
+                      item &&
+                      body.project !== item.scope
+                    )
+                      return fail(409, 'project-mismatch');
                     const current =
                       scope === 'global'
                         ? undefined
