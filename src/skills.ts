@@ -34,7 +34,9 @@ import {
 } from './skills-import.js';
 import {
   createRepositories,
+  PROJECT_ID,
   RepoError,
+  type Destination,
   type RepositoryConfig,
 } from './skills-repos.js';
 import { type CatalogConfig, createCatalogs } from './skills-catalogs.js';
@@ -1126,6 +1128,7 @@ export function apply(ctx: HostContext, config: Config = {}) {
     id: project.id,
     name: project.name,
     path: project.path,
+    ...(project.root ? { root: project.root } : {}),
     available: project.available,
     code: project.code,
   });
@@ -1144,17 +1147,44 @@ export function apply(ctx: HostContext, config: Config = {}) {
     operations = mutation.catch(() => undefined);
     return mutation;
   };
-  const repos = createRepositories({
-    config: config.repositories,
-    stateDir: dirname(statePath),
-    trashRoot,
-    destination: (id) => {
+  /**
+   * Writable install destination: a user source, or one registered project's DSH skills folder.
+   * The project id is only a selector; the registry, the project root and the skills folder are
+   * re-resolved here on every call, so nothing a client or a stale record says is trusted.
+   */
+  const installDestination = async (
+    id: unknown,
+    project?: unknown,
+  ): Promise<Destination | undefined> => {
+    if (project === undefined) {
       const found = baseSources.find(
         (item) =>
           item.id === id && ['user-dsh', 'user-agents'].includes(item.id),
       );
       return found ? { id: found.id, root: found.path } : undefined;
-    },
+    }
+    if (
+      typeof project !== 'string' ||
+      !PROJECT_ID.test(project) ||
+      id !== `project-dsh:${project}`
+    )
+      return undefined;
+    const current = (await registeredProjects()).find(
+      (item) => item.id === project,
+    );
+    if (registryUnavailable || !current?.available || !current.root)
+      return undefined;
+    // The same containment/overlap rules as the project source scan: a folder that escapes is not offered.
+    const found = (await projectSources(current)).sources.find(
+      (item) => item.id === id,
+    );
+    return found ? { id: found.id, root: found.path, project } : undefined;
+  };
+  const repos = createRepositories({
+    config: config.repositories,
+    stateDir: dirname(statePath),
+    trashRoot,
+    destination: installDestination,
     exclusive,
     changed: () => {
       revision++;
@@ -1166,13 +1196,7 @@ export function apply(ctx: HostContext, config: Config = {}) {
     config: config.catalogs,
     stateDir: dirname(statePath),
     trashRoot,
-    destination: (id) => {
-      const found = baseSources.find(
-        (item) =>
-          item.id === id && ['user-dsh', 'user-agents'].includes(item.id),
-      );
-      return found ? { id: found.id, root: found.path } : undefined;
-    },
+    destination: installDestination,
     exclusive,
     changed: () => {
       revision++;
@@ -1977,7 +2001,12 @@ export function apply(ctx: HostContext, config: Config = {}) {
                 project = (await projects()).find(
                   (item) => item.id === body.project,
                 );
-                if (!project) return fail(404, 'project-unregistered');
+                // Record-only forget must work after the project left the registry; it re-validates the scope itself.
+                if (
+                  !project &&
+                  !['repo-forget', 'catalog-forget'].includes(body.action ?? '')
+                )
+                  return fail(404, 'project-unregistered');
               }
               if (
                 ['trash', 'trash-restore', 'trash-delete'].includes(
@@ -2062,18 +2091,16 @@ export function apply(ctx: HostContext, config: Config = {}) {
                         },
                         cancelled,
                       );
-                      if (scope === 'global')
-                        await repos.noteTrashed(
-                          resolve(sourceRoot),
-                          origin,
-                          result.id,
-                        );
-                      if (scope === 'global')
-                        await catalogs.noteTrashed(
-                          resolve(sourceRoot),
-                          origin,
-                          result.id,
-                        );
+                      await repos.noteTrashed(
+                        resolve(sourceRoot),
+                        origin,
+                        result.id,
+                      );
+                      await catalogs.noteTrashed(
+                        resolve(sourceRoot),
+                        origin,
+                        result.id,
+                      );
                     } else {
                       if (!item) return fail(404, 'trash-missing');
                       if (
@@ -2202,7 +2229,10 @@ export function apply(ctx: HostContext, config: Config = {}) {
                     result = await catalogs.install(
                       {
                         skill: body.skill,
-                        destination: body.destination ?? 'user-dsh',
+                        destination:
+                          body.destination ??
+                          (body.project === undefined ? 'user-dsh' : undefined),
+                        project: body.project,
                         confirm: body.confirm,
                         reassociate: body.reassociate,
                       },
@@ -2212,6 +2242,7 @@ export function apply(ctx: HostContext, config: Config = {}) {
                   else if (body.action === 'catalog-uninstall')
                     result = await catalogs.uninstall(
                       body.installId,
+                      body.project,
                       cancelled,
                     );
                   else if (body.action === 'catalog-forget') {
@@ -2224,7 +2255,11 @@ export function apply(ctx: HostContext, config: Config = {}) {
                     } catch {
                       trashIds = undefined;
                     }
-                    result = await catalogs.forget(body.installId, trashIds);
+                    result = await catalogs.forget(
+                      body.installId,
+                      body.project,
+                      trashIds,
+                    );
                   } else return fail(400, 'catalog-action');
                   return Response.json({
                     ...(await payload(
@@ -2261,12 +2296,15 @@ export function apply(ctx: HostContext, config: Config = {}) {
                         id: body.id,
                         path: body.path,
                         snapshot: body.snapshot,
-                        source: body.source ?? 'user-dsh',
+                        source:
+                          body.source ??
+                          (body.project === undefined ? 'user-dsh' : undefined),
+                        project: body.project,
                       },
                       cancelled,
                     );
                   else if (body.action === 'repo-forget')
-                    result = await repos.forget(body.installId);
+                    result = await repos.forget(body.installId, body.project);
                   else if (
                     body.action === 'repo-update-preview' ||
                     body.action === 'repo-rollback-preview'
@@ -2276,6 +2314,7 @@ export function apply(ctx: HostContext, config: Config = {}) {
                         ? 'update'
                         : 'rollback',
                       body.installId,
+                      body.project,
                     );
                   else if (
                     body.action === 'repo-update' ||
@@ -2289,11 +2328,16 @@ export function apply(ctx: HostContext, config: Config = {}) {
                         target: body.target,
                         snapshot: body.snapshot,
                         overwrite: body.overwrite,
+                        project: body.project,
                       },
                       cancelled,
                     );
                   else
-                    result = await repos.uninstall(body.installId, cancelled);
+                    result = await repos.uninstall(
+                      body.installId,
+                      body.project,
+                      cancelled,
+                    );
                   return Response.json({
                     ...(await payload(
                       project,

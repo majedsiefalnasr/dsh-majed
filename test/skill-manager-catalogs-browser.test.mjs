@@ -193,12 +193,13 @@ async function mount(t, language, server) {
   });
   const tools = (view) => ({
     button: (label) =>
-      view.root
-        .findAllByType('button')
-        .find(
-          (x) =>
-            x.children.join('') === label || x.props['aria-label'] === label,
-        ),
+      view.root.findAllByType('button').find(
+        (x) =>
+          x.children.join('') === label ||
+          x.props['aria-label'] === label ||
+          // Per-copy buttons append their destination: `<label> — <destination>`.
+          x.props['aria-label']?.startsWith(`${label} — `),
+      ),
     field: (label) =>
       view.root.findAll(
         (x) =>

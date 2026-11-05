@@ -107,6 +107,12 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
         catDetailLoading: 'Loading details…',
         catInstallTitle: 'Install from catalog',
         catInstallConfirm: 'Confirm install',
+        destPath: 'Destination folder',
+        destInvalid: 'Choose an available destination to install',
+        destNoProjects:
+          'No registered projects: only your DSH and Shared Agents folders are available.',
+        destProjectNote:
+          'Written inside the project and may be committed to its repository.',
         catInstallDone: 'Installed from catalog',
         catCopies: 'Installed copies',
         catUninstallTitle: 'Uninstall catalog copy',
@@ -208,6 +214,7 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
         repoLastError: 'Last refresh failed; showing the previous snapshot',
         repoBulk: 'Refreshed {done} of {total}; {failed} failed',
         repoFromSource: 'Source',
+        repoInstalledAt: 'Installed in',
         repoNoInstalls: 'No tracked installations',
         'repoKind.git-commit': 'Git commit',
         'repoKind.archive-sha256': 'Archive fingerprint (not a Git commit)',
@@ -549,6 +556,11 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
         catDetailLoading: 'جارٍ تحميل التفاصيل…',
         catInstallTitle: 'تثبيت من الفهرس',
         catInstallConfirm: 'تأكيد التثبيت',
+        destPath: 'مجلد الوجهة',
+        destInvalid: 'اختر وجهة متاحة للتثبيت',
+        destNoProjects:
+          'لا توجد مشاريع مسجلة: المتاح فقط مجلدا DSH والوكلاء المشتركين.',
+        destProjectNote: 'يُكتب داخل المشروع وقد يُرفع إلى مستودعه.',
         catInstallDone: 'تم التثبيت من الفهرس',
         catCopies: 'النسخ المثبتة',
         catUninstallTitle: 'إزالة نسخة الفهرس',
@@ -646,6 +658,7 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
         repoLastError: 'فشل آخر تحديث؛ تُعرض اللقطة السابقة',
         repoBulk: 'حُدّث {done} من {total}؛ فشل {failed}',
         repoFromSource: 'المصدر',
+        repoInstalledAt: 'مثبّت في',
         repoNoInstalls: 'لا توجد تثبيتات متتبعة',
         'repoKind.git-commit': 'إيداع Git',
         'repoKind.archive-sha256': 'بصمة الأرشيف (ليست إيداع Git)',
@@ -906,6 +919,93 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
     const isArabic = () => ctx.locale.language?.getSnapshot?.() === 'ar';
     const sourceLabel = (source: any) =>
       source.label ?? source.name ?? source.id;
+    const PROJECT_DEST = 'project-dsh:';
+    // The project id is only a selector; the host re-resolves it from the registry for every action.
+    const projectOfDest = (id: string) =>
+      id.startsWith(PROJECT_DEST) ? id.slice(PROJECT_DEST.length) : undefined;
+    const pathParts = (value: unknown) =>
+      String(value)
+        .split(/[\\/]+/)
+        .filter(Boolean);
+    // Registered projects can share a basename: add the shortest parent-folder suffix that tells them apart.
+    const projectLabel = (data: any, id: string) => {
+      const list: any[] = data?.projects ?? [];
+      const found = list.find((x: any) => x.id === id);
+      if (!found) return id;
+      const same = list.filter((x: any) => x.name === found.name);
+      if (same.length < 2) return found.name;
+      const longest = Math.max(
+        ...same.map((x: any) => pathParts(x.path).length),
+      );
+      for (let depth = 2; depth <= longest; depth++) {
+        const tails = same.map((x: any) =>
+          pathParts(x.path).slice(-depth, -1).join('/'),
+        );
+        if (tails.every(Boolean) && new Set(tails).size === tails.length)
+          return `${found.name} (${pathParts(found.path).slice(-depth, -1).join('/')})`;
+      }
+      return `${found.name} (${found.path})`;
+    };
+    const projectFolder = (project: any) => {
+      if (!project.available || !project.root) return undefined;
+      const sep =
+        project.root.includes('\\') && !project.root.includes('/') ? '\\' : '/';
+      return `${project.root}${sep}.dsh${sep}skills`;
+    };
+    // Install destinations: the user sources plus every registered project's DSH folder; unavailable projects stay listed, disabled.
+    const destinationsOf = (data: any) => [
+      ...['user-dsh', 'user-agents'].flatMap((id) => {
+        const found = data?.sources?.find((x: any) => x.id === id);
+        return found
+          ? [{ id, label: sourceLabel(found), path: found.path }]
+          : [];
+      }),
+      ...(data?.projects ?? []).map((x: any) => ({
+        id: `${PROJECT_DEST}${x.id}`,
+        label: `${projectLabel(data, x.id)} — DSH`,
+        path: projectFolder(x),
+        project: true,
+        ...(x.available
+          ? {}
+          : {
+              disabled: true,
+              reason: t(`code.${x.code ?? 'project-unavailable'}`),
+            }),
+      })),
+    ];
+    const validDestination = (data: any, id: string) =>
+      destinationsOf(data).find((x: any) => x.id === id && !x.disabled);
+    const destinationOption = (item: any, label = item.label) =>
+      h(
+        'option',
+        { key: item.id, value: item.id, disabled: !!item.disabled },
+        item.disabled ? `${label} · ${item.reason}` : label,
+      );
+    // Folder preview, project-write note and empty hints shown with every destination picker.
+    const destinationInfo = (data: any, selected: any) => [
+      !(data?.projects ?? []).length ? h('p', null, t('destNoProjects')) : null,
+      selected
+        ? selected.path
+          ? h(
+              'p',
+              null,
+              `${t('destPath')}: `,
+              h('bdi', { dir: 'ltr' }, selected.path),
+            )
+          : null
+        : h('p', null, t('destInvalid')),
+      selected?.project ? h('p', null, t('destProjectNote')) : null,
+    ];
+    // Where a tracked copy lives: a project copy is always named by its project, never by a bare path.
+    const placeName = (data: any, entry: any) => {
+      if (entry.project) return `${projectLabel(data, entry.project)} — DSH`;
+      const found = (data?.sources ?? []).find(
+        (x: any) => x.id === entry.source,
+      );
+      return found ? sourceLabel(found) : entry.source;
+    };
+    const placeNode = (data: any, entry: any) =>
+      h('bdi', { dir: 'ltr' }, placeName(data, entry));
     const diagnosticText = (item: any) => {
       const label = (dictionaries.en as Record<string, string>)[
         `diag.${item.code}`
@@ -1014,6 +1114,9 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
         [working, setWorking] = React.useState(''),
         [message, setMessage] = React.useState('');
       const request = React.useRef(null as AbortController | null);
+      React.useEffect(() => {
+        if (data && !validDestination(data, target)) setTarget('user-dsh');
+      }, [data]);
       const sending = React.useRef(false);
       const searching = committed !== '';
       const recordsOf = (item: any) =>
@@ -1147,6 +1250,9 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
             action: 'catalog-install',
             skill: bodyFor(installing),
             destination: target,
+            ...(projectOfDest(target)
+              ? { project: projectOfDest(target) }
+              : {}),
             confirm: true,
             ...(reassociate ? { reassociate: true } : {}),
           },
@@ -1186,6 +1292,9 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
                 ? 'catalog-uninstall'
                 : 'catalog-forget',
             installId: confirming.entry.id,
+            ...(confirming.entry.project
+              ? { project: confirming.entry.project }
+              : {}),
           },
           () => setConfirming(null),
         );
@@ -1315,7 +1424,8 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
                       h(
                         'li',
                         { key: entry.id, 'data-majed-catalog-copy': entry.id },
-                        `${sourceName(entry.source)} · `,
+                        placeNode(data, entry),
+                        ' · ',
                         h('bdi', { dir: 'ltr' }, `${entry.root}/${entry.name}`),
                         ` · ${t(`catStatus.${entry.status}`)}`,
                         entry.status === 'invalid-root' ||
@@ -1323,7 +1433,7 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
                           ? h(
                               'button',
                               {
-                                'aria-label': `${t('catForget')}: ${item.name}`,
+                                'aria-label': `${t('catForget')}: ${item.name} — ${placeName(data, entry)}`,
                                 disabled: !!working,
                                 onClick: () =>
                                   setConfirming({
@@ -1339,7 +1449,7 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
                             : h(
                                 'button',
                                 {
-                                  'aria-label': `${t('catUninstall')}: ${item.name}`,
+                                  'aria-label': `${t('catUninstall')}: ${item.name} — ${placeName(data, entry)}`,
                                   disabled: !!working,
                                   onClick: () =>
                                     setConfirming({
@@ -1423,14 +1533,15 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
                   value: target,
                   onChange: (event: any) => setTarget(event.target.value),
                 },
-                ...['user-dsh', 'user-agents'].map((id) =>
-                  h('option', { key: id, value: id }, sourceName(id)),
+                ...destinationsOf(data).map((item: any) =>
+                  destinationOption(item),
                 ),
               ),
+              ...destinationInfo(data, validDestination(data, target)),
               h(
                 'button',
                 {
-                  disabled: !!working,
+                  disabled: !!working || !validDestination(data, target),
                   onClick: () => void confirmInstall(false),
                 },
                 t('catInstallConfirm'),
@@ -1439,7 +1550,7 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
                 ? h(
                     'button',
                     {
-                      disabled: !!working,
+                      disabled: !!working || !validDestination(data, target),
                       onClick: () => void confirmInstall(true),
                     },
                     t('catReassociate'),
@@ -1468,14 +1579,26 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
               h(
                 'p',
                 null,
-                (confirming.action === 'uninstall'
+                ...(confirming.action === 'uninstall'
                   ? t('catUninstallBody')
                   : t('catForgetBody')
                 )
                   .replace('{name}', confirming.item.name)
-                  .replace(
-                    '{where}',
-                    `${sourceName(confirming.entry.source)} (${confirming.entry.root}/${confirming.entry.name})`,
+                  .split('{where}')
+                  .flatMap((part: string, index: number) =>
+                    index
+                      ? [
+                          placeNode(data, confirming.entry),
+                          ' (',
+                          h(
+                            'bdi',
+                            { dir: 'ltr' },
+                            `${confirming.entry.root}/${confirming.entry.name}`,
+                          ),
+                          ')',
+                          part,
+                        ]
+                      : [part],
                   ),
               ),
               confirming.action === 'uninstall' && shared(confirming.entry)
@@ -1553,6 +1676,12 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
         [createBody, setCreateBody] = React.useState(''),
         [createSource, setCreateSource] = React.useState('user-dsh');
       const dialog = React.useRef(null);
+      const repoDestination = validDestination(data, repoTarget);
+      // A project that leaves the registry drops out of the picker: fall back to the default destination.
+      React.useEffect(() => {
+        if (data && !validDestination(data, repoTarget))
+          setRepoTarget('user-dsh');
+      }, [data]);
       React.useEffect(() => {
         if (!detail) return;
         const previous = document.activeElement as HTMLElement | null;
@@ -1679,7 +1808,11 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
       const repoPreview = (record: any, kind: 'update' | 'rollback') =>
         void repoAction(
           record.id,
-          { action: `repo-${kind}-preview`, installId: record.id },
+          {
+            action: `repo-${kind}-preview`,
+            installId: record.id,
+            ...(record.project ? { project: record.project } : {}),
+          },
           (value: any) => {
             setRepoPreviews((all: any) => ({
               ...all,
@@ -1702,6 +1835,7 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
             target: preview.target.digest,
             snapshot: preview.snapshot,
             overwrite: !!repoOverwrites[record.id],
+            ...(record.project ? { project: record.project } : {}),
           },
           (value: any) => {
             clear();
@@ -2652,16 +2786,18 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
                   value: repoTarget,
                   onChange: (event: any) => setRepoTarget(event.target.value),
                 },
-                ...['user-dsh', 'user-agents']
-                  .filter((id) => data?.sources?.some((x: any) => x.id === id))
-                  .map((id) =>
-                    h(
-                      'option',
-                      { key: id, value: id },
-                      id === 'user-dsh' ? 'DSH' : 'Shared Agents',
-                    ),
+                ...destinationsOf(data).map((item: any) =>
+                  destinationOption(
+                    item,
+                    item.id === 'user-dsh'
+                      ? 'DSH'
+                      : item.id === 'user-agents'
+                        ? 'Shared Agents'
+                        : item.label,
                   ),
+                ),
               ),
+              ...destinationInfo(data, repoDestination),
               !data?.repoError && !data?.repositories?.length
                 ? h('p', null, t('repoEmpty'))
                 : null,
@@ -2778,14 +2914,15 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
                               .join(', ')}`,
                           )
                         : null,
-                      (skill.status === 'available' ||
-                        skill.status === 'conflict') &&
-                        !skill.conflicts?.includes(repoTarget)
+                      skill.valid !== false &&
+                        !skill.conflicts?.includes(repoTarget) &&
+                        !skill.installedIn?.includes(repoTarget)
                         ? h(
                             'button',
                             {
                               'aria-label': `${t('repoInstall')}: ${skill.name}`,
-                              disabled: !!repoBusy || switching,
+                              disabled:
+                                !!repoBusy || switching || !repoDestination,
                               onClick: () =>
                                 void repoAction(
                                   repo.id,
@@ -2795,6 +2932,9 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
                                     path: skill.path,
                                     snapshot: repo.fingerprint,
                                     source: repoTarget,
+                                    ...(projectOfDest(repoTarget)
+                                      ? { project: projectOfDest(repoTarget) }
+                                      : {}),
                                   },
                                   repoWarning,
                                 ),
@@ -2836,7 +2976,13 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
                     null,
                     `${t('repoSnapshot')}: ${record.fingerprint.slice(0, 12)} — ${t(`repoKind.${record.fingerprintKind}`)}`,
                   ),
-                  h('p', null, record.path),
+                  h(
+                    'p',
+                    null,
+                    `${t('repoInstalledAt')}: `,
+                    h('bdi', { dir: 'ltr' }, placeName(data, record)),
+                  ),
+                  h('p', null, h('bdi', { dir: 'ltr' }, record.path)),
                   record.status === 'installed' || record.status === 'modified'
                     ? h(
                         'button',
@@ -2849,6 +2995,9 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
                               {
                                 action: 'repo-uninstall',
                                 installId: record.id,
+                                ...(record.project
+                                  ? { project: record.project }
+                                  : {}),
                               },
                               repoWarning,
                             ),
@@ -2992,6 +3141,9 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
                               void repoAction(record.id, {
                                 action: 'repo-forget',
                                 installId: record.id,
+                                ...(record.project
+                                  ? { project: record.project }
+                                  : {}),
                               });
                             },
                           },

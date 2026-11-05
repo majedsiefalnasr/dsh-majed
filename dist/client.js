@@ -145,6 +145,10 @@ function setupSkills(ctx, fail) {
 				catDetailLoading: "Loading details…",
 				catInstallTitle: "Install from catalog",
 				catInstallConfirm: "Confirm install",
+				destPath: "Destination folder",
+				destInvalid: "Choose an available destination to install",
+				destNoProjects: "No registered projects: only your DSH and Shared Agents folders are available.",
+				destProjectNote: "Written inside the project and may be committed to its repository.",
 				catInstallDone: "Installed from catalog",
 				catCopies: "Installed copies",
 				catUninstallTitle: "Uninstall catalog copy",
@@ -227,6 +231,7 @@ function setupSkills(ctx, fail) {
 				repoLastError: "Last refresh failed; showing the previous snapshot",
 				repoBulk: "Refreshed {done} of {total}; {failed} failed",
 				repoFromSource: "Source",
+				repoInstalledAt: "Installed in",
 				repoNoInstalls: "No tracked installations",
 				"repoKind.git-commit": "Git commit",
 				"repoKind.archive-sha256": "Archive fingerprint (not a Git commit)",
@@ -527,6 +532,10 @@ function setupSkills(ctx, fail) {
 				catDetailLoading: "جارٍ تحميل التفاصيل…",
 				catInstallTitle: "تثبيت من الفهرس",
 				catInstallConfirm: "تأكيد التثبيت",
+				destPath: "مجلد الوجهة",
+				destInvalid: "اختر وجهة متاحة للتثبيت",
+				destNoProjects: "لا توجد مشاريع مسجلة: المتاح فقط مجلدا DSH والوكلاء المشتركين.",
+				destProjectNote: "يُكتب داخل المشروع وقد يُرفع إلى مستودعه.",
 				catInstallDone: "تم التثبيت من الفهرس",
 				catCopies: "النسخ المثبتة",
 				catUninstallTitle: "إزالة نسخة الفهرس",
@@ -609,6 +618,7 @@ function setupSkills(ctx, fail) {
 				repoLastError: "فشل آخر تحديث؛ تُعرض اللقطة السابقة",
 				repoBulk: "حُدّث {done} من {total}؛ فشل {failed}",
 				repoFromSource: "المصدر",
+				repoInstalledAt: "مثبّت في",
 				repoNoInstalls: "لا توجد تثبيتات متتبعة",
 				"repoKind.git-commit": "إيداع Git",
 				"repoKind.archive-sha256": "بصمة الأرشيف (ليست إيداع Git)",
@@ -846,6 +856,61 @@ function setupSkills(ctx, fail) {
 		const t = ctx.locale.bind("majed.skills");
 		const isArabic = () => ctx.locale.language?.getSnapshot?.() === "ar";
 		const sourceLabel = (source) => source.label ?? source.name ?? source.id;
+		const PROJECT_DEST = "project-dsh:";
+		const projectOfDest = (id) => id.startsWith(PROJECT_DEST) ? id.slice(12) : void 0;
+		const pathParts = (value) => String(value).split(/[\\/]+/).filter(Boolean);
+		const projectLabel = (data, id) => {
+			const list = data?.projects ?? [];
+			const found = list.find((x) => x.id === id);
+			if (!found) return id;
+			const same = list.filter((x) => x.name === found.name);
+			if (same.length < 2) return found.name;
+			const longest = Math.max(...same.map((x) => pathParts(x.path).length));
+			for (let depth = 2; depth <= longest; depth++) {
+				const tails = same.map((x) => pathParts(x.path).slice(-depth, -1).join("/"));
+				if (tails.every(Boolean) && new Set(tails).size === tails.length) return `${found.name} (${pathParts(found.path).slice(-depth, -1).join("/")})`;
+			}
+			return `${found.name} (${found.path})`;
+		};
+		const projectFolder = (project) => {
+			if (!project.available || !project.root) return void 0;
+			const sep = project.root.includes("\\") && !project.root.includes("/") ? "\\" : "/";
+			return `${project.root}${sep}.dsh${sep}skills`;
+		};
+		const destinationsOf = (data) => [...["user-dsh", "user-agents"].flatMap((id) => {
+			const found = data?.sources?.find((x) => x.id === id);
+			return found ? [{
+				id,
+				label: sourceLabel(found),
+				path: found.path
+			}] : [];
+		}), ...(data?.projects ?? []).map((x) => ({
+			id: `${PROJECT_DEST}${x.id}`,
+			label: `${projectLabel(data, x.id)} — DSH`,
+			path: projectFolder(x),
+			project: true,
+			...x.available ? {} : {
+				disabled: true,
+				reason: t(`code.${x.code ?? "project-unavailable"}`)
+			}
+		}))];
+		const validDestination = (data, id) => destinationsOf(data).find((x) => x.id === id && !x.disabled);
+		const destinationOption = (item, label = item.label) => h("option", {
+			key: item.id,
+			value: item.id,
+			disabled: !!item.disabled
+		}, item.disabled ? `${label} · ${item.reason}` : label);
+		const destinationInfo = (data, selected) => [
+			!(data?.projects ?? []).length ? h("p", null, t("destNoProjects")) : null,
+			selected ? selected.path ? h("p", null, `${t("destPath")}: `, h("bdi", { dir: "ltr" }, selected.path)) : null : h("p", null, t("destInvalid")),
+			selected?.project ? h("p", null, t("destProjectNote")) : null
+		];
+		const placeName = (data, entry) => {
+			if (entry.project) return `${projectLabel(data, entry.project)} — DSH`;
+			const found = (data?.sources ?? []).find((x) => x.id === entry.source);
+			return found ? sourceLabel(found) : entry.source;
+		};
+		const placeNode = (data, entry) => h("bdi", { dir: "ltr" }, placeName(data, entry));
 		const diagnosticText = (item) => {
 			const label = dictionaries.en[`diag.${item.code}`] ? t(`diag.${item.code}`) : item.message ?? item.code;
 			const where = item.params?.path ?? item.params?.source;
@@ -909,6 +974,9 @@ function setupSkills(ctx, fail) {
 			const { kind, data, setData, setNotice } = props;
 			const [typed, setTyped] = React.useState(""), [committed, setCommitted] = React.useState(""), [items, setItems] = React.useState([]), [cursor, setCursor] = React.useState(null), [phase, setPhase] = React.useState("loading"), [more, setMore] = React.useState(false), [attempt, setAttempt] = React.useState(0), [sort, setSort] = React.useState("downloads"), [status, setStatus] = React.useState(""), [detail, setDetail] = React.useState(null), [copy, setCopy] = React.useState(""), [installing, setInstalling] = React.useState(null), [target, setTarget] = React.useState("user-dsh"), [conflict, setConflict] = React.useState(false), [confirming, setConfirming] = React.useState(null), [working, setWorking] = React.useState(""), [message, setMessage] = React.useState("");
 			const request = React.useRef(null);
+			React.useEffect(() => {
+				if (data && !validDestination(data, target)) setTarget("user-dsh");
+			}, [data]);
 			const sending = React.useRef(false);
 			const searching = committed !== "";
 			const recordsOf = (item) => (data?.catalogInstalls ?? []).filter((entry) => entry.catalogId === item.id);
@@ -974,10 +1042,6 @@ function setupSkills(ctx, fail) {
 				const copies = copiesOf(item).length;
 				return !status || (status === "installed" ? copies > 0 : copies === 0);
 			}).slice().sort((a, b) => sort === "name" ? a.name.localeCompare(b.name) : sort === "installs" ? (b.installs ?? 0) - (a.installs ?? 0) : 0);
-			const sourceName = (id) => {
-				const found = (data?.sources ?? []).find((entry) => entry.id === id);
-				return found ? sourceLabel(found) : id;
-			};
 			const send = async (busyKey, body, done) => {
 				if (working || sending.current) return;
 				sending.current = true;
@@ -1019,6 +1083,7 @@ function setupSkills(ctx, fail) {
 				action: "catalog-install",
 				skill: bodyFor(installing),
 				destination: target,
+				...projectOfDest(target) ? { project: projectOfDest(target) } : {},
 				confirm: true,
 				...reassociate ? { reassociate: true } : {}
 			}, () => {
@@ -1037,7 +1102,8 @@ function setupSkills(ctx, fail) {
 			const shared = (entry) => entry.source === "user-agents";
 			const confirmAction = () => send(`${confirming.action}:${confirming.entry.id}`, {
 				action: confirming.action === "uninstall" ? "catalog-uninstall" : "catalog-forget",
-				installId: confirming.entry.id
+				installId: confirming.entry.id,
+				...confirming.entry.project ? { project: confirming.entry.project } : {}
 			}, () => setConfirming(null));
 			return h("div", { "data-majed-catalogs": true }, h("form", { onSubmit: (event) => {
 				event.preventDefault();
@@ -1076,8 +1142,8 @@ function setupSkills(ctx, fail) {
 				}, copies.length ? t("catInstallElsewhere") : t("catInstall")), recordsOf(item).length ? h("ul", { "aria-label": `${t("catCopies")}: ${item.name}` }, ...recordsOf(item).map((entry) => h("li", {
 					key: entry.id,
 					"data-majed-catalog-copy": entry.id
-				}, `${sourceName(entry.source)} · `, h("bdi", { dir: "ltr" }, `${entry.root}/${entry.name}`), ` · ${t(`catStatus.${entry.status}`)}`, entry.status === "invalid-root" || entry.status === "missing" ? h("button", {
-					"aria-label": `${t("catForget")}: ${item.name}`,
+				}, placeNode(data, entry), " · ", h("bdi", { dir: "ltr" }, `${entry.root}/${entry.name}`), ` · ${t(`catStatus.${entry.status}`)}`, entry.status === "invalid-root" || entry.status === "missing" ? h("button", {
+					"aria-label": `${t("catForget")}: ${item.name} — ${placeName(data, entry)}`,
 					disabled: !!working,
 					onClick: () => setConfirming({
 						action: "forget",
@@ -1085,7 +1151,7 @@ function setupSkills(ctx, fail) {
 						item
 					})
 				}, t("catForget")) : entry.status === "trashed" ? null : h("button", {
-					"aria-label": `${t("catUninstall")}: ${item.name}`,
+					"aria-label": `${t("catUninstall")}: ${item.name} — ${placeName(data, entry)}`,
 					disabled: !!working,
 					onClick: () => setConfirming({
 						action: "uninstall",
@@ -1112,19 +1178,22 @@ function setupSkills(ctx, fail) {
 				"aria-label": t("repoDestination"),
 				value: target,
 				onChange: (event) => setTarget(event.target.value)
-			}, ...["user-dsh", "user-agents"].map((id) => h("option", {
-				key: id,
-				value: id
-			}, sourceName(id)))), h("button", {
-				disabled: !!working,
+			}, ...destinationsOf(data).map((item) => destinationOption(item))), ...destinationInfo(data, validDestination(data, target)), h("button", {
+				disabled: !!working || !validDestination(data, target),
 				onClick: () => void confirmInstall(false)
 			}, t("catInstallConfirm")), conflict ? h("button", {
-				disabled: !!working,
+				disabled: !!working || !validDestination(data, target),
 				onClick: () => void confirmInstall(true)
 			}, t("catReassociate")) : null, h("button", { onClick: () => setInstalling(null) }, t("cancel"))) : null, confirming ? h(CatalogDialog, {
 				label: confirming.action === "uninstall" ? t("catUninstallTitle") : t("catForgetTitle"),
 				onClose: () => setConfirming(null)
-			}, h("h4", null, confirming.action === "uninstall" ? t("catUninstallTitle") : t("catForgetTitle")), h("p", null, (confirming.action === "uninstall" ? t("catUninstallBody") : t("catForgetBody")).replace("{name}", confirming.item.name).replace("{where}", `${sourceName(confirming.entry.source)} (${confirming.entry.root}/${confirming.entry.name})`)), confirming.action === "uninstall" && shared(confirming.entry) ? h("p", { role: "alert" }, t("catSharedWarning")) : null, h("button", {
+			}, h("h4", null, confirming.action === "uninstall" ? t("catUninstallTitle") : t("catForgetTitle")), h("p", null, ...(confirming.action === "uninstall" ? t("catUninstallBody") : t("catForgetBody")).replace("{name}", confirming.item.name).split("{where}").flatMap((part, index) => index ? [
+				placeNode(data, confirming.entry),
+				" (",
+				h("bdi", { dir: "ltr" }, `${confirming.entry.root}/${confirming.entry.name}`),
+				")",
+				part
+			] : [part])), confirming.action === "uninstall" && shared(confirming.entry) ? h("p", { role: "alert" }, t("catSharedWarning")) : null, h("button", {
 				disabled: !!working,
 				onClick: () => void confirmAction()
 			}, confirming.action === "uninstall" ? t("catConfirmUninstall") : t("catConfirmForget")), h("button", { onClick: () => setConfirming(null) }, t("cancel"))) : null);
@@ -1136,6 +1205,10 @@ function setupSkills(ctx, fail) {
 				subdirectory: ""
 			}), [repoFilter, setRepoFilter] = React.useState(""), [repoStatusFilter, setRepoStatusFilter] = React.useState(""), [repoRepoFilter, setRepoRepoFilter] = React.useState(""), [repoUnsubscribing, setRepoUnsubscribing] = React.useState(""), [repoForgetting, setRepoForgetting] = React.useState(""), [repoTarget, setRepoTarget] = React.useState("user-dsh"), [repoBusy, setRepoBusy] = React.useState(""), [repoSummary, setRepoSummary] = React.useState(""), [repoPreviews, setRepoPreviews] = React.useState({}), [repoOverwrites, setRepoOverwrites] = React.useState({}), [creating, setCreating] = React.useState(false), [createName, setCreateName] = React.useState(""), [createDescription, setCreateDescription] = React.useState(""), [createBody, setCreateBody] = React.useState(""), [createSource, setCreateSource] = React.useState("user-dsh");
 			const dialog = React.useRef(null);
+			const repoDestination = validDestination(data, repoTarget);
+			React.useEffect(() => {
+				if (data && !validDestination(data, repoTarget)) setRepoTarget("user-dsh");
+			}, [data]);
 			React.useEffect(() => {
 				if (!detail) return;
 				const previous = document.activeElement;
@@ -1239,7 +1312,8 @@ function setupSkills(ctx, fail) {
 			};
 			const repoPreview = (record, kind) => void repoAction(record.id, {
 				action: `repo-${kind}-preview`,
-				installId: record.id
+				installId: record.id,
+				...record.project ? { project: record.project } : {}
 			}, (value) => {
 				setRepoPreviews((all) => ({
 					...all,
@@ -1263,7 +1337,8 @@ function setupSkills(ctx, fail) {
 					current: preview.current,
 					target: preview.target.digest,
 					snapshot: preview.snapshot,
-					overwrite: !!repoOverwrites[record.id]
+					overwrite: !!repoOverwrites[record.id],
+					...record.project ? { project: record.project } : {}
 				}, (value) => {
 					clear();
 					setNotice(t(preview.kind === "update" ? "repoUpdated" : "repoRolledBack").replace("{name}", record.name));
@@ -1724,10 +1799,7 @@ function setupSkills(ctx, fail) {
 				"aria-label": t("repoDestination"),
 				value: repoTarget,
 				onChange: (event) => setRepoTarget(event.target.value)
-			}, ...["user-dsh", "user-agents"].filter((id) => data?.sources?.some((x) => x.id === id)).map((id) => h("option", {
-				key: id,
-				value: id
-			}, id === "user-dsh" ? "DSH" : "Shared Agents"))), !data?.repoError && !data?.repositories?.length ? h("p", null, t("repoEmpty")) : null, ...(data?.repositories ?? []).map((repo) => {
+			}, ...destinationsOf(data).map((item) => destinationOption(item, item.id === "user-dsh" ? "DSH" : item.id === "user-agents" ? "Shared Agents" : item.label))), ...destinationInfo(data, repoDestination), !data?.repoError && !data?.repositories?.length ? h("p", null, t("repoEmpty")) : null, ...(data?.repositories ?? []).map((repo) => {
 				const needle = repoFilter.trim().toLowerCase();
 				if (repoRepoFilter && repo.id !== repoRepoFilter) return null;
 				const shown = repo.skills.filter((skill) => (!repoStatusFilter || skill.status === repoStatusFilter || repoStatusFilter === "update" && skill.updateAvailable) && (!needle || `${skill.name} ${skill.description} ${skill.path}`.toLowerCase().includes(needle)));
@@ -1762,26 +1834,28 @@ function setupSkills(ctx, fail) {
 				}, t("cancel"))) : null, repoBusy === repo.id ? h("p", { role: "status" }, t("repoRefreshing")) : null, !repo.skills.length ? h("p", null, t("repoNoSkills")) : null, ...shown.map((skill) => h("div", {
 					key: skill.path,
 					"data-majed-repo-skill": skill.path
-				}, h("span", null, skill.name), h("span", null, ` — ${t(`repoStatus.${skill.status}`)}`), skill.code ? h("span", null, ` (${t(`code.${skill.code}`)})`) : null, h("p", null, skill.description), skill.conflicts?.length ? h("p", null, `${t("repoConflictIn")}: ${skill.conflicts.map((id) => id === "user-dsh" ? "DSH" : "Shared Agents").join(", ")}`) : null, (skill.status === "available" || skill.status === "conflict") && !skill.conflicts?.includes(repoTarget) ? h("button", {
+				}, h("span", null, skill.name), h("span", null, ` — ${t(`repoStatus.${skill.status}`)}`), skill.code ? h("span", null, ` (${t(`code.${skill.code}`)})`) : null, h("p", null, skill.description), skill.conflicts?.length ? h("p", null, `${t("repoConflictIn")}: ${skill.conflicts.map((id) => id === "user-dsh" ? "DSH" : "Shared Agents").join(", ")}`) : null, skill.valid !== false && !skill.conflicts?.includes(repoTarget) && !skill.installedIn?.includes(repoTarget) ? h("button", {
 					"aria-label": `${t("repoInstall")}: ${skill.name}`,
-					disabled: !!repoBusy || switching,
+					disabled: !!repoBusy || switching || !repoDestination,
 					onClick: () => void repoAction(repo.id, {
 						action: "repo-install",
 						id: repo.id,
 						path: skill.path,
 						snapshot: repo.fingerprint,
-						source: repoTarget
+						source: repoTarget,
+						...projectOfDest(repoTarget) ? { project: projectOfDest(repoTarget) } : {}
 					}, repoWarning)
 				}, t("repoInstall")) : null)));
 			}), h("h4", null, t("repoTracked")), !(data?.repoInstalls ?? []).length ? h("p", null, t("repoNoInstalls")) : null, ...(data?.repoInstalls ?? []).map((record) => h("article", {
 				key: record.id,
 				"data-majed-repo-install": record.id
-			}, h("strong", null, record.name), h("span", null, ` — ${t(`repoStatus.${record.status}`)}`), record.updateAvailable && record.status !== "update" ? h("span", null, ` — ${t("repoStatus.update")}`) : null, record.upstream ? h("p", null, `${t("repoUpstream")}: ${t(`code.${record.upstream}`)}`) : null, h("p", null, `${t("repoFromSource")}: ${record.origin.label}${record.origin.ref ? ` @ ${record.origin.ref}` : ""}${record.origin.subdirectory ? ` / ${record.origin.subdirectory}` : ""}`), h("p", null, `${t("repoSnapshot")}: ${record.fingerprint.slice(0, 12)} — ${t(`repoKind.${record.fingerprintKind}`)}`), h("p", null, record.path), record.status === "installed" || record.status === "modified" ? h("button", {
+			}, h("strong", null, record.name), h("span", null, ` — ${t(`repoStatus.${record.status}`)}`), record.updateAvailable && record.status !== "update" ? h("span", null, ` — ${t("repoStatus.update")}`) : null, record.upstream ? h("p", null, `${t("repoUpstream")}: ${t(`code.${record.upstream}`)}`) : null, h("p", null, `${t("repoFromSource")}: ${record.origin.label}${record.origin.ref ? ` @ ${record.origin.ref}` : ""}${record.origin.subdirectory ? ` / ${record.origin.subdirectory}` : ""}`), h("p", null, `${t("repoSnapshot")}: ${record.fingerprint.slice(0, 12)} — ${t(`repoKind.${record.fingerprintKind}`)}`), h("p", null, `${t("repoInstalledAt")}: `, h("bdi", { dir: "ltr" }, placeName(data, record))), h("p", null, h("bdi", { dir: "ltr" }, record.path)), record.status === "installed" || record.status === "modified" ? h("button", {
 				"aria-label": `${t("repoUninstall")}: ${record.name}`,
 				disabled: !!repoBusy || switching,
 				onClick: () => void repoAction(record.id, {
 					action: "repo-uninstall",
-					installId: record.id
+					installId: record.id,
+					...record.project ? { project: record.project } : {}
 				}, repoWarning)
 			}, t("repoUninstall")) : null, (record.status === "installed" || record.status === "modified") && record.updateAvailable ? h("button", {
 				"aria-label": `${t("repoUpdatePreview")}: ${record.name}`,
@@ -1821,7 +1895,8 @@ function setupSkills(ctx, fail) {
 					setRepoForgetting("");
 					repoAction(record.id, {
 						action: "repo-forget",
-						installId: record.id
+						installId: record.id,
+						...record.project ? { project: record.project } : {}
 					});
 				}
 			}, t("repoConfirmForgetYes")), h("button", {

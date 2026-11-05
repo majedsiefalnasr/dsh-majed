@@ -3,7 +3,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { lstat, mkdir, readdir, readFile, rename, rm, stat, writeFile, } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { publishImports } from './skills-import.js';
-import { assertPublicHost, DESTINATIONS, extractArchive, frontMatter, HEX, RepoError, readCapped, relativePath, Run, SKILL_DOC_MAX, SKILL_ENTRY_MAX, SKILL_FILE_MAX, SKILL_NAME, SKILL_TOTAL_MAX, treeHashOf, UUID, } from './skills-repos.js';
+import { assertPublicHost, validScope, extractArchive, frontMatter, HEX, RepoError, readCapped, relativePath, Run, SKILL_DOC_MAX, SKILL_ENTRY_MAX, SKILL_FILE_MAX, SKILL_NAME, SKILL_TOTAL_MAX, treeHashOf, UUID, } from './skills-repos.js';
 import { checkedTrashPath, trashEntry } from './skills-trash.js';
 const DEFAULTS = {
     clawhubBase: 'https://clawhub.ai',
@@ -128,11 +128,10 @@ function validState(value) {
             typeof entry.name === 'string' &&
             SKILL_NAME.test(entry.name) &&
             entry.name.length <= 256 &&
-            DESTINATIONS.includes(entry.source) &&
+            validScope(entry) &&
             typeof entry.root === 'string' &&
             entry.root.startsWith('/') &&
             entry.root.length <= 4096 &&
-            entry.scope === 'user' &&
             typeof entry.treeHash === 'string' &&
             HEX(64).test(entry.treeHash) &&
             text(entry.installedAt, 64) &&
@@ -525,7 +524,7 @@ export function createCatalogs(options) {
                 return { catalogInstalls: [] };
             const catalogInstalls = [];
             for (const item of state.installs) {
-                const dest = options.destination(item.source);
+                const dest = await options.destination(item.source, item.project);
                 const status = item.trashId
                     ? trashIds && !trashIds.has(item.trashId)
                         ? 'missing'
@@ -647,7 +646,7 @@ export function createCatalogs(options) {
             const ident = identity(input.skill);
             if (input.confirm !== true)
                 throw reject('catalog-confirm', 400);
-            const dest = options.destination(input.destination);
+            const dest = await options.destination(input.destination, input.project);
             if (!dest)
                 throw reject('create-readonly', 403);
             const { pkg, url } = await loadPackage(ident, signal);
@@ -677,7 +676,8 @@ export function createCatalogs(options) {
                     name: pkg.name,
                     source: dest.id,
                     root,
-                    scope: 'user',
+                    scope: dest.project ? 'project' : 'user',
+                    ...(dest.project ? { project: dest.project } : {}),
                     treeHash: pkg.treeHash,
                     files: pkg.manifest,
                     installedAt: new Date().toISOString(),
@@ -716,15 +716,17 @@ export function createCatalogs(options) {
             });
         },
         /** Moves a catalog copy to the shared Trash; provenance follows the Trash entry. */
-        async uninstall(id, cancelled) {
+        async uninstall(id, project, cancelled) {
             return options.exclusive(async () => {
                 await ready();
                 const item = state.installs.find((entry) => entry.id === id);
                 if (!item)
                     throw reject('repo-not-installed', 404);
+                if (item.project !== project)
+                    throw reject('project-mismatch', 409);
                 if (item.trashId)
                     throw reject('repo-trashed', 409);
-                const dest = options.destination(item.source);
+                const dest = await options.destination(item.source, item.project);
                 if (!dest || resolve(dest.root) !== item.root)
                     throw reject('repo-invalid-root', 409);
                 const target = join(item.root, item.name);
@@ -736,7 +738,7 @@ export function createCatalogs(options) {
                     result = await trashEntry(options.trashRoot, {
                         name: item.name,
                         source: item.source,
-                        scope: 'global',
+                        scope: item.project ?? 'global',
                         root: item.root,
                         origin: target,
                     }, cancelled);
@@ -761,16 +763,18 @@ export function createCatalogs(options) {
          * Record-only removal of an `invalid-root` copy, or of a record whose Trash entry was removed outside
          * the app (`trashIds` is the verified current Trash listing); no disk access, nothing is deleted.
          */
-        async forget(id, trashIds) {
+        async forget(id, project, trashIds) {
             return options.exclusive(async () => {
                 await ready();
                 const item = state.installs.find((entry) => entry.id === id);
                 if (!item)
                     throw reject('repo-not-installed', 404);
+                if (item.project !== project)
+                    throw reject('project-mismatch', 409);
                 const orphaned = !!item.trashId && !!trashIds && !trashIds.has(item.trashId);
                 if (item.trashId && !orphaned)
                     throw reject('repo-trashed', 409);
-                const dest = options.destination(item.source);
+                const dest = await options.destination(item.source, item.project);
                 if (!orphaned && dest && resolve(dest.root) === item.root)
                     throw reject('repo-root-valid', 409);
                 const next = clone();

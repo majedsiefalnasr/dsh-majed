@@ -45,8 +45,18 @@ const STATUS = {
     'repo-backup-changed': 409,
     'repo-skill-renamed': 409,
     'repo-recovery': 409,
+    'project-mismatch': 409,
 };
 const fail = (code) => new RepoError(code, STATUS[code] ?? 400);
+/** A project id is only ever a selector: the registry is always consulted again. */
+export const PROJECT_ID = /^[0-9a-f]{16}$/;
+/** Persisted scope identity: a user destination, or `project-dsh:<id>` together with that project id. */
+export const validScope = (item) => item.scope === 'user'
+    ? item.project === undefined && DESTINATIONS.includes(item.source)
+    : item.scope === 'project' &&
+        typeof item.project === 'string' &&
+        PROJECT_ID.test(item.project) &&
+        item.source === `project-dsh:${item.project}`;
 const DEFAULTS = {
     timeoutMs: 300_000,
     maxArchiveBytes: 32 * 1024 * 1024,
@@ -1044,11 +1054,10 @@ function validState(value) {
             typeof item.name === 'string' &&
             SKILL_NAME.test(item.name) &&
             item.name.length <= 100 &&
-            DESTINATIONS.includes(item.source) &&
+            validScope(item) &&
             text(item.root) &&
             isAbsolute(item.root) &&
-            // A root that no longer matches the configured destination is reported as `invalid-root`, not fatal.
-            item.scope === 'user' &&
+            // A root that no longer matches the destination (or a project that left the registry) is reported as `invalid-root`, not fatal.
             KIND_OF_FINGERPRINT[item.fingerprintKind] !== undefined &&
             fingerprint(item.fingerprintKind, item.fingerprint) &&
             text(item.installedAt, 64) &&
@@ -1363,6 +1372,14 @@ export function createRepositories(options) {
                 repoInstalls: [],
                 repoError: 'repo-state-invalid',
             };
+        // Each destination is resolved once per view; a project is re-resolved from the registry every time.
+        const resolved = new Map();
+        const where = (source, project) => {
+            const key = `${source}|${project ?? ''}`;
+            if (!resolved.has(key))
+                resolved.set(key, options.destination(source, project));
+            return resolved.get(key);
+        };
         const installs = await Promise.all(state.installs.map(async ({ backup, ...record }) => ({
             ...record,
             path: join(record.root, record.name),
@@ -1373,18 +1390,19 @@ export function createRepositories(options) {
                 ? !trashIds || trashIds.has(record.trashId)
                     ? 'trashed'
                     : 'missing'
-                : // Never read or act outside the configured destination: a moved root is only reported.
-                    options.destination(record.source) &&
-                        resolve(options.destination(record.source).root) === record.root
-                        ? await diskStatus(record)
-                        : 'invalid-root',
+                : // Never read or act outside the configured destination: a moved root or an unregistered project is only reported.
+                    await where(record.source, record.project).then((dest) => dest && resolve(dest.root) === record.root
+                        ? diskStatus(record)
+                        : 'invalid-root'),
         })));
         const repositories = await Promise.all(state.repositories.map(async (repo) => {
             const skills = await Promise.all(repo.skills.map(async (skill) => {
-                const tracked = installs.find((item) => item.repoId === repo.id &&
+                const live = installs.filter((item) => item.repoId === repo.id &&
                     item.skillPath === skill.path &&
                     item.status !== 'trashed' &&
                     item.status !== 'invalid-root');
+                // The user-scope copy represents the skill; every other scope is listed in `installedIn`.
+                const tracked = live.find((item) => item.scope === 'user') ?? live[0];
                 let status = skill.valid ? 'available' : 'invalid';
                 const conflicts = [];
                 if (tracked)
@@ -1394,11 +1412,14 @@ export function createRepositories(options) {
                                 ? 'update'
                                 : 'installed'
                             : tracked.status;
-                else if (skill.valid) {
-                    // Same names install refuses: `<name>` and `<name>.md` in each destination.
+                // Same names install refuses: `<name>` and `<name>.md` in each user destination without a tracked copy.
+                // A project destination is checked by the install itself (it re-resolves the registry).
+                if (skill.valid) {
                     let known = 0;
                     for (const id of DESTINATIONS) {
-                        const dest = options.destination(id);
+                        if (live.some((item) => item.source === id))
+                            continue;
+                        const dest = await where(id);
                         if (!dest)
                             continue;
                         known++;
@@ -1409,7 +1430,7 @@ export function createRepositories(options) {
                             }
                     }
                     // `status` reflects the default destination; `conflicts` lists every blocked one.
-                    if (known && conflicts.includes('user-dsh'))
+                    if (!tracked && known && conflicts.includes('user-dsh'))
                         status = 'conflict';
                 }
                 return {
@@ -1422,6 +1443,7 @@ export function createRepositories(options) {
                     status,
                     ...(tracked?.updateAvailable ? { updateAvailable: true } : {}),
                     conflicts,
+                    installedIn: live.map((item) => item.source),
                     ...(tracked ? { installId: tracked.id } : {}),
                 };
             }));
@@ -1429,19 +1451,26 @@ export function createRepositories(options) {
         }));
         return { repositories, repoInstalls: installs };
     };
+    /** The tracked copy for an action: it must live in exactly the scope the caller selected (never a fallback). */
+    const owned = (id, project) => {
+        const record = state.installs.find((item) => item.id === id);
+        if (!record)
+            throw fail('repo-not-installed');
+        if (record.project !== project)
+            throw fail('project-mismatch');
+        return record;
+    };
     const mapTrash = (error) => error instanceof RepoError
         ? error
         : new RepoError(error instanceof Error && error.message.startsWith('trash-')
             ? error.message
             : 'trash-failed', 409);
     /** Compares the tracked baseline, the live copy and the update/rollback target. */
-    const plan = async (kind, id) => {
-        const record = state.installs.find((item) => item.id === id);
-        if (!record)
-            throw fail('repo-not-installed');
+    const plan = async (kind, id, project) => {
+        const record = owned(id, project);
         if (record.trashId)
             throw fail('repo-trashed');
-        const dest = options.destination(record.source);
+        const dest = await options.destination(record.source, record.project);
         if (!dest || resolve(dest.root) !== record.root)
             throw fail('repo-invalid-root');
         const final = join(record.root, record.name);
@@ -1698,7 +1727,7 @@ export function createRepositories(options) {
                 const repo = state.repositories.find((item) => item.id === input.id);
                 if (!repo)
                     throw fail('repo-not-found');
-                const dest = options.destination(input.source);
+                const dest = await options.destination(input.source, input.project);
                 if (!dest)
                     throw fail('create-readonly');
                 if (input.snapshot !== repo.fingerprint)
@@ -1737,7 +1766,8 @@ export function createRepositories(options) {
                     name: skill.name,
                     source: dest.id,
                     root,
-                    scope: 'user',
+                    scope: dest.project ? 'project' : 'user',
+                    ...(dest.project ? { project: dest.project } : {}),
                     fingerprint: repo.fingerprint,
                     fingerprintKind: repo.fingerprintKind,
                     files: manifest,
@@ -1760,15 +1790,13 @@ export function createRepositories(options) {
             });
         },
         /** Moves a tracked copy to the shared Trash; provenance follows the Trash entry. */
-        async uninstall(id, cancelled) {
+        async uninstall(id, project, cancelled) {
             return options.exclusive(async () => {
                 await ready();
-                const record = state.installs.find((item) => item.id === id);
-                if (!record)
-                    throw fail('repo-not-installed');
+                const record = owned(id, project);
                 if (record.trashId)
                     throw fail('repo-trashed');
-                const dest = options.destination(record.source);
+                const dest = await options.destination(record.source, record.project);
                 // The destination changed since install: never touch disk there; the record can be forgotten instead.
                 if (!dest || resolve(dest.root) !== record.root)
                     throw fail('repo-invalid-root');
@@ -1781,7 +1809,7 @@ export function createRepositories(options) {
                     result = await trashEntry(options.trashRoot, {
                         name: record.name,
                         source: record.source,
-                        scope: 'global',
+                        scope: record.project ?? 'global',
                         root: record.root,
                         origin: target,
                     }, cancelled);
@@ -1799,10 +1827,10 @@ export function createRepositories(options) {
             });
         },
         /** Read-only preview of an update or rollback; the digests it returns bind the later apply. */
-        async preview(kind, id) {
+        async preview(kind, id, project) {
             return options.exclusive(async () => {
                 await ready();
-                const { changes, current, target, localModified } = await plan(kind, id);
+                const { changes, current, target, localModified } = await plan(kind, id, project);
                 return {
                     current: current.digest,
                     snapshot: target.fingerprint,
@@ -1820,7 +1848,7 @@ export function createRepositories(options) {
         async replace(kind, input, cancelled) {
             return options.exclusive(async () => {
                 await ready();
-                const found = await plan(kind, input.id);
+                const found = await plan(kind, input.id, input.project);
                 const { record, current, target, localModified } = found;
                 if (input.current !== current.digest ||
                     input.target !== target.digest ||
@@ -1906,15 +1934,13 @@ export function createRepositories(options) {
             });
         },
         /** Record-only removal of an `invalid-root` install: no disk access, nothing is deleted. */
-        async forget(id) {
+        async forget(id, project) {
             return options.exclusive(async () => {
                 await ready();
-                const record = state.installs.find((item) => item.id === id);
-                if (!record)
-                    throw fail('repo-not-installed');
+                const record = owned(id, project);
                 if (record.trashId)
                     throw fail('repo-trashed');
-                const dest = options.destination(record.source);
+                const dest = await options.destination(record.source, record.project);
                 if (dest && resolve(dest.root) === record.root)
                     throw fail('repo-root-valid');
                 const next = clone();
