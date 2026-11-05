@@ -66,3 +66,5 @@ The #129 visual correction additionally adapts the Codex presentation and helper
 Ported source added by later components is listed here with its version, commit and the location of its provenance record. No provider account, trademark or service authorization follows from a code license.
 
 #134 additionally ports GitHub Copilot, the device-flow engine, Chat Completions translation and their reference tests from the same v0.9.12 / b802311 MIT pin, with owned composition and EN/AR device-code card adaptations. See `src/PROVENANCE.md` for the inventory and local changes; the retained V1ki copyright and MIT notice apply.
+
+#153 additionally adapts repository source parsing, hardened Git acquisition, GitHub archive scanning and subscription/tracked-install provenance workflows from `src/repository-git.ts` and `src/repositories.ts` of MichengAI/dsh-skills-manager v1.2.29 (commit 49037a919b87b000de9003a49930425ae9742632, Apache-2.0; license in `skills/LICENSE-APACHE-2.0`). Provenance record: `src/PROVENANCE.md` (#153). No reference runtime, state or updater is required.

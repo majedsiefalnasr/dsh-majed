@@ -140,12 +140,13 @@ export async function trashEntry(
     try {
       await rm(quarantine, { recursive: true });
     } catch {
-      return { warning: 'trash-cleanup', path: quarantine };
+      return { id: item.id, warning: 'trash-cleanup', path: quarantine };
     }
-    return {};
+    return { id: item.id };
   } catch (error) {
     // A published copy is recovery material, even when removing the active entry failed.
-    if (published) return { warning: 'trash-recovery', path: final };
+    if (published)
+      return { id: item.id, warning: 'trash-recovery', path: final };
     throw error;
   } finally {
     if (!published) await rm(stage, { recursive: true, force: true });

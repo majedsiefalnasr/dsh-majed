@@ -14,6 +14,10 @@
 | Settings ▸ General ▸ **Copy on select** (toggle, off by default) | Text you select in the app is copied to the clipboard automatically when you release the mouse or finish a keyboard selection. A "Copied to clipboard" toast confirms each copy. Selections inside input fields, the composer and the terminal are ignored. |
 | Composer bar ▸ **Approvals** dropdown (next to the permission control) | Per-session auto-approval: **Ask me** (default), **Auto (safe)**, **Auto (aggressive)**. Decisions come from a deterministic, offline command classifier (see below). A toast shows each auto-approval; after 3 requests in a row that were handed back to you, auto-approval pauses for the session. |
 
+### Skill repositories
+
+The skill manager's **Repositories** scope subscribes to GitHub (`owner/name` or URL), HTTP(S) Git and local folders, and installs tracked copies into the DSH or Shared Agents folder. Requirements: the system `git` executable is needed for Git and local-Git sources (GitHub archives and plain folders do not need it); cleartext `http://` Git hosts are allowed (credentials in URLs are refused, loopback/private hosts are blocked); the `repositories` option (git binary, archive base URL, limits, `allowPrivateHosts`) is trusted host configuration, not user input. Known limitation: a hostname is checked once before Git resolves it again, so DNS rebinding in between is not prevented.
+
 ### Notifications on phones (remote web access)
 Mobile browsers are stricter than desktop:
 - **HTTPS is required.** Plain `http://192.168.x.x` links are not a secure context, so browsers expose no notification API at all. Use the tunnel (`https://…trycloudflare.com`) link from the Remote access panel.

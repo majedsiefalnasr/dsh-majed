@@ -33,6 +33,11 @@ import {
   publishImports,
 } from './skills-import.js';
 import {
+  createRepositories,
+  RepoError,
+  type RepositoryConfig,
+} from './skills-repos.js';
+import {
   CUSTOM_ID,
   CUSTOM_RANK_BASE,
   CUSTOM_RANK_STEP,
@@ -137,6 +142,8 @@ interface Source {
 interface Config {
   sources?: Source[];
   statePath?: string;
+  /** Host-code seams for repository subscriptions (tests, packaging); never request-controlled. */
+  repositories?: RepositoryConfig;
 }
 
 const diag = (
@@ -1129,6 +1136,29 @@ export function apply(ctx: HostContext, config: Config = {}) {
     return view;
   };
   const trashRoot = join(dirname(statePath), 'trash');
+  const exclusive = <T>(fn: () => Promise<T>): Promise<T> => {
+    const mutation = operations.then(fn);
+    operations = mutation.catch(() => undefined);
+    return mutation;
+  };
+  const repos = createRepositories({
+    config: config.repositories,
+    stateDir: dirname(statePath),
+    trashRoot,
+    destination: (id) => {
+      const found = baseSources.find(
+        (item) =>
+          item.id === id && ['user-dsh', 'user-agents'].includes(item.id),
+      );
+      return found ? { id: found.id, root: found.path } : undefined;
+    },
+    exclusive,
+    changed: () => {
+      revision++;
+      for (const control of controls) control.invalidate();
+    },
+  });
+  ctx.effect(() => () => repos.close(), 'majed-skills repository operations');
   const projectView = async (project: Project) => {
     if (!project.available)
       return {
@@ -1181,7 +1211,12 @@ export function apply(ctx: HostContext, config: Config = {}) {
             : 'trash-unavailable';
       }
     }
+    const repoView = await repos.view(
+      expose,
+      trashError ? undefined : new Set(trash.map((item) => item.id)),
+    );
     return {
+      ...repoView,
       sources: globalSources().map((source) => ({
         ...source,
         enabled:
@@ -1843,6 +1878,13 @@ export function apply(ctx: HostContext, config: Config = {}) {
                 'trash',
                 'trash-restore',
                 'trash-delete',
+                'repo-add',
+                'repo-refresh',
+                'repo-refresh-all',
+                'repo-remove',
+                'repo-install',
+                'repo-uninstall',
+                'repo-forget',
                 'custom-scan',
                 'custom-add',
                 'custom-update',
@@ -1983,6 +2025,12 @@ export function apply(ctx: HostContext, config: Config = {}) {
                         },
                         cancelled,
                       );
+                      if (scope === 'global')
+                        await repos.noteTrashed(
+                          resolve(sourceRoot),
+                          origin,
+                          result.id,
+                        );
                     } else {
                       if (!item) return fail(404, 'trash-missing');
                       if (
@@ -1993,12 +2041,14 @@ export function apply(ctx: HostContext, config: Config = {}) {
                           (await comparisonPath(item.origin))
                       )
                         return fail(409, 'trash-invalid');
-                      if (body.action === 'trash-restore')
+                      if (body.action === 'trash-restore') {
                         result = await restoreEntry(trashRoot, item, cancelled);
-                      else {
+                        await repos.noteRestored(item.id);
+                      } else {
                         if (body.confirm !== true)
                           return fail(400, 'trash-confirm');
                         await deleteEntry(trashRoot, item);
+                        await repos.noteDeleted(item.id);
                         // Do not erase a newer active copy's annotations or policy.
                         const view = current
                           ? await projectCatalog(current)
@@ -2067,6 +2117,49 @@ export function apply(ctx: HostContext, config: Config = {}) {
                   )),
                   result,
                 });
+              }
+              if (String(body.action).startsWith('repo-')) {
+                if (!marked) return fail(403, 'forbidden');
+                const cancelled = () => closing || request.signal.aborted;
+                if (closing) return fail(503, 'stopping');
+                try {
+                  let result: unknown;
+                  if (corrupt) return fail(409, 'state-invalid');
+                  if (body.action === 'repo-add')
+                    result = await repos.add(body.repository, request.signal);
+                  else if (body.action === 'repo-refresh')
+                    result = await repos.refresh(body.id, request.signal);
+                  else if (body.action === 'repo-refresh-all')
+                    result = await repos.refreshAll(request.signal);
+                  else if (body.action === 'repo-remove')
+                    result = await repos.remove(body.id);
+                  else if (body.action === 'repo-install')
+                    result = await repos.install(
+                      {
+                        id: body.id,
+                        path: body.path,
+                        snapshot: body.snapshot,
+                        source: body.source ?? 'user-dsh',
+                      },
+                      cancelled,
+                    );
+                  else if (body.action === 'repo-forget')
+                    result = await repos.forget(body.installId);
+                  else
+                    result = await repos.uninstall(body.installId, cancelled);
+                  return Response.json({
+                    ...(await payload(
+                      project,
+                      await registeredProjects(),
+                      marked,
+                    )),
+                    result,
+                  });
+                } catch (error) {
+                  if (error instanceof RepoError)
+                    return fail(error.status, error.code);
+                  return fail(400, 'repo-failed');
+                }
               }
               if (body.action === 'import' || body.action === 'upload') {
                 if (!marked) return fail(403, 'forbidden');

@@ -60,6 +60,97 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
           'Original removal failed; the complete Trash copy was retained for recovery',
         'code.trash-state':
           'Files deleted, but annotation cleanup failed; reload state before retrying',
+        repositories: 'Repositories',
+        repoAddTitle: 'Subscribe to a repository',
+        repoUrl: 'Repository (owner/name, https URL or absolute folder)',
+        repoRef: 'Branch or tag (optional)',
+        repoSubdirectory: 'Subdirectory (optional)',
+        repoAdd: 'Subscribe',
+        repoRefresh: 'Refresh',
+        repoRefreshAll: 'Refresh all',
+        repoRefreshing: 'Refreshing…',
+        repoUnsubscribe: 'Unsubscribe (keeps installed skills)',
+        repoFilter: 'Filter repository skills',
+        repoStatusFilter: 'Filter by status',
+        repoRepoFilter: 'Filter by repository',
+        repoAllStatuses: 'All statuses',
+        repoAllRepositories: 'All repositories',
+        repoConfirmUnsubscribe:
+          'Unsubscribe from this repository? Installed skills and their provenance stay; the saved snapshot is removed.',
+        repoConfirmUnsubscribeYes: 'Unsubscribe',
+        repoForget: 'Forget record (deletes nothing)',
+        repoConfirmForget:
+          'Forget this installation record? Only the tracking record is removed; no files are read, moved or deleted.',
+        repoConfirmForgetYes: 'Forget record',
+        'code.repo-invalid-root':
+          'The destination changed since install; the copy is not touched. Forget the record instead.',
+        'code.repo-root-valid':
+          'The destination is unchanged; use Uninstall to Trash',
+        repoConflictIn: 'Name already used in',
+        repoEmpty: 'No repository subscriptions',
+        repoNoSkills: 'No skills found in this snapshot',
+        repoInstall: 'Install',
+        repoUninstall: 'Uninstall to Trash',
+        repoDestination: 'Install into',
+        repoTracked: 'Tracked installations',
+        repoSnapshot: 'Snapshot',
+        repoLastError: 'Last refresh failed; showing the previous snapshot',
+        repoBulk: 'Refreshed {done} of {total}; {failed} failed',
+        repoFromSource: 'Source',
+        repoNoInstalls: 'No tracked installations',
+        'repoKind.git-commit': 'Git commit',
+        'repoKind.archive-sha256': 'Archive fingerprint (not a Git commit)',
+        'repoKind.folder-sha256': 'Folder content fingerprint',
+        'repoStatus.available': 'Available',
+        'repoStatus.installed': 'Installed',
+        'repoStatus.modified': 'Modified locally',
+        'repoStatus.missing': 'Missing',
+        'repoStatus.conflict': 'Name conflict',
+        'repoStatus.invalid': 'Invalid',
+        'repoStatus.trashed': 'In Trash',
+        'repoStatus.invalid-root': 'Destination changed',
+        'code.repo-url':
+          'Repository address is not supported (use owner/name, an https/http URL without credentials, or an absolute folder)',
+        'code.repo-ref': 'Branch or tag name is not valid',
+        'code.repo-subdirectory': 'Subdirectory is not valid or does not exist',
+        'code.repo-host':
+          'Local, private and link-local network hosts are not allowed',
+        'code.repo-local':
+          'The local folder is missing or is not a usable folder',
+        'code.repo-git': 'Git could not read this repository',
+        'code.repo-git-missing': 'Git is not installed or not on PATH',
+        'code.repo-network':
+          'The repository could not be reached (redirects are not followed)',
+        'code.repo-notfound': 'Repository, branch or tag was not found',
+        'code.repo-auth':
+          'Authentication is required; credentials are not supported',
+        'code.repo-timeout': 'The repository operation timed out',
+        'code.repo-limit':
+          'The repository exceeds safe size, file-count or depth limits',
+        'code.repo-archive': 'The repository archive is invalid or unsafe',
+        'code.repo-cancelled': 'The operation was cancelled',
+        'code.repo-duplicate': 'This repository is already subscribed',
+        'code.repo-busy': 'This repository is already being refreshed',
+        'code.repo-not-found': 'This subscription no longer exists',
+        'code.repo-stale':
+          'The repository changed; refresh the preview and try again',
+        'code.repo-conflict':
+          'A skill with this name already exists; nothing was overwritten',
+        'code.repo-skill-missing': 'This skill is not in the current snapshot',
+        'code.repo-skill-invalid':
+          'This skill is invalid and cannot be installed',
+        'code.repo-skill-limit': 'This skill exceeds safe size limits',
+        'code.repo-skill-metadata': 'This skill has invalid metadata',
+        'code.repo-snapshot-changed':
+          'The stored snapshot no longer matches; refresh the repository',
+        'code.repo-not-installed': 'This tracked installation no longer exists',
+        'code.repo-trashed': 'This installation is already in Trash',
+        'code.repo-missing': 'The installed copy is missing from disk',
+        'code.repo-state-invalid':
+          'Repository state is unreadable and was left untouched',
+        'code.repo-state-write': 'Repository state could not be saved',
+        'code.repo-install-failed': 'The skill could not be installed',
+        'code.repo-failed': 'The repository operation failed',
         importSkills: 'Import skills',
         importPath: 'Local absolute path',
         previewImport: 'Preview local import',
@@ -301,6 +392,89 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
           'فشل حذف المصدر؛ حُفظت نسخة كاملة في السلة للاستعادة',
         'code.trash-state':
           'حُذفت الملفات لكن فشل تنظيف التعليقات؛ أعد تحميل الحالة',
+        repositories: 'المستودعات',
+        repoAddTitle: 'الاشتراك في مستودع',
+        repoUrl: 'المستودع (owner/name أو رابط https أو مجلد مطلق)',
+        repoRef: 'الفرع أو الوسم (اختياري)',
+        repoSubdirectory: 'المجلد الفرعي (اختياري)',
+        repoAdd: 'اشتراك',
+        repoRefresh: 'تحديث',
+        repoRefreshAll: 'تحديث الكل',
+        repoRefreshing: 'جارٍ التحديث…',
+        repoUnsubscribe: 'إلغاء الاشتراك (تبقى المهارات المثبتة)',
+        repoFilter: 'تصفية مهارات المستودع',
+        repoStatusFilter: 'تصفية حسب الحالة',
+        repoRepoFilter: 'تصفية حسب المستودع',
+        repoAllStatuses: 'كل الحالات',
+        repoAllRepositories: 'كل المستودعات',
+        repoConfirmUnsubscribe:
+          'إلغاء الاشتراك في هذا المستودع؟ تبقى المهارات المثبتة وسجل مصدرها، وتُحذف اللقطة المحفوظة.',
+        repoConfirmUnsubscribeYes: 'إلغاء الاشتراك',
+        repoForget: 'نسيان السجل (لا يحذف شيئاً)',
+        repoConfirmForget:
+          'نسيان سجل هذا التثبيت؟ يُزال سجل التتبع فقط؛ لا تُقرأ ملفات ولا تُنقل ولا تُحذف.',
+        repoConfirmForgetYes: 'نسيان السجل',
+        'code.repo-invalid-root':
+          'تغيّرت الوجهة منذ التثبيت؛ لا يُمس النسخ. انسَ السجل بدلاً من ذلك.',
+        'code.repo-root-valid':
+          'الوجهة لم تتغير؛ استخدم النقل إلى سلة المحذوفات',
+        repoConflictIn: 'الاسم مستخدم في',
+        repoEmpty: 'لا توجد اشتراكات مستودعات',
+        repoNoSkills: 'لا توجد مهارات في هذه اللقطة',
+        repoInstall: 'تثبيت',
+        repoUninstall: 'إزالة إلى السلة',
+        repoDestination: 'التثبيت في',
+        repoTracked: 'التثبيتات المتتبعة',
+        repoSnapshot: 'اللقطة',
+        repoLastError: 'فشل آخر تحديث؛ تُعرض اللقطة السابقة',
+        repoBulk: 'حُدّث {done} من {total}؛ فشل {failed}',
+        repoFromSource: 'المصدر',
+        repoNoInstalls: 'لا توجد تثبيتات متتبعة',
+        'repoKind.git-commit': 'إيداع Git',
+        'repoKind.archive-sha256': 'بصمة الأرشيف (ليست إيداع Git)',
+        'repoKind.folder-sha256': 'بصمة محتوى المجلد',
+        'repoStatus.available': 'متاحة',
+        'repoStatus.installed': 'مثبتة',
+        'repoStatus.modified': 'معدلة محلياً',
+        'repoStatus.missing': 'مفقودة',
+        'repoStatus.conflict': 'تعارض اسم',
+        'repoStatus.invalid': 'غير صالحة',
+        'repoStatus.trashed': 'في السلة',
+        'repoStatus.invalid-root': 'تغيّرت الوجهة',
+        'code.repo-url':
+          'عنوان المستودع غير مدعوم (استخدم owner/name أو رابط https/http بلا بيانات اعتماد أو مجلداً مطلقاً)',
+        'code.repo-ref': 'اسم الفرع أو الوسم غير صالح',
+        'code.repo-subdirectory': 'المجلد الفرعي غير صالح أو غير موجود',
+        'code.repo-host': 'المضيفات المحلية والخاصة غير مسموحة',
+        'code.repo-local': 'المجلد المحلي مفقود أو غير صالح',
+        'code.repo-git': 'تعذرت قراءة المستودع عبر Git',
+        'code.repo-git-missing': 'Git غير مثبت أو غير موجود في PATH',
+        'code.repo-network': 'تعذر الوصول إلى المستودع (لا تُتبع إعادة التوجيه)',
+        'code.repo-notfound': 'لم يُعثر على المستودع أو الفرع أو الوسم',
+        'code.repo-auth': 'المصادقة مطلوبة؛ بيانات الاعتماد غير مدعومة',
+        'code.repo-timeout': 'انتهت مهلة عملية المستودع',
+        'code.repo-limit':
+          'يتجاوز المستودع حدود الحجم أو عدد الملفات أو العمق الآمنة',
+        'code.repo-archive': 'أرشيف المستودع غير صالح أو غير آمن',
+        'code.repo-cancelled': 'أُلغيت العملية',
+        'code.repo-duplicate': 'هذا المستودع مشترك فيه بالفعل',
+        'code.repo-busy': 'يجري تحديث هذا المستودع بالفعل',
+        'code.repo-not-found': 'لم يعد هذا الاشتراك موجوداً',
+        'code.repo-stale': 'تغير المستودع؛ حدّث المعاينة وأعد المحاولة',
+        'code.repo-conflict': 'توجد مهارة بهذا الاسم؛ لم يُستبدل شيء',
+        'code.repo-skill-missing': 'هذه المهارة ليست في اللقطة الحالية',
+        'code.repo-skill-invalid': 'هذه المهارة غير صالحة ولا يمكن تثبيتها',
+        'code.repo-skill-limit': 'تتجاوز هذه المهارة حدود الحجم الآمنة',
+        'code.repo-skill-metadata': 'بيانات هذه المهارة الوصفية غير صالحة',
+        'code.repo-snapshot-changed':
+          'لم تعد اللقطة المخزنة مطابقة؛ حدّث المستودع',
+        'code.repo-not-installed': 'لم يعد هذا التثبيت المتتبع موجوداً',
+        'code.repo-trashed': 'هذا التثبيت موجود بالفعل في السلة',
+        'code.repo-missing': 'النسخة المثبتة مفقودة من القرص',
+        'code.repo-state-invalid': 'حالة المستودعات غير مقروءة وتُركت دون تغيير',
+        'code.repo-state-write': 'تعذر حفظ حالة المستودعات',
+        'code.repo-install-failed': 'تعذر تثبيت المهارة',
+        'code.repo-failed': 'فشلت عملية المستودع',
         importSkills: 'استيراد مهارات',
         importPath: 'المسار المحلي المطلق',
         previewImport: 'معاينة الاستيراد المحلي',
@@ -589,6 +763,19 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
         [importResult, setImportResult] = React.useState(null),
         [importBusy, setImportBusy] = React.useState(false),
         [trashDeleting, setTrashDeleting] = React.useState(''),
+        [repoForm, setRepoForm] = React.useState({
+          url: '',
+          ref: '',
+          subdirectory: '',
+        }),
+        [repoFilter, setRepoFilter] = React.useState(''),
+        [repoStatusFilter, setRepoStatusFilter] = React.useState(''),
+        [repoRepoFilter, setRepoRepoFilter] = React.useState(''),
+        [repoUnsubscribing, setRepoUnsubscribing] = React.useState(''),
+        [repoForgetting, setRepoForgetting] = React.useState(''),
+        [repoTarget, setRepoTarget] = React.useState('user-dsh'),
+        [repoBusy, setRepoBusy] = React.useState(''),
+        [repoSummary, setRepoSummary] = React.useState(''),
         [creating, setCreating] = React.useState(false),
         [createName, setCreateName] = React.useState(''),
         [createDescription, setCreateDescription] = React.useState(''),
@@ -688,6 +875,35 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
         } finally {
           busy.current = false;
         }
+      };
+      // Repository actions show per-repository progress while the host works.
+      const repoAction = async (
+        busyKey: string,
+        body: any,
+        done?: (value: any) => void,
+      ) => {
+        if (repoBusy || busy.current) return;
+        setRepoBusy(busyKey);
+        setRepoSummary('');
+        try {
+          await mutate(body, done);
+        } finally {
+          setRepoBusy('');
+        }
+      };
+      // Install and uninstall report cleanup/recovery warnings; show them instead of dropping them.
+      const repoWarning = (value: any) => {
+        const result = value?.result;
+        const lines: string[] = [];
+        if (result?.warning)
+          lines.push(
+            `${t(`code.${result.warning}`)} ${result.path ?? ''}`.trim(),
+          );
+        for (const item of result?.warnings ?? [])
+          lines.push(
+            `${item.name}: ${t(`code.${item.code}`)} ${(item.recovery ?? []).join(' ')}`.trim(),
+          );
+        if (lines.length) setNotice(lines.join(' · '));
       };
       const runImport = async (dryRun: boolean) => {
         if (busy.current || switching || importBusy || !importConflict) return;
@@ -791,7 +1007,7 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
       const inProject = scope === 'project';
       // Project view: sources, copies and diagnostics come from the selected project only.
       const view =
-        scope === 'trash'
+        scope === 'trash' || scope === 'repositories'
           ? { sources: [], copies: [], diagnostics: [] }
           : inProject
             ? (data?.project ?? { sources: [], copies: [], diagnostics: [] })
@@ -1440,6 +1656,347 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
               ),
             )
           : null,
+        scope === 'repositories'
+          ? h(
+              'div',
+              { 'data-majed-repositories': true },
+              h('h3', null, t('repositories')),
+              h(
+                'form',
+                {
+                  onSubmit: (event: any) => {
+                    event.preventDefault();
+                    void repoAction(
+                      'add',
+                      { action: 'repo-add', repository: { ...repoForm } },
+                      () => setRepoForm({ url: '', ref: '', subdirectory: '' }),
+                    );
+                  },
+                },
+                h('h4', null, t('repoAddTitle')),
+                field(t('repoUrl'), repoForm.url, (value: string) =>
+                  setRepoForm({ ...repoForm, url: value }),
+                ),
+                field(t('repoRef'), repoForm.ref, (value: string) =>
+                  setRepoForm({ ...repoForm, ref: value }),
+                ),
+                field(
+                  t('repoSubdirectory'),
+                  repoForm.subdirectory,
+                  (value: string) =>
+                    setRepoForm({ ...repoForm, subdirectory: value }),
+                ),
+                h(
+                  'button',
+                  {
+                    type: 'submit',
+                    disabled: !repoForm.url.trim() || !!repoBusy || switching,
+                  },
+                  t('repoAdd'),
+                ),
+              ),
+              h(
+                'button',
+                {
+                  disabled:
+                    !data?.repositories?.length || !!repoBusy || switching,
+                  onClick: () =>
+                    void repoAction(
+                      'all',
+                      { action: 'repo-refresh-all' },
+                      (value: any) =>
+                        setRepoSummary(
+                          t('repoBulk')
+                            .replace(
+                              '{done}',
+                              String(value.result.refreshed.length),
+                            )
+                            .replace('{total}', String(value.result.total))
+                            .replace(
+                              '{failed}',
+                              String(value.result.failed.length),
+                            ),
+                        ),
+                    ),
+                },
+                t('repoRefreshAll'),
+              ),
+              repoBusy ? h('p', { role: 'status' }, t('repoRefreshing')) : null,
+              repoSummary ? h('p', { role: 'status' }, repoSummary) : null,
+              data?.repoError
+                ? h('p', { role: 'alert' }, t(`code.${data.repoError}`))
+                : null,
+              field(t('repoFilter'), repoFilter, setRepoFilter),
+              h(
+                'select',
+                {
+                  'aria-label': t('repoStatusFilter'),
+                  value: repoStatusFilter,
+                  onChange: (event: any) =>
+                    setRepoStatusFilter(event.target.value),
+                },
+                h('option', { key: '', value: '' }, t('repoAllStatuses')),
+                ...['available', 'installed', 'conflict', 'invalid'].map((id) =>
+                  h('option', { key: id, value: id }, t(`repoStatus.${id}`)),
+                ),
+              ),
+              h(
+                'select',
+                {
+                  'aria-label': t('repoRepoFilter'),
+                  value: repoRepoFilter,
+                  onChange: (event: any) =>
+                    setRepoRepoFilter(event.target.value),
+                },
+                h('option', { key: '', value: '' }, t('repoAllRepositories')),
+                ...(data?.repositories ?? []).map((repo: any) =>
+                  h('option', { key: repo.id, value: repo.id }, repo.label),
+                ),
+              ),
+              h(
+                'select',
+                {
+                  'aria-label': t('repoDestination'),
+                  value: repoTarget,
+                  onChange: (event: any) => setRepoTarget(event.target.value),
+                },
+                ...['user-dsh', 'user-agents']
+                  .filter((id) => data?.sources?.some((x: any) => x.id === id))
+                  .map((id) =>
+                    h(
+                      'option',
+                      { key: id, value: id },
+                      id === 'user-dsh' ? 'DSH' : 'Shared Agents',
+                    ),
+                  ),
+              ),
+              !data?.repoError && !data?.repositories?.length
+                ? h('p', null, t('repoEmpty'))
+                : null,
+              ...(data?.repositories ?? []).map((repo: any) => {
+                const needle = repoFilter.trim().toLowerCase();
+                if (repoRepoFilter && repo.id !== repoRepoFilter) return null;
+                const shown = repo.skills.filter(
+                  (skill: any) =>
+                    (!repoStatusFilter || skill.status === repoStatusFilter) &&
+                    (!needle ||
+                      `${skill.name} ${skill.description} ${skill.path}`
+                        .toLowerCase()
+                        .includes(needle)),
+                );
+                if ((needle || repoStatusFilter) && !shown.length) return null;
+                return h(
+                  'article',
+                  { key: repo.id, 'data-majed-repository': repo.id },
+                  h('strong', null, repo.label),
+                  h(
+                    'p',
+                    null,
+                    `${t('repoFromSource')}: ${repo.kind}${repo.ref ? ` @ ${repo.ref}` : ''}${repo.subdirectory ? ` / ${repo.subdirectory}` : ''}`,
+                  ),
+                  h(
+                    'p',
+                    null,
+                    `${t('repoSnapshot')}: ${repo.fingerprint.slice(0, 12)} — ${t(`repoKind.${repo.fingerprintKind}`)}`,
+                  ),
+                  repo.error
+                    ? h(
+                        'p',
+                        { role: 'alert' },
+                        `${t('repoLastError')}: ${t(`code.${repo.error.code}`)}`,
+                      )
+                    : null,
+                  h(
+                    'button',
+                    {
+                      'aria-label': `${t('repoRefresh')}: ${repo.label}`,
+                      disabled: !!repoBusy || switching,
+                      onClick: () =>
+                        void repoAction(repo.id, {
+                          action: 'repo-refresh',
+                          id: repo.id,
+                        }),
+                    },
+                    t('repoRefresh'),
+                  ),
+                  h(
+                    'button',
+                    {
+                      'aria-label': `${t('repoUnsubscribe')}: ${repo.label}`,
+                      disabled: !!repoBusy || switching,
+                      onClick: () => setRepoUnsubscribing(repo.id),
+                    },
+                    t('repoUnsubscribe'),
+                  ),
+                  repoUnsubscribing === repo.id
+                    ? h(
+                        'div',
+                        { role: 'alert' },
+                        h('p', null, t('repoConfirmUnsubscribe')),
+                        h(
+                          'button',
+                          {
+                            'aria-label': `${t('repoConfirmUnsubscribeYes')}: ${repo.label}`,
+                            disabled: !!repoBusy || switching,
+                            onClick: () => {
+                              setRepoUnsubscribing('');
+                              void repoAction(repo.id, {
+                                action: 'repo-remove',
+                                id: repo.id,
+                              });
+                            },
+                          },
+                          t('repoConfirmUnsubscribeYes'),
+                        ),
+                        h(
+                          'button',
+                          {
+                            'aria-label': `${t('cancel')}: ${repo.label}`,
+                            onClick: () => setRepoUnsubscribing(''),
+                          },
+                          t('cancel'),
+                        ),
+                      )
+                    : null,
+                  repoBusy === repo.id
+                    ? h('p', { role: 'status' }, t('repoRefreshing'))
+                    : null,
+                  !repo.skills.length ? h('p', null, t('repoNoSkills')) : null,
+                  ...shown.map((skill: any) =>
+                    h(
+                      'div',
+                      { key: skill.path, 'data-majed-repo-skill': skill.path },
+                      h('span', null, skill.name),
+                      h('span', null, ` — ${t(`repoStatus.${skill.status}`)}`),
+                      skill.code
+                        ? h('span', null, ` (${t(`code.${skill.code}`)})`)
+                        : null,
+                      h('p', null, skill.description),
+                      skill.conflicts?.length
+                        ? h(
+                            'p',
+                            null,
+                            `${t('repoConflictIn')}: ${skill.conflicts
+                              .map((id: string) =>
+                                id === 'user-dsh' ? 'DSH' : 'Shared Agents',
+                              )
+                              .join(', ')}`,
+                          )
+                        : null,
+                      (skill.status === 'available' ||
+                        skill.status === 'conflict') &&
+                        !skill.conflicts?.includes(repoTarget)
+                        ? h(
+                            'button',
+                            {
+                              'aria-label': `${t('repoInstall')}: ${skill.name}`,
+                              disabled: !!repoBusy || switching,
+                              onClick: () =>
+                                void repoAction(
+                                  repo.id,
+                                  {
+                                    action: 'repo-install',
+                                    id: repo.id,
+                                    path: skill.path,
+                                    snapshot: repo.fingerprint,
+                                    source: repoTarget,
+                                  },
+                                  repoWarning,
+                                ),
+                            },
+                            t('repoInstall'),
+                          )
+                        : null,
+                    ),
+                  ),
+                );
+              }),
+              h('h4', null, t('repoTracked')),
+              !(data?.repoInstalls ?? []).length
+                ? h('p', null, t('repoNoInstalls'))
+                : null,
+              ...(data?.repoInstalls ?? []).map((record: any) =>
+                h(
+                  'article',
+                  { key: record.id, 'data-majed-repo-install': record.id },
+                  h('strong', null, record.name),
+                  h('span', null, ` — ${t(`repoStatus.${record.status}`)}`),
+                  h(
+                    'p',
+                    null,
+                    `${t('repoFromSource')}: ${record.origin.label}${record.origin.ref ? ` @ ${record.origin.ref}` : ''}${record.origin.subdirectory ? ` / ${record.origin.subdirectory}` : ''}`,
+                  ),
+                  h(
+                    'p',
+                    null,
+                    `${t('repoSnapshot')}: ${record.fingerprint.slice(0, 12)} — ${t(`repoKind.${record.fingerprintKind}`)}`,
+                  ),
+                  h('p', null, record.path),
+                  record.status === 'installed' || record.status === 'modified'
+                    ? h(
+                        'button',
+                        {
+                          'aria-label': `${t('repoUninstall')}: ${record.name}`,
+                          disabled: !!repoBusy || switching,
+                          onClick: () =>
+                            void repoAction(
+                              record.id,
+                              {
+                                action: 'repo-uninstall',
+                                installId: record.id,
+                              },
+                              repoWarning,
+                            ),
+                        },
+                        t('repoUninstall'),
+                      )
+                    : null,
+                  record.status === 'invalid-root'
+                    ? h(
+                        'button',
+                        {
+                          'aria-label': `${t('repoForget')}: ${record.name}`,
+                          disabled: !!repoBusy || switching,
+                          onClick: () => setRepoForgetting(record.id),
+                        },
+                        t('repoForget'),
+                      )
+                    : null,
+                  record.status === 'invalid-root' &&
+                    repoForgetting === record.id
+                    ? h(
+                        'div',
+                        { role: 'alert' },
+                        h('p', null, t('repoConfirmForget')),
+                        h(
+                          'button',
+                          {
+                            'aria-label': `${t('repoConfirmForgetYes')}: ${record.name}`,
+                            disabled: !!repoBusy || switching,
+                            onClick: () => {
+                              setRepoForgetting('');
+                              void repoAction(record.id, {
+                                action: 'repo-forget',
+                                installId: record.id,
+                              });
+                            },
+                          },
+                          t('repoConfirmForgetYes'),
+                        ),
+                        h(
+                          'button',
+                          {
+                            'aria-label': `${t('cancel')}: ${record.name}`,
+                            onClick: () => setRepoForgetting(''),
+                          },
+                          t('cancel'),
+                        ),
+                      )
+                    : null,
+                ),
+              ),
+            )
+          : null,
         h(
           'button',
           {
@@ -1661,6 +2218,7 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
           h('option', { value: 'global' }, t('scopeGlobal')),
           h('option', { value: 'project' }, t('scopeProject')),
           h('option', { value: 'trash' }, t('trash')),
+          h('option', { value: 'repositories' }, t('repositories')),
         ),
         inProject
           ? h(
