@@ -7,6 +7,7 @@ import {
   rm,
   writeFile,
   lstat,
+  symlink,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -88,6 +89,13 @@ async function mount(t, language) {
       const response = hostRoute
         .fetch(new Request(String(url), options))
         .then(async (real) => {
+          // hooks.fail injects a host error response (simulated race); other calls reach the real host.
+          const injected = hooks.fail?.(JSON.parse(options.body).action);
+          if (injected)
+            return new Response(JSON.stringify(injected.body), {
+              status: injected.status,
+              headers: real.headers,
+            });
           if (!hooks.rewrite) return real;
           const body = JSON.parse(await real.text());
           const action = JSON.parse(options.body).action;
@@ -446,5 +454,325 @@ for (const language of ['en', 'ar']) {
     );
     assert.ok(u.text().includes(d.repoNoInstalls));
     assert.ok((await lstat(join(ui.root, 'skills', 'alpha'))).isDirectory());
+  });
+}
+
+// #154 update preview, digest-bound apply, overwrite consent, stale preview and rollback in the assembled client.
+for (const language of ['en', 'ar']) {
+  test(`registered ${language} repository UI previews and applies updates with consent, reports stale previews and rolls back`, async (t) => {
+    const ui = await mount(t, language);
+    const { d } = ui;
+    for (const key of [
+      'repoStatus.update',
+      'repoUpdatePreview',
+      'repoRollbackPreview',
+      'repoApplyUpdate',
+      'repoApplyRollback',
+      'repoOverwrite',
+      'repoChange.added',
+      'repoChange.removed',
+      'repoChange.modified',
+      'code.repo-preview-stale',
+      'code.repo-local-modified',
+      'code.repo-recovery',
+    ])
+      assert.ok(d[key], key);
+    const source = join(ui.root, 'upstream');
+    await gitRepo(source, {
+      'skills/alpha/SKILL.md': skillDoc('alpha'),
+      'skills/alpha/notes.md': 'v1',
+    });
+    const view = await ui.render();
+    const u = ui.tools(view);
+    const text = () => u.text();
+    const change = (target) =>
+      ui.act2(() =>
+        u.field(d.scope).props.onChange({ target: { value: target } }),
+      );
+    await change('repositories');
+    for (const [field, value] of [
+      [d.repoUrl, source],
+      [d.repoRef, 'main'],
+      [d.repoSubdirectory, 'skills'],
+    ])
+      await ui.act2(() => u.field(field).props.onChange({ target: { value } }));
+    await ui.act2(() => u.form().props.onSubmit({ preventDefault() {} }));
+    await ui.act2(() => u.button(`${d.repoInstall}: alpha`).props.onClick());
+    assert.ok(!u.button(`${d.repoUpdatePreview}: alpha`));
+    await gitCommit(source, {
+      'skills/alpha/notes.md': 'v2',
+      'skills/alpha/new.md': 'added',
+    });
+    await ui.act2(() =>
+      u.button(`${d.repoRefresh}: ${source}`).props.onClick(),
+    );
+    assert.ok(text().includes(d['repoStatus.update']));
+    // A local edit makes the preview demand explicit consent.
+    const target = join(ui.root, 'skills', 'alpha');
+    await writeFile(join(target, 'notes.md'), 'local edit');
+    await ui.act2(() =>
+      u.button(`${d.repoUpdatePreview}: alpha`).props.onClick(),
+    );
+    assert.ok(text().includes(d['repoChange.added']));
+    assert.ok(text().includes(d['repoChange.modified']));
+    assert.ok(text().includes('new.md'));
+    assert.ok(text().includes(d.repoLocalModified));
+    assert.equal(u.button(`${d.repoApplyUpdate}: alpha`).props.disabled, true);
+    await ui.act2(() =>
+      u
+        .field(`${d.repoOverwrite}: alpha`)
+        .props.onChange({ target: { checked: true } }),
+    );
+    // The repository moves on after the preview: the stale preview is refused and nothing changes.
+    await gitCommit(source, { 'skills/alpha/new.md': 'added again' });
+    await ui.act2(() =>
+      u.button(`${d.repoRefresh}: ${source}`).props.onClick(),
+    );
+    await ui.act2(() =>
+      u.button(`${d.repoApplyUpdate}: alpha`).props.onClick(),
+    );
+    assert.ok(text().includes(d['code.repo-preview-stale']));
+    assert.equal(
+      await readFile(join(target, 'notes.md'), 'utf8'),
+      'local edit',
+    );
+    // Fresh preview, consent, apply.
+    await ui.act2(() =>
+      u.button(`${d.repoUpdatePreview}: alpha`).props.onClick(),
+    );
+    await ui.act2(() =>
+      u
+        .field(`${d.repoOverwrite}: alpha`)
+        .props.onChange({ target: { checked: true } }),
+    );
+    await ui.act2(() =>
+      u.button(`${d.repoApplyUpdate}: alpha`).props.onClick(),
+    );
+    assert.equal(await readFile(join(target, 'notes.md'), 'utf8'), 'v2');
+    assert.equal(await readFile(join(target, 'new.md'), 'utf8'), 'added again');
+    assert.ok(
+      text().includes(d.repoUpdated.replace('{name}', 'alpha')),
+      'update success is announced',
+    );
+    assert.ok(
+      view.root.findAll(
+        (x) =>
+          x.type === 'p' &&
+          x.props.role === 'status' &&
+          x.children
+            .join('')
+            .includes(d.repoUpdated.replace('{name}', 'alpha')),
+      ).length,
+      'the success message is a role=status region',
+    );
+    assert.ok(!u.button(`${d.repoUpdatePreview}: alpha`));
+    // Roll back to the previous version (which includes the local edit).
+    await ui.act2(() =>
+      u.button(`${d.repoRollbackPreview}: alpha`).props.onClick(),
+    );
+    assert.ok(text().includes(d['repoChange.removed']));
+    await ui.act2(() =>
+      u
+        .field(`${d.repoOverwrite}: alpha`)
+        ?.props.onChange({ target: { checked: true } }),
+    );
+    await ui.act2(() =>
+      u.button(`${d.repoApplyRollback}: alpha`).props.onClick(),
+    );
+    assert.equal(
+      await readFile(join(target, 'notes.md'), 'utf8'),
+      'local edit',
+    );
+    await assert.rejects(lstat(join(target, 'new.md')));
+    assert.ok(text().includes(d['repoStatus.modified']));
+    assert.ok(
+      text().includes(d.repoRolledBack.replace('{name}', 'alpha')),
+      'rollback success is announced',
+    );
+  });
+}
+
+for (const language of ['en', 'ar']) {
+  test(`registered ${language} repository UI shows update availability on modified rows, filters them, names the preview, wraps paths and surfaces removed upstream skills`, async (t) => {
+    const ui = await mount(t, language);
+    const { d } = ui;
+    for (const key of [
+      'repoApplying',
+      'repoUpdated',
+      'repoRolledBack',
+      'repoTrackedHint',
+      'repoUpstream',
+    ]) {
+      assert.ok(d[key], key);
+      assert.notEqual(
+        ui.dictionaries.en[key],
+        ui.dictionaries.ar[key],
+        `${key} is translated`,
+      );
+    }
+    const source = join(ui.root, 'upstream');
+    await gitRepo(source, {
+      'skills/alpha/SKILL.md': skillDoc('alpha'),
+      'skills/alpha/notes.md': 'v1',
+    });
+    const view = await ui.render();
+    const u = ui.tools(view);
+    const text = () => u.text();
+    await ui.act2(() =>
+      u.field(d.scope).props.onChange({ target: { value: 'repositories' } }),
+    );
+    for (const [field, value] of [
+      [d.repoUrl, source],
+      [d.repoRef, 'main'],
+      [d.repoSubdirectory, 'skills'],
+    ])
+      await ui.act2(() => u.field(field).props.onChange({ target: { value } }));
+    await ui.act2(() => u.form().props.onSubmit({ preventDefault() {} }));
+    await ui.act2(() => u.button(`${d.repoInstall}: alpha`).props.onClick());
+    const target = join(ui.root, 'skills', 'alpha');
+    // Locally edited AND an update is available: both are visible and the filter still finds it.
+    await writeFile(join(target, 'notes.md'), 'local edit');
+    await gitCommit(source, { 'skills/alpha/notes.md': 'v2' });
+    await ui.act2(() =>
+      u.button(`${d.repoRefresh}: ${source}`).props.onClick(),
+    );
+    const article = () =>
+      view.root.findAll(
+        (x) => x.type === 'article' && x.props['data-majed-repo-install'],
+      )[0];
+    const flat = (node) =>
+      typeof node === 'string'
+        ? node
+        : (node?.children ?? []).map(flat).join('');
+    const articleText = () => flat(article());
+    assert.ok(articleText().includes(d['repoStatus.modified']));
+    assert.ok(
+      articleText().includes(d['repoStatus.update']),
+      'a modified copy with an update shows Update available on its row',
+    );
+    await ui.act2(() =>
+      u
+        .field(d.repoStatusFilter)
+        .props.onChange({ target: { value: 'update' } }),
+    );
+    const skillRows = () =>
+      view.root.findAll(
+        (x) => x.type === 'div' && x.props['data-majed-repo-skill'],
+      );
+    assert.equal(
+      skillRows().length,
+      1,
+      'the update filter keeps the modified install that has an update',
+    );
+    await ui.act2(() =>
+      u.field(d.repoStatusFilter).props.onChange({ target: { value: '' } }),
+    );
+    // Preview: accessible name, LTR-isolated paths, tracked-attribute hint.
+    await ui.act2(() =>
+      u.button(`${d.repoUpdatePreview}: alpha`).props.onClick(),
+    );
+    const group = view.root.findAll((x) => x.props?.role === 'group')[0];
+    const labelledBy = group.props['aria-labelledby'];
+    assert.ok(labelledBy);
+    assert.ok(
+      view.root.findAll((x) => x.props?.id === labelledBy).length,
+      'the group is named by its heading',
+    );
+    assert.ok(
+      view.root.findAll(
+        (x) =>
+          x.type === 'bdi' &&
+          x.props.dir === 'ltr' &&
+          x.children.join('') === 'notes.md',
+      ).length,
+      'file paths are LTR-isolated',
+    );
+    assert.ok(text().includes(d.repoTrackedHint));
+    // Removing the skill upstream is reported on the installed row.
+    await rm(join(source, 'skills', 'alpha'), { recursive: true });
+    await gitCommit(source, { 'skills/other/SKILL.md': skillDoc('other') });
+    await ui.act2(() =>
+      u.button(`${d.repoRefresh}: ${source}`).props.onClick(),
+    );
+    assert.ok(
+      articleText().includes(d['code.repo-skill-missing']),
+      'a removed upstream skill is surfaced on the install row',
+    );
+  });
+}
+
+for (const language of ['en', 'ar']) {
+  test(`registered ${language} repository UI renders update/rollback failure states (local-unsafe is real; the others are injected host responses)`, async (t) => {
+    const ui = await mount(t, language);
+    const { d } = ui;
+    const source = join(ui.root, 'upstream');
+    await gitRepo(source, {
+      'skills/alpha/SKILL.md': skillDoc('alpha'),
+      'skills/alpha/notes.md': 'v1',
+    });
+    const view = await ui.render();
+    const u = ui.tools(view);
+    const text = () => u.text();
+    await ui.act2(() =>
+      u.field(d.scope).props.onChange({ target: { value: 'repositories' } }),
+    );
+    for (const [field, value] of [
+      [d.repoUrl, source],
+      [d.repoRef, 'main'],
+      [d.repoSubdirectory, 'skills'],
+    ])
+      await ui.act2(() => u.field(field).props.onChange({ target: { value } }));
+    await ui.act2(() => u.form().props.onSubmit({ preventDefault() {} }));
+    await ui.act2(() => u.button(`${d.repoInstall}: alpha`).props.onClick());
+    await gitCommit(source, { 'skills/alpha/notes.md': 'v2' });
+    await ui.act2(() =>
+      u.button(`${d.repoRefresh}: ${source}`).props.onClick(),
+    );
+    const target = join(ui.root, 'skills', 'alpha');
+    // Real host error: a link inside the installed copy is not safe to compare or replace.
+    await symlink(join(ui.root, 'elsewhere'), join(target, 'link'));
+    await ui.act2(() =>
+      u.button(`${d.repoUpdatePreview}: alpha`).props.onClick(),
+    );
+    assert.ok(text().includes(d['code.repo-local-unsafe']));
+    await rm(join(target, 'link'));
+    // Injected responses: the rollback button is hidden without a backup, so these are simulated races.
+    await ui.act2(() =>
+      u.button(`${d.repoUpdatePreview}: alpha`).props.onClick(),
+    );
+    ui.hooks.fail = (action) =>
+      action === 'repo-update'
+        ? { status: 409, body: { code: 'repo-local-modified' } }
+        : undefined;
+    await ui.act2(() =>
+      u.button(`${d.repoApplyUpdate}: alpha`).props.onClick(),
+    );
+    assert.ok(text().includes(d['code.repo-local-modified']));
+    ui.hooks.fail = (action) =>
+      action === 'repo-update'
+        ? {
+            status: 500,
+            body: { code: 'repo-recovery', params: { recovery: '/kept/copy' } },
+          }
+        : undefined;
+    await ui.act2(() =>
+      u.button(`${d.repoApplyUpdate}: alpha`).props.onClick(),
+    );
+    assert.ok(
+      text().includes(
+        d['code.repo-recovery'].replace('{recovery}', '/kept/copy'),
+      ),
+      'the recovery location is substituted into the message',
+    );
+    assert.ok(!text().includes('{recovery}'));
+    ui.hooks.fail = (action) =>
+      action === 'repo-update-preview'
+        ? { status: 409, body: { code: 'repo-no-backup' } }
+        : undefined;
+    await ui.act2(() =>
+      u.button(`${d.repoUpdatePreview}: alpha`).props.onClick(),
+    );
+    assert.ok(text().includes(d['code.repo-no-backup']));
+    ui.hooks.fail = undefined;
   });
 }

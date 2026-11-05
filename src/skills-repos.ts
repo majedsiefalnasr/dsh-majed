@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { lookup } from 'node:dns/promises';
 import {
+  chmod,
   lstat,
   mkdir,
   open,
@@ -11,6 +12,7 @@ import {
   realpath,
   rename,
   rm,
+  rmdir,
   stat,
   writeFile,
 } from 'node:fs/promises';
@@ -18,7 +20,7 @@ import { isIP } from 'node:net';
 import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
 import { Unzip, UnzipInflate } from 'fflate';
 import { parseDocument } from 'yaml';
-import { publishImports } from './skills-import.js';
+import { importRootSafe, publishImports } from './skills-import.js';
 import { checkedTrashPath, trashEntry } from './skills-trash.js';
 
 /** Host-code seams only (tests, packaging); never reachable from a request body. */
@@ -43,6 +45,7 @@ export class RepoError extends Error {
   constructor(
     readonly code: string,
     readonly status = 400,
+    readonly recovery: string[] = [],
   ) {
     super(code);
   }
@@ -64,6 +67,14 @@ const STATUS: Record<string, number> = {
   'create-readonly': 403,
   'repo-invalid-root': 409,
   'repo-root-valid': 409,
+  'repo-preview-stale': 409,
+  'repo-local-modified': 409,
+  'repo-local-unsafe': 409,
+  'repo-up-to-date': 409,
+  'repo-no-backup': 409,
+  'repo-backup-changed': 409,
+  'repo-skill-renamed': 409,
+  'repo-recovery': 409,
 };
 const fail = (code: string) => new RepoError(code, STATUS[code] ?? 400);
 
@@ -109,9 +120,19 @@ interface InstallRecord {
   scope: 'user';
   fingerprint: string;
   fingerprintKind: FingerprintKind;
-  files: Array<{ path: string; hash: string }>;
+  files: Tracked[];
   installedAt: string;
   trashId?: string;
+  /** The single retained previous version (#154): its bytes live under `repository-backups/<key>`. */
+  backup?: {
+    key: string;
+    /** Tree digest of the backed-up bytes, which may include local edits. */
+    digest: string;
+    /** Baseline (provenance) the copy returns to on rollback. */
+    fingerprint: string;
+    fingerprintKind: FingerprintKind;
+    files: Tracked[];
+  };
 }
 interface RepositoryState {
   version: 1;
@@ -458,11 +479,14 @@ interface Limits {
   entries: number;
   total: number;
 }
+/** `x` marks an executable file (any exec bit); empty directories and other attributes are not tracked. */
 interface Entry {
   path: string;
   hash: string;
   size: number;
+  x?: true;
 }
+type Tracked = { path: string; hash: string; x?: true };
 async function treeBytes(path: string, limit: number): Promise<number> {
   let total = 0;
   const stack = [path];
@@ -526,9 +550,15 @@ async function ingest(
       await mkdir(dirname(join(destination, path)), { recursive: true });
       await writeFile(join(destination, path), bytes, {
         flag: 'wx',
-        mode: 0o600,
+        mode: (info.mode & 0o111) !== 0 ? 0o700 : 0o600,
       });
-      entries.push({ path, hash: sha256(bytes), size: bytes.length });
+      const exec = (info.mode & 0o111) !== 0;
+      entries.push({
+        path,
+        hash: sha256(bytes),
+        size: bytes.length,
+        ...(exec ? { x: true as const } : {}),
+      });
     }
   };
   await walk(tree, '', 0);
@@ -545,11 +575,12 @@ async function subtree(base: string, subdirectory: string): Promise<string> {
   }
   return current;
 }
-const treeHashOf = (files: Array<{ path: string; hash: string }>) =>
+const treeHashOf = (files: Tracked[]) =>
   sha256(
     [...files]
       .sort((a, b) => (a.path < b.path ? -1 : 1))
-      .map((file) => `${file.path}\0${file.hash}\n`)
+      // The executable bit only extends the line for executable files, so plain trees keep their digest.
+      .map((file) => `${file.path}\0${file.hash}${file.x ? '\0x' : ''}\n`)
       .join(''),
   );
 
@@ -1248,11 +1279,29 @@ function validState(value: unknown): value is RepositoryState {
         fingerprint(item.fingerprintKind, item.fingerprint) &&
         text(item.installedAt, 64) &&
         (item.trashId === undefined || UUID.test(item.trashId)) &&
+        (item.backup === undefined ||
+          (object(item.backup) &&
+            UUID.test(item.backup.key) &&
+            HEX(64).test(item.backup.digest) &&
+            KIND_OF_FINGERPRINT[item.backup.fingerprintKind] !== undefined &&
+            fingerprint(item.backup.fingerprintKind, item.backup.fingerprint) &&
+            Array.isArray(item.backup.files) &&
+            item.backup.files.length <= SKILL_ENTRY_MAX &&
+            item.backup.files.every(
+              (file: unknown) =>
+                object(file) &&
+                relativePath(file.path) &&
+                HEX(64).test(file.hash) &&
+                (file.x === undefined || file.x === true),
+            ))) &&
         Array.isArray(item.files) &&
         item.files.length <= SKILL_ENTRY_MAX &&
         item.files.every(
           (file) =>
-            object(file) && relativePath(file.path) && HEX(64).test(file.hash),
+            object(file) &&
+            relativePath(file.path) &&
+            HEX(64).test(file.hash) &&
+            (file.x === undefined || file.x === true),
         ),
     )
   );
@@ -1342,6 +1391,90 @@ export function createRepositories(options: RepositoryOptions) {
     return directory;
   };
   const clone = (): RepositoryState => structuredClone(state);
+  const backups = join(options.stateDir, 'repository-backups');
+  const backupDir = (key: string) => {
+    const directory = join(backups, key);
+    if (!UUID.test(key) || dirname(directory) !== backups)
+      throw fail('repo-state-invalid');
+    return directory;
+  };
+  /** Bounded exact read of one skill tree; links, specials and oversize content fail with `code`. */
+  const readTree = async (base: string, code: string) => {
+    const files = new Map<string, Uint8Array>();
+    const manifest: Tracked[] = [];
+    let total = 0;
+    const walk = async (
+      directory: string,
+      relative: string,
+      depth: number,
+    ): Promise<void> => {
+      if (depth > MAX_DEPTH) throw fail(code);
+      for (const item of await readdir(directory, { withFileTypes: true })) {
+        const path = relative ? `${relative}/${item.name}` : item.name;
+        if (item.isDirectory())
+          await walk(join(directory, item.name), path, depth + 1);
+        else if (item.isFile()) {
+          const full = join(directory, item.name);
+          const exec = ((await lstat(full)).mode & 0o111) !== 0;
+          const bytes = await readFile(full);
+          total += bytes.length;
+          if (
+            bytes.length > SKILL_FILE_MAX ||
+            total > SKILL_TOTAL_MAX ||
+            files.size >= SKILL_ENTRY_MAX
+          )
+            throw fail(code);
+          files.set(path, bytes);
+          manifest.push({
+            path,
+            hash: sha256(bytes),
+            ...(exec ? { x: true as const } : {}),
+          });
+        } else throw fail(code);
+      }
+    };
+    try {
+      if (!(await lstat(base)).isDirectory()) throw fail(code);
+      await walk(base, '', 0);
+    } catch (error) {
+      throw error instanceof RepoError ? error : fail(code);
+    }
+    return { files, manifest, digest: treeHashOf(manifest) };
+  };
+  const writeTree = async (
+    base: string,
+    files: Map<string, Uint8Array>,
+    manifest: Tracked[],
+  ) => {
+    const exec = new Set(manifest.filter((file) => file.x).map((f) => f.path));
+    await mkdir(base, { recursive: true });
+    for (const [path, bytes] of files) {
+      const destination = join(base, ...path.split('/'));
+      await mkdir(dirname(destination), { recursive: true });
+      await writeFile(destination, bytes, { flag: 'wx' });
+      if (exec.has(path)) await chmod(destination, 0o755);
+    }
+  };
+  const changesBetween = (from: Tracked[], to: Tracked[]) => {
+    // A mode-only edit (executable bit) counts as modified.
+    const before = new Map(
+      from.map((file) => [file.path, file.hash + (file.x ? 'x' : '')]),
+    );
+    const after = new Map(
+      to.map((file) => [file.path, file.hash + (file.x ? 'x' : '')]),
+    );
+    const changes: Array<{
+      path: string;
+      kind: 'added' | 'removed' | 'modified';
+    }> = [];
+    for (const [path, hash] of after)
+      if (!before.has(path)) changes.push({ path, kind: 'added' });
+      else if (before.get(path) !== hash)
+        changes.push({ path, kind: 'modified' });
+    for (const path of before.keys())
+      if (!after.has(path)) changes.push({ path, kind: 'removed' });
+    return changes.sort((a, b) => (a.path < b.path ? -1 : 1));
+  };
 
   // Network/Git phase: outside the mutation queue so a slow repository never blocks other work.
   const acquire = async (source: Source, signal: AbortSignal | undefined) => {
@@ -1415,6 +1548,7 @@ export function createRepositories(options: RepositoryOptions) {
     if (!info.isDirectory()) return 'modified';
     try {
       const found = new Map<string, string>();
+      const marks = (file: Tracked) => file.hash + (file.x ? 'x' : '');
       let count = 0;
       const walk = async (
         directory: string,
@@ -1432,7 +1566,11 @@ export function createRepositories(options: RepositoryOptions) {
             try {
               const size = (await data.stat()).size;
               if (size > SKILL_FILE_MAX) throw new Error('limit');
-              found.set(path, sha256(await data.readFile()));
+              const exec = ((await data.stat()).mode & 0o111) !== 0;
+              found.set(
+                path,
+                sha256(await data.readFile()) + (exec ? 'x' : ''),
+              );
             } finally {
               await data.close();
             }
@@ -1441,12 +1579,36 @@ export function createRepositories(options: RepositoryOptions) {
       };
       await walk(target, '', 0);
       return found.size === record.files.length &&
-        record.files.every((item) => found.get(item.path) === item.hash)
+        record.files.every((item) => found.get(item.path) === marks(item))
         ? 'installed'
         : 'modified';
     } catch {
       return 'modified';
     }
+  };
+
+  /** True when the subscribed snapshot holds different content for this copy's skill. */
+  const updateAvailable = (record: InstallRecord) => {
+    const skill = state.repositories
+      .find((repo) => repo.id === record.repoId)
+      ?.skills.find((item) => item.path === record.skillPath);
+    return (
+      !record.trashId &&
+      !!skill?.valid &&
+      skill.name === record.name &&
+      skill.treeHash !== treeHashOf(record.files)
+    );
+  };
+
+  /** Why a tracked copy no longer follows its subscribed skill (removed, renamed or invalid upstream). */
+  const upstreamState = (record: InstallRecord) => {
+    if (!record.repoId || record.trashId) return undefined;
+    const repo = state.repositories.find((item) => item.id === record.repoId);
+    if (!repo) return undefined;
+    const skill = repo.skills.find((item) => item.path === record.skillPath);
+    if (!skill) return 'repo-skill-missing';
+    if (skill.valid && skill.name !== record.name) return 'repo-skill-renamed';
+    return skill.valid ? undefined : 'repo-skill-invalid';
   };
 
   const view = async (expose: boolean, trashIds: Set<string> | undefined) => {
@@ -1459,9 +1621,12 @@ export function createRepositories(options: RepositoryOptions) {
         repoError: 'repo-state-invalid',
       };
     const installs = await Promise.all(
-      state.installs.map(async (record) => ({
+      state.installs.map(async ({ backup, ...record }) => ({
         ...record,
         path: join(record.root, record.name),
+        updateAvailable: updateAvailable(record),
+        ...(upstreamState(record) ? { upstream: upstreamState(record) } : {}),
+        canRollback: !!backup && !record.trashId,
         status: record.trashId
           ? !trashIds || trashIds.has(record.trashId)
             ? 'trashed'
@@ -1488,7 +1653,11 @@ export function createRepositories(options: RepositoryOptions) {
             const conflicts: string[] = [];
             if (tracked)
               status =
-                tracked.status === 'installed' ? 'installed' : tracked.status;
+                tracked.status === 'installed'
+                  ? tracked.updateAvailable
+                    ? 'update'
+                    : 'installed'
+                  : tracked.status;
             else if (skill.valid) {
               // Same names install refuses: `<name>` and `<name>.md` in each destination.
               let known = 0;
@@ -1518,6 +1687,7 @@ export function createRepositories(options: RepositoryOptions) {
               ...(skill.code ? { code: skill.code } : {}),
               files: skill.files,
               status,
+              ...(tracked?.updateAvailable ? { updateAvailable: true } : {}),
               conflicts,
               ...(tracked ? { installId: tracked.id } : {}),
             };
@@ -1538,6 +1708,80 @@ export function createRepositories(options: RepositoryOptions) {
             : 'trash-failed',
           409,
         );
+
+  /** Compares the tracked baseline, the live copy and the update/rollback target. */
+  const plan = async (kind: 'update' | 'rollback', id: unknown) => {
+    const record = state.installs.find((item) => item.id === id);
+    if (!record) throw fail('repo-not-installed');
+    if (record.trashId) throw fail('repo-trashed');
+    const dest = options.destination(record.source);
+    if (!dest || resolve(dest.root) !== record.root)
+      throw fail('repo-invalid-root');
+    const final = join(record.root, record.name);
+    if (
+      !(await lstat(final).then(
+        (info) => info.isDirectory(),
+        () => false,
+      ))
+    )
+      throw fail('repo-missing');
+    const current = await readTree(final, 'repo-local-unsafe');
+    let target: {
+      digest: string;
+      fingerprint: string;
+      fingerprintKind: FingerprintKind;
+      files: Map<string, Uint8Array>;
+      manifest: Tracked[];
+      /** Provenance baseline the record returns to; for rollback it excludes local edits kept in the bytes. */
+      baseline: Tracked[];
+    };
+    if (kind === 'update') {
+      const repo = state.repositories.find((item) => item.id === record.repoId);
+      if (!repo) throw fail('repo-not-found');
+      const skill = repo.skills.find((item) => item.path === record.skillPath);
+      if (!skill) throw fail('repo-skill-missing');
+      if (!skill.valid) throw fail('repo-skill-invalid');
+      if (skill.name !== record.name) throw fail('repo-skill-renamed');
+      if (skill.treeHash === treeHashOf(record.files))
+        throw fail('repo-up-to-date');
+      const base =
+        skill.path === '.'
+          ? snapshotDir(repo)
+          : join(snapshotDir(repo), skill.path);
+      const read = await readTree(base, 'repo-snapshot-changed');
+      if (read.digest !== skill.treeHash || !read.files.has('SKILL.md'))
+        throw fail('repo-snapshot-changed');
+      target = {
+        digest: read.digest,
+        fingerprint: repo.fingerprint,
+        fingerprintKind: repo.fingerprintKind,
+        files: read.files,
+        manifest: read.manifest,
+        baseline: read.manifest,
+      };
+    } else {
+      const saved = record.backup;
+      if (!saved) throw fail('repo-no-backup');
+      const read = await readTree(backupDir(saved.key), 'repo-backup-changed');
+      if (read.digest !== saved.digest || !read.files.has('SKILL.md'))
+        throw fail('repo-backup-changed');
+      target = {
+        digest: read.digest,
+        fingerprint: saved.fingerprint,
+        fingerprintKind: saved.fingerprintKind,
+        files: read.files,
+        manifest: read.manifest,
+        baseline: saved.files,
+      };
+    }
+    return {
+      record,
+      current,
+      target,
+      localModified: current.digest !== treeHashOf(record.files),
+      changes: changesBetween(current.manifest, target.manifest),
+    };
+  };
 
   const api = {
     view,
@@ -1764,42 +2008,10 @@ export function createRepositories(options: RepositoryOptions) {
           skill.path === '.'
             ? snapshotDir(repo)
             : join(snapshotDir(repo), skill.path);
-        const files = new Map<string, Uint8Array>();
-        const manifest: Array<{ path: string; hash: string }> = [];
-        let total = 0;
-        const walk = async (
-          directory: string,
-          relative: string,
-          depth: number,
-        ): Promise<void> => {
-          if (depth > MAX_DEPTH) throw fail('repo-snapshot-changed');
-          for (const item of await readdir(directory, {
-            withFileTypes: true,
-          })) {
-            const path = relative ? `${relative}/${item.name}` : item.name;
-            if (item.isDirectory())
-              await walk(join(directory, item.name), path, depth + 1);
-            else if (item.isFile()) {
-              const bytes = await readFile(join(directory, item.name));
-              total += bytes.length;
-              if (
-                bytes.length > SKILL_FILE_MAX ||
-                total > SKILL_TOTAL_MAX ||
-                files.size >= SKILL_ENTRY_MAX
-              )
-                throw fail('repo-snapshot-changed');
-              files.set(path, bytes);
-              manifest.push({ path, hash: sha256(bytes) });
-            } else throw fail('repo-snapshot-changed');
-          }
-        };
-        try {
-          await walk(base, '', 0);
-        } catch (error) {
-          throw error instanceof RepoError
-            ? error
-            : fail('repo-snapshot-changed');
-        }
+        const { files, manifest } = await readTree(
+          base,
+          'repo-snapshot-changed',
+        );
         if (treeHashOf(manifest) !== skill.treeHash || !files.has('SKILL.md'))
           throw fail('repo-snapshot-changed');
         const result = await publishImports(
@@ -1832,6 +2044,12 @@ export function createRepositories(options: RepositoryOptions) {
         const next = clone();
         next.installs.push(record);
         try {
+          for (const file of manifest)
+            if (file.x)
+              await chmod(
+                join(root, skill.name, ...file.path.split('/')),
+                0o755,
+              );
           await persist(next);
         } catch (error) {
           await rm(join(root, skill.name), { recursive: true, force: true });
@@ -1886,6 +2104,129 @@ export function createRepositories(options: RepositoryOptions) {
           : {};
       });
     },
+    /** Read-only preview of an update or rollback; the digests it returns bind the later apply. */
+    async preview(kind: 'update' | 'rollback', id: unknown) {
+      return options.exclusive(async () => {
+        await ready();
+        const { changes, current, target, localModified } = await plan(
+          kind,
+          id,
+        );
+        return {
+          current: current.digest,
+          snapshot: target.fingerprint,
+          target: {
+            digest: target.digest,
+            fingerprint: target.fingerprint,
+            fingerprintKind: target.fingerprintKind,
+          },
+          localModified,
+          changes,
+        };
+      });
+    },
+    /** Applies a previewed update or rollback: stage, back up the current bytes, swap, record; undo on failure. */
+    async replace(
+      kind: 'update' | 'rollback',
+      input: {
+        id: unknown;
+        current: unknown;
+        target: unknown;
+        snapshot: unknown;
+        overwrite: unknown;
+      },
+      cancelled: () => boolean,
+    ) {
+      return options.exclusive(async () => {
+        await ready();
+        const found = await plan(kind, input.id);
+        const { record, current, target, localModified } = found;
+        if (
+          input.current !== current.digest ||
+          input.target !== target.digest ||
+          input.snapshot !== target.fingerprint
+        )
+          throw fail('repo-preview-stale');
+        if (localModified && input.overwrite !== true)
+          throw fail('repo-local-modified');
+        if (cancelled()) throw fail('repo-cancelled');
+        if (!(await importRootSafe(record.root)))
+          throw fail('repo-invalid-root');
+        const warnings: Array<{
+          name: string;
+          code: string;
+          recovery: string[];
+        }> = [];
+        const final = join(record.root, record.name);
+        const key = randomUUID();
+        const saved = backupDir(key);
+        const stage = join(record.root, `.update-${randomUUID()}`);
+        const replaced = join(record.root, `.replaced-${randomUUID()}`);
+        let swapped = false;
+        let moved = false;
+        try {
+          // The previous bytes are copied first; the live copy is only renamed aside, never deleted before success.
+          await writeTree(saved, current.files, current.manifest);
+          await writeTree(stage, target.files, target.manifest);
+          const again = await readTree(final, 'repo-local-unsafe');
+          if (again.digest !== current.digest) throw fail('repo-preview-stale');
+          await rename(final, replaced);
+          moved = true;
+          await rename(stage, final);
+          swapped = true;
+          const next = clone();
+          const item = next.installs.find((entry) => entry.id === record.id)!;
+          item.fingerprint = target.fingerprint;
+          item.fingerprintKind = target.fingerprintKind;
+          item.files = target.baseline;
+          item.backup = {
+            key,
+            digest: current.digest,
+            fingerprint: record.fingerprint,
+            fingerprintKind: record.fingerprintKind,
+            files: record.files,
+          };
+          // Rollback swaps the retained backup for another of the same size: a lowered write cap must not trap the user.
+          await persist(next, kind === 'rollback');
+        } catch (error) {
+          let recoveryFailed = false;
+          if (swapped) {
+            try {
+              await rename(final, stage);
+            } catch {
+              recoveryFailed = true;
+            }
+          }
+          if (moved && !recoveryFailed) {
+            try {
+              await rename(replaced, final);
+            } catch {
+              recoveryFailed = true;
+            }
+          }
+          if (recoveryFailed)
+            throw new RepoError('repo-recovery', 409, [replaced, saved]);
+          // Cleanup must never mask the root error or leave the new backup behind.
+          await rm(stage, { recursive: true, force: true }).catch(() => {});
+          await rm(saved, { recursive: true, force: true }).catch(() => {});
+          await rmdir(backups).catch(() => {});
+          throw error;
+        }
+        for (const path of [
+          replaced,
+          ...(record.backup ? [backupDir(record.backup.key)] : []),
+        ])
+          await rm(path, { recursive: true, force: true }).catch(() =>
+            warnings.push({
+              name: record.name,
+              code: 'import-cleanup',
+              recovery: [path],
+            }),
+          );
+        options.changed();
+        return { warnings };
+      });
+    },
     /** Record-only removal of an `invalid-root` install: no disk access, nothing is deleted. */
     async forget(id: unknown) {
       return options.exclusive(async () => {
@@ -1899,6 +2240,11 @@ export function createRepositories(options: RepositoryOptions) {
         const next = clone();
         next.installs = next.installs.filter((item) => item.id !== id);
         await persist(next, true);
+        if (record.backup)
+          await rm(backupDir(record.backup.key), {
+            recursive: true,
+            force: true,
+          });
         return {};
       });
     },
@@ -1944,10 +2290,17 @@ export function createRepositories(options: RepositoryOptions) {
         if (invalid || !state.installs.some((item) => item.trashId === trashId))
           return;
         const next = clone();
+        const gone = next.installs.find((item) => item.trashId === trashId);
         next.installs = next.installs.filter(
           (item) => item.trashId !== trashId,
         );
         await persist(next, true);
+        // Permanent delete from Trash is explicit; the retained previous version goes with it.
+        if (gone?.backup)
+          await rm(backupDir(gone.backup.key), {
+            recursive: true,
+            force: true,
+          });
       } catch {
         /* see noteTrashed */
       }

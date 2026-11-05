@@ -1483,6 +1483,10 @@ export function apply(ctx, config = {}) {
                         'repo-install',
                         'repo-uninstall',
                         'repo-forget',
+                        'repo-update-preview',
+                        'repo-update',
+                        'repo-rollback-preview',
+                        'repo-rollback',
                         'custom-scan',
                         'custom-add',
                         'custom-update',
@@ -1699,6 +1703,20 @@ export function apply(ctx, config = {}) {
                                 }, cancelled);
                             else if (body.action === 'repo-forget')
                                 result = await repos.forget(body.installId);
+                            else if (body.action === 'repo-update-preview' ||
+                                body.action === 'repo-rollback-preview')
+                                result = await repos.preview(body.action === 'repo-update-preview'
+                                    ? 'update'
+                                    : 'rollback', body.installId);
+                            else if (body.action === 'repo-update' ||
+                                body.action === 'repo-rollback')
+                                result = await repos.replace(body.action === 'repo-update' ? 'update' : 'rollback', {
+                                    id: body.installId,
+                                    current: body.current,
+                                    target: body.target,
+                                    snapshot: body.snapshot,
+                                    overwrite: body.overwrite,
+                                }, cancelled);
                             else
                                 result = await repos.uninstall(body.installId, cancelled);
                             return Response.json({
@@ -1708,7 +1726,9 @@ export function apply(ctx, config = {}) {
                         }
                         catch (error) {
                             if (error instanceof RepoError)
-                                return fail(error.status, error.code);
+                                return fail(error.status, error.code, error.recovery.length
+                                    ? { recovery: error.recovery.join(' ') }
+                                    : {});
                             return fail(400, 'repo-failed');
                         }
                     }

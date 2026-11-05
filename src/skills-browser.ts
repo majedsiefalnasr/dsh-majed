@@ -82,6 +82,40 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
         repoConfirmForget:
           'Forget this installation record? Only the tracking record is removed; no files are read, moved or deleted.',
         repoConfirmForgetYes: 'Forget record',
+        'repoStatus.update': 'Update available',
+        repoUpdatePreview: 'Preview update',
+        repoRollbackPreview: 'Preview rollback to previous version',
+        repoApplyUpdate: 'Apply update',
+        repoApplyRollback: 'Apply rollback',
+        repoPreviewTitle: 'Changes to the installed copy',
+        repoNoChanges: 'No file changes',
+        repoLocalModified:
+          'This copy was edited locally. Applying replaces those edits; the current copy is kept as the previous version.',
+        repoOverwrite: 'Replace local edits',
+        repoApplying: 'Applying…',
+        repoUpdated:
+          'Updated {name}. The previous version is kept for rollback.',
+        repoRolledBack: 'Rolled back {name} to the previous version.',
+        repoTrackedHint:
+          'Only file contents and the executable bit are tracked; empty folders and other file attributes are not.',
+        repoUpstream: 'Upstream',
+        'repoChange.added': 'Added',
+        'repoChange.removed': 'Removed',
+        'repoChange.modified': 'Modified',
+        'code.repo-preview-stale':
+          'The copy or the repository changed after this preview; preview again',
+        'code.repo-local-modified':
+          'The copy has local edits; confirm replacing them first',
+        'code.repo-local-unsafe':
+          'The installed copy contains links, special files or exceeds safe limits',
+        'code.repo-up-to-date': 'This copy already matches the repository',
+        'code.repo-no-backup': 'There is no previous version to roll back to',
+        'code.repo-backup-changed':
+          'The saved previous version changed; rollback refused',
+        'code.repo-skill-renamed':
+          'The skill was renamed upstream; the installed copy is unchanged',
+        'code.repo-recovery':
+          'Automatic recovery failed; the original files are kept at {recovery}. Do not repeat the operation',
         'code.repo-invalid-root':
           'The destination changed since install; the copy is not touched. Forget the record instead.',
         'code.repo-root-valid':
@@ -414,6 +448,37 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
         repoConfirmForget:
           'نسيان سجل هذا التثبيت؟ يُزال سجل التتبع فقط؛ لا تُقرأ ملفات ولا تُنقل ولا تُحذف.',
         repoConfirmForgetYes: 'نسيان السجل',
+        'repoStatus.update': 'تحديث متاح',
+        repoUpdatePreview: 'معاينة التحديث',
+        repoRollbackPreview: 'معاينة الرجوع إلى النسخة السابقة',
+        repoApplyUpdate: 'تطبيق التحديث',
+        repoApplyRollback: 'تطبيق الرجوع',
+        repoPreviewTitle: 'التغييرات على النسخة المثبتة',
+        repoNoChanges: 'لا تغييرات في الملفات',
+        repoLocalModified:
+          'عُدّلت هذه النسخة محلياً. سيستبدل التطبيق تلك التعديلات وتُحفظ النسخة الحالية كنسخة سابقة.',
+        repoOverwrite: 'استبدال التعديلات المحلية',
+        repoApplying: 'جارٍ التطبيق…',
+        repoUpdated: 'تم تحديث {name}. تُحفظ النسخة السابقة للرجوع إليها.',
+        repoRolledBack: 'تم الرجوع بـ {name} إلى النسخة السابقة.',
+        repoTrackedHint:
+          'يُتتبَّع محتوى الملفات وإذن التنفيذ فقط؛ لا تُتتبَّع المجلدات الفارغة ولا سمات الملفات الأخرى.',
+        repoUpstream: 'المصدر',
+        'repoChange.added': 'مضاف',
+        'repoChange.removed': 'محذوف',
+        'repoChange.modified': 'معدّل',
+        'code.repo-preview-stale':
+          'تغيرت النسخة أو المستودع بعد هذه المعاينة؛ أعد المعاينة',
+        'code.repo-local-modified': 'للنسخة تعديلات محلية؛ أكّد استبدالها أولاً',
+        'code.repo-local-unsafe':
+          'تحتوي النسخة المثبتة على روابط أو ملفات خاصة أو تتجاوز الحدود الآمنة',
+        'code.repo-up-to-date': 'هذه النسخة مطابقة للمستودع بالفعل',
+        'code.repo-no-backup': 'لا توجد نسخة سابقة للرجوع إليها',
+        'code.repo-backup-changed': 'تغيرت النسخة السابقة المحفوظة؛ رُفض الرجوع',
+        'code.repo-skill-renamed':
+          'أُعيدت تسمية المهارة في المصدر؛ لم تتغير النسخة المثبتة',
+        'code.repo-recovery':
+          'فشل الاسترداد التلقائي؛ الملفات الأصلية محفوظة في {recovery}. لا تكرر العملية',
         'code.repo-invalid-root':
           'تغيّرت الوجهة منذ التثبيت؛ لا يُمس النسخ. انسَ السجل بدلاً من ذلك.',
         'code.repo-root-valid':
@@ -725,10 +790,9 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
     const errorText = (failure: any) =>
       failure?.code &&
       (dictionaries.en as Record<string, string>)[`code.${failure.code}`]
-        ? t(`code.${failure.code}`).replace(
-            '{limit}',
-            String(failure.params?.limit ?? ''),
-          )
+        ? t(`code.${failure.code}`)
+            .replace('{limit}', String(failure.params?.limit ?? ''))
+            .replace('{recovery}', String(failure.params?.recovery ?? ''))
         : t('error');
     function Section() {
       const [data, setData] = React.useState(null),
@@ -776,6 +840,13 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
         [repoTarget, setRepoTarget] = React.useState('user-dsh'),
         [repoBusy, setRepoBusy] = React.useState(''),
         [repoSummary, setRepoSummary] = React.useState(''),
+        // One open preview per tracked copy: digests from the host bind the later apply.
+        [repoPreviews, setRepoPreviews] = React.useState(
+          {} as Record<string, any>,
+        ),
+        [repoOverwrites, setRepoOverwrites] = React.useState(
+          {} as Record<string, boolean>,
+        ),
         [creating, setCreating] = React.useState(false),
         [createName, setCreateName] = React.useState(''),
         [createDescription, setCreateDescription] = React.useState(''),
@@ -904,6 +975,45 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
             `${item.name}: ${t(`code.${item.code}`)} ${(item.recovery ?? []).join(' ')}`.trim(),
           );
         if (lines.length) setNotice(lines.join(' · '));
+      };
+      const repoPreview = (record: any, kind: 'update' | 'rollback') =>
+        void repoAction(
+          record.id,
+          { action: `repo-${kind}-preview`, installId: record.id },
+          (value: any) => {
+            setRepoPreviews((all: any) => ({
+              ...all,
+              [record.id]: { kind, ...value.result },
+            }));
+            setRepoOverwrites((all: any) => ({ ...all, [record.id]: false }));
+          },
+        );
+      const repoApply = (record: any) => {
+        const preview = repoPreviews[record.id];
+        if (!preview) return;
+        const clear = () =>
+          setRepoPreviews(({ [record.id]: _gone, ...rest }) => rest);
+        void repoAction(
+          `apply:${record.id}`,
+          {
+            action: `repo-${preview.kind}`,
+            installId: record.id,
+            current: preview.current,
+            target: preview.target.digest,
+            snapshot: preview.snapshot,
+            overwrite: !!repoOverwrites[record.id],
+          },
+          (value: any) => {
+            clear();
+            // Success is announced (role=status); a cleanup warning replaces it so it is not lost.
+            setNotice(
+              t(
+                preview.kind === 'update' ? 'repoUpdated' : 'repoRolledBack',
+              ).replace('{name}', record.name),
+            );
+            repoWarning(value);
+          },
+        );
       };
       const runImport = async (dryRun: boolean) => {
         if (busy.current || switching || importBusy || !importConflict) return;
@@ -1721,7 +1831,17 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
                 },
                 t('repoRefreshAll'),
               ),
-              repoBusy ? h('p', { role: 'status' }, t('repoRefreshing')) : null,
+              repoBusy
+                ? h(
+                    'p',
+                    { role: 'status' },
+                    t(
+                      repoBusy.startsWith('apply:')
+                        ? 'repoApplying'
+                        : 'repoRefreshing',
+                    ),
+                  )
+                : null,
               repoSummary ? h('p', { role: 'status' }, repoSummary) : null,
               data?.repoError
                 ? h('p', { role: 'alert' }, t(`code.${data.repoError}`))
@@ -1736,7 +1856,13 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
                     setRepoStatusFilter(event.target.value),
                 },
                 h('option', { key: '', value: '' }, t('repoAllStatuses')),
-                ...['available', 'installed', 'conflict', 'invalid'].map((id) =>
+                ...[
+                  'available',
+                  'installed',
+                  'update',
+                  'conflict',
+                  'invalid',
+                ].map((id) =>
                   h('option', { key: id, value: id }, t(`repoStatus.${id}`)),
                 ),
               ),
@@ -1778,7 +1904,10 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
                 if (repoRepoFilter && repo.id !== repoRepoFilter) return null;
                 const shown = repo.skills.filter(
                   (skill: any) =>
-                    (!repoStatusFilter || skill.status === repoStatusFilter) &&
+                    (!repoStatusFilter ||
+                      skill.status === repoStatusFilter ||
+                      (repoStatusFilter === 'update' &&
+                        skill.updateAvailable)) &&
                     (!needle ||
                       `${skill.name} ${skill.description} ${skill.path}`
                         .toLowerCase()
@@ -1921,6 +2050,16 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
                   { key: record.id, 'data-majed-repo-install': record.id },
                   h('strong', null, record.name),
                   h('span', null, ` — ${t(`repoStatus.${record.status}`)}`),
+                  record.updateAvailable && record.status !== 'update'
+                    ? h('span', null, ` — ${t('repoStatus.update')}`)
+                    : null,
+                  record.upstream
+                    ? h(
+                        'p',
+                        null,
+                        `${t('repoUpstream')}: ${t(`code.${record.upstream}`)}`,
+                      )
+                    : null,
                   h(
                     'p',
                     null,
@@ -1949,6 +2088,115 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
                             ),
                         },
                         t('repoUninstall'),
+                      )
+                    : null,
+                  (record.status === 'installed' ||
+                    record.status === 'modified') &&
+                    record.updateAvailable
+                    ? h(
+                        'button',
+                        {
+                          'aria-label': `${t('repoUpdatePreview')}: ${record.name}`,
+                          disabled: !!repoBusy || switching,
+                          onClick: () => repoPreview(record, 'update'),
+                        },
+                        t('repoUpdatePreview'),
+                      )
+                    : null,
+                  record.canRollback &&
+                    (record.status === 'installed' ||
+                      record.status === 'modified')
+                    ? h(
+                        'button',
+                        {
+                          'aria-label': `${t('repoRollbackPreview')}: ${record.name}`,
+                          disabled: !!repoBusy || switching,
+                          onClick: () => repoPreview(record, 'rollback'),
+                        },
+                        t('repoRollbackPreview'),
+                      )
+                    : null,
+                  repoPreviews[record.id] &&
+                    (record.status === 'installed' ||
+                      record.status === 'modified')
+                    ? h(
+                        'div',
+                        {
+                          role: 'group',
+                          'aria-labelledby': `majed-repo-preview-${record.id}`,
+                          'data-majed-repo-preview': record.id,
+                        },
+                        h(
+                          'h5',
+                          { id: `majed-repo-preview-${record.id}` },
+                          `${t('repoPreviewTitle')}: ${record.name}`,
+                        ),
+                        !repoPreviews[record.id].changes.length
+                          ? h('p', null, t('repoNoChanges'))
+                          : h(
+                              'ul',
+                              null,
+                              ...repoPreviews[record.id].changes.map(
+                                (change: any) =>
+                                  h(
+                                    'li',
+                                    { key: change.path },
+                                    `${t(`repoChange.${change.kind}`)}: `,
+                                    h('bdi', { dir: 'ltr' }, change.path),
+                                  ),
+                              ),
+                            ),
+                        h('p', null, t('repoTrackedHint')),
+                        repoPreviews[record.id].localModified
+                          ? h(
+                              'div',
+                              { role: 'alert' },
+                              h('p', null, t('repoLocalModified')),
+                              h(
+                                'label',
+                                null,
+                                h('input', {
+                                  type: 'checkbox',
+                                  'aria-label': `${t('repoOverwrite')}: ${record.name}`,
+                                  checked: !!repoOverwrites[record.id],
+                                  onChange: (event: any) =>
+                                    setRepoOverwrites((all: any) => ({
+                                      ...all,
+                                      [record.id]: !!event.target.checked,
+                                    })),
+                                }),
+                                t('repoOverwrite'),
+                              ),
+                            )
+                          : null,
+                        h(
+                          'button',
+                          {
+                            'aria-label': `${t(repoPreviews[record.id].kind === 'update' ? 'repoApplyUpdate' : 'repoApplyRollback')}: ${record.name}`,
+                            disabled:
+                              !!repoBusy ||
+                              switching ||
+                              (repoPreviews[record.id].localModified &&
+                                !repoOverwrites[record.id]),
+                            onClick: () => repoApply(record),
+                          },
+                          t(
+                            repoPreviews[record.id].kind === 'update'
+                              ? 'repoApplyUpdate'
+                              : 'repoApplyRollback',
+                          ),
+                        ),
+                        h(
+                          'button',
+                          {
+                            'aria-label': `${t('cancel')}: ${record.name}`,
+                            onClick: () =>
+                              setRepoPreviews(
+                                ({ [record.id]: _gone, ...rest }) => rest,
+                              ),
+                          },
+                          t('cancel'),
+                        ),
                       )
                     : null,
                   record.status === 'invalid-root'

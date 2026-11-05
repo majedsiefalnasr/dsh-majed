@@ -19,7 +19,9 @@ import {
   readdir,
   readFile,
   realpath,
+  rename,
   rm,
+  stat,
   symlink,
   writeFile,
 } from 'node:fs/promises';
@@ -1735,4 +1737,531 @@ test('restart round trip: normalized HTTP Git URLs (case, port, percent-encoding
   const view = await listed(again.send);
   assert.equal(view.repoError, undefined, 'state survives restart');
   assert.equal(view.repositories.length, accepted);
+});
+
+// ---- #154 repository content update and previous-version rollback ----
+async function updateFixture(t, repositories = {}) {
+  const ctx = await fixture(t, repositories);
+  const source = join(ctx.root, 'upstream');
+  await gitRepo(source, {
+    ...skills(['alpha']),
+    'skills/alpha/data.bin': Buffer.from([1, 2, 3]),
+    'skills/alpha/notes.md': 'v1 notes',
+  });
+  const added = await ctx.add({
+    url: source,
+    ref: 'main',
+    subdirectory: 'skills',
+  });
+  const entry = added.body.repositories[0];
+  const installed = await ctx.send({
+    action: 'repo-install',
+    id: entry.id,
+    path: 'alpha',
+    snapshot: entry.fingerprint,
+  });
+  assert.equal(installed.status, 200, JSON.stringify(installed.body));
+  const target = join(ctx.root, 'skills', 'alpha');
+  const upstream = async (files) => {
+    await gitCommit(source, files);
+    const refreshed = await ctx.send({ action: 'repo-refresh', id: entry.id });
+    assert.equal(refreshed.status, 200, JSON.stringify(refreshed.body));
+  };
+  const install = async () =>
+    (await ctx.send({ action: 'list' })).body.repoInstalls[0];
+  const preview = (kind, extra = {}) =>
+    ctx.send({
+      action: `repo-${kind}-preview`,
+      installId: installed.body.repoInstalls[0].id,
+      ...extra,
+    });
+  const apply = (kind, p, extra = {}) =>
+    ctx.send({
+      action: `repo-${kind}`,
+      installId: installed.body.repoInstalls[0].id,
+      current: p.current,
+      target: p.target.digest,
+      snapshot: p.snapshot,
+      ...extra,
+    });
+  const v2 = {
+    'skills/alpha/SKILL.md': skillDoc('alpha', 'About alpha', 'Body v2'),
+    'skills/alpha/extra.txt': 'new file',
+  };
+  return {
+    ...ctx,
+    source,
+    entry,
+    target,
+    upstream,
+    install,
+    preview,
+    apply,
+    v2,
+  };
+}
+const removeFile = (source, path) => rm(join(source, path), { force: true });
+
+test('update: states, file previews, digest-bound apply, retained backup and rollback', async (t) => {
+  const f = await updateFixture(t);
+  assert.equal((await f.install()).updateAvailable, false);
+  assert.equal((await f.install()).canRollback, false);
+  await removeFile(f.source, 'skills/alpha/data.bin');
+  await f.upstream(f.v2);
+  const listed = (await f.send({ action: 'list' })).body;
+  assert.equal(listed.repoInstalls[0].updateAvailable, true);
+  assert.equal(listed.repoInstalls[0].status, 'installed');
+  assert.equal(
+    listed.repositories[0].skills.find((s) => s.path === 'alpha').status,
+    'update',
+  );
+  const unmarked = await f.send(
+    { action: 'repo-update-preview', installId: listed.repoInstalls[0].id },
+    { marker: false },
+  );
+  assert.equal(unmarked.status, 403);
+  const p = (await f.preview('update')).body.result;
+  assert.equal(p.localModified, false);
+  assert.deepEqual(p.changes, [
+    { path: 'SKILL.md', kind: 'modified' },
+    { path: 'data.bin', kind: 'removed' },
+    { path: 'extra.txt', kind: 'added' },
+  ]);
+  assert.match(p.current, /^[0-9a-f]{64}$/);
+  assert.match(p.target.digest, /^[0-9a-f]{64}$/);
+  // Nothing changed by previewing.
+  assert.equal(await readFile(join(f.target, 'notes.md'), 'utf8'), 'v1 notes');
+  const done = await f.apply('update', p);
+  assert.equal(done.status, 200, JSON.stringify(done.body));
+  assert.equal(
+    await readFile(join(f.target, 'SKILL.md'), 'utf8'),
+    f.v2['skills/alpha/SKILL.md'],
+  );
+  assert.equal(await readFile(join(f.target, 'extra.txt'), 'utf8'), 'new file');
+  await assert.rejects(lstat(join(f.target, 'data.bin')));
+  const record = done.body.repoInstalls[0];
+  assert.equal(record.status, 'installed');
+  assert.equal(record.updateAvailable, false);
+  assert.equal(record.canRollback, true);
+  assert.notEqual(record.fingerprint, f.entry.fingerprint);
+  // The previous version is retained and nothing is left staged.
+  const backups = await readdir(join(f.root, 'state', 'repository-backups'));
+  assert.equal(backups.length, 1);
+  assert.deepEqual((await readdir(join(f.root, 'skills'))).sort(), ['alpha']);
+  // Same preview cannot be replayed once applied.
+  assert.equal((await f.apply('update', p)).status, 409);
+  // Rollback restores the exact previous bytes and keeps the newer version as the new backup.
+  const rp = (await f.preview('rollback')).body.result;
+  assert.deepEqual(rp.changes, [
+    { path: 'SKILL.md', kind: 'modified' },
+    { path: 'data.bin', kind: 'added' },
+    { path: 'extra.txt', kind: 'removed' },
+  ]);
+  const back = await f.apply('rollback', rp);
+  assert.equal(back.status, 200, JSON.stringify(back.body));
+  assert.deepEqual(
+    [...(await readFile(join(f.target, 'data.bin')))],
+    [1, 2, 3],
+  );
+  assert.equal(
+    await readFile(join(f.target, 'SKILL.md'), 'utf8'),
+    skillDoc('alpha'),
+  );
+  const rolled = back.body.repoInstalls[0];
+  assert.equal(rolled.fingerprint, f.entry.fingerprint);
+  assert.equal(rolled.status, 'installed');
+  assert.equal(rolled.updateAvailable, true);
+  assert.equal(rolled.canRollback, true);
+  assert.equal(
+    (await readdir(join(f.root, 'state', 'repository-backups'))).length,
+    1,
+  );
+  // Rolling back again returns to the newer version (the backup was swapped, not lost).
+  const again = (await f.preview('rollback')).body.result;
+  assert.equal((await f.apply('rollback', again)).status, 200);
+  assert.equal(await readFile(join(f.target, 'extra.txt'), 'utf8'), 'new file');
+});
+
+test('update state with a backup survives a restart and is rolled back after it', async (t) => {
+  const f = await updateFixture(t);
+  await f.upstream(f.v2);
+  const p = (await f.preview('update')).body.result;
+  assert.equal((await f.apply('update', p)).status, 200);
+  await f.stop();
+  const again = await fixture(t, {}, { root: f.root });
+  const list = (await again.send({ action: 'list' })).body;
+  assert.equal(list.repoError, undefined);
+  assert.equal(list.repoInstalls[0].canRollback, true);
+  const rp = (
+    await again.send({
+      action: 'repo-rollback-preview',
+      installId: list.repoInstalls[0].id,
+    })
+  ).body.result;
+  const done = await again.send({
+    action: 'repo-rollback',
+    installId: list.repoInstalls[0].id,
+    current: rp.current,
+    target: rp.target.digest,
+    snapshot: rp.snapshot,
+  });
+  assert.equal(done.status, 200, JSON.stringify(done.body));
+  assert.equal(await readFile(join(f.target, 'notes.md'), 'utf8'), 'v1 notes');
+});
+
+test('update refuses stale previews with a dedicated 409 and leaves the copy untouched', async (t) => {
+  const f = await updateFixture(t);
+  await f.upstream(f.v2);
+  const p = (await f.preview('update')).body.result;
+  const before = await readFile(join(f.target, 'SKILL.md'), 'utf8');
+  // The repository moved on after the preview.
+  await f.upstream({ 'skills/alpha/extra.txt': 'newer file' });
+  const staleRepo = await f.apply('update', p);
+  assert.equal(staleRepo.status, 409);
+  assert.equal(staleRepo.body.code, 'repo-preview-stale');
+  // The local copy changed after the preview.
+  const fresh = (await f.preview('update')).body.result;
+  await writeFile(join(f.target, 'notes.md'), 'edited after preview');
+  const staleLocal = await f.apply('update', fresh);
+  assert.equal(staleLocal.status, 409);
+  assert.equal(staleLocal.body.code, 'repo-preview-stale');
+  const tampered = await f.apply('update', fresh, { current: 'a'.repeat(64) });
+  assert.equal(tampered.body.code, 'repo-preview-stale');
+  assert.equal(await readFile(join(f.target, 'SKILL.md'), 'utf8'), before);
+  assert.equal(
+    await readFile(join(f.target, 'notes.md'), 'utf8'),
+    'edited after preview',
+  );
+  await assert.rejects(lstat(join(f.root, 'state', 'repository-backups')));
+});
+
+test('update over a locally modified copy needs explicit overwrite consent and keeps the local bytes as the backup', async (t) => {
+  const f = await updateFixture(t);
+  await f.upstream(f.v2);
+  await writeFile(join(f.target, 'notes.md'), 'my local notes');
+  assert.equal((await f.install()).status, 'modified');
+  const p = (await f.preview('update')).body.result;
+  assert.equal(p.localModified, true);
+  assert.ok(
+    p.changes.some((c) => c.path === 'notes.md' && c.kind === 'modified'),
+  );
+  const refused = await f.apply('update', p);
+  assert.equal(refused.status, 409);
+  assert.equal(refused.body.code, 'repo-local-modified');
+  assert.equal((await f.apply('update', p, { overwrite: 'yes' })).status, 409);
+  assert.equal(
+    await readFile(join(f.target, 'notes.md'), 'utf8'),
+    'my local notes',
+  );
+  const done = await f.apply('update', p, { overwrite: true });
+  assert.equal(done.status, 200, JSON.stringify(done.body));
+  assert.equal(await readFile(join(f.target, 'notes.md'), 'utf8'), 'v1 notes');
+  // The local edit is not lost: rollback brings it back (and reports it as modified again).
+  const rp = (await f.preview('rollback')).body.result;
+  assert.equal(
+    (await f.apply('rollback', rp, { overwrite: true })).status,
+    200,
+  );
+  assert.equal(
+    await readFile(join(f.target, 'notes.md'), 'utf8'),
+    'my local notes',
+  );
+  assert.equal((await f.install()).status, 'modified');
+});
+
+test('update and rollback guard: up to date, no backup, tampered backup, missing, trashed and unmarked', async (t) => {
+  const f = await updateFixture(t);
+  assert.equal((await f.preview('update')).body.code, 'repo-up-to-date');
+  assert.equal((await f.preview('rollback')).body.code, 'repo-no-backup');
+  await f.upstream(f.v2);
+  const p = (await f.preview('update')).body.result;
+  assert.equal(
+    (
+      await f.send(
+        {
+          action: 'repo-update',
+          installId: p && (await f.install()).id,
+          current: p.current,
+          target: p.target.digest,
+          snapshot: p.snapshot,
+        },
+        { marker: false },
+      )
+    ).status,
+    403,
+  );
+  assert.equal((await f.apply('update', p)).status, 200);
+  const [key] = await readdir(join(f.root, 'state', 'repository-backups'));
+  await writeFile(
+    join(f.root, 'state', 'repository-backups', key, 'notes.md'),
+    'tampered',
+  );
+  assert.equal((await f.preview('rollback')).body.code, 'repo-backup-changed');
+  assert.equal((await f.preview('update', { installId: 'nope' })).status, 404);
+  await rm(f.target, { recursive: true });
+  assert.equal((await f.preview('update')).body.code, 'repo-missing');
+});
+
+test('a failed update recovers: original bytes, no partial copy, no staging leftovers, no orphan backup', async (t) => {
+  const f = await updateFixture(t);
+  await f.upstream(f.v2);
+  const p = (await f.preview('update')).body.result;
+  const stateFile = join(f.root, 'state', 'repositories.json');
+  const size = (await readFile(stateFile)).length;
+  await f.stop();
+  // The state cap now refuses the extra backup record, so the swap must be undone.
+  const capped = await fixture(
+    t,
+    { maxStateBytes: size + 50 },
+    { root: f.root },
+  );
+  const list = (await capped.send({ action: 'list' })).body;
+  const before = await readFile(join(f.target, 'SKILL.md'), 'utf8');
+  const failed = await capped.send({
+    action: 'repo-update',
+    installId: list.repoInstalls[0].id,
+    current: p.current,
+    target: p.target.digest,
+    snapshot: p.snapshot,
+  });
+  assert.equal(failed.status, 400, JSON.stringify(failed.body));
+  assert.equal(failed.body.code, 'repo-limit');
+  assert.equal(await readFile(join(f.target, 'SKILL.md'), 'utf8'), before);
+  assert.equal(await readFile(join(f.target, 'notes.md'), 'utf8'), 'v1 notes');
+  assert.deepEqual((await readdir(join(f.root, 'skills'))).sort(), ['alpha']);
+  // Not even an empty repository-backups directory is left behind.
+  await assert.rejects(lstat(join(f.root, 'state', 'repository-backups')), {
+    code: 'ENOENT',
+  });
+  assert.equal(
+    (await capped.send({ action: 'list' })).body.repoInstalls[0].canRollback,
+    false,
+  );
+});
+
+test('a tampered backup record rejects the whole state', async (t) => {
+  const f = await updateFixture(t);
+  await f.upstream(f.v2);
+  const p = (await f.preview('update')).body.result;
+  assert.equal((await f.apply('update', p)).status, 200);
+  const stateFile = join(f.root, 'state', 'repositories.json');
+  const good = await readFile(stateFile, 'utf8');
+  await f.stop();
+  const bad = JSON.parse(good);
+  bad.installs[0].backup.key = '../escape';
+  await writeFile(stateFile, JSON.stringify(bad));
+  const broken = await fixture(t, {}, { root: f.root });
+  assert.equal(
+    (await broken.send({ action: 'list' })).body.repoError,
+    'repo-state-invalid',
+  );
+  await broken.stop();
+  const worse = JSON.parse(good);
+  worse.installs[0].backup.digest = 'zz';
+  await writeFile(stateFile, JSON.stringify(worse));
+  const broken2 = await fixture(t, {}, { root: f.root });
+  assert.equal(
+    (await broken2.send({ action: 'list' })).body.repoError,
+    'repo-state-invalid',
+  );
+});
+
+const backupsLeft = (root) =>
+  readdir(join(root, 'state', 'repository-backups')).catch(() => []);
+
+test('file mode: chmod +x is a local edit that needs consent; the exec bit survives update and rollback; empty directories are not tracked', async (t) => {
+  const f = await updateFixture(t);
+  await f.upstream(f.v2);
+  await mkdir(join(f.target, 'empty-dir'));
+  assert.equal(
+    (await f.install()).status,
+    'installed',
+    'documented limit: only file bytes and the executable bit are tracked',
+  );
+  await chmod(join(f.target, 'notes.md'), 0o755);
+  assert.equal((await f.install()).status, 'modified');
+  const p = (await f.preview('update')).body.result;
+  assert.equal(p.localModified, true);
+  assert.equal((await f.apply('update', p)).body.code, 'repo-local-modified');
+  assert.equal((await f.apply('update', p, { overwrite: true })).status, 200);
+  assert.equal(
+    (await stat(join(f.target, 'notes.md'))).mode & 0o111,
+    0,
+    'update replaces the mode edit',
+  );
+  assert.equal((await f.install()).status, 'installed');
+  // Rollback restores the exact previous copy including its executable bit.
+  const rp = (await f.preview('rollback')).body.result;
+  assert.equal(rp.localModified, false);
+  assert.ok(rp.changes.some((c) => c.path === 'notes.md'));
+  assert.equal(
+    (await f.apply('rollback', rp, { overwrite: true })).status,
+    200,
+  );
+  assert.notEqual((await stat(join(f.target, 'notes.md'))).mode & 0o111, 0);
+  assert.equal((await f.install()).status, 'modified');
+  // ...and the bit also survives the next update/rollback cycle through the backup.
+  const again = (await f.preview('rollback')).body.result;
+  assert.equal(
+    again.localModified,
+    true,
+    'the restored mode edit is still a local edit',
+  );
+  assert.equal(
+    (await f.apply('rollback', again)).body.code,
+    'repo-local-modified',
+  );
+  assert.equal(
+    (await f.apply('rollback', again, { overwrite: true })).status,
+    200,
+  );
+  assert.equal((await stat(join(f.target, 'notes.md'))).mode & 0o111, 0);
+});
+
+test('apply binds current, target and snapshot for both update and rollback', async (t) => {
+  const f = await updateFixture(t);
+  await f.upstream(f.v2);
+  const p = (await f.preview('update')).body.result;
+  for (const wrong of [
+    { target: 'b'.repeat(64) },
+    { snapshot: 'c'.repeat(40) },
+    { current: 'a'.repeat(64) },
+  ]) {
+    const refused = await f.apply('update', p, wrong);
+    assert.equal(refused.status, 409);
+    assert.equal(refused.body.code, 'repo-preview-stale');
+  }
+  assert.equal((await f.apply('update', p)).status, 200);
+  const rp = (await f.preview('rollback')).body.result;
+  for (const wrong of [
+    { target: 'b'.repeat(64) },
+    { snapshot: 'c'.repeat(40) },
+    { current: 'a'.repeat(64) },
+  ]) {
+    const refused = await f.apply('rollback', rp, wrong);
+    assert.equal(refused.status, 409);
+    assert.equal(refused.body.code, 'repo-preview-stale');
+  }
+  assert.equal((await f.apply('rollback', rp)).status, 200);
+});
+
+test('a trashed install cannot be rolled back or updated, shows no rollback, and gets it back on restore', async (t) => {
+  const f = await updateFixture(t);
+  await f.upstream(f.v2);
+  const p = (await f.preview('update')).body.result;
+  assert.equal((await f.apply('update', p)).status, 200);
+  const trashed = await f.send({
+    action: 'repo-uninstall',
+    installId: (await f.install()).id,
+  });
+  assert.equal(trashed.status, 200, JSON.stringify(trashed.body));
+  const row = trashed.body.repoInstalls[0];
+  assert.equal(row.status, 'trashed');
+  assert.equal(row.canRollback, false);
+  assert.equal((await f.preview('rollback')).body.code, 'repo-trashed');
+  assert.equal((await f.preview('update')).body.code, 'repo-trashed');
+  const restored = await f.send({ action: 'trash-restore', id: row.trashId });
+  assert.equal(restored.status, 200, JSON.stringify(restored.body));
+  assert.equal(restored.body.repoInstalls[0].canRollback, true);
+});
+
+test('apply refuses a destination root that became a link, without touching the copy or leaving a backup', async (t) => {
+  const f = await updateFixture(t);
+  await f.upstream(f.v2);
+  const p = (await f.preview('update')).body.result;
+  const before = await readFile(join(f.target, 'SKILL.md'), 'utf8');
+  await rename(join(f.root, 'skills'), join(f.root, 'skills-real'));
+  await symlink(join(f.root, 'skills-real'), join(f.root, 'skills'));
+  const refused = await f.apply('update', p);
+  assert.equal(refused.status, 409);
+  assert.equal(refused.body.code, 'repo-invalid-root');
+  assert.equal(
+    await readFile(join(f.root, 'skills-real', 'alpha', 'SKILL.md'), 'utf8'),
+    before,
+  );
+  assert.deepEqual(await backupsLeft(f.root), []);
+});
+
+test('forgetting a record and permanently deleting from Trash both remove the retained backup', async (t) => {
+  const f = await updateFixture(t);
+  await f.upstream(f.v2);
+  const p = (await f.preview('update')).body.result;
+  assert.equal((await f.apply('update', p)).status, 200);
+  assert.equal((await backupsLeft(f.root)).length, 1);
+  // Trash-delete.
+  const trashed = await f.send({
+    action: 'repo-uninstall',
+    installId: (await f.install()).id,
+  });
+  const purged = await f.send({
+    action: 'trash-delete',
+    id: trashed.body.repoInstalls[0].trashId,
+    confirm: true,
+  });
+  assert.equal(purged.status, 200, JSON.stringify(purged.body));
+  assert.deepEqual(purged.body.repoInstalls, []);
+  assert.deepEqual(await backupsLeft(f.root), []);
+  // Forget (destination changed): a second fixture with its own backup.
+  const g = await updateFixture(t);
+  await g.upstream(g.v2);
+  assert.equal(
+    (await g.apply('update', (await g.preview('update')).body.result)).status,
+    200,
+  );
+  assert.equal((await backupsLeft(g.root)).length, 1);
+  await g.stop();
+  const moved = await fixture(t, {}, { root: g.root, skills: 'moved' });
+  const row = (await moved.send({ action: 'list' })).body.repoInstalls[0];
+  assert.equal(row.status, 'invalid-root');
+  const forgot = await moved.send({ action: 'repo-forget', installId: row.id });
+  assert.equal(forgot.status, 200, JSON.stringify(forgot.body));
+  assert.deepEqual(await backupsLeft(g.root), []);
+});
+
+test('rollback is a shrinking write: it still works after the state cap was lowered below the saved state', async (t) => {
+  const f = await updateFixture(t);
+  await f.upstream(f.v2);
+  const p = (await f.preview('update')).body.result;
+  assert.equal((await f.apply('update', p)).status, 200);
+  await f.stop();
+  const capped = await fixture(t, { maxStateBytes: 100 }, { root: f.root });
+  const row = (await capped.send({ action: 'list' })).body.repoInstalls[0];
+  const rp = (
+    await capped.send({ action: 'repo-rollback-preview', installId: row.id })
+  ).body.result;
+  const done = await capped.send({
+    action: 'repo-rollback',
+    installId: row.id,
+    current: rp.current,
+    target: rp.target.digest,
+    snapshot: rp.snapshot,
+  });
+  assert.equal(done.status, 200, JSON.stringify(done.body));
+  assert.equal(await readFile(join(f.target, 'notes.md'), 'utf8'), 'v1 notes');
+});
+
+test('install rows expose a removed, renamed or invalid upstream skill and tracked update availability', async (t) => {
+  const f = await updateFixture(t);
+  assert.equal((await f.install()).upstream, undefined);
+  await writeFile(join(f.target, 'notes.md'), 'local');
+  await f.upstream({
+    'skills/beta/SKILL.md': skillDoc('beta'),
+    'skills/alpha/SKILL.md': skillDoc('alpha', 'About alpha', 'Body v2'),
+  });
+  const listed = (await f.send({ action: 'list' })).body;
+  const skill = listed.repositories[0].skills.find((s) => s.path === 'alpha');
+  assert.equal(listed.repoInstalls[0].status, 'modified');
+  assert.equal(listed.repoInstalls[0].updateAvailable, true);
+  assert.equal(skill.status, 'modified');
+  assert.equal(skill.updateAvailable, true, 'modified+update stays filterable');
+  // Renamed upstream (front-matter name changes at the same path).
+  await f.upstream({
+    'skills/alpha/SKILL.md': skillDoc('alpha-two', 'About alpha', 'Body v2'),
+  });
+  assert.equal((await f.install()).upstream, 'repo-skill-renamed');
+  // Removed upstream.
+  await removeFile(f.source, 'skills/alpha/SKILL.md');
+  await rm(join(f.source, 'skills', 'alpha'), { recursive: true });
+  await f.upstream({ 'skills/beta/SKILL.md': skillDoc('beta', 'About beta') });
+  assert.equal((await f.install()).upstream, 'repo-skill-missing');
 });

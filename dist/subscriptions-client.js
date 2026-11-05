@@ -97,6 +97,31 @@ function setupSkills(ctx, fail) {
 				repoForget: "Forget record (deletes nothing)",
 				repoConfirmForget: "Forget this installation record? Only the tracking record is removed; no files are read, moved or deleted.",
 				repoConfirmForgetYes: "Forget record",
+				"repoStatus.update": "Update available",
+				repoUpdatePreview: "Preview update",
+				repoRollbackPreview: "Preview rollback to previous version",
+				repoApplyUpdate: "Apply update",
+				repoApplyRollback: "Apply rollback",
+				repoPreviewTitle: "Changes to the installed copy",
+				repoNoChanges: "No file changes",
+				repoLocalModified: "This copy was edited locally. Applying replaces those edits; the current copy is kept as the previous version.",
+				repoOverwrite: "Replace local edits",
+				repoApplying: "Applying…",
+				repoUpdated: "Updated {name}. The previous version is kept for rollback.",
+				repoRolledBack: "Rolled back {name} to the previous version.",
+				repoTrackedHint: "Only file contents and the executable bit are tracked; empty folders and other file attributes are not.",
+				repoUpstream: "Upstream",
+				"repoChange.added": "Added",
+				"repoChange.removed": "Removed",
+				"repoChange.modified": "Modified",
+				"code.repo-preview-stale": "The copy or the repository changed after this preview; preview again",
+				"code.repo-local-modified": "The copy has local edits; confirm replacing them first",
+				"code.repo-local-unsafe": "The installed copy contains links, special files or exceeds safe limits",
+				"code.repo-up-to-date": "This copy already matches the repository",
+				"code.repo-no-backup": "There is no previous version to roll back to",
+				"code.repo-backup-changed": "The saved previous version changed; rollback refused",
+				"code.repo-skill-renamed": "The skill was renamed upstream; the installed copy is unchanged",
+				"code.repo-recovery": "Automatic recovery failed; the original files are kept at {recovery}. Do not repeat the operation",
 				"code.repo-invalid-root": "The destination changed since install; the copy is not touched. Forget the record instead.",
 				"code.repo-root-valid": "The destination is unchanged; use Uninstall to Trash",
 				repoConflictIn: "Name already used in",
@@ -386,6 +411,31 @@ function setupSkills(ctx, fail) {
 				repoForget: "نسيان السجل (لا يحذف شيئاً)",
 				repoConfirmForget: "نسيان سجل هذا التثبيت؟ يُزال سجل التتبع فقط؛ لا تُقرأ ملفات ولا تُنقل ولا تُحذف.",
 				repoConfirmForgetYes: "نسيان السجل",
+				"repoStatus.update": "تحديث متاح",
+				repoUpdatePreview: "معاينة التحديث",
+				repoRollbackPreview: "معاينة الرجوع إلى النسخة السابقة",
+				repoApplyUpdate: "تطبيق التحديث",
+				repoApplyRollback: "تطبيق الرجوع",
+				repoPreviewTitle: "التغييرات على النسخة المثبتة",
+				repoNoChanges: "لا تغييرات في الملفات",
+				repoLocalModified: "عُدّلت هذه النسخة محلياً. سيستبدل التطبيق تلك التعديلات وتُحفظ النسخة الحالية كنسخة سابقة.",
+				repoOverwrite: "استبدال التعديلات المحلية",
+				repoApplying: "جارٍ التطبيق…",
+				repoUpdated: "تم تحديث {name}. تُحفظ النسخة السابقة للرجوع إليها.",
+				repoRolledBack: "تم الرجوع بـ {name} إلى النسخة السابقة.",
+				repoTrackedHint: "يُتتبَّع محتوى الملفات وإذن التنفيذ فقط؛ لا تُتتبَّع المجلدات الفارغة ولا سمات الملفات الأخرى.",
+				repoUpstream: "المصدر",
+				"repoChange.added": "مضاف",
+				"repoChange.removed": "محذوف",
+				"repoChange.modified": "معدّل",
+				"code.repo-preview-stale": "تغيرت النسخة أو المستودع بعد هذه المعاينة؛ أعد المعاينة",
+				"code.repo-local-modified": "للنسخة تعديلات محلية؛ أكّد استبدالها أولاً",
+				"code.repo-local-unsafe": "تحتوي النسخة المثبتة على روابط أو ملفات خاصة أو تتجاوز الحدود الآمنة",
+				"code.repo-up-to-date": "هذه النسخة مطابقة للمستودع بالفعل",
+				"code.repo-no-backup": "لا توجد نسخة سابقة للرجوع إليها",
+				"code.repo-backup-changed": "تغيرت النسخة السابقة المحفوظة؛ رُفض الرجوع",
+				"code.repo-skill-renamed": "أُعيدت تسمية المهارة في المصدر؛ لم تتغير النسخة المثبتة",
+				"code.repo-recovery": "فشل الاسترداد التلقائي؛ الملفات الأصلية محفوظة في {recovery}. لا تكرر العملية",
 				"code.repo-invalid-root": "تغيّرت الوجهة منذ التثبيت؛ لا يُمس النسخ. انسَ السجل بدلاً من ذلك.",
 				"code.repo-root-valid": "الوجهة لم تتغير؛ استخدم النقل إلى سلة المحذوفات",
 				repoConflictIn: "الاسم مستخدم في",
@@ -666,13 +716,13 @@ function setupSkills(ctx, fail) {
 			}
 			return response.json();
 		};
-		const errorText = (failure) => failure?.code && dictionaries.en[`code.${failure.code}`] ? t(`code.${failure.code}`).replace("{limit}", String(failure.params?.limit ?? "")) : t("error");
+		const errorText = (failure) => failure?.code && dictionaries.en[`code.${failure.code}`] ? t(`code.${failure.code}`).replace("{limit}", String(failure.params?.limit ?? "")).replace("{recovery}", String(failure.params?.recovery ?? "")) : t("error");
 		function Section() {
 			const [data, setData] = React.useState(null), [error, setError] = React.useState(false), [query, setQuery] = React.useState(""), [source, setSource] = React.useState(""), [status, setStatus] = React.useState(""), [detail, setDetail] = React.useState(null), [detailError, setDetailError] = React.useState(false), [scope, setScope] = React.useState("global"), [project, setProject] = React.useState(""), [folderPath, setFolderPath] = React.useState(""), [candidates, setCandidates] = React.useState(null), [editing, setEditing] = React.useState(null), [removing, setRemoving] = React.useState(""), [pendingScan, setPendingScan] = React.useState(false), [loaded, setLoaded] = React.useState(""), [notice, setNotice] = React.useState(""), [managing, setManaging] = React.useState(false), [catName, setCatName] = React.useState({}), [catEdit, setCatEdit] = React.useState(null), [catRemoving, setCatRemoving] = React.useState(""), [catFilter, setCatFilter] = React.useState(""), [picked, setPicked] = React.useState({}), [assignTarget, setAssignTarget] = React.useState({}), [noteDrafts, setNoteDrafts] = React.useState({}), [dragging, setDragging] = React.useState(null), [importing, setImporting] = React.useState(false), [importPath, setImportPath] = React.useState(""), [importFiles, setImportFiles] = React.useState([]), [importConflict, setImportConflict] = React.useState(""), [importResult, setImportResult] = React.useState(null), [importBusy, setImportBusy] = React.useState(false), [trashDeleting, setTrashDeleting] = React.useState(""), [repoForm, setRepoForm] = React.useState({
 				url: "",
 				ref: "",
 				subdirectory: ""
-			}), [repoFilter, setRepoFilter] = React.useState(""), [repoStatusFilter, setRepoStatusFilter] = React.useState(""), [repoRepoFilter, setRepoRepoFilter] = React.useState(""), [repoUnsubscribing, setRepoUnsubscribing] = React.useState(""), [repoForgetting, setRepoForgetting] = React.useState(""), [repoTarget, setRepoTarget] = React.useState("user-dsh"), [repoBusy, setRepoBusy] = React.useState(""), [repoSummary, setRepoSummary] = React.useState(""), [creating, setCreating] = React.useState(false), [createName, setCreateName] = React.useState(""), [createDescription, setCreateDescription] = React.useState(""), [createBody, setCreateBody] = React.useState(""), [createSource, setCreateSource] = React.useState("user-dsh");
+			}), [repoFilter, setRepoFilter] = React.useState(""), [repoStatusFilter, setRepoStatusFilter] = React.useState(""), [repoRepoFilter, setRepoRepoFilter] = React.useState(""), [repoUnsubscribing, setRepoUnsubscribing] = React.useState(""), [repoForgetting, setRepoForgetting] = React.useState(""), [repoTarget, setRepoTarget] = React.useState("user-dsh"), [repoBusy, setRepoBusy] = React.useState(""), [repoSummary, setRepoSummary] = React.useState(""), [repoPreviews, setRepoPreviews] = React.useState({}), [repoOverwrites, setRepoOverwrites] = React.useState({}), [creating, setCreating] = React.useState(false), [createName, setCreateName] = React.useState(""), [createDescription, setCreateDescription] = React.useState(""), [createBody, setCreateBody] = React.useState(""), [createSource, setCreateSource] = React.useState("user-dsh");
 			const dialog = React.useRef(null);
 			React.useEffect(() => {
 				if (!detail) return;
@@ -774,6 +824,39 @@ function setupSkills(ctx, fail) {
 				if (result?.warning) lines.push(`${t(`code.${result.warning}`)} ${result.path ?? ""}`.trim());
 				for (const item of result?.warnings ?? []) lines.push(`${item.name}: ${t(`code.${item.code}`)} ${(item.recovery ?? []).join(" ")}`.trim());
 				if (lines.length) setNotice(lines.join(" · "));
+			};
+			const repoPreview = (record, kind) => void repoAction(record.id, {
+				action: `repo-${kind}-preview`,
+				installId: record.id
+			}, (value) => {
+				setRepoPreviews((all) => ({
+					...all,
+					[record.id]: {
+						kind,
+						...value.result
+					}
+				}));
+				setRepoOverwrites((all) => ({
+					...all,
+					[record.id]: false
+				}));
+			});
+			const repoApply = (record) => {
+				const preview = repoPreviews[record.id];
+				if (!preview) return;
+				const clear = () => setRepoPreviews(({ [record.id]: _gone,...rest }) => rest);
+				repoAction(`apply:${record.id}`, {
+					action: `repo-${preview.kind}`,
+					installId: record.id,
+					current: preview.current,
+					target: preview.target.digest,
+					snapshot: preview.snapshot,
+					overwrite: !!repoOverwrites[record.id]
+				}, (value) => {
+					clear();
+					setNotice(t(preview.kind === "update" ? "repoUpdated" : "repoRolledBack").replace("{name}", record.name));
+					repoWarning(value);
+				});
 			};
 			const runImport = async (dryRun) => {
 				if (busy.current || switching || importBusy || !importConflict) return;
@@ -1169,7 +1252,7 @@ function setupSkills(ctx, fail) {
 			}, t("repoAdd"))), h("button", {
 				disabled: !data?.repositories?.length || !!repoBusy || switching,
 				onClick: () => void repoAction("all", { action: "repo-refresh-all" }, (value) => setRepoSummary(t("repoBulk").replace("{done}", String(value.result.refreshed.length)).replace("{total}", String(value.result.total)).replace("{failed}", String(value.result.failed.length))))
-			}, t("repoRefreshAll")), repoBusy ? h("p", { role: "status" }, t("repoRefreshing")) : null, repoSummary ? h("p", { role: "status" }, repoSummary) : null, data?.repoError ? h("p", { role: "alert" }, t(`code.${data.repoError}`)) : null, field(t("repoFilter"), repoFilter, setRepoFilter), h("select", {
+			}, t("repoRefreshAll")), repoBusy ? h("p", { role: "status" }, t(repoBusy.startsWith("apply:") ? "repoApplying" : "repoRefreshing")) : null, repoSummary ? h("p", { role: "status" }, repoSummary) : null, data?.repoError ? h("p", { role: "alert" }, t(`code.${data.repoError}`)) : null, field(t("repoFilter"), repoFilter, setRepoFilter), h("select", {
 				"aria-label": t("repoStatusFilter"),
 				value: repoStatusFilter,
 				onChange: (event) => setRepoStatusFilter(event.target.value)
@@ -1179,6 +1262,7 @@ function setupSkills(ctx, fail) {
 			}, t("repoAllStatuses")), ...[
 				"available",
 				"installed",
+				"update",
 				"conflict",
 				"invalid"
 			].map((id) => h("option", {
@@ -1204,7 +1288,7 @@ function setupSkills(ctx, fail) {
 			}, id === "user-dsh" ? "DSH" : "Shared Agents"))), !data?.repoError && !data?.repositories?.length ? h("p", null, t("repoEmpty")) : null, ...(data?.repositories ?? []).map((repo) => {
 				const needle = repoFilter.trim().toLowerCase();
 				if (repoRepoFilter && repo.id !== repoRepoFilter) return null;
-				const shown = repo.skills.filter((skill) => (!repoStatusFilter || skill.status === repoStatusFilter) && (!needle || `${skill.name} ${skill.description} ${skill.path}`.toLowerCase().includes(needle)));
+				const shown = repo.skills.filter((skill) => (!repoStatusFilter || skill.status === repoStatusFilter || repoStatusFilter === "update" && skill.updateAvailable) && (!needle || `${skill.name} ${skill.description} ${skill.path}`.toLowerCase().includes(needle)));
 				if ((needle || repoStatusFilter) && !shown.length) return null;
 				return h("article", {
 					key: repo.id,
@@ -1250,14 +1334,41 @@ function setupSkills(ctx, fail) {
 			}), h("h4", null, t("repoTracked")), !(data?.repoInstalls ?? []).length ? h("p", null, t("repoNoInstalls")) : null, ...(data?.repoInstalls ?? []).map((record) => h("article", {
 				key: record.id,
 				"data-majed-repo-install": record.id
-			}, h("strong", null, record.name), h("span", null, ` — ${t(`repoStatus.${record.status}`)}`), h("p", null, `${t("repoFromSource")}: ${record.origin.label}${record.origin.ref ? ` @ ${record.origin.ref}` : ""}${record.origin.subdirectory ? ` / ${record.origin.subdirectory}` : ""}`), h("p", null, `${t("repoSnapshot")}: ${record.fingerprint.slice(0, 12)} — ${t(`repoKind.${record.fingerprintKind}`)}`), h("p", null, record.path), record.status === "installed" || record.status === "modified" ? h("button", {
+			}, h("strong", null, record.name), h("span", null, ` — ${t(`repoStatus.${record.status}`)}`), record.updateAvailable && record.status !== "update" ? h("span", null, ` — ${t("repoStatus.update")}`) : null, record.upstream ? h("p", null, `${t("repoUpstream")}: ${t(`code.${record.upstream}`)}`) : null, h("p", null, `${t("repoFromSource")}: ${record.origin.label}${record.origin.ref ? ` @ ${record.origin.ref}` : ""}${record.origin.subdirectory ? ` / ${record.origin.subdirectory}` : ""}`), h("p", null, `${t("repoSnapshot")}: ${record.fingerprint.slice(0, 12)} — ${t(`repoKind.${record.fingerprintKind}`)}`), h("p", null, record.path), record.status === "installed" || record.status === "modified" ? h("button", {
 				"aria-label": `${t("repoUninstall")}: ${record.name}`,
 				disabled: !!repoBusy || switching,
 				onClick: () => void repoAction(record.id, {
 					action: "repo-uninstall",
 					installId: record.id
 				}, repoWarning)
-			}, t("repoUninstall")) : null, record.status === "invalid-root" ? h("button", {
+			}, t("repoUninstall")) : null, (record.status === "installed" || record.status === "modified") && record.updateAvailable ? h("button", {
+				"aria-label": `${t("repoUpdatePreview")}: ${record.name}`,
+				disabled: !!repoBusy || switching,
+				onClick: () => repoPreview(record, "update")
+			}, t("repoUpdatePreview")) : null, record.canRollback && (record.status === "installed" || record.status === "modified") ? h("button", {
+				"aria-label": `${t("repoRollbackPreview")}: ${record.name}`,
+				disabled: !!repoBusy || switching,
+				onClick: () => repoPreview(record, "rollback")
+			}, t("repoRollbackPreview")) : null, repoPreviews[record.id] && (record.status === "installed" || record.status === "modified") ? h("div", {
+				role: "group",
+				"aria-labelledby": `majed-repo-preview-${record.id}`,
+				"data-majed-repo-preview": record.id
+			}, h("h5", { id: `majed-repo-preview-${record.id}` }, `${t("repoPreviewTitle")}: ${record.name}`), !repoPreviews[record.id].changes.length ? h("p", null, t("repoNoChanges")) : h("ul", null, ...repoPreviews[record.id].changes.map((change) => h("li", { key: change.path }, `${t(`repoChange.${change.kind}`)}: `, h("bdi", { dir: "ltr" }, change.path)))), h("p", null, t("repoTrackedHint")), repoPreviews[record.id].localModified ? h("div", { role: "alert" }, h("p", null, t("repoLocalModified")), h("label", null, h("input", {
+				type: "checkbox",
+				"aria-label": `${t("repoOverwrite")}: ${record.name}`,
+				checked: !!repoOverwrites[record.id],
+				onChange: (event) => setRepoOverwrites((all) => ({
+					...all,
+					[record.id]: !!event.target.checked
+				}))
+			}), t("repoOverwrite"))) : null, h("button", {
+				"aria-label": `${t(repoPreviews[record.id].kind === "update" ? "repoApplyUpdate" : "repoApplyRollback")}: ${record.name}`,
+				disabled: !!repoBusy || switching || repoPreviews[record.id].localModified && !repoOverwrites[record.id],
+				onClick: () => repoApply(record)
+			}, t(repoPreviews[record.id].kind === "update" ? "repoApplyUpdate" : "repoApplyRollback")), h("button", {
+				"aria-label": `${t("cancel")}: ${record.name}`,
+				onClick: () => setRepoPreviews(({ [record.id]: _gone,...rest }) => rest)
+			}, t("cancel"))) : null, record.status === "invalid-root" ? h("button", {
 				"aria-label": `${t("repoForget")}: ${record.name}`,
 				disabled: !!repoBusy || switching,
 				onClick: () => setRepoForgetting(record.id)
