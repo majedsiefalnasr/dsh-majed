@@ -4,6 +4,7 @@ import { homedir } from 'node:os';
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import { parseDocument } from 'yaml';
 import { discoverReadonlyEntries } from './skills-discovery.js';
+import { localItems, uploadedItems, zipItems, uploadBatch, publishImports, } from './skills-import.js';
 import { CUSTOM_ID, CUSTOM_RANK_BASE, CUSTOM_RANK_STEP, comparisonPath, customSlug, isSameOrDescendant, MAX_CUSTOM_SOURCES, MAX_LABEL, overlapsResolved, PROJECT_SOURCES, prepareRoots, resolveProject, scanCandidates, validateRootPath, } from './skills-sources.js';
 export const name = 'dsh-waycraft/skills';
 export const inject = ['skills'];
@@ -1397,6 +1398,7 @@ export function apply(ctx, config = {}) {
                     }
                     const body = JSON.parse(requestText);
                     if (body.action !== 'create' &&
+                        body.action !== 'upload' &&
                         (length > MAX_REQUEST || declared > MAX_REQUEST))
                         return new Response('Request too large', { status: 413 });
                     const marked = request.headers.get('x-majed-skills') === '1';
@@ -1407,6 +1409,8 @@ export function apply(ctx, config = {}) {
                         'ping',
                         'reload',
                         'create',
+                        'import',
+                        'upload',
                         'custom-scan',
                         'custom-add',
                         'custom-update',
@@ -1459,6 +1463,68 @@ export function apply(ctx, config = {}) {
                         project = (await projects()).find((item) => item.id === body.project);
                         if (!project)
                             return fail(404, 'project-unregistered');
+                    }
+                    if (body.action === 'import' || body.action === 'upload') {
+                        if (!marked)
+                            return fail(403, 'forbidden');
+                        const mutation = operations.then(async () => {
+                            if (closing || request.signal.aborted)
+                                return fail(409, 'import-cancelled');
+                            if (corrupt)
+                                return fail(409, 'state-invalid');
+                            const current = body.project === undefined
+                                ? undefined
+                                : (await registeredProjects()).find((item) => item.id === body.project);
+                            if (body.project !== undefined &&
+                                (registryUnavailable || !current))
+                                return fail(404, 'project-unregistered');
+                            const destination = current
+                                ? current.available &&
+                                    current.root &&
+                                    body.source === `project-dsh:${current.id}`
+                                    ? join(current.root, '.dsh', 'skills')
+                                    : undefined
+                                : baseSources.find((item) => item.id === body.source &&
+                                    ['user-dsh', 'user-agents'].includes(item.id))?.path;
+                            if (!destination)
+                                return fail(403, 'create-readonly');
+                            const cancelled = () => closing || request.signal.aborted;
+                            try {
+                                const found = body.action === 'import'
+                                    ? await localItems(body.path, resolve(destination), cancelled)
+                                    : body.archives !== undefined
+                                        ? await uploadBatch(body.entries, body.archives, cancelled)
+                                        : body.zip === undefined
+                                            ? uploadedItems(body.entries)
+                                            : await zipItems(body.zip, cancelled);
+                                const result = await publishImports(found.items, resolve(destination), body.conflict, body.dryRun === true, cancelled);
+                                result.failed.unshift(...found.failed);
+                                const response = {
+                                    ...result,
+                                    inputs: 'inputs' in found ? found.inputs : [],
+                                };
+                                if (result.imported.length) {
+                                    revision++;
+                                    for (const control of controls)
+                                        control.invalidate();
+                                }
+                                return response;
+                            }
+                            catch (error) {
+                                return fail(400, error instanceof Error &&
+                                    error.message.startsWith('import-')
+                                    ? error.message
+                                    : 'import-failed');
+                            }
+                        });
+                        operations = mutation.catch(() => undefined);
+                        const result = await mutation;
+                        if (result instanceof Response)
+                            return result;
+                        return Response.json({
+                            ...(await payload(project, await registeredProjects(), marked)),
+                            result,
+                        });
                     }
                     if (body.action === 'create') {
                         if (!marked)

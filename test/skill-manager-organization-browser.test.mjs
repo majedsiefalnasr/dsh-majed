@@ -11,9 +11,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import vm from 'node:vm';
+import fs from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
 import React from 'react';
 import { act, create } from 'react-test-renderer';
 import { apply as applyHost } from '../dist/skills.js';
+import { zipSync } from 'fflate';
 
 const code = await readFile(
   new URL('../dist/client.js', import.meta.url),
@@ -114,6 +117,7 @@ async function mount(t, language, initial, creation = false) {
     },
     document: { baseURI: 'https://example.test/' },
     URL,
+    btoa,
     AbortController,
     console,
     setTimeout: (fn) => {
@@ -256,6 +260,268 @@ async function mount(t, language, initial, creation = false) {
 }
 
 for (const language of ['en', 'ar']) {
+  test(`registered ${language} upload controls import real ZIP, folder and Markdown bytes`, async (t) => {
+    const ui = await mount(t, language, undefined, true);
+    const view = await ui.render(ui.slot('settings.section')[0].component);
+    const tools = ui.tools(view);
+    await ui.act2(() => tools.button(ui.d.importSkills).props.onClick());
+    await ui.act2(() =>
+      tools
+        .field(ui.d.importConflict)
+        .props.onChange({ target: { value: 'skip' } }),
+    );
+    assert.equal(tools.button(ui.d.importNow).props.disabled, true);
+    const file = (name, bytes, path = '') => ({
+      name,
+      webkitRelativePath: path,
+      size: bytes.length,
+      arrayBuffer: async () => Uint8Array.from(bytes).buffer,
+    });
+    for (const [label, files, expected] of [
+      [
+        ui.d.uploadFiles,
+        [
+          file(
+            'collection.zip',
+            zipSync({
+              'zip-skill/SKILL.md': Buffer.from(doc('zip-skill')),
+              'zip-skill/data.bin': new Uint8Array([0, 255]),
+            }),
+          ),
+        ],
+        'zip-skill',
+      ],
+      [
+        ui.d.uploadFolder,
+        [
+          file(
+            'SKILL.md',
+            Buffer.from(doc('folder-skill')),
+            'folder-skill/SKILL.md',
+          ),
+          file('data.bin', new Uint8Array([0, 255]), 'folder-skill/data.bin'),
+        ],
+        'folder-skill',
+      ],
+      [
+        ui.d.uploadFiles,
+        [
+          file('one.md', Buffer.from(doc('markdown-one'))),
+          file('two.md', Buffer.from(doc('markdown-two'))),
+        ],
+        'markdown-two',
+      ],
+    ]) {
+      await ui.act2(() =>
+        tools.field(label).props.onChange({ target: { files } }),
+      );
+      await ui.act2(() => tools.button(ui.d.importNow).props.onClick());
+      const catalog = await ui.hostFetch({ action: 'list' });
+      const entry = catalog.copies.find((x) => x.name === expected);
+      assert.ok(entry, `${expected} imported via registered client`);
+      assert.match(await readFile(entry.path, 'utf8'), new RegExp(expected));
+    }
+    for (const files of [
+      [
+        file(
+          'mixed.zip',
+          zipSync({
+            'mixed/SKILL.md': Buffer.from(doc('mixed-zip')),
+            'mixed/data.bin': new Uint8Array([7, 8]),
+          }),
+        ),
+        file('mixed.md', Buffer.from(doc('mixed-md'))),
+      ],
+      [
+        file(
+          'first.zip',
+          zipSync({ 'SKILL.md': Buffer.from(doc('first-zip')) }),
+        ),
+        file(
+          'second.zip',
+          zipSync({ 'SKILL.md': Buffer.from(doc('second-zip')) }),
+        ),
+      ],
+    ]) {
+      await ui.act2(() =>
+        tools.field(ui.d.uploadFiles).props.onChange({ target: { files } }),
+      );
+      await ui.act2(() => tools.button(ui.d.importNow).props.onClick());
+      const names = (await ui.hostFetch({ action: 'list' })).copies.map(
+        (x) => x.name,
+      );
+      for (const name of files.length && files[0].name === 'mixed.zip'
+        ? ['mixed-zip', 'mixed-md']
+        : ['first-zip', 'second-zip']) {
+        assert.ok(names.includes(name), `${name} selected batch imported`);
+        assert.ok(tools.text().includes(name), `${name} outcome visible`);
+      }
+      for (const input of files.filter((x) => x.name.endsWith('.zip')))
+        assert.ok(tools.text().includes(input.name));
+    }
+    const mixedCopy = (await ui.hostFetch({ action: 'list' })).copies.find(
+      (x) => x.name === 'mixed-zip',
+    );
+    assert.deepEqual(
+      await readFile(join(mixedCopy.path, '..', 'data.bin')),
+      Buffer.from([7, 8]),
+    );
+    await ui.act2(() =>
+      tools.field(ui.d.uploadFiles).props.onChange({
+        target: {
+          files: [
+            file(
+              'empty.zip',
+              zipSync({ 'notes.txt': Buffer.from('no skill') }),
+            ),
+            file(
+              'valid.zip',
+              zipSync({ 'SKILL.md': Buffer.from(doc('alongside-empty')) }),
+            ),
+          ],
+        },
+      }),
+    );
+    await ui.act2(() => tools.button(ui.d.importNow).props.onClick());
+    assert.ok(tools.text().includes('empty.zip'));
+    assert.ok(tools.text().includes(ui.d['code.import-empty']));
+    assert.ok(tools.text().includes('alongside-empty'));
+    const folder = (text) => [
+      file(
+        'SKILL.md',
+        Buffer.from(doc('folder-skill') + text),
+        'folder-skill/SKILL.md',
+      ),
+    ];
+    await ui.act2(() =>
+      tools
+        .field(ui.d.uploadFolder)
+        .props.onChange({ target: { files: folder('Replacement') } }),
+    );
+    await ui.act2(() => tools.button(ui.d.importNow).props.onClick());
+    let catalog = await ui.hostFetch({ action: 'list' });
+    const original = catalog.copies.find((x) => x.name === 'folder-skill');
+    assert.ok(tools.text().includes(ui.d.skippedImport));
+    assert.doesNotMatch(await readFile(original.path, 'utf8'), /Replacement/);
+    await ui.act2(() =>
+      tools
+        .field(ui.d.importConflict)
+        .props.onChange({ target: { value: 'overwrite' } }),
+    );
+    const remove = fs.promises.rm;
+    fs.promises.rm = async (path, ...args) => {
+      if (String(path).includes('/.backup-'))
+        throw Error('controlled cleanup failure');
+      return remove(path, ...args);
+    };
+    syncBuiltinESMExports();
+    try {
+      await ui.act2(() => tools.button(ui.d.importNow).props.onClick());
+    } finally {
+      fs.promises.rm = remove;
+      syncBuiltinESMExports();
+    }
+    assert.equal(
+      ui.d['code.import-cleanup'],
+      language === 'ar'
+        ? 'تم الاستيراد بنجاح؛ تعذر تنظيف النسخة الاحتياطية. تحقق من مسار البقايا؛ قد تكون محتوياتها غير مكتملة'
+        : 'Imported successfully; backup cleanup failed. Check the remaining backup path; its contents may be incomplete',
+    );
+    assert.ok(tools.text().includes(ui.d['code.import-cleanup']));
+    assert.ok(tools.text().includes('/.backup-'));
+    assert.match(await readFile(original.path, 'utf8'), /Replacement/);
+    await assert.rejects(readFile(join(original.path, '..', 'data.bin')), {
+      code: 'ENOENT',
+    });
+    // Unsafe actual selection must produce a translated backend error, preserving originals.
+    await ui.act2(() =>
+      tools.field(ui.d.uploadFolder).props.onChange({
+        target: {
+          files: [file('SKILL.md', Buffer.from(doc('bad')), '../SKILL.md')],
+        },
+      }),
+    );
+    await ui.act2(() => tools.button(ui.d.importNow).props.onClick());
+    assert.ok(tools.text().includes(ui.d['code.import-path']));
+    await ui.act2(() =>
+      tools.field(ui.d.uploadFiles).props.onChange({
+        target: {
+          files: [
+            {
+              name: 'huge.md',
+              size: 1048577,
+              arrayBuffer: () => {
+                throw Error('must not read oversized file');
+              },
+            },
+          ],
+        },
+      }),
+    );
+    await ui.act2(() => tools.button(ui.d.importNow).props.onClick());
+    assert.ok(tools.text().includes(ui.d['code.import-limit']));
+    catalog = await ui.hostFetch({ action: 'list' });
+    const localSource = join(original.path, '..', '..', '..', 'local-incoming');
+    await mkdir(localSource);
+    await writeFile(join(localSource, 'preview.md'), doc('local-preview'));
+    await ui.act2(() =>
+      tools
+        .field(ui.d.destination)
+        .props.onChange({ target: { value: 'user-agents' } }),
+    );
+    await ui.act2(() =>
+      tools
+        .field(ui.d.importPath)
+        .props.onChange({ target: { value: localSource } }),
+    );
+    await ui.act2(() => tools.button(ui.d.previewImport).props.onClick());
+    assert.ok(tools.text().includes('local-preview'));
+    assert.ok(
+      !(await ui.hostFetch({ action: 'list' })).copies.some(
+        (x) => x.name === 'local-preview',
+      ),
+    );
+    await ui.act2(() => tools.button(ui.d.importNow).props.onClick());
+    const previewCopy = (await ui.hostFetch({ action: 'list' })).copies.find(
+      (x) => x.name === 'local-preview',
+    );
+    assert.equal(previewCopy.source, 'user-agents');
+    assert.match(await readFile(previewCopy.path, 'utf8'), /local-preview/);
+    assert.equal(
+      await readFile(join(localSource, 'preview.md'), 'utf8'),
+      doc('local-preview'),
+    );
+    const project = catalog.projects.find((x) => x.available).id;
+    await ui.act2(() =>
+      tools.field(ui.d.scope).props.onChange({ target: { value: 'project' } }),
+    );
+    await ui.act2(() =>
+      tools.field(ui.d.project).props.onChange({ target: { value: project } }),
+    );
+    await ui.act2(() =>
+      tools.field(ui.d.uploadFiles).props.onChange({
+        target: {
+          files: [file('project.md', Buffer.from(doc('project-import')))],
+        },
+      }),
+    );
+    await ui.act2(() => tools.button(ui.d.importNow).props.onClick());
+    const local = await ui.hostFetch({ action: 'list', project });
+    const imported = local.project.copies.find(
+      (x) => x.name === 'project-import',
+    );
+    assert.ok(imported.path.includes('/.dsh/skills/'));
+    assert.match(await readFile(imported.path, 'utf8'), /project-import/);
+    assert.ok(
+      !(await ui.hostFetch({ action: 'list' })).copies.some(
+        (x) => x.name === 'project-import',
+      ),
+    );
+    assert.equal(
+      view.root.findByType('section').props.dir,
+      language === 'ar' ? 'rtl' : undefined,
+    );
+  });
   test(`registered ${language} creation form publishes and reports conflicts`, async (t) => {
     const ui = await mount(t, language, undefined, true);
     const view = await ui.render(ui.slot('settings.section')[0].component);

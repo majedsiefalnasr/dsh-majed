@@ -29,6 +29,27 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
     const h = React.createElement;
     const dictionaries = {
       en: {
+        importSkills: 'Import skills',
+        importPath: 'Local absolute path',
+        previewImport: 'Preview local import',
+        importNow: 'Import now',
+        uploadFiles: 'ZIP or Markdown files',
+        uploadFolder: 'Skill folder',
+        importConflict: 'Existing skills',
+        skipImport: 'Skip existing',
+        overwriteImport: 'Overwrite existing (replace all bundled files)',
+        importResult: 'Import results',
+        pendingImport: 'Ready',
+        conflictsImport: 'Conflicts',
+        importedImport: 'Imported',
+        skippedImport: 'Skipped',
+        failedImport: 'Failed',
+        warningsImport: 'Cleanup warnings',
+        inputsImport: 'Archives processed',
+        'code.import-cleanup':
+          'Imported successfully; backup cleanup failed. Check the remaining backup path; its contents may be incomplete',
+        importHint:
+          'Copies original files. Select skip or overwrite explicitly. Local preview never writes.',
         create: 'Create skill',
         skillName: 'Skill name',
         skillDescription: 'Routing description',
@@ -42,6 +63,22 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
         'code.create-linked-root': 'Linked writable folders are not allowed',
         'code.create-too-large': 'Skill content exceeds the size limit',
         'code.create-failed': 'Unable to create the skill',
+        'code.import-path': 'Unsafe import path',
+        'code.import-limit': 'Import exceeds file, byte, depth or entry limits',
+        'code.import-linked': 'Linked or special files are not allowed',
+        'code.import-empty': 'No skill documents found',
+        'code.import-metadata': 'Skill metadata is invalid',
+        'code.import-name': 'Skill name is invalid',
+        'code.import-duplicate': 'Duplicate import paths or names',
+        'code.import-encoding': 'Invalid upload encoding',
+        'code.import-archive': 'Invalid or incomplete ZIP archive',
+        'code.import-cancelled':
+          'Import cancelled; unpublished changes discarded',
+        'code.import-overlap': 'Import source overlaps the destination',
+        'code.import-conflict': 'Choose skip or overwrite explicitly',
+        'code.import-failed': 'Unable to import this skill',
+        'code.import-recovery':
+          'Restoration failed; original backup retained in the destination for recovery',
         title: 'Skill manager',
         search: 'Search skills',
         all: 'All sources',
@@ -200,6 +237,27 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
         'code.placement-invalid': 'The entry placement is invalid',
       },
       ar: {
+        importSkills: 'استيراد مهارات',
+        importPath: 'المسار المحلي المطلق',
+        previewImport: 'معاينة الاستيراد المحلي',
+        importNow: 'استيراد الآن',
+        uploadFiles: 'ملفات ZIP أو Markdown',
+        uploadFolder: 'مجلد مهارة',
+        importConflict: 'المهارات الموجودة',
+        skipImport: 'تخطي الموجود',
+        overwriteImport: 'استبدال الموجود (كل ملفات الحزمة)',
+        importResult: 'نتائج الاستيراد',
+        pendingImport: 'جاهزة',
+        conflictsImport: 'تعارضات',
+        importedImport: 'مستوردة',
+        skippedImport: 'متخطاة',
+        failedImport: 'فاشلة',
+        warningsImport: 'تحذيرات التنظيف',
+        inputsImport: 'الأرشيفات المعالجة',
+        'code.import-cleanup':
+          'تم الاستيراد بنجاح؛ تعذر تنظيف النسخة الاحتياطية. تحقق من مسار البقايا؛ قد تكون محتوياتها غير مكتملة',
+        importHint:
+          'ينسخ الملفات الأصلية. اختر التخطي أو الاستبدال صراحةً. المعاينة المحلية لا تكتب ملفات.',
         create: 'إنشاء مهارة',
         skillName: 'اسم المهارة',
         skillDescription: 'وصف الاستخدام',
@@ -212,6 +270,23 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
         'code.create-linked-root': 'لا يُسمح بمجلدات كتابة مرتبطة',
         'code.create-too-large': 'محتوى المهارة يتجاوز الحد المسموح',
         'code.create-failed': 'تعذر إنشاء المهارة',
+        'code.import-path': 'مسار الاستيراد غير آمن',
+        'code.import-limit':
+          'يتجاوز الاستيراد حدود الملفات أو الحجم أو العمق أو عدد العناصر',
+        'code.import-linked': 'لا يُسمح بالملفات المرتبطة أو الخاصة',
+        'code.import-empty': 'لم يتم العثور على مستندات مهارات',
+        'code.import-metadata': 'بيانات المهارة غير صالحة',
+        'code.import-name': 'اسم المهارة غير صالح',
+        'code.import-duplicate': 'مسارات أو أسماء استيراد مكررة',
+        'code.import-encoding': 'ترميز الرفع غير صالح',
+        'code.import-archive': 'أرشيف ZIP غير صالح أو غير مكتمل',
+        'code.import-cancelled':
+          'تم إلغاء الاستيراد والتخلص من التغييرات غير المنشورة',
+        'code.import-overlap': 'يتداخل مصدر الاستيراد مع الوجهة',
+        'code.import-conflict': 'اختر التخطي أو الاستبدال صراحةً',
+        'code.import-failed': 'تعذر استيراد هذه المهارة',
+        'code.import-recovery':
+          'فشلت الاستعادة؛ تم الاحتفاظ بالنسخة الأصلية في مجلد الوجهة لاستعادتها',
         title: 'مدير المهارات',
         search: 'البحث عن مهارات',
         all: 'كل المصادر',
@@ -442,6 +517,12 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
         [assignTarget, setAssignTarget] = React.useState({}),
         [noteDrafts, setNoteDrafts] = React.useState({}),
         [dragging, setDragging] = React.useState(null),
+        [importing, setImporting] = React.useState(false),
+        [importPath, setImportPath] = React.useState(''),
+        [importFiles, setImportFiles] = React.useState([]),
+        [importConflict, setImportConflict] = React.useState(''),
+        [importResult, setImportResult] = React.useState(null),
+        [importBusy, setImportBusy] = React.useState(false),
         [creating, setCreating] = React.useState(false),
         [createName, setCreateName] = React.useState(''),
         [createDescription, setCreateDescription] = React.useState(''),
@@ -540,6 +621,57 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
             setNotice(errorText(failure));
         } finally {
           busy.current = false;
+        }
+      };
+      const runImport = async (dryRun: boolean) => {
+        if (busy.current || switching || importBusy || !importConflict) return;
+        setImportBusy(true);
+        const requested = key;
+        try {
+          const body: any = {
+            action: 'import',
+            path: importPath,
+            dryRun,
+            conflict: importConflict,
+            ...selected,
+            source:
+              scope === 'project' ? `project-dsh:${project}` : createSource,
+          };
+          if (!dryRun && importFiles.length) {
+            body.action = 'upload';
+            if (
+              importFiles.length > 512 ||
+              importFiles.reduce(
+                (sum: number, file: any) => sum + file.size,
+                0,
+              ) > 1048576
+            )
+              throw new Error(t('code.import-limit'));
+            const entries = [];
+            for (const file of importFiles) {
+              if (lifetime.current.signal.aborted) return;
+              const bytes = new Uint8Array(await file.arrayBuffer());
+              let binary = '';
+              for (const byte of bytes) binary += String.fromCharCode(byte);
+              entries.push({
+                path: file.webkitRelativePath || file.name,
+                data: btoa(binary),
+              });
+            }
+            body.archives = entries.filter(
+              (entry) =>
+                !entry.path.includes('/') && /\.zip$/i.test(entry.path),
+            );
+            body.entries = entries.filter(
+              (entry) =>
+                entry.path.includes('/') || !/\.zip$/i.test(entry.path),
+            );
+          }
+          await mutate(body, (value: any) => setImportResult(value.result));
+        } catch (error: any) {
+          if (keyRef.current === requested) setNotice(error.message);
+        } finally {
+          setImportBusy(false);
         }
       };
       const addFolders = (items: any[]) =>
@@ -1143,6 +1275,128 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
           dir: isArabic() ? 'rtl' : undefined,
         },
         h('h2', null, t('title')),
+        h(
+          'button',
+          {
+            disabled:
+              switching || data?.corrupt || (scope === 'project' && !project),
+            onClick: () => setImporting(!importing),
+          },
+          t('importSkills'),
+        ),
+        importing
+          ? h(
+              'div',
+              { 'data-majed-import': true },
+              h('p', null, t('importHint')),
+              scope === 'global'
+                ? h(
+                    'select',
+                    {
+                      'aria-label': t('destination'),
+                      value: createSource,
+                      onChange: (event: any) =>
+                        setCreateSource(event.target.value),
+                    },
+                    ...['user-dsh', 'user-agents']
+                      .filter((id) =>
+                        data?.sources?.some((s: any) => s.id === id),
+                      )
+                      .map((id) =>
+                        h(
+                          'option',
+                          { key: id, value: id },
+                          id === 'user-dsh' ? 'DSH' : 'Shared Agents',
+                        ),
+                      ),
+                  )
+                : h('p', null, 'DSH'),
+              field(t('importPath'), importPath, (value: string) => {
+                setImportPath(value);
+                setImportFiles([]);
+                setImportResult(null);
+              }),
+              h('input', {
+                type: 'file',
+                multiple: true,
+                accept: '.zip,.md',
+                'aria-label': t('uploadFiles'),
+                onChange: (event: any) => {
+                  setImportFiles(Array.from(event.target.files ?? []));
+                  setImportResult(null);
+                },
+              }),
+              h('input', {
+                type: 'file',
+                multiple: true,
+                webkitdirectory: '',
+                'aria-label': t('uploadFolder'),
+                onChange: (event: any) => {
+                  setImportFiles(Array.from(event.target.files ?? []));
+                  setImportResult(null);
+                },
+              }),
+              h(
+                'select',
+                {
+                  'aria-label': t('importConflict'),
+                  value: importConflict,
+                  onChange: (event: any) =>
+                    setImportConflict(event.target.value),
+                },
+                h('option', { value: '' }, t('importConflict')),
+                h('option', { value: 'skip' }, t('skipImport')),
+                h('option', { value: 'overwrite' }, t('overwriteImport')),
+              ),
+              h(
+                'button',
+                {
+                  disabled: importBusy || !importPath || !importConflict,
+                  onClick: () => runImport(true),
+                },
+                t('previewImport'),
+              ),
+              h(
+                'button',
+                {
+                  disabled:
+                    importBusy ||
+                    !importConflict ||
+                    (!importPath && !importFiles.length),
+                  onClick: () => runImport(false),
+                },
+                t('importNow'),
+              ),
+              importResult
+                ? h(
+                    'div',
+                    { 'aria-label': t('importResult'), role: 'status' },
+                    ...[
+                      'pending',
+                      'conflicts',
+                      'imported',
+                      'skipped',
+                      'failed',
+                      'warnings',
+                      'inputs',
+                    ].map((kind) =>
+                      h(
+                        'div',
+                        { key: kind },
+                        t(`${kind}Import`),
+                        ': ',
+                        (importResult[kind] ?? [])
+                          .map(
+                            (entry: any) =>
+                              `${entry.name}${entry.code ? ` (${errorText(entry)})` : ''}${entry.recovery?.length ? `: ${entry.recovery.join(', ')}` : ''}${entry.names?.length ? `: ${entry.names.join(', ')}` : ''}`,
+                          )
+                          .join(', '),
+                      ),
+                    ),
+                  )
+                : null,
+            )
+          : null,
         h(
           'button',
           {
