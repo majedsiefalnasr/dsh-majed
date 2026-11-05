@@ -1,0 +1,25 @@
+# Skill manager UI/UX backlog
+
+Status: **candidate for a UI/UX ticket, pending Owner testing feedback.** Nothing here is approved, scheduled or implemented. Every row is seeded only from existing evidence (the #157 parity matrix, the #155 review and the verification notes); no speculative features. Ordering is not a priority.
+
+Sources: `docs/ai/ticket-157-parity-matrix.md` (matrix), `docs/ai/ticket-157-verification.md`, `docs/ai/ticket-157-owner-test.md` (Owner steps), `docs/ai/current-work.md` (#155 section).
+
+| ID | Area | Observation | Source ref | Suggested approach | Risk |
+|---|---|---|---|---|---|
+| UX-1 | Row detail | A disabled copy does not say which copy is used instead (the reference shows a `fallbackTo` note); Waycraft only shows `shadowedBy` on the shadowed row. | Matrix F38, GAP-13 | Add a one-line note on the disabled row from existing payload data, if Owner testing shows confusion. | Low (cosmetic); needs the payload to expose the fallback copy. |
+| UX-2 | Row detail | No per-row note for a benign linked directory (reference: "External directory link, read-only"); only the `linked-outside-root` diagnostic exists for unsafe links. | Matrix F41, GAP-14 | Add a read-only note from the existing diagnostic/link data. | Low (cosmetic). |
+| UX-3 | Category headers | No per-category progress counter (reference: "{count} · {enabled}/{usable} enabled"); only the per-source `(count)`. | Matrix F42, GAP-15 | Derive from the unfiltered copies per category, as the stats strip does. | Low; must follow the strip's counting rules and stay filter-independent. |
+| UX-4 | Detail dialog | Plain `role=dialog` with Escape to close; no 760px width contract and no resize handle (reference: `min(760px,100%)`, resizable, `@media(max-width:760px)`). | Matrix U24, GAP-16 | Define a width contract and optional resize after real-browser layout checks. | Medium: needs real browser/RTL layout verification that tests cannot give. |
+| UX-5 | Settings navigation | The reference decorates the settings-nav entry through DOM markers coupled to another plugin's markup; Waycraft ships its own `icon.svg` and placement entries instead. | Matrix U23 (non-goal) | Keep the own icon; revisit only if the Owner finds the entry hard to spot in the installed app. | Low if kept as is; DOM coupling to another plugin conflicts with ADR-0001 scope (see matrix). |
+| UX-6 | Row badges | No "Bundle" kind badge in skill rows; the information is available through path and details. | Matrix U12, GAP-10 | Add a badge if Owner testing shows it is needed to tell bundles apart. | Low (cosmetic); requires a reliable bundle indicator in the payload. |
+| UX-7 | Upload | No drag-and-drop upload zone or selected-file summary; file inputs cover the function. | Matrix U6, GAP-8 | Add a drop zone over the existing file-input flow with an EN/AR requirement text. | Medium: drag/drop behaviour and RTL layout are unverifiable with react-test-renderer. |
+| UX-8 | Source folders | No native folder picker ("Browse…") and no built-in root-path override; a typed absolute path with candidate preview is used. The reference picker is the client `uiWorkspace.pickDirectory`, not a server route. | Matrix F14, F15, GAP-1, GAP-2 | Inject the client `uiWorkspace` service for the picker; decide the root override separately (custom sources already cover non-standard folders). | Medium: depends on a public client service and a native dialog that cannot be tested here. |
+| UX-9 | Stats strip | Status precedence differs from the reference: Waycraft checks invalid, then disabled, then shadowed (matching its row badges), so a shadowed copy that is also disabled or invalid is counted as disabled or invalid. The UI does not explain this. | Matrix U3 note | Add a help text or tooltip, or align precedence, after Owner feedback. | Low; changing precedence alters the counts the Owner tests against. |
+| UX-10 | Catalog dialog | `CatalogDialog` has no Tab focus trap (it moves focus in on open, restores it on close and closes on Escape only). Reported as a LOW finding in the #155 review. | `docs/ai/current-work.md` #155 section; `src/skills-browser.ts` `CatalogDialog` | Trap Tab inside the dialog and add a keyboard test; share it with other dialogs if they have the same gap. | Medium: focus behaviour needs a real browser to prove. |
+| UX-11 | Verification gap | Real focus management, Escape handling, RTL layout and screen-reader output are unproven; component tests inspect props only. | Verification "Not proven"; Owner test "Not proven by automated tests" | Collect findings in the Owner desktop test (cases 26-27 and the RTL steps) before designing fixes. | Not a feature: it decides which of UX-1..UX-10 become real defects. |
+
+## Process
+
+1. Owner runs the desktop acceptance (`docs/ai/ticket-157-owner-test.md`) and records which rows matter.
+2. Only rows with Owner feedback become a UI/UX ticket (scope control: approved outcome, acceptance criteria and tests first).
+3. Rows without feedback stay here as candidates; none is implied work.

@@ -350,6 +350,7 @@ function setupSkills(ctx, fail) {
 				refresh: "Refresh",
 				refreshAria: "Refresh skills",
 				refreshing: "Refreshing…",
+				statsAria: "Skill statistics",
 				statSkill: "skill",
 				statSkills: "skills",
 				statEnabled: "enabled",
@@ -743,9 +744,10 @@ function setupSkills(ctx, fail) {
 				denied: "مرفوض",
 				shadowedBy: "محجوبة بواسطة",
 				reloadState: "إعادة قراءة الحالة",
-				refresh: "تحديث",
-				refreshAria: "تحديث المهارات",
-				refreshing: "جارٍ التحديث…",
+				refresh: "إعادة تحميل",
+				refreshAria: "إعادة تحميل المهارات",
+				refreshing: "جارٍ إعادة التحميل…",
+				statsAria: "إحصاءات المهارات",
 				statSkill: "مهارة",
 				statSkills: "مهارات",
 				statEnabled: "مفعلة",
@@ -1304,6 +1306,7 @@ function setupSkills(ctx, fail) {
 					const value = await call(body, lifetime.current.signal);
 					if (lifetime.current.signal.aborted || keyRef.current !== requested) return;
 					setData(value);
+					setError(false);
 					done?.(value);
 				} catch (failure) {
 					if (!lifetime.current.signal.aborted && keyRef.current === requested) setNotice(errorText(failure));
@@ -2101,9 +2104,17 @@ function setupSkills(ctx, fail) {
 				type: "button",
 				"data-majed-skills-refresh": true,
 				"aria-label": t("refreshAria"),
+				"aria-busy": refreshing,
 				disabled: refreshing || switching || inProject && !project,
 				onClick: () => void refresh()
-			}, t(refreshing ? "refreshing" : "refresh")) : null, notice && !managing ? h("p", { role: "status" }, notice) : null, error ? h("div", { role: "alert" }, t("error"), h("button", { onClick: () => call({ action: "reload" }).then(setData, load) }, t("retry"))) : !data || switching ? h("p", { role: "status" }, t("loading")) : h(React.Fragment, null, scope === "global" || inProject && data.project?.available ? h("div", { "data-majed-skills-stats": true }, stat(totals.total, "statSkill", "statSkills"), stat(totals.enabled, "statEnabled", "statEnabled"), stat(totals.disabled, "statDisabled", "statDisabled"), stat(totals.invalid, "statDiagnostic", "statDiagnostics")) : null, inProject ? null : h("div", null, h("button", {
+			}, t(refreshing ? "refreshing" : "refresh")) : null, notice && !managing ? h("p", { role: "status" }, notice) : null, error ? h("div", { role: "alert" }, t("error"), h("button", { onClick: () => call({ action: "reload" }).then((value) => {
+				setData(value);
+				setError(false);
+			}, load) }, t("retry"))) : !data || switching ? h("p", { role: "status" }, t("loading")) : h(React.Fragment, null, scope === "global" || inProject && data.project?.available ? h("div", {
+				"data-majed-skills-stats": true,
+				role: "group",
+				"aria-label": t("statsAria")
+			}, stat(totals.total, "statSkill", "statSkills"), stat(totals.enabled, "statEnabled", "statEnabled"), stat(totals.disabled, "statDisabled", "statDisabled"), stat(totals.invalid, "statDiagnostic", "statDiagnostics")) : null, inProject ? null : h("div", null, h("button", {
 				"aria-expanded": managing,
 				onClick: () => setManaging(!managing)
 			}, t("folders")), managing ? manager() : null), inProject && data.project && !data.project.available ? h("p", { role: "alert" }, `${data.project.name}: ${t(`code.${data.project.code}`)}`) : null, ...(view.sources ?? []).filter((x) => !source || x.id === source).map((x) => h("details", {

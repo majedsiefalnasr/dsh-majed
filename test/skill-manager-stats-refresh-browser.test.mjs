@@ -26,7 +26,7 @@ const skill = async (root, name) => {
   await writeFile(join(root, name, 'SKILL.md'), doc(name));
 };
 
-async function mount(t, language) {
+async function mount(t, language, { failList = false } = {}) {
   const root = await realpath(await mkdtemp(join(tmpdir(), 'waycraft-stats-')));
   t.after(() => rm(root, { recursive: true, force: true }));
   const base = join(root, 'base');
@@ -90,7 +90,7 @@ async function mount(t, language) {
   const pending = [];
   const actions = [];
   // `gate.reload` holds the next reload request; `gate.fail` rejects it.
-  const gate = { hold: undefined, fail: false };
+  const gate = { hold: undefined, fail: false, failList };
   vm.runInNewContext(code, {
     window: {
       __ModuleLoader__: {
@@ -108,6 +108,7 @@ async function mount(t, language) {
     fetch: async (url, options) => {
       const body = JSON.parse(options.body);
       actions.push(body);
+      if (body.action === 'list' && gate.failList) throw new Error('offline');
       if (body.action === 'reload') {
         if (gate.hold) await gate.hold;
         if (gate.fail) throw new Error('offline');
@@ -199,6 +200,16 @@ async function mount(t, language) {
       cell,
     }));
   };
+  const strip = () =>
+    view.root.findAll(
+      (x) => x.props['data-majed-skills-stats'] !== undefined,
+    )[0];
+  const alerts = () =>
+    view.root.findAll((x) => x.type === 'div' && x.props.role === 'alert');
+  const retryButton = () =>
+    view.root
+      .findAllByType('button')
+      .find((x) => x.children.join('') === d.retry);
   const pick = async (label, value) => {
     await act(async () => field(label).props.onChange({ target: { value } }));
     await settle();
@@ -213,6 +224,9 @@ async function mount(t, language) {
     view,
     field,
     refreshButton,
+    strip,
+    alerts,
+    retryButton,
     stats,
     settle,
     pick,
@@ -238,6 +252,11 @@ for (const language of ['en', 'ar'])
     let cells = ui.stats();
     assert.ok(cells, 'strip is shown in Global scope');
     assert.equal(cells.length, 4);
+    // The strip is one labelled group for assistive technology (structure only; no screen reader was run).
+    assert.equal(ui.strip().props.role, 'group');
+    assert.equal(ui.strip().props['aria-label'], d.statsAria);
+    assert.ok(d.statsAria.length > 0);
+    if (language === 'en') assert.equal(d.statsAria, 'Skill statistics');
     // alpha + beta + broken; broken is invalid, so it is neither enabled nor disabled.
     assert.deepEqual(
       cells.map((x) => x.number),
@@ -314,7 +333,14 @@ for (const language of ['en', 'ar'])
     assert.ok(button, 'Refresh is in the toolbar');
     assert.equal(button.children.join(''), d.refresh);
     assert.equal(button.props['aria-label'], d.refreshAria);
+    assert.equal(button.props['aria-busy'], false);
     assert.equal(button.props.disabled, false);
+    // Arabic uses "reload", not "update", so it is not confused with updating a skill.
+    if (language === 'ar') {
+      assert.equal(d.refresh, 'إعادة تحميل');
+      assert.equal(d.refreshing, 'جارٍ إعادة التحميل…');
+      assert.equal(d.refreshAria, 'إعادة تحميل المهارات');
+    }
     assert.equal(button.props.type, 'button');
     // Disk changes become visible after Refresh without remounting.
     await skill(ui.base, 'gamma');
@@ -325,6 +351,8 @@ for (const language of ['en', 'ar'])
       ui.refreshButton().props.onClick();
     });
     assert.equal(ui.refreshButton().props.disabled, true);
+    assert.equal(ui.refreshButton().props['aria-busy'], true);
+    assert.equal(ui.refreshButton().props['aria-label'], d.refreshAria);
     assert.equal(ui.refreshButton().children.join(''), d.refreshing);
     // A second click while busy sends no second request.
     await act(async () => ui.refreshButton().props.onClick());
@@ -338,6 +366,8 @@ for (const language of ['en', 'ar'])
       ['4', '3', '0', '1'],
     );
     assert.equal(ui.refreshButton().props.disabled, false);
+    assert.equal(ui.refreshButton().props['aria-busy'], false);
+    assert.equal(ui.refreshButton().props['aria-label'], d.refreshAria);
     assert.equal(ui.refreshButton().children.join(''), d.refresh);
     // A failed reload keeps the list and reports through the existing notice.
     ui.gate.fail = true;
@@ -367,3 +397,50 @@ for (const language of ['en', 'ar'])
       assert.equal(ui.refreshButton(), undefined, scope);
     }
   });
+
+for (const language of ['en', 'ar'])
+  test(`registered ${language} UI clears the stale load-error alert after a successful Refresh`, async (t) => {
+    const ui = await mount(t, language, { failList: true });
+    const { d } = ui;
+    assert.equal(ui.alerts().length, 1, 'first load failed: alert shown');
+    assert.equal(ui.stats(), null);
+    // Refresh stays available in the toolbar and reloads through the host.
+    await act(async () => ui.refreshButton().props.onClick());
+    await ui.settle();
+    assert.equal(ui.alerts().length, 0, 'alert cleared after Refresh');
+    assert.ok(ui.stats(), 'catalog and strip are shown');
+    assert.deepEqual(
+      ui.stats().map((x) => x.number),
+      ['3', '2', '0', '1'],
+    );
+    assert.match(ui.text(), /alpha/);
+    assert.equal(ui.refreshButton().props.disabled, false);
+    assert.ok(d.error);
+  });
+
+for (const language of ['en', 'ar'])
+  test(`registered ${language} UI clears the stale load-error alert after a successful Retry`, async (t) => {
+    const ui = await mount(t, language, { failList: true });
+    assert.equal(ui.alerts().length, 1);
+    assert.ok(ui.retryButton(), 'Retry is offered');
+    await act(async () => ui.retryButton().props.onClick());
+    await ui.settle();
+    assert.equal(ui.alerts().length, 0, 'alert cleared after Retry');
+    assert.deepEqual(
+      ui.stats().map((x) => x.number),
+      ['3', '2', '0', '1'],
+    );
+  });
+
+test('a failed Refresh after a failed first load keeps the alert and reports in the notice', async (t) => {
+  const ui = await mount(t, 'en', { failList: true });
+  ui.gate.fail = true;
+  await act(async () => ui.refreshButton().props.onClick());
+  await ui.settle();
+  assert.equal(
+    ui.alerts().length,
+    1,
+    'alert stays while the host is unreachable',
+  );
+  assert.equal(ui.stats(), null);
+});

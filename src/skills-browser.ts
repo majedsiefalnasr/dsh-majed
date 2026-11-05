@@ -349,6 +349,7 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
         refresh: 'Refresh',
         refreshAria: 'Refresh skills',
         refreshing: 'Refreshing…',
+        statsAria: 'Skill statistics',
         statSkill: 'skill',
         statSkills: 'skills',
         statEnabled: 'enabled',
@@ -791,9 +792,10 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
         denied: 'مرفوض',
         shadowedBy: 'محجوبة بواسطة',
         reloadState: 'إعادة قراءة الحالة',
-        refresh: 'تحديث',
-        refreshAria: 'تحديث المهارات',
-        refreshing: 'جارٍ التحديث…',
+        refresh: 'إعادة تحميل',
+        refreshAria: 'إعادة تحميل المهارات',
+        refreshing: 'جارٍ إعادة التحميل…',
+        statsAria: 'إحصاءات المهارات',
         statSkill: 'مهارة',
         statSkills: 'مهارات',
         statEnabled: 'مفعلة',
@@ -1787,6 +1789,8 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
           if (lifetime.current.signal.aborted || keyRef.current !== requested)
             return;
           setData(value);
+          // A successful mutation (including Refresh) returns the fresh catalog, so a stale load error no longer applies.
+          setError(false);
           done?.(value);
         } catch (failure: any) {
           if (!lifetime.current.signal.aborted && keyRef.current === requested)
@@ -3526,6 +3530,7 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
                 type: 'button',
                 'data-majed-skills-refresh': true,
                 'aria-label': t('refreshAria'),
+                'aria-busy': refreshing,
                 disabled: refreshing || switching || (inProject && !project),
                 onClick: () => void refresh(),
               },
@@ -3541,7 +3546,11 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
               h(
                 'button',
                 {
-                  onClick: () => call({ action: 'reload' }).then(setData, load),
+                  onClick: () =>
+                    call({ action: 'reload' }).then((value: any) => {
+                      setData(value);
+                      setError(false);
+                    }, load),
                 },
                 t('retry'),
               ),
@@ -3554,7 +3563,11 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
                 scope === 'global' || (inProject && data.project?.available)
                   ? h(
                       'div',
-                      { 'data-majed-skills-stats': true },
+                      {
+                        'data-majed-skills-stats': true,
+                        role: 'group',
+                        'aria-label': t('statsAria'),
+                      },
                       stat(totals.total, 'statSkill', 'statSkills'),
                       stat(totals.enabled, 'statEnabled', 'statEnabled'),
                       stat(totals.disabled, 'statDisabled', 'statDisabled'),
