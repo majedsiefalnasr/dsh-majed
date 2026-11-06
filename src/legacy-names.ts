@@ -27,5 +27,14 @@ export const LEGACY_PANEL_IDS: Readonly<Record<string, string>> = {
   'majed-skills': 'waycraft-skills',
   'majed-subscriptions': 'waycraft-subscriptions',
 };
+/**
+ * Retired tool names, registered as deprecated aliases of the same implementation for one release
+ * (ticket #159). Keys are the canonical tool names.
+ */
+export const LEGACY_TOOL_ALIASES = {
+  x_search: 'dsh_majed_x_search',
+  video_generate: 'dsh_majed_video_generate',
+  image_generate: 'dsh_majed_image_generate',
+} as const;
 /** Old toolview slot key for a tool name. */
 export const legacyToolviewKey = (name: string): string => `dsh_majed_${name}`;

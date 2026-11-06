@@ -860,14 +860,14 @@ export function apply(ctx, config = {}, options = {}) {
             providerEnabled: (provider, createdAt) => preferences.toolEnabled(provider, 'image_generate', createdAt),
         }), (message) => ctx.logger.warn(message));
         if (result !== undefined)
-            registeredNames.set('image_generate', result.name);
+            registeredNames.set('image_generate', result.names);
         for (const tool of [
             createVideoGenerateTool({ tokens: grokTokens }),
             createXSearchTool({ tokens: grokTokens }),
         ]) {
             const entry = registerWithAlias(toolsCtx.tools, tool, (message) => ctx.logger.warn(message));
             if (entry)
-                registeredNames.set(tool.name, entry.name);
+                registeredNames.set(tool.name, entry.names);
         }
         toolsCtx.on('agent/created', ({ agent }) => {
             const at = agent.session.header.createdAt;
@@ -876,11 +876,11 @@ export function apply(ctx, config = {}, options = {}) {
             if (registered !== undefined &&
                 !preferences.toolEnabled('codex', 'image_generate', at) &&
                 !preferences.toolEnabled('grok', 'image_generate', at))
-                deny.push(registered);
+                deny.push(...registered);
             for (const name of ['video_generate', 'x_search']) {
                 const actual = registeredNames.get(name);
                 if (actual && !preferences.toolEnabled('grok', name, at))
-                    deny.push(actual);
+                    deny.push(...actual);
             }
             if (deny.length)
                 agent.ctx.tools.restrict({ deny });

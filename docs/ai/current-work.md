@@ -1,5 +1,9 @@
 # Current work
 
+## #159 follow-up: tool aliases and Loader row ids — 2026-11-06
+
+Work contract: Owner decision; branch impl/159-ids-tools (from 4bd1804), sole writer, no commit/push/install/new dependency/core/profile/installed-state change. Acceptance: (1) tools `dsh_waycraft_*` with old `dsh_majed_*` kept as deprecated aliases (same implementation, deferred, marked deprecated), RED test first; (2) `cordis.patch.yml` row ids renamed to `waycraft*` after read-only investigation of row-id state keying, documented with manual step, rollback and unproven items in `docs/ai/rename-waycraft.md` and CHANGELOG; guard exemptions removed. Write scope: `src/legacy-names.ts`, `src/subscriptions.ts`, `src/tools/registration.ts`, `cordis.patch.yml`, tests, GLOSSARY, AGENTS, docs, rebuilt `dist/`. Verification: build, quality, check:build, npm test (baseline 1211). Stop: no commit/push.
+
 ## #159 Retire the `majed` name, prefix `waycraft` — 2026-11-05
 
 Work contract: ticket #159, branch impl/159-waycraft-rename, base c473b8a, sole writer, no commit/push/install/new dependency/core/profile/network change. Acceptance: (1) every owned identifier uses `waycraft`; (2) storage migrates by copy with read-fallback, old data never modified or deleted; (3) one release of deprecated aliases (RPC routes, skills route/header, font route, localStorage keys, global hook, panel ids, toolview keys) centralized in `src/legacy-names.ts` / `src/storage-migration.ts`; (4) a guard test (`test/legacy-name-guard.test.mjs`) keeps `/majed/i` out of owned sources except a justified allow-list; (5) `docs/ai/rename-waycraft.md` records the old->new table, migration, removal plan, rollback and open items.

@@ -6,5 +6,5 @@ dsh-majed stays a single plugin, and every feature beyond the core preferences i
 - One plugin per feature: independent releases and switches, but one install, changelog and set of shared plumbing per feature.
 
 ## Consequences
-- DSH loads one browser half per package, owned by the core `majed` row, which must stay on. The browser half hides a feature's UI itself while that feature's row is off.
+- DSH loads one browser half per package, owned by the core `waycraft` row (originally named `majed`; the id was renamed in #159), which must stay on. The browser half hides a feature's UI itself while that feature's row is off.
 - Each component row needs a globally unique `id`, an exported subpath entry, and its own locale title and icon.

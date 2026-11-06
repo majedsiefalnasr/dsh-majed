@@ -44,10 +44,10 @@ test('packed package declares disabled component and resolves every component ar
     'utf8',
   );
   assert.equal(pkg.name, 'dsh-waycraft');
-  assert.match(patch, /id: majed\s+name: 'dsh-waycraft'/);
+  assert.match(patch, /id: waycraft\s+name: 'dsh-waycraft'/);
   assert.match(
     patch,
-    /id: majed-subscriptions\s+name: 'dsh-waycraft\/subscriptions'\s+disabled: true/,
+    /id: waycraft-subscriptions\s+name: 'dsh-waycraft\/subscriptions'\s+disabled: true/,
   );
   for (const lang of ['en', 'ar']) {
     const { meta } = JSON.parse(

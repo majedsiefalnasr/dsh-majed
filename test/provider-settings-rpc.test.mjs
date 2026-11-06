@@ -1,6 +1,7 @@
 // Adapted from V1ki/dsh-plugin-subscriptions v0.9.12 test/provider-settings-rpc.spec.ts (MIT, b802311).
 // Disposition: Codex portion only (Grok/Antigravity/MiniMax parts are other tickets); mounted on the real cordis
 // Context, real LlmRuntime and the real tools/agent-created event; endpoints are ours (`waycraft-subscriptions.*`).
+import { LEGACY_TOOL_ALIASES } from '../dist/legacy-names.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp } from 'node:fs/promises';
@@ -258,7 +259,14 @@ test('provider settings RPC edits picker visibility, names and tool policy witho
     };
     assert.deepEqual(
       [...tools.keys()],
-      ['image_generate', 'video_generate', 'x_search'],
+      [
+        'image_generate',
+        LEGACY_TOOL_ALIASES.image_generate,
+        'video_generate',
+        LEGACY_TOOL_ALIASES.video_generate,
+        'x_search',
+        LEGACY_TOOL_ALIASES.x_search,
+      ],
     );
     await call('setProviderSettings', {
       provider: 'grok',
@@ -271,7 +279,7 @@ test('provider settings RPC edits picker visibility, names and tool policy witho
     );
     assert.deepEqual(
       create(Date.now() + 1000),
-      ['image_generate'],
+      ['image_generate', LEGACY_TOOL_ALIASES.image_generate],
       'a session created after the switch loses it',
     );
     assert.equal(

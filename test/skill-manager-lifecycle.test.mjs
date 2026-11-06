@@ -19,7 +19,7 @@ test('Skill manager is independently default-off and activation disposes its pro
   );
   assert.match(
     patch,
-    /id: majed-skills\s+name: 'dsh-waycraft\/skills'\s+disabled: true/,
+    /id: waycraft-skills\s+name: 'dsh-waycraft\/skills'\s+disabled: true/,
   );
   const { apply } = await import('../dist/skills.js');
   const root = await realpath(

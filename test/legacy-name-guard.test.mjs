@@ -56,19 +56,6 @@ const FILE_ALLOW = new Map([
     'test/composer-surfaces.test.mjs',
     'alias test: legacy localStorage key fallback',
   ],
-  [
-    'test/skill-manager-lifecycle.test.mjs',
-    'asserts Loader row ids that stay pending Owner verification',
-  ],
-  [
-    'test/subscriptions-packaging.test.mjs',
-    'asserts Loader row ids that stay pending Owner verification',
-  ],
-  ['GLOSSARY.md', 'names the pending Loader row id'],
-  [
-    'cordis.patch.yml',
-    'Loader row ids pending Owner verification (docs/ai/rename-waycraft.md)',
-  ],
   // Mixed-use files: only the lines matching the line allow-list below may contain the name.
 ]);
 // Substrings removed before matching: author/repository identity and local paths are not branding.
@@ -180,4 +167,20 @@ test('every file-level allow-list entry still needs its exception and is justifi
       `${file} no longer mentions the retired name; remove it from the allow-list`,
     );
   }
+});
+
+test('retired tool names appear only in the legacy-names module (anchored) and tests use the alias map', () => {
+  const legacy = readFileSync(join(root, 'src/legacy-names.ts'), 'utf8');
+  const pattern =
+    /^ {2}(x_search|video_generate|image_generate): 'dsh_majed_\1',$/;
+  const lines = legacy.split('\n').filter((l) => /dsh_majed_[a-z_]+'/.test(l));
+  assert.ok(lines.length >= 3);
+  for (const line of lines.filter((l) => /^ {2}\w+: /.test(l)))
+    assert.match(line, pattern);
+  for (const file of ['src/tools/registration.ts', 'test/tools-owned.test.mjs'])
+    assert.deepEqual(
+      scanText(file, readFileSync(join(root, file), 'utf8')),
+      [],
+      `${file} must reference the retired tool names only through LEGACY_TOOL_ALIASES`,
+    );
 });

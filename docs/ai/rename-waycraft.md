@@ -16,12 +16,12 @@ The product is Waycraft for DSH. Every owned identifier now uses the `waycraft` 
 | Browser global | `window.__dshMajed` | `window.__dshWaycraft` | old name is an alias of the same object |
 | Subscriptions storage | `~/.dsh/plugins/majed/subscriptions/` | `~/.dsh/plugins/waycraft/subscriptions/` | copied on first use, old read as fallback |
 | Skills state root | `~/.dsh/majed-skills/` | `~/.dsh/waycraft-skills/` | copied (tree) on first use, old read as fallback |
-| Tool collision fallback | `dsh_majed_*` | `dsh_waycraft_*` | NOT aliased (see open items); toolview keys for old transcripts are kept |
+| Tool names | `dsh_majed_*` | `dsh_waycraft_*` | old names stay registered one release as deprecated aliases (same implementation, `deferLoading: true`, description starts "Deprecated alias of"); toolview keys for old transcripts are kept |
 | Toolview slot keys | `dsh_majed_image_generate`, `dsh_majed_video_generate` | `dsh_waycraft_*` | both registered so old transcripts render |
 | User agent | `antigravity/1.104.0 dsh-majed` | `antigravity/1.104.0 dsh-waycraft` | none |
 | Build symbol | `majedSubscriptionsFactory` | `waycraftSubscriptionsFactory` | none |
 | Test temp dirs | `/tmp/majed-t129` ... | `/tmp/waycraft-t129` ... | none |
-| Loader row ids (`cordis.patch.yml`) | `majed`, `majed-subscriptions`, `majed-skills` | **unchanged, pending** | see open items |
+| Loader row ids (`cordis.patch.yml`) | `majed`, `majed-subscriptions`, `majed-skills` | `waycraft`, `waycraft-subscriptions`, `waycraft-skills` | renamed in the follow-up to #159; see "Loader row ids" below |
 
 Unchanged on purpose: repository owner/URL `majedsiefalnasr`, author, LICENSE, `/Users/majedsiefalnasr` paths, CHANGELOG history, `docs/research`.
 
@@ -51,8 +51,23 @@ Old data is untouched, so reinstalling the previous archive (old name) works wit
 
 Host and browser halves must be restarted/reloaded together. A new client against an old host is not supported: the new client uses only the new route, header and font names, which an old host does not serve.
 
+## Loader row ids (follow-up)
+
+Read-only evidence (DSH code paths below were read from the contents of the app.asar, extracted to /tmp, `dsh/node_modules/@deepseek-ai/*`; the DSH app version is 0.2.2-rc.1 per the app's Info.plist, the extracted copy's own package.json version was not checked; and `~/.dsh/profiles/desktop`):
+
+- Enablement is keyed by row id only, in the profile `cordis.patch.yml`: `dsh-plugin-manager/lib/types/patch.js` `writePluginEnabled(profile, id, name, enabled)` sets `disabled` on the last non-`insert` item with the same `id`, or appends `{ id, disabled }`. `dsh-plugin-manager/lib/index.js` `listPlugins` (~line 2098) matches rows by `row.id === actual.options.id` and `setPluginEnabled` (~line 2675) writes through `row.patchId`.
+- Patch application (`dsh-app-boot/lib/index.js` `applyPatches`, ~line 506) looks overrides up by id; an override whose id no longer exists only logs `patch: entry "<id>" not found` and is skipped. Loader fiber ids and the `<package>#<row id>` config-slot key are also row-id based (`docs/research/dsh-plugin-components-2026-10-29.md` 2.3, 2.5).
+- The current desktop profile `~/.dsh/profiles/desktop/cordis.patch.yml` holds NO override for `majed*` rows (grep found none), and `node_modules/dsh-waycraft/cordis.patch.yml` is the installed bundle copy still carrying the old ids. So on this machine nothing is stored under the old ids; the three rows are inserted by the bundle layer on every start.
+- Conclusion: a user who toggled a component on has an override `{id: majed-skills, disabled: false}` in their profile patch; after the rename that override is orphaned (warning, ignored) and the new row `waycraft-skills` falls back to the bundle default (`disabled: true`). The base row `waycraft` has no default `disabled`, so it stays on. "No duplicate rows" is an assumption, not observed: it holds only if the new package replaces the old bundle layer; if both bundles stay installed, both sets of rows appear (hence: never install both names together). Component-owned preferences are stored by this plugin under `waycraft` storage, not by row id.
+- Per-row Configure pages key on `<package>#<row id>` only if a client registers `plugins.row.config`; this plugin registers none (grep found no use).
+
+Manual step for the Owner after installing the new version (and restarting DSH): open Settings > Plugins > Components and switch `Subscriptions` and/or `Skills` on again if they were enabled; the orphaned `id: majed-subscriptions` / `id: majed-skills` / `id: majed` override entries in `~/.dsh/profiles/desktop/cordis.patch.yml` may be deleted by hand (harmless otherwise: they only log a warning).
+
+Rollback: reinstall the previous archive (old ids); old overrides still match, so the earlier enabled state returns. Overrides written under the new ids become orphaned and can be deleted.
+
+Unproven: the actual behavior on a real install (orphan warning, default state of the new rows, no duplicates) was derived from reading the DSH code, not from an experiment.
+
 ## Open items
 
-1. **Loader row ids.** `cordis.patch.yml` rows `majed`, `majed-subscriptions`, `majed-skills` are host-visible registration ids; renaming them may reset the user's enabled state. Needed: an experiment on a real DSH profile (rename a row id in a scratch profile, restart, compare enabled flags). Manual step: do it by hand, then rename the rows and update `test/skill-manager-lifecycle.test.mjs`, `test/subscriptions-packaging.test.mjs`, the guard allow-list and GLOSSARY.md.
-2. **Tool-name aliases.** The old collision-fallback tool names `dsh_majed_*` are not registered as aliases: the DSH tool registry seam offers no proven way to alias and keep restriction handling identical (`test/tools-owned.test.mjs` pins the exact alias set). Impact: only when `image_generate`/`video_generate`/`x_search` collide with another plugin, a stored reference to `dsh_majed_*` will not resolve.
-3. Unproven: installed app behavior, real Loader rows, a real data upgrade, paired remote, crash durability of the copy.
+1. Unproven: installed app behavior, real Loader rows after rename (see above), a real data upgrade, paired remote, crash durability of the copy, and that the host actually hides `deferLoading` aliases from model tool lists (hiding is the intent of the flag, not observed; provider enforcement limits are documented by DSH).
+2. The deprecated tool aliases are removed with the other aliases (see Alias removal plan); also delete `LEGACY_TOOL_ALIASES` use in `src/tools/registration.ts`.

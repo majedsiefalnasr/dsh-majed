@@ -1,6 +1,6 @@
 # Releasing Waycraft for DSH
 
-The package name is `dsh-waycraft` (formerly `dsh-majed`). Repository URLs remain unchanged until a separately approved GitHub rename. Never install both names together: Loader row ids and durable compatibility namespaces intentionally remain `majed`-based. Replacement, restart, publication and data migration each retain their explicit approval boundaries. Recheck registry availability before publication; the source package version is not proof of a published release.
+The package name is `dsh-waycraft` (formerly `dsh-majed`). Repository URLs remain unchanged until a separately approved GitHub rename. Loader row ids are now `waycraft*`; the legacy `majed*` ids, RPC routes and storage names remain only as deprecated aliases for one release (`docs/ai/rename-waycraft.md`). Existing enable overrides under the old ids become orphaned, so re-enable the components after installing. Never install both names together. Replacement, restart, publication and data migration each retain their explicit approval boundaries. Recheck registry availability before publication; the source package version is not proof of a published release.
 
 Versioning follows Semantic Versioning. Use `-rc.N` for release candidates; a release leaves `-rc` only after
 live verification in the DSH desktop app (see checklist).

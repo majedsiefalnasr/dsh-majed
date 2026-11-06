@@ -1160,7 +1160,7 @@ export function apply(
   // `tools` is optional too. Definitions stay registered globally so already-open sessions keep their
   // schema and execution path; each new agent is restricted from the switches in force at its creation.
   ctx.inject(['tools'], (toolsCtx) => {
-    const registeredNames = new Map<string, string>();
+    const registeredNames = new Map<string, string[]>();
     const result = registerWithAlias(
       toolsCtx.tools,
       createImageGenerateTool({
@@ -1176,7 +1176,7 @@ export function apply(
       (message) => ctx.logger.warn(message),
     );
     if (result !== undefined)
-      registeredNames.set('image_generate', result.name);
+      registeredNames.set('image_generate', result.names);
     for (const tool of [
       createVideoGenerateTool({ tokens: grokTokens }),
       createXSearchTool({ tokens: grokTokens }),
@@ -1184,7 +1184,7 @@ export function apply(
       const entry = registerWithAlias(toolsCtx.tools, tool, (message) =>
         ctx.logger.warn(message),
       );
-      if (entry) registeredNames.set(tool.name, entry.name);
+      if (entry) registeredNames.set(tool.name, entry.names);
     }
     toolsCtx.on('agent/created', ({ agent }) => {
       const at = agent.session.header.createdAt;
@@ -1195,11 +1195,11 @@ export function apply(
         !preferences.toolEnabled('codex', 'image_generate', at) &&
         !preferences.toolEnabled('grok', 'image_generate', at)
       )
-        deny.push(registered);
+        deny.push(...registered);
       for (const name of ['video_generate', 'x_search'] as const) {
         const actual = registeredNames.get(name);
         if (actual && !preferences.toolEnabled('grok', name, at))
-          deny.push(actual);
+          deny.push(...actual);
       }
       if (deny.length) agent.ctx.tools.restrict({ deny });
       return undefined;
