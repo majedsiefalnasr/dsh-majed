@@ -13,6 +13,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { apply } from '../dist/skills.js';
+import {
+  LEGACY_SKILLS_HEADER,
+  LEGACY_SKILLS_ROUTE,
+} from '../dist/legacy-names.js';
 import { zipSync } from 'fflate';
 import fs from 'node:fs';
 import { syncBuiltinESMExports } from 'node:module';
@@ -61,11 +65,27 @@ async function fixture(t) {
   });
   const post = async (body, signal) => {
     const response = await route.fetch(
-      new Request('http://localhost/api/majed-skills.catalog', {
+      new Request('http://localhost/api/waycraft-skills.catalog', {
         method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-majed-skills': '1' },
+        headers: {
+          'content-type': 'application/json',
+          'x-waycraft-skills': '1',
+        },
         body: JSON.stringify({ source: 'user-dsh', ...body }),
         signal,
+      }),
+    );
+    return { status: response.status, body: await response.json() };
+  };
+  const postLegacy = async (body) => {
+    const response = await route.fetch(
+      new Request(`http://localhost${LEGACY_SKILLS_ROUTE}`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          [LEGACY_SKILLS_HEADER]: '1',
+        },
+        body: JSON.stringify({ source: 'user-dsh', ...body }),
       }),
     );
     return { status: response.status, body: await response.json() };
@@ -73,6 +93,7 @@ async function fixture(t) {
   return {
     root,
     post,
+    postLegacy,
     stop: async () => {
       for (const stop of [...stops].reverse()) await stop?.();
     },
@@ -744,4 +765,12 @@ test('registered local import previews without writes, copies complete bundles a
     await readFile(join(source, 'alpha', 'SKILL.md'), 'utf8'),
     /Replacement/,
   );
+});
+
+test('deprecated legacy skills route and header are still answered like the new ones (ticket #159)', async (t) => {
+  const { post, postLegacy } = await fixture(t);
+  const fresh = await post({ action: 'list' });
+  const legacy = await postLegacy({ action: 'list' });
+  assert.equal(legacy.status, fresh.status);
+  assert.deepEqual(legacy.body, fresh.body);
 });

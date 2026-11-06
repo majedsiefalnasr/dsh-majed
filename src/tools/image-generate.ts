@@ -257,7 +257,7 @@ export function parseImageGenerateResponse(payload: unknown): GeneratedImage[] {
 
 /** Directory the generated image files are written to. */
 export function imagesDirectory(): string {
-  return dshHomePath('plugins', 'majed', 'subscriptions', 'images');
+  return dshHomePath('plugins', 'waycraft', 'subscriptions', 'images');
 }
 
 /** Media types the attachment store accepts and this tool can produce. */

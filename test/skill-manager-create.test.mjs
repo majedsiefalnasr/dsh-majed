@@ -149,11 +149,11 @@ test('registered creation safely publishes user and absent project DSH skills', 
   });
   const post = async (body, marked = true) => {
     const r = await route.fetch(
-      new Request('http://localhost/api/majed-skills.catalog', {
+      new Request('http://localhost/api/waycraft-skills.catalog', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          ...(marked ? { 'x-majed-skills': '1' } : {}),
+          ...(marked ? { 'x-waycraft-skills': '1' } : {}),
         },
         body: JSON.stringify(body),
       }),
@@ -186,7 +186,7 @@ test('registered creation safely publishes user and absent project DSH skills', 
   assert.equal(available.name, 'my-new-skill');
   assert.match(available.content, /Do the work/);
   const oversized = await route.fetch(
-    new Request('http://localhost/api/majed-skills.catalog', {
+    new Request('http://localhost/api/waycraft-skills.catalog', {
       method: 'POST',
       headers: {
         'content-type': 'application/json',

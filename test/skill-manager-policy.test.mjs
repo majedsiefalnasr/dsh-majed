@@ -57,9 +57,9 @@ test('persisted source toggle invalidates providers and survives re-entry', asyn
   const listed = (await provider.list())[0];
   assert.equal(listed.invocation.modelInvocable, true);
   const response = await route.fetch(
-    new Request('http://localhost/api/majed-skills.catalog', {
+    new Request('http://localhost/api/waycraft-skills.catalog', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-majed-skills': '1' },
+      headers: { 'content-type': 'application/json', 'x-waycraft-skills': '1' },
       body: JSON.stringify({
         action: 'toggle',
         kind: 'source',
@@ -70,12 +70,12 @@ test('persisted source toggle invalidates providers and survives re-entry', asyn
   );
   assert.equal(response.status, 200);
   const rejected = await route.fetch(
-    new Request('http://localhost/api/majed-skills.catalog', {
+    new Request('http://localhost/api/waycraft-skills.catalog', {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
         origin: 'https://evil.invalid',
-        'x-majed-skills': '1',
+        'x-waycraft-skills': '1',
       },
       body: JSON.stringify({
         action: 'toggle',
@@ -93,18 +93,18 @@ test('persisted source toggle invalidates providers and survives re-entry', asyn
       403,
     ],
     [
-      { 'content-type': 'application/json', 'x-majed-skills': '1' },
+      { 'content-type': 'application/json', 'x-waycraft-skills': '1' },
       { action: 'unexpected' },
       400,
     ],
     [
-      { 'content-type': 'application/json', 'x-majed-skills': '1' },
+      { 'content-type': 'application/json', 'x-waycraft-skills': '1' },
       { action: 'toggle', kind: 'source', id: 'unknown', enabled: true },
       400,
     ],
   ]) {
     const result = await route.fetch(
-      new Request('http://localhost/api/majed-skills.catalog', {
+      new Request('http://localhost/api/waycraft-skills.catalog', {
         method: 'POST',
         headers,
         body: JSON.stringify(body),

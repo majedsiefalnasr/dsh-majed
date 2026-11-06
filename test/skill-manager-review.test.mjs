@@ -57,11 +57,11 @@ async function harness(t, sources, extra = {}) {
   });
   const post = (body, headers = {}) =>
     route.fetch(
-      new Request('http://localhost/api/majed-skills.catalog', {
+      new Request('http://localhost/api/waycraft-skills.catalog', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          'x-majed-skills': '1',
+          'x-waycraft-skills': '1',
           ...headers,
         },
         body: JSON.stringify(body),
@@ -248,7 +248,7 @@ test('reload and detail require the mutation marker', async (t) => {
   ]);
   await skill(join(h.root, 'skills'), 'example', doc('example'));
   const list = await (await h.post({ action: 'list' })).json();
-  const headers = { 'x-majed-skills': '' };
+  const headers = { 'x-waycraft-skills': '' };
   assert.equal((await h.post({ action: 'reload' }, headers)).status, 403);
   assert.equal(
     (await h.post({ action: 'detail', id: list.copies[0].path }, headers))
@@ -326,9 +326,9 @@ test('streamed over-limit body is 413, wrong content-type 415, closing 503', asy
     },
   });
   const big = await h.route.fetch(
-    new Request('http://localhost/api/majed-skills.catalog', {
+    new Request('http://localhost/api/waycraft-skills.catalog', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-majed-skills': '1' },
+      headers: { 'content-type': 'application/json', 'x-waycraft-skills': '1' },
       body: stream,
       duplex: 'half',
     }),
@@ -342,9 +342,9 @@ test('streamed over-limit body is 413, wrong content-type 415, closing 503', asy
   const route = h.route;
   await h.stop();
   const closing = await route.fetch(
-    new Request('http://localhost/api/majed-skills.catalog', {
+    new Request('http://localhost/api/waycraft-skills.catalog', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-majed-skills': '1' },
+      headers: { 'content-type': 'application/json', 'x-waycraft-skills': '1' },
       body: '{"action":"list"}',
     }),
   );

@@ -75,7 +75,7 @@ try {
   await execFileSync('npm', ['run', 'build'], {
     cwd: temp,
     stdio: 'inherit',
-    env: { ...process.env, npm_config_cache: '/tmp/npm-cache-majed' },
+    env: { ...process.env, npm_config_cache: '/tmp/npm-cache-waycraft' },
   });
   const after = await snapshot(pathToFileURL(`${join(temp, 'dist')}/`));
   // Check for orphan artifacts FIRST: files in committed dist but not produced by fresh build

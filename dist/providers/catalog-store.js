@@ -1,6 +1,6 @@
 /**
  * On-disk discovered-model-catalog cache at
- * `~/.dsh/plugins/majed/subscriptions/models.json` — the durable half of each
+ * `~/.dsh/plugins/waycraft/subscriptions/models.json` — the durable half of each
  * provider's {@link ModelCatalogCache}. One entry per provider: the last
  * successfully discovered catalog with its fetch time, so capability metadata
  * (reasoning efforts) survives restarts and network failures.
@@ -12,15 +12,16 @@
  * throw on every call, which is worse than having no fallback at all.
  */
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { readableStorePath } from '../storage-migration.js';
 import { dirname } from 'node:path';
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths';
 import { ReasoningEffortId } from '@deepseek-ai/dsh-llm';
 /**
  * Absolute path of the catalog store file.
- * @returns `dshHomePath('plugins', 'majed', 'subscriptions', 'models.json')`.
+ * @returns `dshHomePath('plugins', 'waycraft', 'subscriptions', 'models.json')`.
  */
 export function modelsFilePath() {
-    return dshHomePath('plugins', 'majed', 'subscriptions', 'models.json');
+    return dshHomePath('plugins', 'waycraft', 'subscriptions', 'models.json');
 }
 /** The per-account section of the file, or undefined when absent or malformed. */
 function accountSection(store, provider) {
@@ -185,7 +186,7 @@ export function sanitizeSnapshot(value) {
 async function readCatalogFile(path) {
     let text;
     try {
-        text = await readFile(path, 'utf8');
+        text = await readFile(readableStorePath(path), 'utf8');
     }
     catch {
         return {};

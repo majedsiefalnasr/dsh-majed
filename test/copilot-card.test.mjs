@@ -187,7 +187,7 @@ for (const locale of ['en', 'ar'])
     assert.match(page.text(), /ABCD-EFGH/);
     assert.ok(page.text().includes(page.dictionary.copilotDeviceHint));
     assert.equal(
-      page.nodes().find((n) => n.props['data-majed-copilot-code']).props.dir,
+      page.nodes().find((n) => n.props['data-waycraft-copilot-code']).props.dir,
       'ltr',
     );
     assert.equal(

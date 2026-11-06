@@ -81,7 +81,8 @@ export const ANTIGRAVITY_USERINFO_URL =
 export const ANTIGRAVITY_DEFAULT_BASE_URL =
   'https://daily-cloudcode-pa.googleapis.com';
 export const ANTIGRAVITY_PROD_BASE_URL = 'https://cloudcode-pa.googleapis.com';
-export const ANTIGRAVITY_DEFAULT_USER_AGENT = 'antigravity/1.104.0 dsh-majed';
+export const ANTIGRAVITY_DEFAULT_USER_AGENT =
+  'antigravity/1.104.0 dsh-waycraft';
 export const ANTIGRAVITY_PREEMPT_MS = 5 * 60_000;
 const ANTIGRAVITY_CALLBACK_PATH = '/oauth-callback';
 const ANTIGRAVITY_CONTEXT_WINDOW = 1_024_000;

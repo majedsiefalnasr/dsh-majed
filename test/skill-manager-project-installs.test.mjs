@@ -108,9 +108,12 @@ async function fixture(t, existing) {
   t.after(stop);
   const send = async (body) => {
     const r = await route.fetch(
-      new Request('http://localhost/api/majed-skills.catalog', {
+      new Request('http://localhost/api/waycraft-skills.catalog', {
         method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-majed-skills': '1' },
+        headers: {
+          'content-type': 'application/json',
+          'x-waycraft-skills': '1',
+        },
         body: JSON.stringify(body),
       }),
     );

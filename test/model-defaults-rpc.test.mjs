@@ -23,7 +23,9 @@ const CATALOG = {
 };
 
 async function mount(config = {}) {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t130/model-defaults-rpc-');
+  process.env.DSH_HOME = await mkdtemp(
+    '/tmp/waycraft-t130/model-defaults-rpc-',
+  );
   const { saveAccountSession } = await import('../dist/auth/store.js');
   await saveAccountSession('codex', 'a', {
     accountId: 'a',
@@ -79,7 +81,7 @@ async function mount(config = {}) {
   apply(ctx, { codexClientVersion: '1.2.3', ...config });
   await new Promise((resolve) => setTimeout(resolve, 30));
   const call = async (endpoint, payload = {}) => {
-    const method = `majed-subscriptions.${endpoint}`;
+    const method = `waycraft-subscriptions.${endpoint}`;
     const response = await routes.get(`/api/${method}`).fetch(
       new Request(`http://localhost/api/${method}`, {
         method: 'POST',

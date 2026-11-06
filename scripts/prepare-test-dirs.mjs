@@ -5,7 +5,7 @@ import { pathToFileURL } from 'node:url';
 // Prepare them before parallel test workers instead of relying on prior runs.
 export async function prepareTestDirectories(root = '/tmp') {
   await Promise.all(
-    ['majed-t129', 'majed-t130', 'majed-t134'].map((name) =>
+    ['waycraft-t129', 'waycraft-t130', 'waycraft-t134'].map((name) =>
       mkdir(`${root}/${name}`, { recursive: true }),
     ),
   );

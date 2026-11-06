@@ -1,5 +1,5 @@
 /**
- * On-disk OAuth session store at `~/.dsh/plugins/majed/subscriptions/auth.json`.
+ * On-disk OAuth session store at `~/.dsh/plugins/waycraft/subscriptions/auth.json`.
  *
  * The file is a JSON object keyed by provider id, each entry holding that
  * provider's ACCOUNTS: a map of account key → session plus the default
@@ -15,6 +15,7 @@
 
 import { createHash } from 'node:crypto';
 import { decodeJwtPayload } from './jwt.js';
+import { readableStorePath } from '../storage-migration.js';
 import {
   chmod,
   mkdir,
@@ -356,10 +357,10 @@ function tokenHash(refreshToken: string): string {
 
 /**
  * Absolute path of the auth store file.
- * @returns `dshHomePath('plugins', 'majed', 'subscriptions', 'auth.json')`.
+ * @returns `dshHomePath('plugins', 'waycraft', 'subscriptions', 'auth.json')`.
  */
 export function authFilePath(): string {
-  return dshHomePath('plugins', 'majed', 'subscriptions', 'auth.json');
+  return dshHomePath('plugins', 'waycraft', 'subscriptions', 'auth.json');
 }
 
 /** Check that one durable session carries the fields every session needs. */
@@ -407,7 +408,7 @@ function assertSessionShape(
 export async function loadStore(path = authFilePath()): Promise<SessionMap> {
   let text: string;
   try {
-    text = await readFile(path, 'utf8');
+    text = await readFile(readableStorePath(path), 'utf8');
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
     return {};

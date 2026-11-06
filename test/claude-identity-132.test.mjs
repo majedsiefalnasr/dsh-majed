@@ -36,7 +36,7 @@ const until = async (condition, label) => {
 };
 const home = async (name) => {
   process.env.DSH_HOME = await mkdtemp(
-    join(tmpdir(), `majed-t132-id-${name}-`),
+    join(tmpdir(), `waycraft-t132-id-${name}-`),
   );
   return process.env.DSH_HOME;
 };
@@ -157,7 +157,7 @@ function host({ io, profile }) {
   );
   return {
     async call(endpoint, payload = {}) {
-      const method = `majed-subscriptions.${endpoint}`;
+      const method = `waycraft-subscriptions.${endpoint}`;
       const response = await routes.get(`/api/${method}`).fetch(
         new Request(`http://localhost/api/${method}`, {
           method: 'POST',

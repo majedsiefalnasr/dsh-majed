@@ -23,7 +23,7 @@ export default defineConfig({
   noExternal: (id) => (external.includes(id) ? undefined : true),
   outputOptions: {
     entryFileNames: 'subscriptions-client.js',
-    banner: 'const majedSubscriptionsFactory = (require) => {',
+    banner: 'const waycraftSubscriptionsFactory = (require) => {',
     intro: 'var module = { exports: {} }; var exports = module.exports;',
     footer: 'return module.exports; };',
   },

@@ -94,7 +94,7 @@ function host({ withTools = true, withWeb = true, tool = {}, web = {} } = {}) {
     providers,
     routes,
     async call(endpoint, payload = {}) {
-      const method = `majed-subscriptions.${endpoint}`;
+      const method = `waycraft-subscriptions.${endpoint}`;
       const response = await routes.get(`/api/${method}`).fetch(
         new Request(`http://localhost/api/${method}`, {
           method: 'POST',
@@ -121,7 +121,7 @@ function host({ withTools = true, withWeb = true, tool = {}, web = {} } = {}) {
 }
 
 test('image_generate and Codex web_search register publicly and obey creation-time switches', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t130/tools-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t130/tools-');
   const { saveAccountSession } = await import('../dist/auth/store.js');
   await saveAccountSession('codex', 'fixture', {
     accountId: 'fixture',
@@ -180,13 +180,13 @@ test('image_generate and Codex web_search register publicly and obey creation-ti
   );
 });
 
-test('a colliding image_generate name falls back to the Majed alias and is the one restricted', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t130/tools-');
+test('a colliding image_generate name falls back to the Waycraft alias and is the one restricted', async () => {
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t130/tools-');
   const component = host({ tool: { occupied: ['image_generate'] } });
   try {
     assert.deepEqual(
       [...component.registered.keys()],
-      ['dsh_majed_image_generate', 'video_generate', 'x_search'],
+      ['dsh_waycraft_image_generate', 'video_generate', 'x_search'],
     );
     await component.call('setProviderSettings', {
       provider: 'codex',
@@ -197,7 +197,7 @@ test('a colliding image_generate name falls back to the Majed alias and is the o
       settings: { tools: { image_generate: false } },
     });
     assert.deepEqual(await component.create(Date.now() + 1000), [
-      'dsh_majed_image_generate',
+      'dsh_waycraft_image_generate',
     ]);
   } finally {
     component.dispose();
@@ -205,7 +205,7 @@ test('a colliding image_generate name falls back to the Majed alias and is the o
 });
 
 test('Grok video and X switches restrict new sessions under public and collision aliases without disabling Codex search', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t133-tools-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t133-tools-');
   const { saveAccountSession } = await import('../dist/auth/store.js');
   await saveAccountSession('codex', 'fixture', {
     accountId: 'fixture',
@@ -217,7 +217,7 @@ test('Grok video and X switches restrict new sessions under public and collision
     const component = host({ tool: { occupied } });
     try {
       const names = occupied.length
-        ? ['dsh_majed_video_generate', 'dsh_majed_x_search']
+        ? ['dsh_waycraft_video_generate', 'dsh_waycraft_x_search']
         : ['video_generate', 'x_search'];
       assert.ok(names.every((name) => component.registered.has(name)));
       const before = Date.now() - 1000;
@@ -255,7 +255,7 @@ test('Grok video and X switches restrict new sessions under public and collision
 });
 
 test('absent tools and web services leave the component functional', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t130/tools-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t130/tools-');
   const component = host({ withTools: false, withWeb: false });
   try {
     assert.equal(component.registered.size, 0);

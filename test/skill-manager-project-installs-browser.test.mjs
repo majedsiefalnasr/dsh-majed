@@ -151,7 +151,7 @@ async function mount(t, language, server, { layout, missing } = {}) {
         return callback({
           layout: {
             panelInfo: {
-              getSnapshot: () => ({ activePanelId: 'majed-skills' }),
+              getSnapshot: () => ({ activePanelId: 'waycraft-skills' }),
             },
             selectPanel() {},
           },
@@ -185,7 +185,7 @@ async function mount(t, language, server, { layout, missing } = {}) {
   api.apply({
     ...ctx,
     effect(start, label) {
-      if (label?.startsWith('majed-skills')) cleanups.push(start());
+      if (label?.startsWith('waycraft-skills')) cleanups.push(start());
     },
   });
   const settle = async () => {
@@ -354,13 +354,13 @@ for (const language of ['en', 'ar']) {
     ])
       assert.equal(await exists(join(dir, 'SKILL.md')), true);
     assert.equal(
-      view.root.findAll((x) => x.props?.['data-majed-catalog-copy']).length,
+      view.root.findAll((x) => x.props?.['data-waycraft-catalog-copy']).length,
       3,
     );
     // Uninstalling the project-a copy confirms the destination and project, and leaves the others.
     const copyRow = (name) =>
       view.root
-        .findAll((x) => x.props?.['data-majed-catalog-copy'])
+        .findAll((x) => x.props?.['data-waycraft-catalog-copy'])
         .find((x) => flat(x).includes(name));
     await ui.act2(() =>
       copyRow('proj-a — DSH').findAllByType('button')[0].props.onClick(),
@@ -471,7 +471,9 @@ for (const language of ['en', 'ar']) {
         .props.onChange({ target: { value: 'user-dsh' } }),
     );
     await ui.act2(() => u.button(`${d.repoInstall}: alpha`).props.onClick());
-    const rows = view.root.findAll((x) => x.props?.['data-majed-repo-install']);
+    const rows = view.root.findAll(
+      (x) => x.props?.['data-waycraft-repo-install'],
+    );
     assert.equal(rows.length, 3);
     assert.ok(
       text().includes('proj-a — DSH') && text().includes('proj-b — DSH'),
@@ -484,7 +486,7 @@ for (const language of ['en', 'ar']) {
     );
     const rowOf = (name) =>
       view.root
-        .findAll((x) => x.props?.['data-majed-repo-install'])
+        .findAll((x) => x.props?.['data-waycraft-repo-install'])
         .find((x) => flat(x).includes(name));
     const act = async (name, label) => {
       const button = rowOf(name)
@@ -607,7 +609,9 @@ for (const language of ['en', 'ar']) {
       .filter((value) => value === folderA || value === folderB);
     assert.deepEqual(previews, [folderB]);
     await ui.act2(() => u.button(d.catInstallConfirm).props.onClick());
-    const rows = view.root.findAll((x) => x.props?.['data-majed-catalog-copy']);
+    const rows = view.root.findAll(
+      (x) => x.props?.['data-waycraft-catalog-copy'],
+    );
     assert.equal(rows.length, 2);
     const rowTexts = rows.map((row) => flat(row));
     assert.ok(rowTexts[0].includes('app (one) — DSH'));
@@ -792,7 +796,7 @@ for (const language of ['en', 'ar']) {
     );
     const rowOf = (name) =>
       view.root
-        .findAll((x) => x.props?.['data-majed-repo-install'])
+        .findAll((x) => x.props?.['data-waycraft-repo-install'])
         .find((x) => flat(x).includes(name));
     const press = async (name, label) =>
       ui.act2(() =>

@@ -32,7 +32,7 @@ const SSE =
   'data: {"type":"response.output_text.delta","delta":"OK"}\n\ndata: {"type":"response.completed","response":{"usage":{"input_tokens":1,"output_tokens":1}}}\n\ndata: [DONE]\n\n';
 
 async function mount({ accounts = ['a', 'b'], hang = [], config = {} } = {}) {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t130/final-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t130/final-');
   const { saveAccountSession } = await import('../dist/auth/store.js');
   for (const account of accounts)
     await saveAccountSession('codex', account, {
@@ -100,7 +100,7 @@ async function mount({ accounts = ['a', 'b'], hang = [], config = {} } = {}) {
   };
   apply(ctx, { codexClientVersion: '1.2.3', ...config });
   const call = async (endpoint, payload = {}) => {
-    const method = `majed-subscriptions.${endpoint}`;
+    const method = `waycraft-subscriptions.${endpoint}`;
     const response = await routes.get(`/api/${method}`).fetch(
       new Request(`http://localhost/api/${method}`, {
         method: 'POST',
@@ -116,7 +116,7 @@ async function mount({ accounts = ['a', 'b'], hang = [], config = {} } = {}) {
     return { ...(await response.json()).result, text: undefined };
   };
   const raw = async (endpoint, payload = {}) => {
-    const method = `majed-subscriptions.${endpoint}`;
+    const method = `waycraft-subscriptions.${endpoint}`;
     return (
       await routes.get(`/api/${method}`).fetch(
         new Request(`http://localhost/api/${method}`, {
@@ -467,7 +467,7 @@ test('P3 unknown JSON secrets never reach a serialized RPC response (saved and d
 
 test('P3 the draft password is redacted on the early draft-validation failure path too', async () => {
   await resetProxyForTests();
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t130/final-early-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t130/final-early-');
   const result = await proxyTestConnection('https://destination.test', {
     enabled: true,
     url: 'ftp://proxy.test',
@@ -481,7 +481,7 @@ test('P3 the draft password is redacted on the early draft-validation failure pa
 
 test('P3 dispose clears owned proxy memory and aborts in-flight probes', async () => {
   await resetProxyForTests();
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t130/final-dispose-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t130/final-dispose-');
   const originalFetch = globalThis.fetch;
   try {
     await proxySetConfig({
@@ -517,16 +517,16 @@ test('P3 dispose clears owned proxy memory and aborts in-flight probes', async (
       'owned password memory was released',
     );
     // A bad stored file surfaces a configError; dispose releases it and the next load re-reads the disk.
-    await mkdir(`${process.env.DSH_HOME}/plugins/majed/subscriptions`, {
+    await mkdir(`${process.env.DSH_HOME}/plugins/waycraft/subscriptions`, {
       recursive: true,
     });
     await writeFile(
-      `${process.env.DSH_HOME}/plugins/majed/subscriptions/proxy.json`,
+      `${process.env.DSH_HOME}/plugins/waycraft/subscriptions/proxy.json`,
       '{ nope',
     );
     assert.ok((await proxyGetConfig()).error);
     await writeFile(
-      `${process.env.DSH_HOME}/plugins/majed/subscriptions/proxy.json`,
+      `${process.env.DSH_HOME}/plugins/waycraft/subscriptions/proxy.json`,
       JSON.stringify({ enabled: false, url: '' }),
     );
     await disposeProxyTransport();

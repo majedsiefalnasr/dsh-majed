@@ -180,7 +180,7 @@ export function detectClaudeVersion(): string {
   // This is debug-only: the fallback is expected when Claude Code is absent.
   if (lastError !== undefined) {
     console.debug(
-      'dsh-majed: Claude CLI version detection fell back',
+      'dsh-waycraft: Claude CLI version detection fell back',
       lastError,
     );
   }

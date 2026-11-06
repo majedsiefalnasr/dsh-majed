@@ -32,7 +32,9 @@ const until = async (condition, label) => {
   assert.fail(`timed out waiting for ${label}`);
 };
 const home = async (name) => {
-  process.env.DSH_HOME = await mkdtemp(join(tmpdir(), `majed-t132-${name}-`));
+  process.env.DSH_HOME = await mkdtemp(
+    join(tmpdir(), `waycraft-t132-${name}-`),
+  );
   return process.env.DSH_HOME;
 };
 
@@ -108,7 +110,7 @@ function host({ io, config = {} }) {
   return {
     adapters,
     async call(endpoint, payload = {}) {
-      const method = `majed-subscriptions.${endpoint}`;
+      const method = `waycraft-subscriptions.${endpoint}`;
       const response = await routes.get(`/api/${method}`).fetch(
         new Request(`http://localhost/api/${method}`, {
           method: 'POST',
@@ -582,7 +584,7 @@ test('writeFileRaw refuses to write through a symlink at the credentials path an
   const { symlink, writeFile, readFile, stat } = await import(
     'node:fs/promises'
   );
-  const dir = await mkdtemp(join(tmpdir(), 'majed-t132-symlink-'));
+  const dir = await mkdtemp(join(tmpdir(), 'waycraft-t132-symlink-'));
   const saved = process.env.CLAUDE_CONFIG_DIR;
   process.env.CLAUDE_CONFIG_DIR = dir;
   try {

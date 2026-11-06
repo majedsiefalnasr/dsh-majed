@@ -1,5 +1,5 @@
 // Adapted from V1ki/dsh-plugin-subscriptions v0.9.12 (b802311) src/client/SpeedSelect.tsx, MIT; see src/PROVENANCE.md.
-// Local changes: owned `majed-subscriptions.*` RPC helper, majed class/CSS-variable names, structural prop types,
+// Local changes: owned `waycraft-subscriptions.*` RPC helper, waycraft class/CSS-variable names, structural prop types,
 // logical (RTL-safe) alignment. Behavior is otherwise the reference's.
 /**
  * Codex Speed toggle: one small control in the composer's right tool row
@@ -230,7 +230,7 @@ export function SpeedSelect({ loadSpeed, setSpeed, t }: SpeedSelectProps) {
   return (
     <div
       ref={rootRef}
-      className="majed-subscription-speed"
+      className="waycraft-subscription-speed"
       style={styles.root}
       onKeyDown={(event) => {
         if (event.key === 'Escape' && open) {
@@ -290,7 +290,7 @@ const styles: Record<string, CSSProperties> = {
   trigger: {
     border: '0.5px solid var(--dsw-alias-border-l3)',
     borderRadius: 'var(--dsw-radius-sm, 8px)',
-    background: 'var(--majed-subscription-speed-hover, transparent)',
+    background: 'var(--waycraft-subscription-speed-hover, transparent)',
     color: 'var(--dsw-alias-label-secondary)',
     font: 'inherit',
     fontSize: 12,
@@ -322,7 +322,7 @@ const styles: Record<string, CSSProperties> = {
     width: '100%',
     border: 'none',
     borderRadius: 'var(--dsw-radius-sm, 8px)',
-    background: 'var(--majed-subscription-speed-hover, transparent)',
+    background: 'var(--waycraft-subscription-speed-hover, transparent)',
     padding: '6px 8px',
     cursor: 'pointer',
     font: 'inherit',

@@ -4,6 +4,8 @@ import { homedir } from 'node:os';
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import { parseDocument } from 'yaml';
 import { discoverReadonlyEntries } from './skills-discovery.js';
+import { LEGACY_SKILLS_HEADER, LEGACY_SKILLS_ROUTE } from './legacy-names.js';
+import { legacySkillsRoot, migrateTree } from './storage-migration.js';
 import { checkedTrashPath, listTrash, scanTrash, trashEntry, restoreEntry, deleteEntry, } from './skills-trash.js';
 import { localItems, uploadedItems, zipItems, uploadBatch, publishImports, } from './skills-import.js';
 import { createRepositories, PROJECT_ID, RepoError, } from './skills-repos.js';
@@ -71,7 +73,7 @@ async function scan(source, order, signal, diagnostics) {
                 : 300 + order);
     const result = [];
     const base = {
-        provider: 'majed-skills',
+        provider: 'waycraft-skills',
         source: sourceId,
         rank,
         eligible: true,
@@ -243,7 +245,19 @@ export function apply(ctx, config = {}) {
             rank: 510 + i,
         })),
     ];
-    const statePath = config.statePath ?? join(dshHome, 'majed-skills', 'state.json');
+    const newStatePath = config.statePath ?? join(dshHome, 'waycraft-skills', 'state.json');
+    // One-release migration: copy the retired state root once; a successful copy never modifies the legacy tree.
+    let skillsMigration = config.statePath === undefined
+        ? migrateTree(dirname(newStatePath), legacySkillsRoot(dshHome))
+        : undefined;
+    if (skillsMigration?.status === 'failed')
+        skillsMigration = migrateTree(dirname(newStatePath), legacySkillsRoot(dshHome)); // one retry before degrading
+    // Degraded mode (migration failed twice, diagnosed by migrateTree): keep reading AND writing the legacy root as one
+    // consistent store so state, trash, repositories and catalogs never fork between two roots. A later start that
+    // migrates successfully copies the whole legacy tree, including those writes.
+    const statePath = skillsMigration?.status === 'failed'
+        ? join(legacySkillsRoot(dshHome), 'state.json')
+        : newStatePath;
     const PLACEMENTS = ['settings', 'sidebar', 'both'];
     const CATEGORY_NAME_MAX = 24;
     const CATEGORY_LIMIT = 64;
@@ -426,6 +440,9 @@ export function apply(ctx, config = {}) {
     })
         .catch((error) => {
         corrupt = error.code !== 'ENOENT';
+        // Degraded legacy root that is a file, not a directory: fail closed with a clear, content-free diagnostic.
+        if (error.code === 'ENOTDIR')
+            console.warn(`dsh-waycraft: skills state root ${basename(dirname(statePath))} is not a directory; skills state stays unavailable`);
     });
     let ready = loadState();
     const controls = new Set();
@@ -666,7 +683,7 @@ export function apply(ctx, config = {}) {
             };
         };
         return {
-            name: 'majed-skills',
+            name: 'waycraft-skills',
             async list(options) {
                 if (control.signal.aborted)
                     return [];
@@ -722,7 +739,7 @@ export function apply(ctx, config = {}) {
     ctx.effect(() => () => {
         closing = true;
         return operations;
-    }, 'majed-skills pending state writes');
+    }, 'waycraft-skills pending state writes');
     /** Atomic, owner-only state replacement; callers hold the serialized `operations` slot. */
     const writeState = async (next) => {
         await mkdir(dirname(statePath), { recursive: true });
@@ -818,7 +835,7 @@ export function apply(ctx, config = {}) {
                 control.invalidate();
         },
     });
-    ctx.effect(() => () => repos.close(), 'majed-skills repository operations');
+    ctx.effect(() => () => repos.close(), 'waycraft-skills repository operations');
     const catalogs = createCatalogs({
         config: config.catalogs,
         stateDir: dirname(statePath),
@@ -831,7 +848,7 @@ export function apply(ctx, config = {}) {
                 control.invalidate();
         },
     });
-    ctx.effect(() => () => catalogs.close(), 'majed-skills catalog operations');
+    ctx.effect(() => () => catalogs.close(), 'waycraft-skills catalog operations');
     const projectView = async (project) => {
         if (!project.available)
             return {
@@ -1193,7 +1210,7 @@ export function apply(ctx, config = {}) {
             stopTool();
             stopGate();
         };
-    }, 'majed-skills create tool');
+    }, 'waycraft-skills create tool');
     const ORG_ACTIONS = [
         'category-create',
         'category-rename',
@@ -1451,8 +1468,8 @@ export function apply(ctx, config = {}) {
         const connection = target.get?.('connection');
         if (!connection)
             return;
-        target.effect(() => connection.fetch.register({
-            path: '/api/majed-skills.catalog',
+        const registerRoute = (path) => connection.fetch.register({
+            path,
             methods: ['POST'],
             requestBody: 'buffered',
             async fetch(request) {
@@ -1498,7 +1515,8 @@ export function apply(ctx, config = {}) {
                         body.action !== 'upload' &&
                         (length > MAX_REQUEST || declared > MAX_REQUEST))
                         return new Response('Request too large', { status: 413 });
-                    const marked = request.headers.get('x-majed-skills') === '1';
+                    const marked = request.headers.get('x-waycraft-skills') === '1' ||
+                        request.headers.get(LEGACY_SKILLS_HEADER) === '1';
                     const actions = [
                         'list',
                         'detail',
@@ -1549,9 +1567,7 @@ export function apply(ctx, config = {}) {
                         return Response.json({ ok: true, placement: state.placement });
                     }
                     // A project selector (and the project list itself) exposes workspace paths: marker only.
-                    if (body.action === 'list' &&
-                        body.project !== undefined &&
-                        !marked)
+                    if (body.action === 'list' && body.project !== undefined && !marked)
                         return new Response('Mutation marker required', {
                             status: 403,
                         });
@@ -1707,8 +1723,7 @@ export function apply(ctx, config = {}) {
                                 return result ?? {};
                             }
                             catch (error) {
-                                return fail(409, error instanceof Error &&
-                                    error.message.startsWith('trash-')
+                                return fail(409, error instanceof Error && error.message.startsWith('trash-')
                                     ? error.message
                                     : 'trash-failed');
                             }
@@ -1965,8 +1980,7 @@ export function apply(ctx, config = {}) {
                                 (typeof body.id !== 'string' ||
                                     typeof body.label !== 'string' ||
                                     !body.label.trim())) ||
-                            (body.action === 'custom-remove' &&
-                                typeof body.id !== 'string'))
+                            (body.action === 'custom-remove' && typeof body.id !== 'string'))
                             return new Response('Invalid custom source request', {
                                 status: 400,
                             });
@@ -2080,7 +2094,15 @@ export function apply(ctx, config = {}) {
                     return new Response('Skill operation failed', { status: 400 });
                 }
             },
-        }), 'majed-skills catalog');
+        });
+        // New route plus the deprecated legacy route for one release (stale browser clients).
+        target.effect(() => {
+            const offs = ['/api/waycraft-skills.catalog', LEGACY_SKILLS_ROUTE].map(registerRoute);
+            return () => {
+                for (const off of offs)
+                    off();
+            };
+        }, 'waycraft-skills catalog');
     });
     ctx.effect(() => {
         const stop = install(ctx);
@@ -2104,5 +2126,5 @@ export function apply(ctx, config = {}) {
             registrations.clear();
             stop();
         };
-    }, 'majed-skills availability overlay');
+    }, 'waycraft-skills availability overlay');
 }

@@ -45,7 +45,7 @@ export function createGrokCard(
     const call = async (endpoint: string, payload: object = {}) => {
       const response = await rpc.call(
         '/api',
-        `majed-subscriptions.${endpoint}`,
+        `waycraft-subscriptions.${endpoint}`,
         { provider: 'grok', ...payload },
       );
       if (!response?.ok)
@@ -174,7 +174,7 @@ export function createGrokCard(
       );
     const date = (time: number) => new Date(time).toLocaleString();
     const part = (name: string, style: any, ...children: any[]) =>
-      h('div', { style, 'data-majed-grok-part': name }, ...children);
+      h('div', { style, 'data-waycraft-grok-part': name }, ...children);
     const startLogin = () => {
       void action(async () => {
         const result = await call('login');
@@ -226,8 +226,8 @@ export function createGrokCard(
             : {}),
           textAlign: 'start',
         },
-        className: 'majed-subscriptions-settings',
-        'data-majed-grok-card': true,
+        className: 'waycraft-subscriptions-settings',
+        'data-waycraft-grok-card': true,
       },
       h('style', null, controlCss),
       manager
@@ -338,7 +338,7 @@ export function createGrokCard(
             {
               key: account.key,
               style: styles.accountRow,
-              'data-majed-grok-part': 'account',
+              'data-waycraft-grok-part': 'account',
             },
             part(
               'account-header',
@@ -560,7 +560,7 @@ export function createGrokCard(
               ref: (node: HTMLDialogElement | null) => {
                 if (node && !node.open) node.showModal();
               },
-              className: 'majed-reset-dialog',
+              className: 'waycraft-reset-dialog',
               role: 'dialog',
               'aria-modal': true,
               'aria-label': t('confirmLogout'),
@@ -589,7 +589,7 @@ export function createGrokCard(
             h(
               'div',
               {
-                className: 'majed-subscription-dialog-actions',
+                className: 'waycraft-subscription-dialog-actions',
                 style: {
                   ...styles.actions,
                   justifyContent: 'flex-end',

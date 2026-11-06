@@ -31,7 +31,7 @@ test('registerWithAlias falls back to the plugin namespace on collision', () => 
   const tools = registry(['x_search'])
   const result = registerWithAlias(tools, definition('x_search'))
   assert.equal(result?.name, TOOL_ALIASES.x_search)
-  assert.deepEqual([...tools.names].sort(), ['dsh_majed_x_search', 'x_search'])
+  assert.deepEqual([...tools.names].sort(), ['dsh_waycraft_x_search', 'x_search'])
 })
 
 test('registerWithAlias skips and warns when canonical and alias collide', () => {
@@ -41,5 +41,5 @@ test('registerWithAlias skips and warns when canonical and alias collide', () =>
   assert.equal(result, undefined)
   assert.equal(warnings.length, 1)
   assert.match(warnings[0]!, /x_search/)
-  assert.deepEqual([...tools.names].sort(), ['dsh_majed_x_search', 'x_search'])
+  assert.deepEqual([...tools.names].sort(), ['dsh_waycraft_x_search', 'x_search'])
 })

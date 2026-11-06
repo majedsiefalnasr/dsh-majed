@@ -1,4 +1,5 @@
 // Independently implemented presence lifecycle; reference recipe and slot conventions only.
+import { legacyToolviewKey } from './legacy-names.js';
 import { applySkills } from './skills-browser.js';
 
 export { applySkills };
@@ -42,7 +43,7 @@ interface Context {
 }
 export function applySubscriptions(root: Context): void {
   const report = (error: unknown) =>
-    console.error('dsh-majed: Subscriptions setup failed', error);
+    console.error('dsh-waycraft: Subscriptions setup failed', error);
   function isolate<T>(callback: () => T): T | undefined {
     try {
       const result = callback();
@@ -60,7 +61,7 @@ export function applySubscriptions(root: Context): void {
         const React = require('react');
         const h = React.createElement;
         const primitives = require('@deepseek-ai/dsh-client-ui-primitives');
-        const NS = 'majed.subscriptions';
+        const NS = 'waycraft.subscriptions';
         isolate(() =>
           ctx.effect(
             () =>
@@ -70,7 +71,7 @@ export function applySubscriptions(root: Context): void {
                   ar: ar.subscriptions,
                 }),
               ),
-            'dsh-majed: subscriptions dictionaries',
+            'dsh-waycraft: subscriptions dictionaries',
           ),
         );
         const t = ctx.locale.bind(NS);
@@ -162,7 +163,7 @@ export function applySubscriptions(root: Context): void {
             try {
               const answer = await connection.rpc.call(
                 '/api',
-                'majed-subscriptions.status',
+                'waycraft-subscriptions.status',
                 {},
               );
               if (!answer?.ok) throw new Error();
@@ -199,7 +200,7 @@ export function applySubscriptions(root: Context): void {
             .map(({ id }, index) =>
               h(
                 'li',
-                { key: id, 'data-majed-subscription-row': id },
+                { key: id, 'data-waycraft-subscription-row': id },
                 h(providerCards[id], {
                   presentation: 'group',
                   initialExpanded: index === 0,
@@ -235,19 +236,19 @@ export function applySubscriptions(root: Context): void {
             h(
               'section',
               {
-                'data-majed-provider-group': 'free',
-                className: 'majed-provider-group',
+                'data-waycraft-provider-group': 'free',
+                className: 'waycraft-provider-group',
                 style: { marginBlockStart: 24 },
                 'aria-label': t('freeProviders'),
               },
               h(
                 'h3',
-                { className: 'majed-provider-title' },
+                { className: 'waycraft-provider-title' },
                 t('freeProviders'),
               ),
               h(
                 'ul',
-                { className: 'majed-api-rows' },
+                { className: 'waycraft-api-rows' },
                 h('li', null, h(ZenCard)),
               ),
             ),
@@ -270,7 +271,7 @@ export function applySubscriptions(root: Context): void {
           return h(
             'div',
             {
-              className: 'majed-subscriptions-page',
+              className: 'waycraft-subscriptions-page',
               style: {
                 display: 'flex',
                 flexDirection: 'column',
@@ -288,17 +289,17 @@ export function applySubscriptions(root: Context): void {
               null,
               controlCss +
                 `
-          .majed-subscriptions-page .majed-page-settings>h3{margin:0;font-size:16px;line-height:24px;font-weight:500}
-          .majed-subscriptions-page .majed-page-settings-content{display:flex;flex-direction:column;gap:12px;padding-block-start:12px}
-          .majed-subscriptions-page .majed-proxy-settings{padding:14px 16px;border:0.5px solid var(--dsw-alias-settings-card-stroke,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-xl,20px);background:var(--dsw-alias-settings-card-fill,var(--dsw-alias-bg-layer-2))}
-          .majed-subscriptions-page .majed-proxy-settings header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
-          .majed-subscriptions-page .majed-proxy-settings p{margin:8px 0 0;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px;overflow-wrap:anywhere}
+          .waycraft-subscriptions-page .waycraft-page-settings>h3{margin:0;font-size:16px;line-height:24px;font-weight:500}
+          .waycraft-subscriptions-page .waycraft-page-settings-content{display:flex;flex-direction:column;gap:12px;padding-block-start:12px}
+          .waycraft-subscriptions-page .waycraft-proxy-settings{padding:14px 16px;border:0.5px solid var(--dsw-alias-settings-card-stroke,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-xl,20px);background:var(--dsw-alias-settings-card-fill,var(--dsw-alias-bg-layer-2))}
+          .waycraft-subscriptions-page .waycraft-proxy-settings header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+          .waycraft-subscriptions-page .waycraft-proxy-settings p{margin:8px 0 0;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px;overflow-wrap:anywhere}
         `,
             ),
             h(
               'header',
               {
-                className: 'majed-providers-identity',
+                className: 'waycraft-providers-identity',
                 style: { display: 'flex', alignItems: 'center', gap: 8 },
               },
               h(
@@ -340,11 +341,14 @@ export function applySubscriptions(root: Context): void {
             failing ? h('p', { role: 'alert' }, t('unreachable')) : null,
             h(
               'section',
-              { 'data-majed-settings': true, className: 'majed-page-settings' },
+              {
+                'data-waycraft-settings': true,
+                className: 'waycraft-page-settings',
+              },
               h('h3', null, t('pageSettings')),
               h(
                 'div',
-                { className: 'majed-page-settings-content' },
+                { className: 'waycraft-page-settings-content' },
                 h(GuardedProxy, { rpc: connection.rpc, t }),
                 h(GuardedSetting, { t }),
               ),
@@ -377,7 +381,7 @@ export function applySubscriptions(root: Context): void {
         }
         // Composer surfaces (ticket #131): the usage badge, the Speed control and /fast exist only while the component
         // answers and the reference plugin is not serving the same provider ids. Each registration is isolated so a
-        // failure in one surface cannot affect core dsh-majed, the Settings section or the other surfaces.
+        // failure in one surface cannot affect core dsh-waycraft, the Settings section or the other surfaces.
         const models = (): ModelDirectoriesLike | undefined =>
           ctx.get('modelDirectories') as ModelDirectoriesLike | undefined;
         const surfaceWanted = () => !disposed && present && !referenceEnabled;
@@ -403,13 +407,17 @@ export function applySubscriptions(root: Context): void {
                 () => ({ loadVideo: createVideoLoader(connection.rpc) }),
               ],
             ] as const)
-              for (const key of [name, `dsh_majed_${name}`]) {
+              for (const key of [
+                name,
+                `dsh_waycraft_${name}`,
+                legacyToolviewKey(name),
+              ]) {
                 add(() =>
                   ctx.slots.inject('tool.call.toolview', () =>
                     ctx.slots.register(
                       {
                         name: 'tool.call.toolview',
-                        id: `majed-toolview-${key}`,
+                        id: `waycraft-toolview-${key}`,
                         key,
                         locale: NS,
                         inject,
@@ -424,7 +432,7 @@ export function applySubscriptions(root: Context): void {
                 ctx.slots.register(
                   {
                     name: 'conversation.input.right',
-                    id: 'majed-subscription-speed',
+                    id: 'waycraft-subscription-speed',
                     order: 0,
                     locale: NS,
                     inject: (sessionId: string) => ({
@@ -445,7 +453,7 @@ export function applySubscriptions(root: Context): void {
                 ctx.slots.register(
                   {
                     name: 'conversation.composer.dock',
-                    id: 'majed-subscription-usage',
+                    id: 'waycraft-subscription-usage',
                     order: 10,
                     locale: NS,
                     inject: (sessionId: string) => ({
@@ -516,7 +524,7 @@ export function applySubscriptions(root: Context): void {
                       },
                     },
                   }),
-                'dsh-majed: /fast contribution',
+                'dsh-waycraft: /fast contribution',
               );
             }),
           ),
@@ -528,7 +536,7 @@ export function applySubscriptions(root: Context): void {
               ctx.slots.register(
                 {
                   name: 'settings.section',
-                  id: 'majed-subscriptions',
+                  id: 'waycraft-subscriptions',
                   order: 90,
                   label: () => t('title'),
                 },
@@ -547,7 +555,7 @@ export function applySubscriptions(root: Context): void {
           try {
             const result = await connection.rpc.call(
               '/api',
-              'majed-subscriptions.status',
+              'waycraft-subscriptions.status',
               {},
             );
             if (disposed || current !== sequence) return;
@@ -561,7 +569,7 @@ export function applySubscriptions(root: Context): void {
             if (
               error instanceof Error &&
               error.message ===
-                'transport failure for /api/majed-subscriptions.status: HTTP 404'
+                'transport failure for /api/waycraft-subscriptions.status: HTTP 404'
             ) {
               present = false;
               failing = false;
@@ -612,7 +620,7 @@ export function applySubscriptions(root: Context): void {
                   listeners.clear();
                 };
               }),
-            'dsh-majed: subscriptions presence',
+            'dsh-waycraft: subscriptions presence',
           ),
         );
       }),

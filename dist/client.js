@@ -1,5 +1,5 @@
 /*
- * dsh-majed — Majed's DeepSeek Harness toolkit (client half).
+ * dsh-waycraft — Waycraft's DeepSeek Harness toolkit (client half).
  *
  * Nothing in DSH itself is modified: every feature below is added by this plugin
  * through public client extension points (slots + injected <style>/observers)
@@ -22,7 +22,7 @@
 window.__ModuleLoader__.load({
   id: 'dsh-waycraft',
   factory(require) {
-const majedSubscriptionsFactory = (require) => {
+const waycraftSubscriptionsFactory = (require) => {
 var module = { exports: {} }; var exports = module.exports;
 //#region rolldown:runtime
 var __create = Object.create;
@@ -52,9 +52,21 @@ react = __toESM(react);
 let react_jsx_runtime = require("react/jsx-runtime");
 react_jsx_runtime = __toESM(react_jsx_runtime);
 
+//#region src/legacy-names.ts
+/** Old localStorage keys (read fallback only; never written, never deleted). */
+const LEGACY_USAGE_BADGE_KEY = "majed.subscriptions.usageBadgeMode";
+/** Old slot/section/panel ids mapped to their new ids (saved nav state). */
+const LEGACY_PANEL_IDS = {
+	"majed-skills": "waycraft-skills",
+	"majed-subscriptions": "waycraft-subscriptions"
+};
+/** Old toolview slot key for a tool name. */
+const legacyToolviewKey = (name) => `dsh_majed_${name}`;
+
+//#endregion
 //#region src/skills-browser.ts
 function applySkills(root) {
-	const fail = (error) => console.error("dsh-majed: Skill manager setup failed", error);
+	const fail = (error) => console.error("dsh-waycraft: Skill manager setup failed", error);
 	try {
 		Promise.resolve(root.inject(["slots", "locale"], (ctx) => {
 			try {
@@ -872,8 +884,8 @@ function setupSkills(ctx, fail) {
 				"code.placement-invalid": "موضع الدخول غير صالح"
 			}
 		};
-		effect(() => ctx.locale.register("majed.skills", dictionaries), "majed-skills dictionaries");
-		const t = ctx.locale.bind("majed.skills");
+		effect(() => ctx.locale.register("waycraft.skills", dictionaries), "waycraft-skills dictionaries");
+		const t = ctx.locale.bind("waycraft.skills");
 		const isArabic = () => ctx.locale.language?.getSnapshot?.() === "ar";
 		const sourceLabel = (source) => source.label ?? source.name ?? source.id;
 		const PROJECT_DEST = "project-dsh:";
@@ -939,11 +951,11 @@ function setupSkills(ctx, fail) {
 		const call = async (body, signal) => {
 			const base = new URL(document.baseURI);
 			if (!base.pathname.endsWith("/")) base.pathname += "/";
-			const response = await fetch(new URL("api/majed-skills.catalog", base), {
+			const response = await fetch(new URL("api/waycraft-skills.catalog", base), {
 				method: "POST",
 				headers: {
 					"content-type": "application/json",
-					"x-majed-skills": "1"
+					"x-waycraft-skills": "1"
 				},
 				body: JSON.stringify(body),
 				signal
@@ -1125,7 +1137,7 @@ function setupSkills(ctx, fail) {
 				installId: confirming.entry.id,
 				...confirming.entry.project ? { project: confirming.entry.project } : {}
 			}, () => setConfirming(null));
-			return h("div", { "data-majed-catalogs": true }, h("form", { onSubmit: (event) => {
+			return h("div", { "data-waycraft-catalogs": true }, h("form", { onSubmit: (event) => {
 				event.preventDefault();
 				setCommitted(typed.trim());
 				setAttempt((n) => n + 1);
@@ -1147,7 +1159,7 @@ function setupSkills(ctx, fail) {
 				const copies = copiesOf(item);
 				return h("li", {
 					key: item.id,
-					"data-majed-catalog-item": item.id
+					"data-waycraft-catalog-item": item.id
 				}, h("strong", null, item.name), item.summary ? h("p", null, item.summary) : null, h("small", null, ...metadata(item)), copies.length ? h("span", null, ` ${t("catInstalled")}`) : null, !copies.length && recordsOf(item).length ? h("p", { role: "note" }, t(`catHint.${recordsOf(item)[0].status}`)) : null, h("button", {
 					"aria-label": `${t("catDetails")}: ${item.name}`,
 					onClick: () => void openDetail(item)
@@ -1161,7 +1173,7 @@ function setupSkills(ctx, fail) {
 					}
 				}, copies.length ? t("catInstallElsewhere") : t("catInstall")), recordsOf(item).length ? h("ul", { "aria-label": `${t("catCopies")}: ${item.name}` }, ...recordsOf(item).map((entry) => h("li", {
 					key: entry.id,
-					"data-majed-catalog-copy": entry.id
+					"data-waycraft-catalog-copy": entry.id
 				}, placeNode(data, entry), " · ", h("bdi", { dir: "ltr" }, `${entry.root}/${entry.name}`), ` · ${t(`catStatus.${entry.status}`)}`, entry.status === "invalid-root" || entry.status === "missing" ? h("button", {
 					"aria-label": `${t("catForget")}: ${item.name} — ${placeName(data, entry)}`,
 					disabled: !!working,
@@ -1741,9 +1753,9 @@ function setupSkills(ctx, fail) {
 				onClick: () => setRemoving(x.id)
 			}, t("remove")));
 			return h("section", {
-				"data-majed-skills": true,
+				"data-waycraft-skills": true,
 				dir: isArabic() ? "rtl" : void 0
-			}, h("h2", null, t("title")), data?.trashError ? h("p", { role: "alert" }, t(`code.${data.trashError}`)) : null, scope === "trash" ? h("div", { "data-majed-trash": true }, h("h3", null, t("trash")), !data?.trashError && !data?.trash?.length ? h("p", null, t("trashEmpty")) : null, ...(data?.trash ?? []).map((item) => h("article", { key: item.id }, h("strong", null, item.name), h("p", null, `${t("trashOrigin")}: ${item.origin}`), item.scope !== "global" ? h("p", null, `${t("project")}: ${projectName(item.scope)}`) : null, h("p", null, `${item.source} — ${item.deletedAt}`), h("button", {
+			}, h("h2", null, t("title")), data?.trashError ? h("p", { role: "alert" }, t(`code.${data.trashError}`)) : null, scope === "trash" ? h("div", { "data-waycraft-trash": true }, h("h3", null, t("trash")), !data?.trashError && !data?.trash?.length ? h("p", null, t("trashEmpty")) : null, ...(data?.trash ?? []).map((item) => h("article", { key: item.id }, h("strong", null, item.name), h("p", null, `${t("trashOrigin")}: ${item.origin}`), item.scope !== "global" ? h("p", null, `${t("project")}: ${projectName(item.scope)}`) : null, h("p", null, `${item.source} — ${item.deletedAt}`), h("button", {
 				"aria-label": `${t("restoreTrash")}: ${item.name}`,
 				onClick: () => void mutate({
 					action: "trash-restore",
@@ -1764,7 +1776,7 @@ function setupSkills(ctx, fail) {
 			}) }, t("confirmTrash")), h("button", { onClick: () => setTrashDeleting("") }, t("cancel"))) : null))) : null, scope === "discover" ? h("div", {
 				role: "tablist",
 				"aria-label": t("scopeDiscover"),
-				"data-majed-discover-tabs": true
+				"data-waycraft-discover-tabs": true
 			}, ...[
 				["git", t("tabGit")],
 				["clawhub", t("catSourceClawhub")],
@@ -1773,9 +1785,9 @@ function setupSkills(ctx, fail) {
 				key: id,
 				type: "button",
 				role: "tab",
-				id: `majed-discover-tab-${id}`,
+				id: `waycraft-discover-tab-${id}`,
 				"aria-selected": tab === id,
-				"aria-controls": "majed-discover-panel",
+				"aria-controls": "waycraft-discover-panel",
 				tabIndex: tab === id ? 0 : -1,
 				onClick: () => setTab(id),
 				onKeyDown: (event) => {
@@ -1784,13 +1796,13 @@ function setupSkills(ctx, fail) {
 					if (next === void 0) return;
 					event.preventDefault?.();
 					setTab(all[next][0]);
-					(document.getElementById?.(`majed-discover-tab-${all[next][0]}`))?.focus?.();
+					(document.getElementById?.(`waycraft-discover-tab-${all[next][0]}`))?.focus?.();
 				}
 			}, label))) : null, scope === "discover" && tab === "git" ? h("div", {
-				id: "majed-discover-panel",
+				id: "waycraft-discover-panel",
 				role: "tabpanel",
-				"aria-labelledby": "majed-discover-tab-git",
-				"data-majed-repositories": true
+				"aria-labelledby": "waycraft-discover-tab-git",
+				"data-waycraft-repositories": true
 			}, h("h3", null, t("repositories")), h("form", { onSubmit: (event) => {
 				event.preventDefault();
 				repoAction("add", {
@@ -1853,7 +1865,7 @@ function setupSkills(ctx, fail) {
 				if ((needle || repoStatusFilter) && !shown.length) return null;
 				return h("article", {
 					key: repo.id,
-					"data-majed-repository": repo.id
+					"data-waycraft-repository": repo.id
 				}, h("strong", null, repo.label), h("p", null, `${t("repoFromSource")}: ${repo.kind}${repo.ref ? ` @ ${repo.ref}` : ""}${repo.subdirectory ? ` / ${repo.subdirectory}` : ""}`), h("p", null, `${t("repoSnapshot")}: ${repo.fingerprint.slice(0, 12)} — ${t(`repoKind.${repo.fingerprintKind}`)}`), repo.error ? h("p", { role: "alert" }, `${t("repoLastError")}: ${t(`code.${repo.error.code}`)}`) : null, h("button", {
 					"aria-label": `${t("repoRefresh")}: ${repo.label}`,
 					disabled: !!repoBusy || switching,
@@ -1880,7 +1892,7 @@ function setupSkills(ctx, fail) {
 					onClick: () => setRepoUnsubscribing("")
 				}, t("cancel"))) : null, repoBusy === repo.id ? h("p", { role: "status" }, t("repoRefreshing")) : null, !repo.skills.length ? h("p", null, t("repoNoSkills")) : null, ...shown.map((skill) => h("div", {
 					key: skill.path,
-					"data-majed-repo-skill": skill.path
+					"data-waycraft-repo-skill": skill.path
 				}, h("span", null, skill.name), h("span", null, ` — ${t(`repoStatus.${skill.status}`)}`), skill.code ? h("span", null, ` (${t(`code.${skill.code}`)})`) : null, h("p", null, skill.description), skill.conflicts?.length ? h("p", null, `${t("repoConflictIn")}: ${skill.conflicts.map((id) => id === "user-dsh" ? "DSH" : "Shared Agents").join(", ")}`) : null, skill.valid !== false && !skill.conflicts?.includes(repoTarget) && !skill.installedIn?.includes(repoTarget) ? h("button", {
 					"aria-label": `${t("repoInstall")}: ${skill.name}`,
 					disabled: !!repoBusy || switching || !repoDestination,
@@ -1895,7 +1907,7 @@ function setupSkills(ctx, fail) {
 				}, t("repoInstall")) : null)));
 			}), h("h4", null, t("repoTracked")), !(data?.repoInstalls ?? []).length ? h("p", null, t("repoNoInstalls")) : null, ...(data?.repoInstalls ?? []).map((record) => h("article", {
 				key: record.id,
-				"data-majed-repo-install": record.id
+				"data-waycraft-repo-install": record.id
 			}, h("strong", null, record.name), h("span", null, ` — ${t(`repoStatus.${record.status}`)}`), record.updateAvailable && record.status !== "update" ? h("span", null, ` — ${t("repoStatus.update")}`) : null, record.upstream ? h("p", null, `${t("repoUpstream")}: ${t(`code.${record.upstream}`)}`) : null, h("p", null, `${t("repoFromSource")}: ${record.origin.label}${record.origin.ref ? ` @ ${record.origin.ref}` : ""}${record.origin.subdirectory ? ` / ${record.origin.subdirectory}` : ""}`), h("p", null, `${t("repoSnapshot")}: ${record.fingerprint.slice(0, 12)} — ${t(`repoKind.${record.fingerprintKind}`)}`), h("p", null, `${t("repoInstalledAt")}: `, h("bdi", { dir: "ltr" }, placeName(data, record))), h("p", null, h("bdi", { dir: "ltr" }, record.path)), record.status === "installed" || record.status === "modified" ? h("button", {
 				"aria-label": `${t("repoUninstall")}: ${record.name}`,
 				disabled: !!repoBusy || switching,
@@ -1914,9 +1926,9 @@ function setupSkills(ctx, fail) {
 				onClick: () => repoPreview(record, "rollback")
 			}, t("repoRollbackPreview")) : null, repoPreviews[record.id] && (record.status === "installed" || record.status === "modified") ? h("div", {
 				role: "group",
-				"aria-labelledby": `majed-repo-preview-${record.id}`,
-				"data-majed-repo-preview": record.id
-			}, h("h5", { id: `majed-repo-preview-${record.id}` }, `${t("repoPreviewTitle")}: ${record.name}`), !repoPreviews[record.id].changes.length ? h("p", null, t("repoNoChanges")) : h("ul", null, ...repoPreviews[record.id].changes.map((change) => h("li", { key: change.path }, `${t(`repoChange.${change.kind}`)}: `, h("bdi", { dir: "ltr" }, change.path)))), h("p", null, t("repoTrackedHint")), repoPreviews[record.id].localModified ? h("div", { role: "alert" }, h("p", null, t("repoLocalModified")), h("label", null, h("input", {
+				"aria-labelledby": `waycraft-repo-preview-${record.id}`,
+				"data-waycraft-repo-preview": record.id
+			}, h("h5", { id: `waycraft-repo-preview-${record.id}` }, `${t("repoPreviewTitle")}: ${record.name}`), !repoPreviews[record.id].changes.length ? h("p", null, t("repoNoChanges")) : h("ul", null, ...repoPreviews[record.id].changes.map((change) => h("li", { key: change.path }, `${t(`repoChange.${change.kind}`)}: `, h("bdi", { dir: "ltr" }, change.path)))), h("p", null, t("repoTrackedHint")), repoPreviews[record.id].localModified ? h("div", { role: "alert" }, h("p", null, t("repoLocalModified")), h("label", null, h("input", {
 				type: "checkbox",
 				"aria-label": `${t("repoOverwrite")}: ${record.name}`,
 				checked: !!repoOverwrites[record.id],
@@ -1950,13 +1962,13 @@ function setupSkills(ctx, fail) {
 				"aria-label": `${t("cancel")}: ${record.name}`,
 				onClick: () => setRepoForgetting("")
 			}, t("cancel"))) : null))) : null, scope === "discover" && tab !== "git" && data && data.corrupt ? h("div", {
-				id: "majed-discover-panel",
+				id: "waycraft-discover-panel",
 				role: "tabpanel",
-				"aria-labelledby": `majed-discover-tab-${tab}`
+				"aria-labelledby": `waycraft-discover-tab-${tab}`
 			}) : null, scope === "discover" && tab !== "git" && data && !data.corrupt ? h("div", {
-				id: "majed-discover-panel",
+				id: "waycraft-discover-panel",
 				role: "tabpanel",
-				"aria-labelledby": `majed-discover-tab-${tab}`
+				"aria-labelledby": `waycraft-discover-tab-${tab}`
 			}, h(CatalogPanel, {
 				key: tab,
 				kind: tab,
@@ -1966,7 +1978,7 @@ function setupSkills(ctx, fail) {
 			})) : null, h("button", {
 				disabled: switching || data?.corrupt || scope === "project" && !project,
 				onClick: () => setImporting(!importing)
-			}, t("importSkills")), importing ? h("div", { "data-majed-import": true }, h("p", null, t("importHint")), scope === "global" ? h("select", {
+			}, t("importSkills")), importing ? h("div", { "data-waycraft-import": true }, h("p", null, t("importHint")), scope === "global" ? h("select", {
 				"aria-label": t("destination"),
 				value: createSource,
 				onChange: (event) => setCreateSource(event.target.value)
@@ -2102,7 +2114,7 @@ function setupSkills(ctx, fail) {
 				value: c.id
 			}, c.name))), scope === "global" || scope === "project" ? h("button", {
 				type: "button",
-				"data-majed-skills-refresh": true,
+				"data-waycraft-skills-refresh": true,
 				"aria-label": t("refreshAria"),
 				"aria-busy": refreshing,
 				disabled: refreshing || switching || inProject && !project,
@@ -2111,7 +2123,7 @@ function setupSkills(ctx, fail) {
 				setData(value);
 				setError(false);
 			}, load) }, t("retry"))) : !data || switching ? h("p", { role: "status" }, t("loading")) : h(React.Fragment, null, scope === "global" || inProject && data.project?.available ? h("div", {
-				"data-majed-skills-stats": true,
+				"data-waycraft-skills-stats": true,
 				role: "group",
 				"aria-label": t("statsAria")
 			}, stat(totals.total, "statSkill", "statSkills"), stat(totals.enabled, "statEnabled", "statEnabled"), stat(totals.disabled, "statDisabled", "statDisabled"), stat(totals.invalid, "statDiagnostic", "statDiagnostics")) : null, inProject ? null : h("div", null, h("button", {
@@ -2194,7 +2206,7 @@ function setupSkills(ctx, fail) {
 				return () => void placementListeners.delete(listener);
 			}, []);
 			return h("div", {
-				"data-majed-skills-placement": true,
+				"data-waycraft-skills-placement": true,
 				dir: isArabic() ? "rtl" : void 0
 			}, h("strong", null, t("placement")), h("p", null, t("placementHint")), ...[
 				"both",
@@ -2227,7 +2239,7 @@ function setupSkills(ctx, fail) {
 				if (disposed) return;
 				if (inSettings() && !offSettings) offSettings = ctx.slots.inject("settings.section", () => ctx.slots.register({
 					name: "settings.section",
-					id: "majed-skills",
+					id: "waycraft-skills",
 					order: 91,
 					label: () => t("title")
 				}, Section));
@@ -2238,20 +2250,21 @@ function setupSkills(ctx, fail) {
 				if (inSidebar() && !offSidebar) {
 					offMain = ctx.slots.register({
 						name: "main",
-						key: "majed-skills",
-						locale: "majed.skills",
+						key: "waycraft-skills",
+						locale: "waycraft.skills",
 						inject: () => ({})
 					}, () => h(Section));
 					offSidebar = ctx.slots.register({
 						name: "sidebar.panellist",
-						id: "majed-skills",
+						id: "waycraft-skills",
 						order: 92,
 						label: () => t("title"),
-						locale: "majed.skills"
+						locale: "waycraft.skills"
 					}, sidebarIcon);
+					mapLegacyPanel();
 				} else if (!inSidebar() && offSidebar) {
 					try {
-						if (layout?.panelInfo?.getSnapshot?.().activePanelId === "majed-skills") layout.selectPanel?.(null);
+						if (layout?.panelInfo?.getSnapshot?.().activePanelId === "waycraft-skills") layout.selectPanel?.(null);
 					} catch {}
 					offSidebar?.();
 					offMain?.();
@@ -2288,8 +2301,16 @@ function setupSkills(ctx, fail) {
 					throw failure;
 				}
 			};
+			const mapLegacyPanel = () => {
+				try {
+					const active = layout?.panelInfo?.getSnapshot?.().activePanelId;
+					const mapped = typeof active === "string" ? LEGACY_PANEL_IDS[active] : void 0;
+					if (mapped !== void 0) layout.selectPanel?.(mapped);
+				} catch {}
+			};
 			ctx.inject?.(["layout"], (injected) => {
 				layout = injected?.layout ?? injected;
+				mapLegacyPanel();
 			});
 			let delay = 3e3;
 			let timer;
@@ -2304,8 +2325,8 @@ function setupSkills(ctx, fail) {
 				if (disposed) return;
 				if (!offConfig) offConfig = ctx.slots.inject("plugins.bundle.config", () => ctx.slots.register({
 					name: "plugins.bundle.config",
-					key: "majed-skills",
-					locale: "majed.skills"
+					key: "waycraft-skills",
+					locale: "waycraft.skills"
 				}, (props) => props?.view === "summary" ? null : h(PlacementControl)));
 				apply(result?.placement);
 			}).catch(() => {
@@ -2322,7 +2343,7 @@ function setupSkills(ctx, fail) {
 				offMain?.();
 				offSidebar?.();
 			};
-		}, "majed-skills presence");
+		}, "waycraft-skills presence");
 	}
 }
 
@@ -2565,7 +2586,7 @@ function ImageGallery({ images, load, labels }) {
 //#endregion
 //#region src/subscriptions-rpc.ts
 async function callSubscriptionsAuth$1(rpc, endpoint, payload) {
-	const result = await rpc.call("/api", `majed-subscriptions.${endpoint}`, payload);
+	const result = await rpc.call("/api", `waycraft-subscriptions.${endpoint}`, payload);
 	if (!result?.ok) throw new Error(result?.error?.message ?? "Subscriptions unavailable");
 	return result.value;
 }
@@ -3491,13 +3512,13 @@ var subscriptions = {
 //#region src/settings/subscriptions-rpc.ts
 /**
 * The node half mounts every endpoint as an exact POST route on the shared
-* `/api` channel (`/api/majed-subscriptions.<endpoint>`), so the browser
+* `/api` channel (`/api/waycraft-subscriptions.<endpoint>`), so the browser
 * reaches it through the `/api` channel with a prefixed endpoint name.
 * A dedicated channel is no longer used: since dsh 0.1.5 `rpc.handle`
 * cannot register one from a plugin (see `src/auth/rpc.ts`).
 */
 const SUBSCRIPTIONS_AUTH_CHANNEL = "/api";
-const SUBSCRIPTIONS_AUTH_PREFIX = "majed-subscriptions.";
+const SUBSCRIPTIONS_AUTH_PREFIX = "waycraft-subscriptions.";
 /** Business error returned by a `subscriptions-auth` endpoint (error branch message). */
 var SubscriptionsAuthError = class extends Error {};
 /**
@@ -3740,7 +3761,7 @@ const ProviderModelEditor = (0, react.forwardRef)(function ProviderModelEditor$1
 			},
 			children: [
 				/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-					className: "majed-subscription-hint",
+					className: "waycraft-subscription-hint",
 					children: t("modelsHint")
 				}),
 				error && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
@@ -3751,7 +3772,7 @@ const ProviderModelEditor = (0, react.forwardRef)(function ProviderModelEditor$1
 					style: actions$1,
 					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
 						type: "button",
-						className: "majed-subscription-quiet",
+						className: "waycraft-subscription-quiet",
 						disabled: busy || disabled || dirty,
 						onClick: () => {
 							load(true);
@@ -3788,7 +3809,7 @@ const ProviderModelEditor = (0, react.forwardRef)(function ProviderModelEditor$1
 							t("modelsAutomatic")
 						] }),
 						editorState.listState === "provider-empty" ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-							className: "majed-subscription-hint",
+							className: "waycraft-subscription-hint",
 							children: t(editorState.noticeKey)
 						}) : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 							style: actions$1,
@@ -4018,7 +4039,7 @@ const ProviderModelEditor = (0, react.forwardRef)(function ProviderModelEditor$1
 //#endregion
 //#region src/settings/display-name-events.ts
 /** Notify mounted views after a successful save, without another quota request. */
-const DISPLAY_NAME_CHANGED = "majed-subscriptions-display-name-changed";
+const DISPLAY_NAME_CHANGED = "waycraft-subscriptions-display-name-changed";
 function notifyDisplayNameChange(provider, displayName) {
 	window.dispatchEvent(new CustomEvent(DISPLAY_NAME_CHANGED, { detail: {
 		provider,
@@ -4033,9 +4054,9 @@ function notifyDisplayNameChange(provider, displayName) {
 * with the dialog instead of relying on a separate CSS asset. Geometry and
 * theme tokens follow the host's settings-form and ui-primitives controls.
 */
-const formScope = ":is(.majed-subscription-manager, .majed-subscriptions-settings)";
+const formScope = ":is(.waycraft-subscription-manager, .waycraft-subscriptions-settings)";
 const providerSettingsCss = `
-.majed-subscription-manager {
+.waycraft-subscription-manager {
   box-sizing: border-box;
   padding: 0;
   border: 0;
@@ -4048,7 +4069,7 @@ const providerSettingsCss = `
   line-height: 1.5;
   color-scheme: light;
 }
-.majed-subscriptions-settings {
+.waycraft-subscriptions-settings {
   font-family: inherit;
   font-size: 13px;
   line-height: 1.5;
@@ -4057,7 +4078,7 @@ const providerSettingsCss = `
 body[data-ds-dark-theme] ${formScope} {
   color-scheme: dark;
 }
-.majed-subscription-manager::backdrop {
+.waycraft-subscription-manager::backdrop {
   background: var(--dsw-alias-bg-mask-1, #0006);
   backdrop-filter: var(--dsw-mask-blur, none);
 }
@@ -4072,7 +4093,7 @@ ${formScope} h3 {
   font-weight: 500;
 }
 ${formScope} strong,
-${formScope} .majed-subscription-label {
+${formScope} .waycraft-subscription-label {
   font-size: 13px;
   line-height: 1.5;
   font-weight: 500;
@@ -4083,7 +4104,7 @@ ${formScope} legend {
   font-weight: 500;
 }
 ${formScope} small,
-${formScope} .majed-subscription-hint,
+${formScope} .waycraft-subscription-hint,
 ${formScope} [role="status"] {
   margin: 0;
   font-size: 12px;
@@ -4179,24 +4200,24 @@ ${formScope} button:disabled {
   opacity: 0.4;
   cursor: default;
 }
-${formScope} button.majed-subscription-quiet {
+${formScope} button.waycraft-subscription-quiet {
   border-color: transparent;
   color: var(--dsw-alias-label-secondary, var(--dsw-alias-label-primary));
 }
-${formScope} :is(footer, .majed-subscription-dialog-actions) button {
+${formScope} :is(footer, .waycraft-subscription-dialog-actions) button {
   min-height: 34px;
   padding: 0 14px;
   border-radius: var(--dsw-radius-md, 8px);
   font-size: 13px;
   line-height: 1.5;
 }
-${formScope} button.majed-subscription-primary {
+${formScope} button.waycraft-subscription-primary {
   border-color: transparent;
   background: var(--dsw-alias-button-primary-fill, var(--dsw-alias-label-primary));
   color: var(--dsw-alias-label-primary-foreground, var(--dsw-alias-bg-layer-1));
   font-weight: 500;
 }
-${formScope} button.majed-subscription-primary:hover:not(:disabled) {
+${formScope} button.waycraft-subscription-primary:hover:not(:disabled) {
   background: var(--dsw-alias-button-primary-hover, var(--dsw-alias-label-secondary));
 }
 ${formScope} button:focus-visible,
@@ -4214,35 +4235,35 @@ ${formScope} summary:hover {
 `;
 /** Composer controls retain their own geometry, separate from settings forms. */
 const subscriptionChromeCss = `
-.majed-subscription-usage-pill { corner-shape: round; touch-action: manipulation; }
-.majed-subscription-usage-pill>svg { flex-shrink: 0; }
-.majed-subscription-usage-close {
+.waycraft-subscription-usage-pill { corner-shape: round; touch-action: manipulation; }
+.waycraft-subscription-usage-pill>svg { flex-shrink: 0; }
+.waycraft-subscription-usage-close {
   display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
   inline-size: 28px; block-size: 28px; padding: 0; border: 0; border-radius: var(--dsw-radius-sm, 8px);
   color: var(--dsw-alias-label-secondary); background: transparent; cursor: pointer;
 }
-.majed-subscription-usage-close:hover { background: var(--dsw-alias-interactive-bg-hover); }
-.majed-subscription-usage-close:focus-visible {
+.waycraft-subscription-usage-close:hover { background: var(--dsw-alias-interactive-bg-hover); }
+.waycraft-subscription-usage-close:focus-visible {
   outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px;
 }
 @media (max-width: 480px) {
-  .majed-subscription-usage-pill { max-inline-size: min(220px, calc(100vw - 24px)); }
-  .majed-subscription-usage-panel { padding: 12px !important; }
+  .waycraft-subscription-usage-pill { max-inline-size: min(220px, calc(100vw - 24px)); }
+  .waycraft-subscription-usage-panel { padding: 12px !important; }
 }
-.majed-subscription-usage-tooltip,
-.majed-subscription-usage-panel {
+.waycraft-subscription-usage-tooltip,
+.waycraft-subscription-usage-panel {
   --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
   backdrop-filter: var(--dsw-menu-backdrop-filter, none);
 }
-.majed-subscription-speed button:hover:not(:disabled) {
-  --majed-subscription-speed-hover: var(--dsw-alias-interactive-bg-hover);
+.waycraft-subscription-speed button:hover:not(:disabled) {
+  --waycraft-subscription-speed-hover: var(--dsw-alias-interactive-bg-hover);
 }
-.majed-subscription-speed button:active:not(:disabled) {
-  --majed-subscription-speed-hover: var(--dsw-alias-interactive-bg-active);
+.waycraft-subscription-speed button:active:not(:disabled) {
+  --waycraft-subscription-speed-hover: var(--dsw-alias-interactive-bg-active);
 }
-.majed-subscription-speed button:disabled { opacity: 0.4; cursor: default; }
-.majed-subscription-speed button:focus-visible,
-.majed-subscription-usage-pill:focus-visible {
+.waycraft-subscription-speed button:disabled { opacity: 0.4; cursor: default; }
+.waycraft-subscription-speed button:focus-visible,
+.waycraft-subscription-usage-pill:focus-visible {
   outline: var(--dsw-focus-ring-width, 2px) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: 2px;
 }
@@ -4380,7 +4401,7 @@ function ProviderAccountManager({ provider, name, rpc, t, onClose }) {
 		}
 	}
 	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("dialog", {
-		className: "majed-subscription-manager",
+		className: "waycraft-subscription-manager",
 		ref: dialog,
 		"aria-labelledby": title,
 		"aria-describedby": description,
@@ -4419,7 +4440,7 @@ function ProviderAccountManager({ provider, name, rpc, t, onClose }) {
 				}),
 				/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
 					id: description,
-					className: "majed-subscription-hint",
+					className: "waycraft-subscription-hint",
 					children: t("accountsHint")
 				}),
 				error && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
@@ -4428,7 +4449,7 @@ function ProviderAccountManager({ provider, name, rpc, t, onClose }) {
 				}),
 				loading && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
 					role: "status",
-					className: "majed-subscription-hint",
+					className: "waycraft-subscription-hint",
 					children: t("accountsLoading")
 				}),
 				!loading && !catalog && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
@@ -4471,7 +4492,7 @@ function ProviderAccountManager({ provider, name, rpc, t, onClose }) {
 									justifyContent: "space-between"
 								},
 								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", {
-									className: "majed-subscription-hint",
+									className: "waycraft-subscription-hint",
 									children: t("subscriptionDisplayNameHint")
 								}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
 									type: "button",
@@ -4512,13 +4533,13 @@ function ProviderAccountManager({ provider, name, rpc, t, onClose }) {
 									}, ttl))]
 								}),
 								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", {
-									className: "majed-subscription-hint",
+									className: "waycraft-subscription-hint",
 									children: t("claudePromptCacheTtlHint")
 								})
 							]
 						}),
 						catalog.accounts.length === 0 && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-							className: "majed-subscription-hint",
+							className: "waycraft-subscription-hint",
 							children: t("accountsEmpty")
 						}),
 						catalog.accounts.map((account) => {
@@ -4543,7 +4564,7 @@ function ProviderAccountManager({ provider, name, rpc, t, onClose }) {
 										children: account.label
 									}),
 									account.unavailable && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-										className: "majed-subscription-hint",
+										className: "waycraft-subscription-hint",
 										children: t("accountsCatalogUnavailable")
 									}),
 									/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
@@ -4552,7 +4573,7 @@ function ProviderAccountManager({ provider, name, rpc, t, onClose }) {
 											gap: 6
 										},
 										children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-											className: "majed-subscription-label",
+											className: "waycraft-subscription-label",
 											children: t("accountsAlias")
 										}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
 											value: preferences.alias ?? "",
@@ -4590,7 +4611,7 @@ function ProviderAccountManager({ provider, name, rpc, t, onClose }) {
 										t("accountsIndependent")
 									] }),
 									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-										className: "majed-subscription-hint",
+										className: "waycraft-subscription-hint",
 										children: t("accountsIndependentHint")
 									}),
 									/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("details", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("summary", {
@@ -4611,7 +4632,7 @@ function ProviderAccountManager({ provider, name, rpc, t, onClose }) {
 										},
 										children: [
 											/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-												className: "majed-subscription-hint",
+												className: "waycraft-subscription-hint",
 												children: t("accountsModelsHint")
 											}),
 											/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", { children: [
@@ -4674,7 +4695,7 @@ function ProviderAccountManager({ provider, name, rpc, t, onClose }) {
 														model.unavailable && ` (${t("modelsUnavailable")})`
 													]
 												}, model.id)), models.length === 0 && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-													className: "majed-subscription-hint",
+													className: "waycraft-subscription-hint",
 													children: t("accountsNoModels")
 												})]
 											})
@@ -4718,7 +4739,7 @@ function ProviderAccountManager({ provider, name, rpc, t, onClose }) {
 							children: t("cancel")
 						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
 							type: "button",
-							className: "majed-subscription-primary",
+							className: "waycraft-subscription-primary",
 							disabled: loading || saving || !Object.keys(changes).length && !modelsDirty && !nameDirty && !cacheTtlDirty,
 							onClick: () => {
 								save();
@@ -4933,7 +4954,7 @@ const styles$3 = {
 function providerIdentity(h, t, name, accounts, usage, clientVersion) {
 	const account = accounts.find((value) => value.isDefault) ?? accounts[0];
 	const plan = account?.plan ?? usage[account?.key]?.plan;
-	return h("div", { className: "majed-provider-identity" }, h("div", { className: "majed-provider-summary" }, h("span", { style: styles$3.name }, name), h("span", { style: styles$3.statusLine }, `${accounts.length} ${t("accountCount")}`), plan ? h("bdi", { style: styles$3.usagePlan }, plan) : null), clientVersion ? h("span", {
+	return h("div", { className: "waycraft-provider-identity" }, h("div", { className: "waycraft-provider-summary" }, h("span", { style: styles$3.name }, name), h("span", { style: styles$3.statusLine }, `${accounts.length} ${t("accountCount")}`), plan ? h("bdi", { style: styles$3.usagePlan }, plan) : null), clientVersion ? h("span", {
 		style: styles$3.clientVersion,
 		title: t("clientVersionHint")
 	}, "CLI ", h("bdi", { dir: "ltr" }, clientVersion.version), " · ", t(`source_${clientVersion.source}`)) : null);
@@ -4944,7 +4965,7 @@ function providerStatus(h, t, state, label) {
 		role: "img",
 		"aria-label": t(label),
 		title: t(label),
-		"data-majed-provider-status": state,
+		"data-waycraft-provider-status": state,
 		style: {
 			...styles$3.dot,
 			background: color
@@ -4954,7 +4975,7 @@ function providerStatus(h, t, state, label) {
 function providerDisclosure(h, t, name, expanded, toggle) {
 	return h("button", {
 		type: "button",
-		className: "majed-provider-disclosure",
+		className: "waycraft-provider-disclosure",
 		"aria-label": `${t("subscriptionDetails")}: ${name}`,
 		"aria-expanded": expanded,
 		onClick: toggle
@@ -4973,12 +4994,12 @@ function providerDisclosure(h, t, name, expanded, toggle) {
 		strokeLinejoin: "round"
 	})));
 }
-const controlCss = `.majed-subscriptions-settings button.majed-provider-disclosure{inline-size:28px;min-height:28px;padding:0;border:0;background:transparent}
-.majed-provider-identity{display:flex;flex-direction:column;flex:1 1 160px;min-inline-size:0}
-.majed-provider-summary{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
-[dir=rtl] .majed-provider-disclosure svg{scale:-1 1}
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) input:not([type="checkbox"]),
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) select {
+const controlCss = `.waycraft-subscriptions-settings button.waycraft-provider-disclosure{inline-size:28px;min-height:28px;padding:0;border:0;background:transparent}
+.waycraft-provider-identity{display:flex;flex-direction:column;flex:1 1 160px;min-inline-size:0}
+.waycraft-provider-summary{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+[dir=rtl] .waycraft-provider-disclosure svg{scale:-1 1}
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) input:not([type="checkbox"]),
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) select {
   box-sizing: border-box;
   min-width: 0;
   height: 34px;
@@ -4992,29 +5013,29 @@ const controlCss = `.majed-subscriptions-settings button.majed-provider-disclosu
   font-weight: 400;
   line-height: 1.5;
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) input::placeholder {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) input::placeholder {
   color: var(--dsw-alias-label-secondary);
   opacity: 1;
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) input:not([type="checkbox"]):focus-visible,
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) select:focus-visible {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) input:not([type="checkbox"]):focus-visible,
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) select:focus-visible {
   outline: 2px solid var(--dsw-alias-brand-primary);
   outline-offset: 2px;
   border-color: var(--dsw-alias-brand-primary);
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) input:not([type="checkbox"]):disabled,
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) select:disabled {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) input:not([type="checkbox"]):disabled,
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) select:disabled {
   color: var(--dsw-alias-label-secondary);
   cursor: default;
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) input[aria-invalid="true"] {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) input[aria-invalid="true"] {
   border-color: var(--dsw-alias-state-error-primary);
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) option {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) option {
   background: var(--dsw-alias-bg-layer-2, var(--dsw-alias-bg-layer-1));
   color: var(--dsw-alias-label-primary);
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) label:has(> input[type="checkbox"]) {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) label:has(> input[type="checkbox"]) {
   display: flex;
   align-items: flex-start;
   gap: 6px;
@@ -5022,7 +5043,7 @@ const controlCss = `.majed-subscriptions-settings button.majed-provider-disclosu
   line-height: 20px;
   cursor: pointer;
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) input[type="checkbox"] {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) input[type="checkbox"] {
   flex: 0 0 auto;
   width: 16px;
   height: 16px;
@@ -5030,11 +5051,11 @@ const controlCss = `.majed-subscriptions-settings button.majed-provider-disclosu
   accent-color: var(--dsw-alias-brand-primary);
   cursor: inherit;
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) label:has(> input[type="checkbox"]:disabled) {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) label:has(> input[type="checkbox"]:disabled) {
   cursor: default;
   opacity: 0.5;
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) button {
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;
@@ -5054,56 +5075,56 @@ const controlCss = `.majed-subscriptions-settings button.majed-provider-disclosu
   line-height: 18px;
   cursor: pointer;
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button:hover:not(:disabled) {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) button:hover:not(:disabled) {
   background: var(--dsw-alias-interactive-bg-hover, var(--dsw-alias-bg-layer-1));
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button:active:not(:disabled) {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) button:active:not(:disabled) {
   background: var(--dsw-alias-interactive-bg-active, var(--dsw-alias-bg-layer-1));
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button:disabled {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) button:disabled {
   opacity: 0.4;
   cursor: default;
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button.majed-subscription-quiet {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) button.waycraft-subscription-quiet {
   border-color: transparent;
   color: var(--dsw-alias-label-secondary, var(--dsw-alias-label-primary));
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) :is(footer, .majed-subscription-dialog-actions) button {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) :is(footer, .waycraft-subscription-dialog-actions) button {
   min-height: 34px;
   padding: 0 14px;
   border-radius: var(--dsw-radius-md, 8px);
   font-size: 13px;
   line-height: 1.5;
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button.majed-subscription-primary {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) button.waycraft-subscription-primary {
   border-color: transparent;
   background: var(--dsw-alias-button-primary-fill, var(--dsw-alias-label-primary));
   color: var(--dsw-alias-label-primary-foreground, var(--dsw-alias-bg-layer-1));
   font-weight: 500;
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button.majed-subscription-primary:hover:not(:disabled) {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) button.waycraft-subscription-primary:hover:not(:disabled) {
   background: var(--dsw-alias-button-primary-hover, var(--dsw-alias-label-secondary));
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button:focus-visible,
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) input[type="checkbox"]:focus-visible,
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) summary:focus-visible {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) button:focus-visible,
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) input[type="checkbox"]:focus-visible,
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) summary:focus-visible {
   outline: var(--dsw-focus-ring-width, 2px) solid var(--dsw-focus-ring-color, var(--dsw-alias-brand-primary));
   outline-offset: 2px;
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) summary {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) summary {
   border-radius: var(--dsw-radius-sm, 6px);
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) summary:hover {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) summary:hover {
   color: var(--dsw-alias-label-secondary, var(--dsw-alias-label-primary));
 }
 
-.majed-reset-credits > summary::-webkit-details-marker { display:none; }
-.majed-reset-credits[open] > summary > svg { transform:rotate(90deg); }
-[dir="rtl"] .majed-reset-credits > summary > svg { transform:scaleX(-1); }
-[dir="rtl"] .majed-reset-credits[open] > summary > svg { transform:rotate(90deg); }
-.majed-reset-dialog::backdrop { background:var(--dsw-alias-bg-mask-1); backdrop-filter:var(--dsw-mask-blur, none); }
-.majed-subscriptions-settings { font:var(--dsw-font-s-13); }
-.majed-subscriptions-settings a { color:var(--dsw-alias-state-business-primary); text-underline-offset: .15em; }
+.waycraft-reset-credits > summary::-webkit-details-marker { display:none; }
+.waycraft-reset-credits[open] > summary > svg { transform:rotate(90deg); }
+[dir="rtl"] .waycraft-reset-credits > summary > svg { transform:scaleX(-1); }
+[dir="rtl"] .waycraft-reset-credits[open] > summary > svg { transform:rotate(90deg); }
+.waycraft-reset-dialog::backdrop { background:var(--dsw-alias-bg-mask-1); backdrop-filter:var(--dsw-mask-blur, none); }
+.waycraft-subscriptions-settings { font:var(--dsw-font-s-13); }
+.waycraft-subscriptions-settings a { color:var(--dsw-alias-state-business-primary); text-underline-offset: .15em; }
 `;
 function createCodexCard(React, primitives$1, rpc, t) {
 	const h = React.createElement;
@@ -5125,7 +5146,7 @@ function createCodexCard(React, primitives$1, rpc, t) {
 		const usageRequests = React.useRef(/* @__PURE__ */ new Map());
 		const accountKeys = React.useRef(/* @__PURE__ */ new Set());
 		const call = async (endpoint, payload = {}) => {
-			const response = await rpc.call("/api", `majed-subscriptions.${endpoint}`, {
+			const response = await rpc.call("/api", `waycraft-subscriptions.${endpoint}`, {
 				provider: "codex",
 				...payload
 			});
@@ -5224,7 +5245,7 @@ function createCodexCard(React, primitives$1, rpc, t) {
 		});
 		const part = (name, style, ...children) => h("div", {
 			style,
-			"data-majed-codex-part": name
+			"data-waycraft-codex-part": name
 		}, ...children);
 		const startLogin = () => {
 			action(async () => {
@@ -5270,8 +5291,8 @@ function createCodexCard(React, primitives$1, rpc, t) {
 				} : {},
 				textAlign: "start"
 			},
-			className: "majed-subscriptions-settings",
-			"data-majed-codex-card": true
+			className: "waycraft-subscriptions-settings",
+			"data-waycraft-codex-card": true
 		}, h("style", null, controlCss), manager ? h(ProviderAccountManager, {
 			provider: "codex",
 			name: status?.displayName || "Codex (ChatGPT)",
@@ -5299,7 +5320,7 @@ function createCodexCard(React, primitives$1, rpc, t) {
 			return h("div", {
 				key: account.key,
 				style: styles$3.accountRow,
-				"data-majed-codex-part": "account"
+				"data-waycraft-codex-part": "account"
 			}, part("account-header", styles$3.accountHeader, button(account.isDefault ? "★" : "☆", () => {
 				if (!account.isDefault) action(async () => {
 					await call("setDefault", { account: account.key });
@@ -5346,7 +5367,7 @@ function createCodexCard(React, primitives$1, rpc, t) {
 				style: styles$3.errorLine,
 				role: "alert"
 			}, t("creditsUnavailable"), " ", snapshot.resetCreditsError) : null, snapshot?.resetCredits ? h("details", {
-				className: "majed-reset-credits",
+				className: "waycraft-reset-credits",
 				style: styles$3.usageRow
 			}, h("summary", { style: {
 				...styles$3.usageMeta,
@@ -5431,7 +5452,7 @@ function createCodexCard(React, primitives$1, rpc, t) {
 			ref: (node) => {
 				if (node && !node.open) node.showModal();
 			},
-			className: "majed-reset-dialog",
+			className: "waycraft-reset-dialog",
 			role: "dialog",
 			"aria-modal": true,
 			"aria-label": t(confirmation.kind === "logout" ? "confirmLogout" : "confirmReset"),
@@ -5459,7 +5480,7 @@ function createCodexCard(React, primitives$1, rpc, t) {
 			checked: acknowledged,
 			onChange: (event) => setAcknowledged(event.target.checked)
 		}), t("resetAcknowledge")) : null, h("div", {
-			className: "majed-subscription-dialog-actions",
+			className: "waycraft-subscription-dialog-actions",
 			style: {
 				...styles$3.actions,
 				justifyContent: "flex-end",
@@ -5476,7 +5497,7 @@ function createCodexCard(React, primitives$1, rpc, t) {
 				await refreshStatus();
 				if (confirmation.kind === "reset") await refreshUsage(confirmation.account, true);
 			});
-		}, confirmation.kind === "reset" && (!acknowledged || Date.now() >= confirmation.expiresAt), { className: confirmation.kind === "reset" ? "majed-subscription-primary" : void 0 }))) : null);
+		}, confirmation.kind === "reset" && (!acknowledged || Date.now() >= confirmation.expiresAt), { className: confirmation.kind === "reset" ? "waycraft-subscription-primary" : void 0 }))) : null);
 	};
 }
 
@@ -5561,7 +5582,7 @@ function ProxySettings({ rpc, t }) {
 		}
 	};
 	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("section", {
-		className: "majed-proxy-settings",
+		className: "waycraft-proxy-settings",
 		children: [
 			/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("header", { children: [
 				/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", { children: t("proxyTitle") }),
@@ -5593,9 +5614,9 @@ function ProxySettings({ rpc, t }) {
 				children: error
 			}),
 			open && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("dialog", {
-				className: "majed-subscription-manager majed-proxy-dialog",
+				className: "waycraft-subscription-manager waycraft-proxy-dialog",
 				ref: dialog,
-				"aria-labelledby": "majed-proxy-title",
+				"aria-labelledby": "waycraft-proxy-title",
 				onCancel: close,
 				style: {
 					width: 620,
@@ -5619,7 +5640,7 @@ function ProxySettings({ rpc, t }) {
 							gap: 12
 						},
 						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("h2", {
-							id: "majed-proxy-title",
+							id: "waycraft-proxy-title",
 							style: { margin: 0 },
 							children: t("proxyDialogTitle")
 						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
@@ -5659,7 +5680,7 @@ function ProxySettings({ rpc, t }) {
 										onChange: (event) => field(key, event.target.value)
 									}),
 									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", {
-										className: "majed-subscription-hint",
+										className: "waycraft-subscription-hint",
 										children: t(`proxy${key[0].toUpperCase()}${key.slice(1)}Hint`)
 									})
 								]
@@ -5670,7 +5691,7 @@ function ProxySettings({ rpc, t }) {
 								onChange: (event) => field("clearPassword", event.target.checked)
 							}), t("proxyClearPassword")] }),
 							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-								className: "majed-subscription-hint",
+								className: "waycraft-subscription-hint",
 								children: t("proxyNote")
 							}),
 							error && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
@@ -6025,7 +6046,7 @@ function createApiProviders(React, remote, t, primitives$1 = require("@deepseek-
 		}
 		const button = (key, onClick, disabled = false, cancellation = false) => h("button", {
 			type: "button",
-			className: key === "apiAdd" ? "majed-api-add-trigger" : void 0,
+			className: key === "apiAdd" ? "waycraft-api-add-trigger" : void 0,
 			style: {
 				...control,
 				...key === "apiAdd" ? {
@@ -6039,7 +6060,7 @@ function createApiProviders(React, remote, t, primitives$1 = require("@deepseek-
 			disabled: busy || !cancellation && !!authFlow?.busy || disabled,
 			...key === "apiAdd" ? { ref: addButton } : {}
 		}, t(key));
-		const field = (key, value, onChange, type = "text") => h("label", { className: "majed-api-field" }, t(key), h("input", {
+		const field = (key, value, onChange, type = "text") => h("label", { className: "waycraft-api-field" }, t(key), h("input", {
 			"aria-label": t(key),
 			type,
 			value,
@@ -6059,7 +6080,7 @@ function createApiProviders(React, remote, t, primitives$1 = require("@deepseek-
 			return ns !== void 0 && (entry.settingsPath.length === 0 || at(ns.value, entry.settingsPath) !== void 0);
 		};
 		const addable = snapshot?.rows.filter((entry) => nsOf(entry) && !configured(entry)) ?? [];
-		const select = (key, value, onChange, options) => h("label", { className: "majed-api-field" }, t(key), h("select", {
+		const select = (key, value, onChange, options) => h("label", { className: "waycraft-api-field" }, t(key), h("select", {
 			"aria-label": t(key),
 			value,
 			style: control,
@@ -6085,11 +6106,11 @@ function createApiProviders(React, remote, t, primitives$1 = require("@deepseek-
 		const editor = () => h("div", {
 			role: "group",
 			"aria-label": t("apiEditor"),
-			className: "majed-api-editor"
+			className: "waycraft-api-editor"
 		}, draft.custom ? field("apiRoute", draft.entry.provider, (v) => change("entry", {
 			...draft.entry,
 			provider: v
-		})) : h("bdi", { className: "majed-api-muted" }, draft.entry.provider), field("apiName", draft.profile.displayName ?? "", (v) => profileChange("displayName", v)), field("apiURL", draft.profile.baseURL ?? "", (v) => profileChange("baseURL", v)), draft.custom ? select("apiProtocol", draft.profile.api, (v) => profileChange("api", v), [
+		})) : h("bdi", { className: "waycraft-api-muted" }, draft.entry.provider), field("apiName", draft.profile.displayName ?? "", (v) => profileChange("displayName", v)), field("apiURL", draft.profile.baseURL ?? "", (v) => profileChange("baseURL", v)), draft.custom ? select("apiProtocol", draft.profile.api, (v) => profileChange("api", v), [
 			"openai-completions",
 			"openai-responses",
 			"anthropic-messages"
@@ -6103,12 +6124,12 @@ function createApiProviders(React, remote, t, primitives$1 = require("@deepseek-
 		].map((v) => h("option", {
 			key: v,
 			value: v
-		}, t(`apiKey_${v}`)))), draft.keyAction === "set" ? field("apiKey", draft.key, (v) => change("key", v), "password") : null, h("p", { className: "majed-api-muted" }, t("apiKeyLimit")), h("div", { className: "majed-api-head" }, h("strong", null, t("apiModels")), button("apiFetch", () => {
+		}, t(`apiKey_${v}`)))), draft.keyAction === "set" ? field("apiKey", draft.key, (v) => change("key", v), "password") : null, h("p", { className: "waycraft-api-muted" }, t("apiKeyLimit")), h("div", { className: "waycraft-api-head" }, h("strong", null, t("apiModels")), button("apiFetch", () => {
 			run(discover);
 		})), ...draft.models.map((model, index) => h("div", {
 			key: index,
-			className: "majed-api-model",
-			"data-majed-api-model": index
+			className: "waycraft-api-model",
+			"data-waycraft-api-model": index
 		}, field("apiModelID", model.id, (v) => change("models", draft.models.map((m, i) => i === index ? {
 			...m,
 			id: v
@@ -6118,7 +6139,7 @@ function createApiProviders(React, remote, t, primitives$1 = require("@deepseek-
 		} : m))), button("apiModelRemove", () => change("models", draft.models.filter((_, i) => i !== index))))), button("apiModelAdd", () => change("models", [...draft.models, {
 			id: "",
 			name: ""
-		}])), h("p", { className: "majed-api-muted" }, t("apiModelsHint")), h("div", { className: "majed-api-actions" }, button("apiSave", () => {
+		}])), h("p", { className: "waycraft-api-muted" }, t("apiModelsHint")), h("div", { className: "waycraft-api-actions" }, button("apiSave", () => {
 			run(save);
 		}), button("apiCancel", close, false, true)));
 		const openAdd = (group) => {
@@ -6129,11 +6150,11 @@ function createApiProviders(React, remote, t, primitives$1 = require("@deepseek-
 			setAddMode(group === "subscription" ? "subscription" : "catalog");
 			if (group === "api" && addable[0]) edit(addable[0]);
 		};
-		const addPanel = () => h("div", { className: `majed-api-add${addMode !== "subscription" ? " majed-api-add-open" : " majed-subscription-add-open"}` }, addOpen ? h(React.Fragment, null, addOrigin.current === "subscription" ? null : h(primitives$1.SegmentedControl, {
-			id: "majed-provider-add-mode",
+		const addPanel = () => h("div", { className: `waycraft-api-add${addMode !== "subscription" ? " waycraft-api-add-open" : " waycraft-subscription-add-open"}` }, addOpen ? h(React.Fragment, null, addOrigin.current === "subscription" ? null : h(primitives$1.SegmentedControl, {
+			id: "waycraft-provider-add-mode",
 			value: addMode,
 			label: t("apiAdd"),
-			className: "majed-api-tabs",
+			className: "waycraft-api-tabs",
 			disabled: busy || !!authFlow?.busy,
 			onChange: switchMode,
 			options: ["catalog", "custom"].map((mode) => ({
@@ -6143,9 +6164,9 @@ function createApiProviders(React, remote, t, primitives$1 = require("@deepseek-
 			}))
 		}), h("div", {
 			role: addOrigin.current === "subscription" ? "group" : "tabpanel",
-			id: `majed-provider-add-mode-${addMode}-panel`,
+			id: `waycraft-provider-add-mode-${addMode}-panel`,
 			"aria-label": addOrigin.current === "subscription" ? t("subscriptionAdd") : void 0,
-			"aria-labelledby": addOrigin.current === "subscription" ? void 0 : `majed-provider-add-mode-${addMode}`
+			"aria-labelledby": addOrigin.current === "subscription" ? void 0 : `waycraft-provider-add-mode-${addMode}`
 		}, addMode === "catalog" ? select("apiCatalog", draft?.entry.provider ?? "", (v) => {
 			const entry = addable.find((e) => e.provider === v);
 			if (entry) edit(entry);
@@ -6164,45 +6185,45 @@ function createApiProviders(React, remote, t, primitives$1 = require("@deepseek-
 		}, subscriptions$2.providers.map((p) => h("option", {
 			key: p.id,
 			value: p.id
-		}, p.name))), subscriptions$2.renderAuth(subscription || subscriptions$2.providers[0]?.id, close, setAuthFlow), h("div", { className: "majed-subscription-add-actions" }, button("cancel", () => run(async () => {
+		}, p.name))), subscriptions$2.renderAuth(subscription || subscriptions$2.providers[0]?.id, close, setAuthFlow), h("div", { className: "waycraft-subscription-add-actions" }, button("cancel", () => run(async () => {
 			if (!authFlow?.cancel || await authFlow.cancel()) close();
 		}), false, true))) : draft ? editor() : button("apiCancel", close, false, true))) : null);
 		return h("div", {
-			"data-majed-api-providers": true,
+			"data-waycraft-api-providers": true,
 			"aria-busy": busy,
-			className: "majed-api-section"
+			className: "waycraft-api-section"
 		}, h("style", null, `
-        .majed-provider-group{display:flex;flex-direction:column;gap:12px;min-inline-size:0}.majed-provider-group+.majed-provider-group{margin-block-start:12px}.majed-provider-title{margin:0;font-size:16px;line-height:24px;font-weight:500}
-        .majed-api-section{max-inline-size:720px;min-inline-size:0;display:flex;flex-direction:column;gap:12px;text-align:start;color:var(--dsw-alias-label-primary);font-size:14px;line-height:22px}
-        .majed-api-section *{box-sizing:border-box}.majed-api-section p{margin:0}
-        .majed-api-rows{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}.majed-api-rows>li{min-inline-size:0}
-        .majed-api-row{border:0.5px solid var(--dsw-alias-settings-card-stroke,var(--dsw-alias-border-l2));background:var(--dsw-alias-settings-card-fill,var(--dsw-alias-bg-layer-2));border-radius:var(--dsw-radius-xl,20px);padding:14px 16px;min-inline-size:0}
-        .majed-api-head,.majed-api-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-        .majed-api-identity{display:flex;flex-direction:column;align-items:flex-start;gap:4px;flex:1 1 180px;min-inline-size:0;overflow-wrap:anywhere}.majed-api-identity strong{font-weight:500}
-        .majed-api-actions{margin-inline-start:auto}.majed-api-muted{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px;overflow-wrap:anywhere}
-        .majed-api-editor{display:flex;flex-direction:column;gap:14px;padding-block:14px 4px;margin-block-start:12px;border-block-start:0.5px solid var(--dsw-alias-border-l2)}
-        .majed-api-field{display:flex;flex-direction:column;gap:6px;min-inline-size:0;font-size:12px;line-height:18px;font-weight:500}.majed-api-field input,.majed-api-field select{inline-size:100%;font-size:14px;line-height:22px;font-weight:400}
-        .majed-api-model{display:grid;grid-template-columns:repeat(2,minmax(0,1fr)) auto;gap:8px;align-items:end}
-        .majed-api-add{margin-block-start:4px;min-inline-size:0}.majed-api-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-block-end:14px}.majed-api-tabs [aria-selected=true]{font-weight:500;background:var(--dsw-alias-interactive-secondary-hover,var(--dsw-alias-bg-layer-1))}
-        .majed-api-section .majed-subscription-add-trigger{display:flex;align-items:center;justify-content:center;gap:6px;inline-size:100%;min-block-size:44px;padding:0 14px;border:1px dashed var(--dsw-alias-border-l3,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-lg,16px);background:transparent;color:inherit;font:inherit}
-        .majed-api-section .majed-subscription-add-trigger:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-1))}
-        .majed-subscription-add-open{padding:14px 16px;border-radius:var(--dsw-radius-lg,16px);background:var(--dsw-alias-bg-module-platform,var(--dsw-alias-bg-layer-1))}
-        .majed-subscription-add-actions{display:flex;justify-content:flex-end;gap:8px}
-        .majed-subscription-add-actions>button{flex:0 0 auto;inline-size:auto}
-        .majed-api-section .majed-subscriptions-settings :is([data-majed-codex-part=header],[data-majed-claude-part=header],[data-majed-grok-part=header],[data-majed-antigravity-part=header],[data-majed-copilot-part=header])>button:not(.majed-provider-disclosure){height:28px;block-size:28px;min-height:28px;padding:0 10px;border-radius:var(--dsw-radius-sm,8px);font-size:12px;line-height:18px}
-        .majed-subscription-add-open [data-majed-codex-part=card],.majed-subscription-add-open [data-majed-claude-part=card],.majed-subscription-add-open [data-majed-grok-part=card],.majed-subscription-add-open [data-majed-antigravity-part=card],.majed-subscription-add-open [data-majed-copilot-part=card]{border:0!important;background:transparent!important;padding:0!important}
-        .majed-api-add-open{padding:14px 16px;border:0.5px solid var(--dsw-alias-settings-card-stroke,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-xl,20px);background:var(--dsw-alias-settings-card-fill,var(--dsw-alias-bg-layer-2))}
-        .majed-api-add>:is([role=tabpanel],[role=group]){display:flex;flex-direction:column;gap:14px;min-inline-size:0}.majed-api-add>:is([role=tabpanel],[role=group])>.majed-api-editor{margin-block-start:0}
-        .majed-api-section button{cursor:pointer;max-inline-size:100%;white-space:normal;overflow-wrap:anywhere}.majed-api-section button:hover:not(:disabled){background:var(--dsw-alias-interactive-secondary-hover,var(--dsw-alias-bg-layer-1))}
-        .majed-api-section :is(button,input,select):focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}.majed-api-section :disabled{opacity:.5;cursor:not-allowed}
-        @media(max-width:520px){.majed-api-model{grid-template-columns:minmax(0,1fr)}.majed-api-model button{justify-self:start}.majed-api-actions{margin-inline-start:0}}
+        .waycraft-provider-group{display:flex;flex-direction:column;gap:12px;min-inline-size:0}.waycraft-provider-group+.waycraft-provider-group{margin-block-start:12px}.waycraft-provider-title{margin:0;font-size:16px;line-height:24px;font-weight:500}
+        .waycraft-api-section{max-inline-size:720px;min-inline-size:0;display:flex;flex-direction:column;gap:12px;text-align:start;color:var(--dsw-alias-label-primary);font-size:14px;line-height:22px}
+        .waycraft-api-section *{box-sizing:border-box}.waycraft-api-section p{margin:0}
+        .waycraft-api-rows{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}.waycraft-api-rows>li{min-inline-size:0}
+        .waycraft-api-row{border:0.5px solid var(--dsw-alias-settings-card-stroke,var(--dsw-alias-border-l2));background:var(--dsw-alias-settings-card-fill,var(--dsw-alias-bg-layer-2));border-radius:var(--dsw-radius-xl,20px);padding:14px 16px;min-inline-size:0}
+        .waycraft-api-head,.waycraft-api-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+        .waycraft-api-identity{display:flex;flex-direction:column;align-items:flex-start;gap:4px;flex:1 1 180px;min-inline-size:0;overflow-wrap:anywhere}.waycraft-api-identity strong{font-weight:500}
+        .waycraft-api-actions{margin-inline-start:auto}.waycraft-api-muted{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px;overflow-wrap:anywhere}
+        .waycraft-api-editor{display:flex;flex-direction:column;gap:14px;padding-block:14px 4px;margin-block-start:12px;border-block-start:0.5px solid var(--dsw-alias-border-l2)}
+        .waycraft-api-field{display:flex;flex-direction:column;gap:6px;min-inline-size:0;font-size:12px;line-height:18px;font-weight:500}.waycraft-api-field input,.waycraft-api-field select{inline-size:100%;font-size:14px;line-height:22px;font-weight:400}
+        .waycraft-api-model{display:grid;grid-template-columns:repeat(2,minmax(0,1fr)) auto;gap:8px;align-items:end}
+        .waycraft-api-add{margin-block-start:4px;min-inline-size:0}.waycraft-api-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-block-end:14px}.waycraft-api-tabs [aria-selected=true]{font-weight:500;background:var(--dsw-alias-interactive-secondary-hover,var(--dsw-alias-bg-layer-1))}
+        .waycraft-api-section .waycraft-subscription-add-trigger{display:flex;align-items:center;justify-content:center;gap:6px;inline-size:100%;min-block-size:44px;padding:0 14px;border:1px dashed var(--dsw-alias-border-l3,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-lg,16px);background:transparent;color:inherit;font:inherit}
+        .waycraft-api-section .waycraft-subscription-add-trigger:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-1))}
+        .waycraft-subscription-add-open{padding:14px 16px;border-radius:var(--dsw-radius-lg,16px);background:var(--dsw-alias-bg-module-platform,var(--dsw-alias-bg-layer-1))}
+        .waycraft-subscription-add-actions{display:flex;justify-content:flex-end;gap:8px}
+        .waycraft-subscription-add-actions>button{flex:0 0 auto;inline-size:auto}
+        .waycraft-api-section .waycraft-subscriptions-settings :is([data-waycraft-codex-part=header],[data-waycraft-claude-part=header],[data-waycraft-grok-part=header],[data-waycraft-antigravity-part=header],[data-waycraft-copilot-part=header])>button:not(.waycraft-provider-disclosure){height:28px;block-size:28px;min-height:28px;padding:0 10px;border-radius:var(--dsw-radius-sm,8px);font-size:12px;line-height:18px}
+        .waycraft-subscription-add-open [data-waycraft-codex-part=card],.waycraft-subscription-add-open [data-waycraft-claude-part=card],.waycraft-subscription-add-open [data-waycraft-grok-part=card],.waycraft-subscription-add-open [data-waycraft-antigravity-part=card],.waycraft-subscription-add-open [data-waycraft-copilot-part=card]{border:0!important;background:transparent!important;padding:0!important}
+        .waycraft-api-add-open{padding:14px 16px;border:0.5px solid var(--dsw-alias-settings-card-stroke,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-xl,20px);background:var(--dsw-alias-settings-card-fill,var(--dsw-alias-bg-layer-2))}
+        .waycraft-api-add>:is([role=tabpanel],[role=group]){display:flex;flex-direction:column;gap:14px;min-inline-size:0}.waycraft-api-add>:is([role=tabpanel],[role=group])>.waycraft-api-editor{margin-block-start:0}
+        .waycraft-api-section button{cursor:pointer;max-inline-size:100%;white-space:normal;overflow-wrap:anywhere}.waycraft-api-section button:hover:not(:disabled){background:var(--dsw-alias-interactive-secondary-hover,var(--dsw-alias-bg-layer-1))}
+        .waycraft-api-section :is(button,input,select):focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}.waycraft-api-section :disabled{opacity:.5;cursor:not-allowed}
+        @media(max-width:520px){.waycraft-api-model{grid-template-columns:minmax(0,1fr)}.waycraft-api-model button{justify-self:start}.waycraft-api-actions{margin-inline-start:0}}
       `), message ? h("p", { role: message === "apiSaved" ? "status" : "alert" }, t(message)) : null, subscriptions$2 ? h("section", {
-			"data-majed-provider-group": "subscription",
-			className: "majed-provider-group",
+			"data-waycraft-provider-group": "subscription",
+			className: "waycraft-provider-group",
 			"aria-label": t("subscriptionProviders")
-		}, h("h3", { className: "majed-provider-title" }, t("subscriptionProviders")), h("ul", { className: "majed-api-rows" }, ...subscriptions$2.rows), addOpen && addOrigin.current === "subscription" ? addPanel() : !showSubscriptionAdd ? null : h("button", {
+		}, h("h3", { className: "waycraft-provider-title" }, t("subscriptionProviders")), h("ul", { className: "waycraft-api-rows" }, ...subscriptions$2.rows), addOpen && addOrigin.current === "subscription" ? addPanel() : !showSubscriptionAdd ? null : h("button", {
 			type: "button",
-			className: "majed-subscription-add-trigger",
+			className: "waycraft-subscription-add-trigger",
 			ref: subscriptionAddButton,
 			disabled: busy || addOpen,
 			onClick: () => openAdd("subscription")
@@ -6215,23 +6236,23 @@ function createApiProviders(React, remote, t, primitives$1 = require("@deepseek-
 			strokeWidth: 1.5,
 			"aria-hidden": true
 		}, h("path", { d: "M12 4v16M4 12h16" })), t("addAccount"))) : null, showAPI && h("section", {
-			"data-majed-provider-group": "api",
-			className: "majed-provider-group",
+			"data-waycraft-provider-group": "api",
+			className: "waycraft-provider-group",
 			"aria-label": t("apiProviders")
-		}, h("div", { className: "majed-api-head" }, h("h3", { className: "majed-provider-title" }, t("apiProviders")), h("div", { className: "majed-api-actions" }, button("apiRefresh", () => {
+		}, h("div", { className: "waycraft-api-head" }, h("h3", { className: "waycraft-provider-title" }, t("apiProviders")), h("div", { className: "waycraft-api-actions" }, button("apiRefresh", () => {
 			load();
-		}))), h(React.Fragment, null, !snapshot ? h("p", null, t(remote ? message ? "apiFailed" : "apiLoading" : "apiUnavailable")) : null, h("ul", { className: "majed-api-rows" }, ...(snapshot?.rows ?? []).filter(configured).map((entry) => {
+		}))), h(React.Fragment, null, !snapshot ? h("p", null, t(remote ? message ? "apiFailed" : "apiLoading" : "apiUnavailable")) : null, h("ul", { className: "waycraft-api-rows" }, ...(snapshot?.rows ?? []).filter(configured).map((entry) => {
 			const ns = nsOf(entry), profile = at(ns.value, entry.settingsPath);
 			const metadata = (profile?.apiKeyEnv ? [profile.apiKeyEnv] : [refOf(entry, profile), ...entry.nativeAuth?.env ?? []]).map((ref) => snapshot.credentials[ref]);
 			const credentialStatus = entry.provider === "deepseek-account" ? "account-unknown" : metadata.some((value) => value?.configured === true) ? "configured" : metadata.every((value) => value?.configured === false) ? "missing" : "unknown";
 			const statusLabel = credentialStatus === "configured" ? "apiKeySet" : credentialStatus === "missing" ? "apiKeyMissing" : credentialStatus === "account-unknown" ? "apiAccountUnknown" : "apiKeyUnknown";
 			return h("li", {
 				key: entry.provider,
-				"data-majed-api-provider": entry.provider,
-				className: "majed-api-row"
-			}, h("div", { className: "majed-api-head" }, h("span", { className: "majed-api-identity" }, h("strong", null, profile?.displayName ?? entry.displayName), h("span", {
-				className: "majed-api-muted",
-				"data-majed-credential-status": credentialStatus
+				"data-waycraft-api-provider": entry.provider,
+				className: "waycraft-api-row"
+			}, h("div", { className: "waycraft-api-head" }, h("span", { className: "waycraft-api-identity" }, h("strong", null, profile?.displayName ?? entry.displayName), h("span", {
+				className: "waycraft-api-muted",
+				"data-waycraft-credential-status": credentialStatus
 			}, h("span", {
 				"aria-hidden": true,
 				style: {
@@ -6242,7 +6263,7 @@ function createApiProviders(React, remote, t, primitives$1 = require("@deepseek-
 					marginInlineEnd: 6,
 					background: "currentColor"
 				}
-			}), t(statusLabel))), h("span", { className: "majed-api-actions" }, entry.provider === "deepseek-account" ? null : button("apiEdit", () => {
+			}), t(statusLabel))), h("span", { className: "waycraft-api-actions" }, entry.provider === "deepseek-account" ? null : button("apiEdit", () => {
 				setAddOpen(false);
 				edit(entry);
 			}, addOpen || !snapshot.writable), removable(entry, ns) ? button("apiDelete", () => {
@@ -6276,7 +6297,7 @@ function createCopilotCard(React, primitives$1, rpc, t) {
 		const usageRequests = React.useRef(/* @__PURE__ */ new Map());
 		const accountKeys = React.useRef(/* @__PURE__ */ new Set());
 		const call = async (endpoint, payload = {}) => {
-			const response = await rpc.call("/api", `majed-subscriptions.${endpoint}`, {
+			const response = await rpc.call("/api", `waycraft-subscriptions.${endpoint}`, {
 				provider: "copilot",
 				...payload
 			});
@@ -6370,7 +6391,7 @@ function createCopilotCard(React, primitives$1, rpc, t) {
 		const date = (time) => new Date(time).toLocaleString();
 		const part = (name$1, style, ...children) => h("div", {
 			style,
-			"data-majed-copilot-part": name$1
+			"data-waycraft-copilot-part": name$1
 		}, ...children);
 		const startLogin = () => {
 			action(async () => {
@@ -6418,8 +6439,8 @@ function createCopilotCard(React, primitives$1, rpc, t) {
 				} : {},
 				textAlign: "start"
 			},
-			className: "majed-subscriptions-settings",
-			"data-majed-copilot-card": true
+			className: "waycraft-subscriptions-settings",
+			"data-waycraft-copilot-card": true
 		}, h("style", null, controlCss), manager ? h(ProviderAccountManager, {
 			provider: "copilot",
 			name,
@@ -6443,7 +6464,7 @@ function createCopilotCard(React, primitives$1, rpc, t) {
 			return h("div", {
 				key: account.key,
 				style: styles$3.accountRow,
-				"data-majed-copilot-part": "account"
+				"data-waycraft-copilot-part": "account"
 			}, part("account-header", styles$3.accountHeader, button(account.isDefault ? "★" : "☆", () => {
 				if (!account.isDefault) action(async () => {
 					await call("setDefault", { account: account.key });
@@ -6491,7 +6512,7 @@ function createCopilotCard(React, primitives$1, rpc, t) {
 			});
 		}) : button(t(hasAccounts ? "addAccount" : "login"), () => startLogin(), !!status?.registrationError)), busy && (status.pendingAuth ?? login) ? h("div", { style: styles$3.manual }, h("p", null, t("copilotDeviceHint")), h("bdi", {
 			dir: "ltr",
-			"data-majed-copilot-code": true
+			"data-waycraft-copilot-code": true
 		}, (status.pendingAuth ?? login).userCode), button(t("copyDeviceCode"), () => {
 			action(async () => {
 				await navigator.clipboard.writeText((status.pendingAuth ?? login).userCode);
@@ -6505,7 +6526,7 @@ function createCopilotCard(React, primitives$1, rpc, t) {
 			ref: (node) => {
 				if (node && !node.open) node.showModal();
 			},
-			className: "majed-reset-dialog",
+			className: "waycraft-reset-dialog",
 			role: "dialog",
 			"aria-modal": true,
 			"aria-label": t("confirmLogout"),
@@ -6523,7 +6544,7 @@ function createCopilotCard(React, primitives$1, rpc, t) {
 			...styles$3.statusLine,
 			overflowWrap: "anywhere"
 		} }, h("bdi", { dir: "ltr" }, confirmation.label ?? confirmation.account)), h("div", {
-			className: "majed-subscription-dialog-actions",
+			className: "waycraft-subscription-dialog-actions",
 			style: {
 				...styles$3.actions,
 				justifyContent: "flex-end",
@@ -6566,7 +6587,7 @@ function createClaudeCard(React, primitives$1, rpc, t) {
 		const usageRequests = React.useRef(/* @__PURE__ */ new Map());
 		const accountKeys = React.useRef(/* @__PURE__ */ new Set());
 		const call = async (endpoint, payload = {}) => {
-			const response = await rpc.call("/api", `majed-subscriptions.${endpoint}`, {
+			const response = await rpc.call("/api", `waycraft-subscriptions.${endpoint}`, {
 				provider: "claude",
 				...payload
 			});
@@ -6660,7 +6681,7 @@ function createClaudeCard(React, primitives$1, rpc, t) {
 		const date = (time) => new Date(time).toLocaleString();
 		const part = (name$1, style, ...children) => h("div", {
 			style,
-			"data-majed-claude-part": name$1
+			"data-waycraft-claude-part": name$1
 		}, ...children);
 		const startLogin = (method) => {
 			action(async () => {
@@ -6708,8 +6729,8 @@ function createClaudeCard(React, primitives$1, rpc, t) {
 				} : {},
 				textAlign: "start"
 			},
-			className: "majed-subscriptions-settings",
-			"data-majed-claude-card": true
+			className: "waycraft-subscriptions-settings",
+			"data-waycraft-claude-card": true
 		}, h("style", null, controlCss), manager ? h(ProviderAccountManager, {
 			provider: "claude",
 			name,
@@ -6733,7 +6754,7 @@ function createClaudeCard(React, primitives$1, rpc, t) {
 			return h("div", {
 				key: account.key,
 				style: styles$3.accountRow,
-				"data-majed-claude-part": "account"
+				"data-waycraft-claude-part": "account"
 			}, part("account-header", styles$3.accountHeader, button(account.isDefault ? "★" : "☆", () => {
 				if (!account.isDefault) action(async () => {
 					await call("setDefault", { account: account.key });
@@ -6801,7 +6822,7 @@ function createClaudeCard(React, primitives$1, rpc, t) {
 			ref: (node) => {
 				if (node && !node.open) node.showModal();
 			},
-			className: "majed-reset-dialog",
+			className: "waycraft-reset-dialog",
 			role: "dialog",
 			"aria-modal": true,
 			"aria-label": t("confirmLogout"),
@@ -6819,7 +6840,7 @@ function createClaudeCard(React, primitives$1, rpc, t) {
 			...styles$3.statusLine,
 			overflowWrap: "anywhere"
 		} }, h("bdi", { dir: "ltr" }, confirmation.label ?? confirmation.account)), h("div", {
-			className: "majed-subscription-dialog-actions",
+			className: "waycraft-subscription-dialog-actions",
 			style: {
 				...styles$3.actions,
 				justifyContent: "flex-end",
@@ -6872,7 +6893,7 @@ function createAntigravityCard(React, primitives$1, rpc, t) {
 		const usageRequests = React.useRef(/* @__PURE__ */ new Map());
 		const accountKeys = React.useRef(/* @__PURE__ */ new Set());
 		const call = async (endpoint, payload = {}) => {
-			const response = await rpc.call("/api", `majed-subscriptions.${endpoint}`, {
+			const response = await rpc.call("/api", `waycraft-subscriptions.${endpoint}`, {
 				provider: "antigravity",
 				...payload
 			});
@@ -6967,7 +6988,7 @@ function createAntigravityCard(React, primitives$1, rpc, t) {
 		const date = (time) => new Date(time).toLocaleString();
 		const part = (name$1, style, ...children) => h("div", {
 			style,
-			"data-majed-antigravity-part": name$1
+			"data-waycraft-antigravity-part": name$1
 		}, ...children);
 		const startLogin = () => {
 			action(async () => {
@@ -7015,8 +7036,8 @@ function createAntigravityCard(React, primitives$1, rpc, t) {
 				} : {},
 				textAlign: "start"
 			},
-			className: "majed-subscriptions-settings",
-			"data-majed-antigravity-card": true
+			className: "waycraft-subscriptions-settings",
+			"data-waycraft-antigravity-card": true
 		}, h("style", null, controlCss), manager ? h(ProviderAccountManager, {
 			provider: "antigravity",
 			name,
@@ -7041,7 +7062,7 @@ function createAntigravityCard(React, primitives$1, rpc, t) {
 			return h("div", {
 				key: account.key,
 				style: styles$3.accountRow,
-				"data-majed-antigravity-part": "account"
+				"data-waycraft-antigravity-part": "account"
 			}, part("account-header", styles$3.accountHeader, button(account.isDefault ? "★" : "☆", () => {
 				if (!account.isDefault) action(async () => {
 					await call("setDefault", { account: account.key });
@@ -7109,7 +7130,7 @@ function createAntigravityCard(React, primitives$1, rpc, t) {
 			ref: (node) => {
 				if (node && !node.open) node.showModal();
 			},
-			className: "majed-reset-dialog",
+			className: "waycraft-reset-dialog",
 			role: "dialog",
 			"aria-modal": true,
 			"aria-label": t("confirmLogout"),
@@ -7127,7 +7148,7 @@ function createAntigravityCard(React, primitives$1, rpc, t) {
 			...styles$3.statusLine,
 			overflowWrap: "anywhere"
 		} }, h("bdi", { dir: "ltr" }, confirmation.label ?? confirmation.account)), h("div", {
-			className: "majed-subscription-dialog-actions",
+			className: "waycraft-subscription-dialog-actions",
 			style: {
 				...styles$3.actions,
 				justifyContent: "flex-end",
@@ -7200,9 +7221,9 @@ function createZenCard(React, primitives$1, rpc, t) {
 				width: "100%",
 				textAlign: "start"
 			},
-			className: "majed-subscriptions-settings",
-			"data-majed-zen-card": true
-		}, h("style", null, controlCss), h("div", { style: styles$3.card }, h("div", { style: styles$3.cardHeader }, providerStatus(h, t, state, !enabled ? "zenDisabled" : label), h("div", { className: "majed-provider-identity" }, h("span", { style: styles$3.name }, "OpenCode Zen")), h("button", {
+			className: "waycraft-subscriptions-settings",
+			"data-waycraft-zen-card": true
+		}, h("style", null, controlCss), h("div", { style: styles$3.card }, h("div", { style: styles$3.cardHeader }, providerStatus(h, t, state, !enabled ? "zenDisabled" : label), h("div", { className: "waycraft-provider-identity" }, h("span", { style: styles$3.name }, "OpenCode Zen")), h("button", {
 			type: "button",
 			role: "switch",
 			"aria-checked": enabled,
@@ -7276,7 +7297,7 @@ function createGrokCard(React, primitives$1, rpc, t) {
 		const usageRequests = React.useRef(/* @__PURE__ */ new Map());
 		const accountKeys = React.useRef(/* @__PURE__ */ new Set());
 		const call = async (endpoint, payload = {}) => {
-			const response = await rpc.call("/api", `majed-subscriptions.${endpoint}`, {
+			const response = await rpc.call("/api", `waycraft-subscriptions.${endpoint}`, {
 				provider: "grok",
 				...payload
 			});
@@ -7370,7 +7391,7 @@ function createGrokCard(React, primitives$1, rpc, t) {
 		const date = (time) => new Date(time).toLocaleString();
 		const part = (name$1, style, ...children) => h("div", {
 			style,
-			"data-majed-grok-part": name$1
+			"data-waycraft-grok-part": name$1
 		}, ...children);
 		const startLogin = () => {
 			action(async () => {
@@ -7418,8 +7439,8 @@ function createGrokCard(React, primitives$1, rpc, t) {
 				} : {},
 				textAlign: "start"
 			},
-			className: "majed-subscriptions-settings",
-			"data-majed-grok-card": true
+			className: "waycraft-subscriptions-settings",
+			"data-waycraft-grok-card": true
 		}, h("style", null, controlCss), manager ? h(ProviderAccountManager, {
 			provider: "grok",
 			name,
@@ -7443,7 +7464,7 @@ function createGrokCard(React, primitives$1, rpc, t) {
 			return h("div", {
 				key: account.key,
 				style: styles$3.accountRow,
-				"data-majed-grok-part": "account"
+				"data-waycraft-grok-part": "account"
 			}, part("account-header", styles$3.accountHeader, button(account.isDefault ? "★" : "☆", () => {
 				if (!account.isDefault) action(async () => {
 					await call("setDefault", { account: account.key });
@@ -7511,7 +7532,7 @@ function createGrokCard(React, primitives$1, rpc, t) {
 			ref: (node) => {
 				if (node && !node.open) node.showModal();
 			},
-			className: "majed-reset-dialog",
+			className: "waycraft-reset-dialog",
 			role: "dialog",
 			"aria-modal": true,
 			"aria-label": t("confirmLogout"),
@@ -7529,7 +7550,7 @@ function createGrokCard(React, primitives$1, rpc, t) {
 			...styles$3.statusLine,
 			overflowWrap: "anywhere"
 		} }, h("bdi", { dir: "ltr" }, confirmation.label ?? confirmation.account)), h("div", {
-			className: "majed-subscription-dialog-actions",
+			className: "waycraft-subscription-dialog-actions",
 			style: {
 				...styles$3.actions,
 				justifyContent: "flex-end",
@@ -7671,7 +7692,7 @@ function SpeedSelect({ loadSpeed, setSpeed, t }) {
 	const triggerLabel = `${translate("speed")} · ${tierName(state.tier)}`;
 	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 		ref: rootRef,
-		className: "majed-subscription-speed",
+		className: "waycraft-subscription-speed",
 		style: styles$2.root,
 		onKeyDown: (event) => {
 			if (event.key === "Escape" && open) {
@@ -7733,7 +7754,7 @@ const styles$2 = {
 	trigger: {
 		border: "0.5px solid var(--dsw-alias-border-l3)",
 		borderRadius: "var(--dsw-radius-sm, 8px)",
-		background: "var(--majed-subscription-speed-hover, transparent)",
+		background: "var(--waycraft-subscription-speed-hover, transparent)",
 		color: "var(--dsw-alias-label-secondary)",
 		font: "inherit",
 		fontSize: 12,
@@ -7765,7 +7786,7 @@ const styles$2 = {
 		width: "100%",
 		border: "none",
 		borderRadius: "var(--dsw-radius-sm, 8px)",
-		background: "var(--majed-subscription-speed-hover, transparent)",
+		background: "var(--waycraft-subscription-speed-hover, transparent)",
 		padding: "6px 8px",
 		cursor: "pointer",
 		font: "inherit",
@@ -7825,13 +7846,13 @@ function hostReactDom() {
 
 //#endregion
 //#region src/usage-badge/usage-badge-preferences.ts
-const MODE_KEY = "majed.subscriptions.usageBadgeMode";
-const MODE_EVENT = "majed:subscriptions:usage-badge-mode";
+const MODE_KEY = "waycraft.subscriptions.usageBadgeMode";
+const MODE_EVENT = "waycraft:subscriptions:usage-badge-mode";
 /** Read the browser preference; blocked storage retains the default display. */
 function readUsageBadgeMode() {
 	if (typeof window === "undefined") return "recent";
 	try {
-		return window.localStorage.getItem(MODE_KEY) === "hidden" ? "hidden" : "recent";
+		return (window.localStorage.getItem(MODE_KEY) ?? window.localStorage.getItem(LEGACY_USAGE_BADGE_KEY)) === "hidden" ? "hidden" : "recent";
 	} catch (error) {
 		if (!(error instanceof DOMException) || error.name !== "SecurityError") throw error;
 		return "recent";
@@ -8256,7 +8277,7 @@ function SubscriptionUsageBadge({ rpc, currentModel, t }) {
 			/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("button", {
 				ref: buttonRef,
 				type: "button",
-				className: "majed-subscription-usage-pill",
+				className: "waycraft-subscription-usage-pill",
 				style: {
 					...styles$1.pill,
 					...hover || open ? styles$1.pillActive : {}
@@ -8294,7 +8315,7 @@ function SubscriptionUsageBadge({ rpc, currentModel, t }) {
 				ref: tooltipRef,
 				id: tooltipId,
 				role: "tooltip",
-				className: "majed-subscription-usage-tooltip",
+				className: "waycraft-subscription-usage-tooltip",
 				style: {
 					...styles$1.tooltip,
 					...tooltipPos ?? MEASURE_STYLE
@@ -8342,7 +8363,7 @@ function SubscriptionUsageBadge({ rpc, currentModel, t }) {
 				id: panelId,
 				role: "dialog",
 				"aria-label": title,
-				className: "majed-subscription-usage-panel",
+				className: "waycraft-subscription-usage-panel",
 				style: {
 					...styles$1.panel,
 					...pos ?? MEASURE_STYLE
@@ -8355,7 +8376,7 @@ function SubscriptionUsageBadge({ rpc, currentModel, t }) {
 							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(UsageBadgeIcon, {}), title]
 						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
 							type: "button",
-							className: "majed-subscription-usage-close",
+							className: "waycraft-subscription-usage-close",
 							"aria-label": translate("usageBadgeClose"),
 							onClick: close,
 							children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("svg", {
@@ -8815,7 +8836,7 @@ function guarded(React, Component, label, report = (message, error) => console.e
 			return { failed: true };
 		}
 		componentDidCatch(error) {
-			report(`dsh-majed: ${label} failed to render`, error);
+			report(`dsh-waycraft: ${label} failed to render`, error);
 		}
 		render() {
 			return this.state.failed ? null : React.createElement(Component, this.props);
@@ -8829,7 +8850,7 @@ function guarded(React, Component, label, report = (message, error) => console.e
 //#endregion
 //#region src/browser.ts
 function applySubscriptions(root) {
-	const report = (error) => console.error("dsh-majed: Subscriptions setup failed", error);
+	const report = (error) => console.error("dsh-waycraft: Subscriptions setup failed", error);
 	function isolate(callback) {
 		try {
 			const result = callback();
@@ -8848,11 +8869,11 @@ function applySubscriptions(root) {
 		const React = require("react");
 		const h = React.createElement;
 		const primitives$1 = require("@deepseek-ai/dsh-client-ui-primitives");
-		const NS = "majed.subscriptions";
+		const NS = "waycraft.subscriptions";
 		isolate(() => ctx.effect(() => isolate(() => ctx.locale.register(NS, {
 			en: subscriptions$1,
 			ar: subscriptions
-		})), "dsh-majed: subscriptions dictionaries"));
+		})), "dsh-waycraft: subscriptions dictionaries"));
 		const t = ctx.locale.bind(NS);
 		const CodexCard = createCodexCard(React, primitives$1, connection.rpc, t);
 		const CopilotCard = guarded(React, createCopilotCard(React, primitives$1, connection.rpc, t), "Copilot card");
@@ -8894,7 +8915,7 @@ function applySubscriptions(root) {
 			const alive = React.useRef(true);
 			const refresh = async () => {
 				try {
-					const answer = await connection.rpc.call("/api", "majed-subscriptions.status", {});
+					const answer = await connection.rpc.call("/api", "waycraft-subscriptions.status", {});
 					if (!answer?.ok) throw new Error();
 					if (alive.current) {
 						setStatus(answer.value);
@@ -8924,7 +8945,7 @@ function applySubscriptions(root) {
 			}));
 			const rows = providers.filter(({ id }) => status?.providers?.[id]?.accounts?.length).map(({ id }, index) => h("li", {
 				key: id,
-				"data-majed-subscription-row": id
+				"data-waycraft-subscription-row": id
 			}, h(providerCards[id], {
 				presentation: "group",
 				initialExpanded: index === 0,
@@ -8948,11 +8969,11 @@ function applySubscriptions(root) {
 					}) : null
 				}
 			}), h("section", {
-				"data-majed-provider-group": "free",
-				className: "majed-provider-group",
+				"data-waycraft-provider-group": "free",
+				className: "waycraft-provider-group",
 				style: { marginBlockStart: 24 },
 				"aria-label": t("freeProviders")
-			}, h("h3", { className: "majed-provider-title" }, t("freeProviders")), h("ul", { className: "majed-api-rows" }, h("li", null, h(ZenCard)))));
+			}, h("h3", { className: "waycraft-provider-title" }, t("freeProviders")), h("ul", { className: "waycraft-api-rows" }, h("li", null, h(ZenCard)))));
 		}
 		let present = false;
 		let failing = false;
@@ -8966,7 +8987,7 @@ function applySubscriptions(root) {
 				return () => listeners.delete(fn);
 			}, () => `${failing}:${referenceEnabled}:${!!ApiProviders}`);
 			return h("div", {
-				className: "majed-subscriptions-page",
+				className: "waycraft-subscriptions-page",
 				style: {
 					display: "flex",
 					flexDirection: "column",
@@ -8979,13 +9000,13 @@ function applySubscriptions(root) {
 					lineHeight: "22px"
 				}
 			}, h("style", null, controlCss + `
-          .majed-subscriptions-page .majed-page-settings>h3{margin:0;font-size:16px;line-height:24px;font-weight:500}
-          .majed-subscriptions-page .majed-page-settings-content{display:flex;flex-direction:column;gap:12px;padding-block-start:12px}
-          .majed-subscriptions-page .majed-proxy-settings{padding:14px 16px;border:0.5px solid var(--dsw-alias-settings-card-stroke,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-xl,20px);background:var(--dsw-alias-settings-card-fill,var(--dsw-alias-bg-layer-2))}
-          .majed-subscriptions-page .majed-proxy-settings header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
-          .majed-subscriptions-page .majed-proxy-settings p{margin:8px 0 0;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px;overflow-wrap:anywhere}
+          .waycraft-subscriptions-page .waycraft-page-settings>h3{margin:0;font-size:16px;line-height:24px;font-weight:500}
+          .waycraft-subscriptions-page .waycraft-page-settings-content{display:flex;flex-direction:column;gap:12px;padding-block-start:12px}
+          .waycraft-subscriptions-page .waycraft-proxy-settings{padding:14px 16px;border:0.5px solid var(--dsw-alias-settings-card-stroke,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-xl,20px);background:var(--dsw-alias-settings-card-fill,var(--dsw-alias-bg-layer-2))}
+          .waycraft-subscriptions-page .waycraft-proxy-settings header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+          .waycraft-subscriptions-page .waycraft-proxy-settings p{margin:8px 0 0;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px;overflow-wrap:anywhere}
         `), h("header", {
-				className: "majed-providers-identity",
+				className: "waycraft-providers-identity",
 				style: {
 					display: "flex",
 					alignItems: "center",
@@ -9015,9 +9036,9 @@ function applySubscriptions(root) {
 				fontWeight: 500,
 				overflowWrap: "anywhere"
 			} }, t("title"))), referenceEnabled ? h("p", { role: "status" }, t("coexistence")) : null, failing ? h("p", { role: "alert" }, t("unreachable")) : null, h("section", {
-				"data-majed-settings": true,
-				className: "majed-page-settings"
-			}, h("h3", null, t("pageSettings")), h("div", { className: "majed-page-settings-content" }, h(GuardedProxy, {
+				"data-waycraft-settings": true,
+				className: "waycraft-page-settings"
+			}, h("h3", null, t("pageSettings")), h("div", { className: "waycraft-page-settings-content" }, h(GuardedProxy, {
 				rpc: connection.rpc,
 				t
 			}), h(GuardedSetting, { t }))), h("section", { style: {
@@ -9051,16 +9072,20 @@ function applySubscriptions(root) {
 					"video_generate",
 					VideoGenerateToolview,
 					() => ({ loadVideo: createVideoLoader(connection.rpc) })
-				]]) for (const key of [name, `dsh_majed_${name}`]) add(() => ctx.slots.inject("tool.call.toolview", () => ctx.slots.register({
+				]]) for (const key of [
+					name,
+					`dsh_waycraft_${name}`,
+					legacyToolviewKey(name)
+				]) add(() => ctx.slots.inject("tool.call.toolview", () => ctx.slots.register({
 					name: "tool.call.toolview",
-					id: `majed-toolview-${key}`,
+					id: `waycraft-toolview-${key}`,
 					key,
 					locale: NS,
 					inject
 				}, guarded(React, view, name))));
 				add(() => ctx.slots.inject("conversation.input.right", () => ctx.slots.register({
 					name: "conversation.input.right",
-					id: "majed-subscription-speed",
+					id: "waycraft-subscription-speed",
 					order: 0,
 					locale: NS,
 					inject: (sessionId) => ({
@@ -9070,7 +9095,7 @@ function applySubscriptions(root) {
 				}, GuardedSpeed)));
 				add(() => ctx.slots.inject("conversation.composer.dock", () => ctx.slots.register({
 					name: "conversation.composer.dock",
-					id: "majed-subscription-usage",
+					id: "waycraft-subscription-usage",
 					order: 10,
 					locale: NS,
 					inject: (sessionId) => ({
@@ -9113,13 +9138,13 @@ function applySubscriptions(root) {
 						await createSpeedSetter(connection, session.sessionId)(option.id);
 					}
 				}
-			}), "dsh-majed: /fast contribution");
+			}), "dsh-waycraft: /fast contribution");
 		})));
 		function update() {
 			isolate(syncSurfaces);
 			if (present && !withdraw) withdraw = ctx.slots.inject("settings.section", () => ctx.slots.register({
 				name: "settings.section",
-				id: "majed-subscriptions",
+				id: "waycraft-subscriptions",
 				order: 90,
 				label: () => t("title")
 			}, Section));
@@ -9133,13 +9158,13 @@ function applySubscriptions(root) {
 			const current = ++sequence;
 			probeReference(current);
 			try {
-				const result = await connection.rpc.call("/api", "majed-subscriptions.status", {});
+				const result = await connection.rpc.call("/api", "waycraft-subscriptions.status", {});
 				if (disposed || current !== sequence) return;
 				present = true;
 				failing = !(result?.ok && result.value?.component === "subscriptions");
 			} catch (error) {
 				if (disposed || current !== sequence) return;
-				if (error instanceof Error && error.message === "transport failure for /api/majed-subscriptions.status: HTTP 404") {
+				if (error instanceof Error && error.message === "transport failure for /api/waycraft-subscriptions.status: HTTP 404") {
 					present = false;
 					failing = false;
 				} else {
@@ -9175,7 +9200,7 @@ function applySubscriptions(root) {
 				withdraw?.();
 				listeners.clear();
 			};
-		}), "dsh-majed: subscriptions presence"));
+		}), "dsh-waycraft: subscriptions presence"));
 	})));
 }
 
@@ -9183,7 +9208,7 @@ function applySubscriptions(root) {
 exports.applySkills = applySkills;
 exports.applySubscriptions = applySubscriptions;
 return module.exports; };
-    const subscriptions = majedSubscriptionsFactory(require);
+    const subscriptions = waycraftSubscriptionsFactory(require);
     const React = require('react');
     const h = React.createElement;
     let primitives = {};
@@ -9192,7 +9217,10 @@ return module.exports; };
     } catch (_) {}
 
     // ───────────────────────── own settings store (localStorage) ─────────────
-    const STORE_KEY = 'dsh-majed:settings:v1';
+    const STORE_KEY = 'dsh-waycraft:settings:v1';
+    // Deprecated (one release): read when the new key is absent; never written, never deleted.
+    const LEGACY_STORE_KEY = 'dsh-majed:settings:v1';
+    const LEGACY_GLOBAL = '__dshMajed';
     // App UI font size is a px number like the chat font size (DSH chrome is designed at 14px).
     const UI_BASE_PX = 14,
       UI_MIN_PX = 11,
@@ -9210,167 +9238,167 @@ return module.exports; };
     };
     const NOTIFY_MODES = ['off', 'background', 'always'];
     // Bundled UI fonts (OFL-1.1, served by this plugin's host half from fonts/*.woff2).
-    const FONT_ROUTE = '/plugins/dsh-majed/fonts/';
+    const FONT_ROUTE = '/plugins/dsh-waycraft/fonts/';
     const BUNDLED_FONTS = {
-      inter: { label: 'Inter', family: 'Inter Majed' },
-      roboto: { label: 'Roboto', family: 'Roboto Majed' },
-      'open-sans': { label: 'Open Sans', family: 'Open Sans Majed' },
-      'noto-sans': { label: 'Noto Sans', family: 'Noto Sans Majed' },
+      inter: { label: 'Inter', family: 'Inter Waycraft' },
+      roboto: { label: 'Roboto', family: 'Roboto Waycraft' },
+      'open-sans': { label: 'Open Sans', family: 'Open Sans Waycraft' },
+      'noto-sans': { label: 'Noto Sans', family: 'Noto Sans Waycraft' },
       'ibm-plex-sans': {
         label: 'IBM Plex Sans',
-        family: 'IBM Plex Sans Majed',
+        family: 'IBM Plex Sans Waycraft',
       },
     };
     const FONT_FACES = [
       {
-        f: 'Inter Majed',
+        f: 'Inter Waycraft',
         u: 'inter-latin-wght-normal.woff2',
         w: '100 900',
         r: 'U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD',
         k: 'inter',
       },
       {
-        f: 'Inter Majed',
+        f: 'Inter Waycraft',
         u: 'inter-latin-ext-wght-normal.woff2',
         w: '100 900',
         r: 'U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF',
         k: 'inter',
       },
       {
-        f: 'Roboto Majed',
+        f: 'Roboto Waycraft',
         u: 'roboto-latin-wght-normal.woff2',
         w: '100 900',
         r: 'U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD',
         k: 'roboto',
       },
       {
-        f: 'Roboto Majed',
+        f: 'Roboto Waycraft',
         u: 'roboto-latin-ext-wght-normal.woff2',
         w: '100 900',
         r: 'U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF',
         k: 'roboto',
       },
       {
-        f: 'Open Sans Majed',
+        f: 'Open Sans Waycraft',
         u: 'open-sans-latin-wght-normal.woff2',
         w: '100 900',
         r: 'U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD',
         k: 'open-sans',
       },
       {
-        f: 'Open Sans Majed',
+        f: 'Open Sans Waycraft',
         u: 'open-sans-latin-ext-wght-normal.woff2',
         w: '100 900',
         r: 'U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF',
         k: 'open-sans',
       },
       {
-        f: 'Open Sans Majed',
+        f: 'Open Sans Waycraft',
         u: 'open-sans-hebrew-wght-normal.woff2',
         w: '100 900',
         r: 'U+0307-0308,U+0590-05FF,U+200C-2010,U+20AA,U+25CC,U+FB1D-FB4F',
         k: 'open-sans',
       },
       {
-        f: 'Noto Sans Majed',
+        f: 'Noto Sans Waycraft',
         u: 'noto-sans-latin-wght-normal.woff2',
         w: '100 900',
         r: 'U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD',
         k: 'noto-sans',
       },
       {
-        f: 'Noto Sans Majed',
+        f: 'Noto Sans Waycraft',
         u: 'noto-sans-latin-ext-wght-normal.woff2',
         w: '100 900',
         r: 'U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF',
         k: 'noto-sans',
       },
       {
-        f: 'Noto Sans Majed',
+        f: 'Noto Sans Waycraft',
         u: 'noto-sans-arabic-arabic-wght-normal.woff2',
         w: '100 900',
         r: 'U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0897-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FE74,U+FE76-FEFC,U+102E0-102FB,U+10E60-10E7E,U+10EC2-10EC4,U+10EFC-10EFF,U+1EE00-1EE03,U+1EE05-1EE1F,U+1EE21-1EE22,U+1EE24,U+1EE27,U+1EE29-1EE32,U+1EE34-1EE37,U+1EE39,U+1EE3B,U+1EE42,U+1EE47,U+1EE49,U+1EE4B,U+1EE4D-1EE4F,U+1EE51-1EE52,U+1EE54,U+1EE57,U+1EE59,U+1EE5B,U+1EE5D,U+1EE5F,U+1EE61-1EE62,U+1EE64,U+1EE67-1EE6A,U+1EE6C-1EE72,U+1EE74-1EE77,U+1EE79-1EE7C,U+1EE7E,U+1EE80-1EE89,U+1EE8B-1EE9B,U+1EEA1-1EEA3,U+1EEA5-1EEA9,U+1EEAB-1EEBB,U+1EEF0-1EEF1',
         k: 'noto-sans-arabic',
       },
       {
-        f: 'IBM Plex Sans Majed',
+        f: 'IBM Plex Sans Waycraft',
         u: 'ibm-plex-sans-latin-400-normal.woff2',
         w: '400',
         r: 'U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD',
         k: 'ibm-plex-sans',
       },
       {
-        f: 'IBM Plex Sans Majed',
+        f: 'IBM Plex Sans Waycraft',
         u: 'ibm-plex-sans-latin-ext-400-normal.woff2',
         w: '400',
         r: 'U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF',
         k: 'ibm-plex-sans',
       },
       {
-        f: 'IBM Plex Sans Majed',
+        f: 'IBM Plex Sans Waycraft',
         u: 'ibm-plex-sans-latin-500-normal.woff2',
         w: '500',
         r: 'U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD',
         k: 'ibm-plex-sans',
       },
       {
-        f: 'IBM Plex Sans Majed',
+        f: 'IBM Plex Sans Waycraft',
         u: 'ibm-plex-sans-latin-ext-500-normal.woff2',
         w: '500',
         r: 'U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF',
         k: 'ibm-plex-sans',
       },
       {
-        f: 'IBM Plex Sans Majed',
+        f: 'IBM Plex Sans Waycraft',
         u: 'ibm-plex-sans-latin-600-normal.woff2',
         w: '600',
         r: 'U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD',
         k: 'ibm-plex-sans',
       },
       {
-        f: 'IBM Plex Sans Majed',
+        f: 'IBM Plex Sans Waycraft',
         u: 'ibm-plex-sans-latin-ext-600-normal.woff2',
         w: '600',
         r: 'U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF',
         k: 'ibm-plex-sans',
       },
       {
-        f: 'IBM Plex Sans Majed',
+        f: 'IBM Plex Sans Waycraft',
         u: 'ibm-plex-sans-latin-700-normal.woff2',
         w: '700',
         r: 'U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD',
         k: 'ibm-plex-sans',
       },
       {
-        f: 'IBM Plex Sans Majed',
+        f: 'IBM Plex Sans Waycraft',
         u: 'ibm-plex-sans-latin-ext-700-normal.woff2',
         w: '700',
         r: 'U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF',
         k: 'ibm-plex-sans',
       },
       {
-        f: 'IBM Plex Sans Majed',
+        f: 'IBM Plex Sans Waycraft',
         u: 'ibm-plex-sans-arabic-arabic-400-normal.woff2',
         w: '400',
         r: 'U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0897-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FE74,U+FE76-FEFC,U+102E0-102FB,U+10E60-10E7E,U+10EC2-10EC4,U+10EFC-10EFF,U+1EE00-1EE03,U+1EE05-1EE1F,U+1EE21-1EE22,U+1EE24,U+1EE27,U+1EE29-1EE32,U+1EE34-1EE37,U+1EE39,U+1EE3B,U+1EE42,U+1EE47,U+1EE49,U+1EE4B,U+1EE4D-1EE4F,U+1EE51-1EE52,U+1EE54,U+1EE57,U+1EE59,U+1EE5B,U+1EE5D,U+1EE5F,U+1EE61-1EE62,U+1EE64,U+1EE67-1EE6A,U+1EE6C-1EE72,U+1EE74-1EE77,U+1EE79-1EE7C,U+1EE7E,U+1EE80-1EE89,U+1EE8B-1EE9B,U+1EEA1-1EEA3,U+1EEA5-1EEA9,U+1EEAB-1EEBB,U+1EEF0-1EEF1',
         k: 'ibm-plex-sans-arabic',
       },
       {
-        f: 'IBM Plex Sans Majed',
+        f: 'IBM Plex Sans Waycraft',
         u: 'ibm-plex-sans-arabic-arabic-500-normal.woff2',
         w: '500',
         r: 'U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0897-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FE74,U+FE76-FEFC,U+102E0-102FB,U+10E60-10E7E,U+10EC2-10EC4,U+10EFC-10EFF,U+1EE00-1EE03,U+1EE05-1EE1F,U+1EE21-1EE22,U+1EE24,U+1EE27,U+1EE29-1EE32,U+1EE34-1EE37,U+1EE39,U+1EE3B,U+1EE42,U+1EE47,U+1EE49,U+1EE4B,U+1EE4D-1EE4F,U+1EE51-1EE52,U+1EE54,U+1EE57,U+1EE59,U+1EE5B,U+1EE5D,U+1EE5F,U+1EE61-1EE62,U+1EE64,U+1EE67-1EE6A,U+1EE6C-1EE72,U+1EE74-1EE77,U+1EE79-1EE7C,U+1EE7E,U+1EE80-1EE89,U+1EE8B-1EE9B,U+1EEA1-1EEA3,U+1EEA5-1EEA9,U+1EEAB-1EEBB,U+1EEF0-1EEF1',
         k: 'ibm-plex-sans-arabic',
       },
       {
-        f: 'IBM Plex Sans Majed',
+        f: 'IBM Plex Sans Waycraft',
         u: 'ibm-plex-sans-arabic-arabic-600-normal.woff2',
         w: '600',
         r: 'U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0897-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FE74,U+FE76-FEFC,U+102E0-102FB,U+10E60-10E7E,U+10EC2-10EC4,U+10EFC-10EFF,U+1EE00-1EE03,U+1EE05-1EE1F,U+1EE21-1EE22,U+1EE24,U+1EE27,U+1EE29-1EE32,U+1EE34-1EE37,U+1EE39,U+1EE3B,U+1EE42,U+1EE47,U+1EE49,U+1EE4B,U+1EE4D-1EE4F,U+1EE51-1EE52,U+1EE54,U+1EE57,U+1EE59,U+1EE5B,U+1EE5D,U+1EE5F,U+1EE61-1EE62,U+1EE64,U+1EE67-1EE6A,U+1EE6C-1EE72,U+1EE74-1EE77,U+1EE79-1EE7C,U+1EE7E,U+1EE80-1EE89,U+1EE8B-1EE9B,U+1EEA1-1EEA3,U+1EEA5-1EEA9,U+1EEAB-1EEBB,U+1EEF0-1EEF1',
         k: 'ibm-plex-sans-arabic',
       },
       {
-        f: 'IBM Plex Sans Majed',
+        f: 'IBM Plex Sans Waycraft',
         u: 'ibm-plex-sans-arabic-arabic-700-normal.woff2',
         w: '700',
         r: 'U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0897-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FE74,U+FE76-FEFC,U+102E0-102FB,U+10E60-10E7E,U+10EC2-10EC4,U+10EFC-10EFF,U+1EE00-1EE03,U+1EE05-1EE1F,U+1EE21-1EE22,U+1EE24,U+1EE27,U+1EE29-1EE32,U+1EE34-1EE37,U+1EE39,U+1EE3B,U+1EE42,U+1EE47,U+1EE49,U+1EE4B,U+1EE4D-1EE4F,U+1EE51-1EE52,U+1EE54,U+1EE57,U+1EE59,U+1EE5B,U+1EE5D,U+1EE5F,U+1EE61-1EE62,U+1EE64,U+1EE67-1EE6A,U+1EE6C-1EE72,U+1EE74-1EE77,U+1EE79-1EE7C,U+1EE7E,U+1EE80-1EE89,U+1EE8B-1EE9B,U+1EEA1-1EEA3,U+1EEA5-1EEA9,U+1EEAB-1EEBB,U+1EEF0-1EEF1',
@@ -9383,7 +9411,11 @@ return module.exports; };
       try {
         return {
           ...DEFAULTS,
-          ...JSON.parse(localStorage.getItem(STORE_KEY) || '{}'),
+          ...JSON.parse(
+            localStorage.getItem(STORE_KEY) ||
+              localStorage.getItem(LEGACY_STORE_KEY) ||
+              '{}',
+          ),
         };
       } catch (_) {
         return { ...DEFAULTS };
@@ -9435,7 +9467,7 @@ return module.exports; };
       React.useSyncExternalStore(store.subscribe, () => store.get()[key]);
 
     // ───────────────────────── dictionaries ─────────────────────────
-    const NS = 'majed';
+    const NS = 'waycraft';
     const en = {
       'bidi.title': 'Bidirectional text',
       'bidi.description':
@@ -9565,37 +9597,37 @@ return module.exports; };
 
     // ───────────────────────── settings rows ─────────────────────────
     const ROW_CSS = `
-.majed-row{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:16px 0;border-bottom:.5px solid var(--dsw-alias-border-l2)}
-.majed-text{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
-.majed-title{color:var(--dsw-alias-label-primary);font:var(--dsw-font-s-14)}
-.majed-desc{color:var(--dsw-alias-label-tertiary);font:var(--dsw-font-xxs-12)}
-.majed-control{display:inline-flex;align-items:center;gap:8px}
-.majed-stepper{display:inline-flex;align-items:center;justify-content:center;min-width:72px;height:36px;border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-module-platform);position:relative}
-.majed-value{min-width:30px;text-align:center;font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-primary);font:var(--dsw-font-s-14)}
-.majed-arrows{position:absolute;right:6px;display:flex;flex-direction:column;gap:2px;opacity:0}
-.majed-stepper:hover .majed-arrows,.majed-stepper:focus-within .majed-arrows{opacity:1}
-.majed-arrow{width:17px;height:12px;display:inline-flex;align-items:center;justify-content:center;border:none;padding:0;border-radius:var(--dsw-radius-xs);background:color-mix(in srgb,var(--dsw-alias-bg-layer-1) 75%,transparent);color:var(--dsw-alias-label-primary);cursor:pointer;font-size:calc(8px + var(--majed-ui-d,0px));line-height:1}
-.majed-arrow:hover:not(:disabled){background:var(--dsw-alias-bg-layer-1)}
-.majed-arrow:disabled{color:var(--dsw-alias-label-caption);cursor:default}
-.majed-unit{color:var(--dsw-alias-label-secondary);font:var(--dsw-font-s-14)}
-.majed-selector{display:inline-flex;align-items:center;gap:12px;height:36px;padding:0 14px;border:none;border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);font:var(--dsw-font-s-14);cursor:pointer}
-.majed-selector:hover{background:var(--dsw-alias-interactive-bg-hover)}
-.majed-chevron{flex:none}
-.majed-test{height:36px;padding:0 12px;border:none;border-radius:var(--dsw-radius-md);background:transparent;color:var(--dsw-alias-label-secondary);font:var(--dsw-font-xs-13);cursor:pointer}
-.majed-test:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
-.majed-test:disabled{opacity:.4;cursor:default}
-.majed-status{display:inline-block;margin-top:2px}
-.majed-status[data-state=granted]{color:var(--dsw-alias-state-success-primary,#3ecf8e)}
-.majed-status[data-state=denied],.majed-status[data-state=unsupported]{color:var(--dsw-alias-state-error-primary,#ff6b6b)}
-.majed-ap-trigger{display:inline-flex;align-items:center;gap:6px;min-width:0;max-width:200px;height:28px;padding:0 6px 0 8px;border:none;border-radius:var(--dsw-radius-sm);background:transparent;color:var(--dsw-alias-label-secondary);font:var(--dsw-font-xs-strong-13);cursor:pointer}
-.majed-ap-trigger:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}
-.majed-ap-trigger:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}
-.majed-ap-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.majed-ap-dot{flex:none;width:7px;height:7px;border-radius:50%;background:var(--dsw-alias-label-caption)}
-.majed-ap-trigger[data-mode=safe] .majed-ap-dot{background:var(--dsw-alias-state-success-primary,#3ecf8e)}
-.majed-ap-trigger[data-mode=aggressive] .majed-ap-dot{background:var(--dsw-alias-state-error-primary,#ff6b6b)}
-.majed-ap-trigger[data-mode=aggressive]{color:var(--dsw-alias-state-error-primary,#ff6b6b)}
-[data-majed-menu-trigger]{width:0!important;height:0!important;min-width:0!important;min-height:0!important;margin:0!important;padding:0!important;border:0!important;overflow:hidden!important;opacity:0!important;pointer-events:none!important;flex:none!important}
+.waycraft-row{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:16px 0;border-bottom:.5px solid var(--dsw-alias-border-l2)}
+.waycraft-text{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
+.waycraft-title{color:var(--dsw-alias-label-primary);font:var(--dsw-font-s-14)}
+.waycraft-desc{color:var(--dsw-alias-label-tertiary);font:var(--dsw-font-xxs-12)}
+.waycraft-control{display:inline-flex;align-items:center;gap:8px}
+.waycraft-stepper{display:inline-flex;align-items:center;justify-content:center;min-width:72px;height:36px;border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-module-platform);position:relative}
+.waycraft-value{min-width:30px;text-align:center;font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-primary);font:var(--dsw-font-s-14)}
+.waycraft-arrows{position:absolute;right:6px;display:flex;flex-direction:column;gap:2px;opacity:0}
+.waycraft-stepper:hover .waycraft-arrows,.waycraft-stepper:focus-within .waycraft-arrows{opacity:1}
+.waycraft-arrow{width:17px;height:12px;display:inline-flex;align-items:center;justify-content:center;border:none;padding:0;border-radius:var(--dsw-radius-xs);background:color-mix(in srgb,var(--dsw-alias-bg-layer-1) 75%,transparent);color:var(--dsw-alias-label-primary);cursor:pointer;font-size:calc(8px + var(--waycraft-ui-d,0px));line-height:1}
+.waycraft-arrow:hover:not(:disabled){background:var(--dsw-alias-bg-layer-1)}
+.waycraft-arrow:disabled{color:var(--dsw-alias-label-caption);cursor:default}
+.waycraft-unit{color:var(--dsw-alias-label-secondary);font:var(--dsw-font-s-14)}
+.waycraft-selector{display:inline-flex;align-items:center;gap:12px;height:36px;padding:0 14px;border:none;border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);font:var(--dsw-font-s-14);cursor:pointer}
+.waycraft-selector:hover{background:var(--dsw-alias-interactive-bg-hover)}
+.waycraft-chevron{flex:none}
+.waycraft-test{height:36px;padding:0 12px;border:none;border-radius:var(--dsw-radius-md);background:transparent;color:var(--dsw-alias-label-secondary);font:var(--dsw-font-xs-13);cursor:pointer}
+.waycraft-test:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
+.waycraft-test:disabled{opacity:.4;cursor:default}
+.waycraft-status{display:inline-block;margin-top:2px}
+.waycraft-status[data-state=granted]{color:var(--dsw-alias-state-success-primary,#3ecf8e)}
+.waycraft-status[data-state=denied],.waycraft-status[data-state=unsupported]{color:var(--dsw-alias-state-error-primary,#ff6b6b)}
+.waycraft-ap-trigger{display:inline-flex;align-items:center;gap:6px;min-width:0;max-width:200px;height:28px;padding:0 6px 0 8px;border:none;border-radius:var(--dsw-radius-sm);background:transparent;color:var(--dsw-alias-label-secondary);font:var(--dsw-font-xs-strong-13);cursor:pointer}
+.waycraft-ap-trigger:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}
+.waycraft-ap-trigger:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}
+.waycraft-ap-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.waycraft-ap-dot{flex:none;width:7px;height:7px;border-radius:50%;background:var(--dsw-alias-label-caption)}
+.waycraft-ap-trigger[data-mode=safe] .waycraft-ap-dot{background:var(--dsw-alias-state-success-primary,#3ecf8e)}
+.waycraft-ap-trigger[data-mode=aggressive] .waycraft-ap-dot{background:var(--dsw-alias-state-error-primary,#ff6b6b)}
+.waycraft-ap-trigger[data-mode=aggressive]{color:var(--dsw-alias-state-error-primary,#ff6b6b)}
+[data-waycraft-menu-trigger]{width:0!important;height:0!important;min-width:0!important;min-height:0!important;margin:0!important;padding:0!important;border:0!important;overflow:hidden!important;opacity:0!important;pointer-events:none!important;flex:none!important}
 `;
 
     function BidiRow({ t }) {
@@ -9603,12 +9635,12 @@ return module.exports; };
       const Switch = primitives.Switch;
       return h(
         'div',
-        { className: 'majed-row' },
+        { className: 'waycraft-row' },
         h(
           'div',
-          { className: 'majed-text' },
-          h('div', { className: 'majed-title' }, t('bidi.title')),
-          h('div', { className: 'majed-desc' }, t('bidi.description')),
+          { className: 'waycraft-text' },
+          h('div', { className: 'waycraft-title' }, t('bidi.title')),
+          h('div', { className: 'waycraft-desc' }, t('bidi.description')),
         ),
         Switch
           ? h(Switch, {
@@ -9632,28 +9664,28 @@ return module.exports; };
       const set = (v) => store.set({ uiFontSize: clampPx(v) });
       return h(
         'div',
-        { className: 'majed-row' },
+        { className: 'waycraft-row' },
         h(
           'div',
-          { className: 'majed-text' },
-          h('div', { className: 'majed-title' }, t('size.title')),
-          h('div', { className: 'majed-desc' }, t('size.description')),
+          { className: 'waycraft-text' },
+          h('div', { className: 'waycraft-title' }, t('size.title')),
+          h('div', { className: 'waycraft-desc' }, t('size.description')),
         ),
         h(
           'div',
-          { className: 'majed-control' },
+          { className: 'waycraft-control' },
           h(
             'div',
-            { className: 'majed-stepper' },
-            h('span', { className: 'majed-value' }, size),
+            { className: 'waycraft-stepper' },
+            h('span', { className: 'waycraft-value' }, size),
             h(
               'span',
-              { className: 'majed-arrows' },
+              { className: 'waycraft-arrows' },
               h(
                 'button',
                 {
                   type: 'button',
-                  className: 'majed-arrow',
+                  className: 'waycraft-arrow',
                   'aria-label': t('size.increase'),
                   disabled: size >= UI_MAX_PX,
                   onClick: () => set(size + 1),
@@ -9664,7 +9696,7 @@ return module.exports; };
                 'button',
                 {
                   type: 'button',
-                  className: 'majed-arrow',
+                  className: 'waycraft-arrow',
                   'aria-label': t('size.decrease'),
                   disabled: size <= UI_MIN_PX,
                   onClick: () => set(size - 1),
@@ -9673,7 +9705,7 @@ return module.exports; };
               ),
             ),
           ),
-          h('span', { className: 'majed-unit' }, t('size.unit')),
+          h('span', { className: 'waycraft-unit' }, t('size.unit')),
         ),
       );
     }
@@ -9691,22 +9723,22 @@ return module.exports; };
         {
           ref,
           type: 'button',
-          className: 'majed-selector',
+          className: 'waycraft-selector',
           'aria-haspopup': 'menu',
           'aria-expanded': open,
           onClick: () => setOpen((v) => !v),
         },
         t('font.' + value),
-        Chevron ? h(Chevron, { className: 'majed-chevron' }) : '▾',
+        Chevron ? h(Chevron, { className: 'waycraft-chevron' }) : '▾',
       );
       return h(
         'div',
-        { className: 'majed-row' },
+        { className: 'waycraft-row' },
         h(
           'div',
-          { className: 'majed-text' },
-          h('div', { className: 'majed-title' }, t('font.title')),
-          h('div', { className: 'majed-desc' }, t('font.description')),
+          { className: 'waycraft-text' },
+          h('div', { className: 'waycraft-title' }, t('font.title')),
+          h('div', { className: 'waycraft-desc' }, t('font.description')),
         ),
         Menu
           ? h(Menu, {
@@ -9756,26 +9788,26 @@ return module.exports; };
         {
           ref,
           type: 'button',
-          className: 'majed-selector',
+          className: 'waycraft-selector',
           'aria-haspopup': 'menu',
           'aria-expanded': open,
           onClick: () => setOpen((v) => !v),
         },
         current ? current.label : value,
-        Chevron ? h(Chevron, { className: 'majed-chevron' }) : '▾',
+        Chevron ? h(Chevron, { className: 'waycraft-chevron' }) : '▾',
       );
       return h(
         'div',
-        { className: 'majed-row' },
+        { className: 'waycraft-row' },
         h(
           'div',
-          { className: 'majed-text' },
-          h('div', { className: 'majed-title' }, title),
-          h('div', { className: 'majed-desc' }, description),
+          { className: 'waycraft-text' },
+          h('div', { className: 'waycraft-title' }, title),
+          h('div', { className: 'waycraft-desc' }, description),
         ),
         h(
           'div',
-          { className: 'majed-control' },
+          { className: 'waycraft-control' },
           extra || null,
           Menu
             ? h(Menu, {
@@ -9806,12 +9838,12 @@ return module.exports; };
       const Switch = primitives.Switch;
       return h(
         'div',
-        { className: 'majed-row' },
+        { className: 'waycraft-row' },
         h(
           'div',
-          { className: 'majed-text' },
-          h('div', { className: 'majed-title' }, title),
-          h('div', { className: 'majed-desc' }, description),
+          { className: 'waycraft-text' },
+          h('div', { className: 'waycraft-title' }, title),
+          h('div', { className: 'waycraft-desc' }, description),
         ),
         Switch
           ? h(Switch, { checked, label: title, onChange: (n) => onChange(!!n) })
@@ -10013,13 +10045,13 @@ return module.exports; };
         'button',
         {
           type: 'button',
-          className: 'majed-test',
+          className: 'waycraft-test',
           disabled: mode === 'off',
           onClick: async () => {
             await notify({
               title: 'DeepSeek Harness',
               body: t('notify.testBody'),
-              tag: 'majed:test',
+              tag: 'waycraft:test',
               fromGesture: true,
             });
             setTick((n) => n + 1);
@@ -10036,7 +10068,7 @@ return module.exports; };
           h('br'),
           h(
             'span',
-            { className: 'majed-status', 'data-state': caps.permission },
+            { className: 'waycraft-status', 'data-state': caps.permission },
             t(statusKey),
           ),
         ),
@@ -10092,8 +10124,8 @@ return module.exports; };
     }
     function markFooterTriggers(on) {
       for (const t of footerTriggers()) {
-        if (on) t.setAttribute('data-majed-menu-trigger', '');
-        else t.removeAttribute('data-majed-menu-trigger');
+        if (on) t.setAttribute('data-waycraft-menu-trigger', '');
+        else t.removeAttribute('data-waycraft-menu-trigger');
       }
     }
     function footerMenuItems() {
@@ -10117,7 +10149,7 @@ return module.exports; };
       return out;
     }
     function removeInjectedItems() {
-      document.querySelectorAll('[data-majed-item]').forEach((b) => {
+      document.querySelectorAll('[data-waycraft-item]').forEach((b) => {
         const w = b.parentElement;
         if (w) w.remove();
       });
@@ -10125,15 +10157,15 @@ return module.exports; };
     function injectAccountItems(menu, trigger) {
       const buttons = Array.from(
         menu.querySelectorAll('[role="menuitem"]'),
-      ).filter((b) => !b.hasAttribute('data-majed-item'));
+      ).filter((b) => !b.hasAttribute('data-waycraft-item'));
       if (!buttons.length) return;
       const template =
         buttons.find((b) => !b.querySelector('[aria-hidden="true"]')) ||
         buttons[0];
       const anchorWrap = buttons[buttons.length - 1].parentElement; // before Sign out / Sign in
       const have = new Set(
-        Array.from(menu.querySelectorAll('[data-majed-item]')).map((n) =>
-          n.getAttribute('data-majed-item'),
+        Array.from(menu.querySelectorAll('[data-waycraft-item]')).map((n) =>
+          n.getAttribute('data-waycraft-item'),
         ),
       );
       const items = [...footerMenuItems(), ...accountItems.values()].sort(
@@ -10144,7 +10176,7 @@ return module.exports; };
         const wrap = template.parentElement.cloneNode(true);
         wrap.querySelectorAll('[role="separator"]').forEach((n) => n.remove());
         const btn = wrap.querySelector('[role="menuitem"]');
-        btn.setAttribute('data-majed-item', item.id);
+        btn.setAttribute('data-waycraft-item', item.id);
         btn.removeAttribute('disabled');
         btn.removeAttribute('aria-keyshortcuts');
         const spans = Array.from(btn.children).filter(
@@ -10217,9 +10249,11 @@ return module.exports; };
           };
         },
       };
-      window.__dshMajed = Object.assign(window.__dshMajed || {}, {
+      window.__dshWaycraft = Object.assign(window.__dshWaycraft || {}, {
         accountMenu: api,
       });
+      // Deprecated alias (one release): the old hook points at the same object.
+      window[LEGACY_GLOBAL] = window.__dshWaycraft;
       schedule();
       return () => {
         observer.disconnect();
@@ -10228,7 +10262,9 @@ return module.exports; };
         markFooterTriggers(false);
         removeInjectedItems();
         accountItems.clear();
-        if (window.__dshMajed) delete window.__dshMajed.accountMenu;
+        if (window.__dshWaycraft) delete window.__dshWaycraft.accountMenu;
+        if (window[LEGACY_GLOBAL] === window.__dshWaycraft)
+          delete window[LEGACY_GLOBAL];
       };
     }
     function AccountMenuRow({ t }) {
@@ -10253,9 +10289,9 @@ return module.exports; };
     // Lightweight toast that matches DSH's own (same tokens, top-centre, ~2s). It lives in <body>, outside
     // React, so it works from plain DOM listeners; one element is reused so rapid copies don't stack.
     const TOAST_CSS = `
-.majed-toast{position:fixed;top:40px;left:50%;z-index:2147483000;transform:translate(-50%,-6px);display:flex;align-items:center;gap:10px;width:max-content;max-width:min(640px,calc(100vw - 48px));padding:12px 16px;border-radius:var(--dsw-radius-lg,16px);background:var(--dsw-alias-toast-bg,#2b2b2e);color:var(--dsw-alias-toast-label,#fff);font:var(--dsw-font-s-14);box-shadow:var(--dsw-shadow-lv3,0 8px 24px rgba(0,0,0,.28));pointer-events:none;opacity:0;transition:opacity .16s ease,transform .16s ease}
-.majed-toast[data-show]{opacity:1;transform:translate(-50%,0)}
-.majed-toast svg{flex:none;width:16px;height:16px;color:var(--dsw-alias-state-success-primary,#3ecf8e)}
+.waycraft-toast{position:fixed;top:40px;left:50%;z-index:2147483000;transform:translate(-50%,-6px);display:flex;align-items:center;gap:10px;width:max-content;max-width:min(640px,calc(100vw - 48px));padding:12px 16px;border-radius:var(--dsw-radius-lg,16px);background:var(--dsw-alias-toast-bg,#2b2b2e);color:var(--dsw-alias-toast-label,#fff);font:var(--dsw-font-s-14);box-shadow:var(--dsw-shadow-lv3,0 8px 24px rgba(0,0,0,.28));pointer-events:none;opacity:0;transition:opacity .16s ease,transform .16s ease}
+.waycraft-toast[data-show]{opacity:1;transform:translate(-50%,0)}
+.waycraft-toast svg{flex:none;width:16px;height:16px;color:var(--dsw-alias-state-success-primary,#3ecf8e)}
 `;
     let toastEl = null,
       toastTimer = null,
@@ -10264,13 +10300,13 @@ return module.exports; };
       if (!document.body) return;
       if (!toastStyle) {
         toastStyle = document.createElement('style');
-        toastStyle.setAttribute('data-majed-toast-style', '');
+        toastStyle.setAttribute('data-waycraft-toast-style', '');
         toastStyle.textContent = TOAST_CSS;
         document.head.appendChild(toastStyle);
       }
       if (!toastEl) {
         toastEl = document.createElement('div');
-        toastEl.className = 'majed-toast';
+        toastEl.className = 'waycraft-toast';
         toastEl.setAttribute('role', 'status');
         toastEl.setAttribute('aria-live', 'polite');
         toastEl.innerHTML =
@@ -12646,7 +12682,7 @@ return module.exports; };
           ref,
           type: 'button',
           disabled: !!locked,
-          className: 'majed-ap-trigger',
+          className: 'waycraft-ap-trigger',
           'data-mode': mode,
           'aria-haspopup': 'menu',
           'aria-expanded': open,
@@ -12654,8 +12690,8 @@ return module.exports; };
           title: t('ap.aria'),
           onClick: () => setOpen((v) => !v),
         },
-        h('span', { className: 'majed-ap-dot', 'aria-hidden': 'true' }),
-        h('span', { className: 'majed-ap-label' }, t('ap.' + mode)),
+        h('span', { className: 'waycraft-ap-dot', 'aria-hidden': 'true' }),
+        h('span', { className: 'waycraft-ap-label' }, t('ap.' + mode)),
         Chevron ? h(Chevron, { size: 12 }) : '▾',
       );
       if (!Menu) return trigger;
@@ -12675,14 +12711,14 @@ return module.exports; };
     // ───────────────────────── app-UI font size + font source ─────────────────────────
     // Only TEXT grows: we read DSH's own stylesheets (<style data-plugin-css>) and, for every
     // rule that sets a px font-size / line-height, emit an override
-    //   calc(<original px> + var(--majed-ui-d))      (d = chosen size - 14, in px)
+    //   calc(<original px> + var(--waycraft-ui-d))      (d = chosen size - 14, in px)
     // so spacing, icons and borders are untouched. Chat transcript sheets are skipped because
     // the built-in "chat font size" already drives them.
     const SKIP_SHEETS =
       /(AssistantMarkdown|MessageItem|ChatView|ToolDetails|ToolRow|bash-sample|FileDiff|TextPreview|TrajectoryTable|stat-dialog)\.module\.css$/;
     const PX = /^(-?\d*\.?\d+)px$/;
     // Additive, like DSH's own chat font size: size' = size + (chosen - 14)px, so the chrome's 14px body text
-    // becomes exactly the chosen number. `--majed-ui-d` carries that difference.
+    // becomes exactly the chosen number. `--waycraft-ui-d` carries that difference.
     // Sizes bound to DSH's chat-size variables follow the CHAT font size; they are only re-based onto the
     // UI size in shell sheets (<link> bundles), where they style app chrome such as menus.
     const CONTENT_VAR = /^(?:var|calc|min|max)\(.*--dsh-content-font-size.*\)$/;
@@ -12691,7 +12727,7 @@ return module.exports; };
         .trim()
         .replace(/\s*!important$/, '');
       const m = PX.exec(t);
-      if (m) return `calc(${m[1]}px + var(--majed-ui-d))`;
+      if (m) return `calc(${m[1]}px + var(--waycraft-ui-d))`;
       if (shell && CONTENT_VAR.test(t)) {
         // evaluate the chat variables at their 14px defaults, then add the UI delta
         const base = t
@@ -12700,7 +12736,7 @@ return module.exports; };
             '$1',
           )
           .replace(/var\(--dsh-content-font-size\s*,\s*([\d.]+px)\)/g, '$1');
-        return `calc((${base}) + var(--majed-ui-d))`;
+        return `calc((${base}) + var(--waycraft-ui-d))`;
       }
       return null;
     };
@@ -12753,11 +12789,11 @@ return module.exports; };
     // account menu...) live in <link rel=stylesheet> bundles, so those are scanned too.
     // Generated sheets of ours must never be re-scanned (it would compound the scale).
     const OWN_GENERATED = [
-      'data-majed-appearance',
-      'data-majed-ui-font',
-      'data-majed-bidi',
-      'data-majed-settings',
-      'data-majed-toast-style',
+      'data-waycraft-appearance',
+      'data-waycraft-ui-font',
+      'data-waycraft-bidi',
+      'data-waycraft-settings',
+      'data-waycraft-toast-style',
     ];
     function isOwnGenerated(el) {
       return OWN_GENERATED.some((a) => el.hasAttribute(a));
@@ -12864,7 +12900,7 @@ return module.exports; };
           `src:url("${FONT_ROUTE}${f.u}") format("woff2");unicode-range:${f.r}}`,
       );
       fontFaceStyle = document.createElement('style');
-      fontFaceStyle.setAttribute('data-majed-fontfaces', '');
+      fontFaceStyle.setAttribute('data-waycraft-fontfaces', '');
       fontFaceStyle.textContent = rules.join('\n');
       document.head.appendChild(fontFaceStyle);
       loadedFont = key;
@@ -13315,7 +13351,7 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
     /** Start the bidi engine; returns a stop() that removes every trace. */
     function startBidi() {
       const style = document.createElement('style');
-      style.setAttribute('data-majed-bidi', '');
+      style.setAttribute('data-waycraft-bidi', '');
       style.textContent = CHAT_CSS + GENUI_CSS;
       document.head.appendChild(style);
 
@@ -13413,27 +13449,27 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
             });
             live.clear();
           },
-          'dsh-majed: notification cleanup',
+          'dsh-waycraft: notification cleanup',
         );
         ctx.effect(
           () => ctx.locale.register(NS, { zh, en }),
-          'dsh-majed: dictionaries',
+          'dsh-waycraft: dictionaries',
         );
 
         ctx.effect(() => {
           const style = document.createElement('style');
-          style.setAttribute('data-majed-settings', '');
+          style.setAttribute('data-waycraft-settings', '');
           style.textContent = ROW_CSS;
           document.head.appendChild(style);
           return () => style.remove();
-        }, 'dsh-majed: settings row styles');
+        }, 'dsh-waycraft: settings row styles');
 
         // Settings > General rows (same slot the built-in rows use).
         ctx.slots.inject('settings.general.item', () =>
           ctx.slots.register(
             {
               name: 'settings.general.item',
-              id: 'majed-ui-font-size',
+              id: 'waycraft-ui-font-size',
               order: 11.5,
               locale: NS,
             },
@@ -13444,7 +13480,7 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
           ctx.slots.register(
             {
               name: 'settings.general.item',
-              id: 'majed-font-source',
+              id: 'waycraft-font-source',
               order: 11.6,
               locale: NS,
             },
@@ -13455,7 +13491,7 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
           ctx.slots.register(
             {
               name: 'settings.general.item',
-              id: 'majed-bidi',
+              id: 'waycraft-bidi',
               order: 13,
               locale: NS,
             },
@@ -13467,7 +13503,7 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
           ctx.slots.register(
             {
               name: 'settings.general.item',
-              id: 'majed-notify-mode',
+              id: 'waycraft-notify-mode',
               order: 13.1,
               locale: NS,
             },
@@ -13478,7 +13514,7 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
           ctx.slots.register(
             {
               name: 'settings.general.item',
-              id: 'majed-notify-done',
+              id: 'waycraft-notify-done',
               order: 13.2,
               locale: NS,
             },
@@ -13489,7 +13525,7 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
           ctx.slots.register(
             {
               name: 'settings.general.item',
-              id: 'majed-notify-action',
+              id: 'waycraft-notify-action',
               order: 13.3,
               locale: NS,
             },
@@ -13500,7 +13536,7 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
           ctx.slots.register(
             {
               name: 'settings.general.item',
-              id: 'majed-account-menu',
+              id: 'waycraft-account-menu',
               order: 13.4,
               locale: NS,
             },
@@ -13511,7 +13547,7 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
           ctx.slots.register(
             {
               name: 'conversation.input.left',
-              id: 'majed-auto-approve',
+              id: 'waycraft-auto-approve',
               order: 50,
               locale: NS,
             },
@@ -13522,7 +13558,7 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
           ctx.slots.register(
             {
               name: 'conversation.session.header.utilities',
-              id: 'majed-auto-approver',
+              id: 'waycraft-auto-approver',
               order: 9999,
               locale: NS,
             },
@@ -13533,7 +13569,7 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
           ctx.slots.register(
             {
               name: 'settings.general.item',
-              id: 'majed-auto-copy',
+              id: 'waycraft-auto-copy',
               order: 13.5,
               locale: NS,
             },
@@ -13542,7 +13578,7 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
         );
         ctx.effect(
           () => startAccountMenu(),
-          'dsh-majed: account menu grouping',
+          'dsh-waycraft: account menu grouping',
         );
         ctx.effect(() => {
           let stop = null;
@@ -13562,11 +13598,11 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
             if (stop) stop();
             disposeToast();
           };
-        }, 'dsh-majed: copy on select');
+        }, 'dsh-waycraft: copy on select');
         // Invisible watcher on the frame-wide overlay layer: reads session status via the standard hook.
         ctx.slots.inject('shell.overlay', () =>
           ctx.slots.register(
-            { name: 'shell.overlay', id: 'majed-notifications', locale: NS },
+            { name: 'shell.overlay', id: 'waycraft-notifications', locale: NS },
             NotificationWatcher,
           ),
         );
@@ -13575,9 +13611,9 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
         ctx.effect(() => {
           let stopBidi = null;
           const varStyle = document.createElement('style'); // k + font family
-          varStyle.setAttribute('data-majed-appearance', '');
+          varStyle.setAttribute('data-waycraft-appearance', '');
           const sizeStyle = document.createElement('style'); // generated overrides
-          sizeStyle.setAttribute('data-majed-ui-font', '');
+          sizeStyle.setAttribute('data-waycraft-ui-font', '');
           document.head.append(varStyle, sizeStyle);
 
           let lastOverrides = null;
@@ -13596,7 +13632,7 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
               stopBidi();
               stopBidi = null;
             }
-            varStyle.textContent = `:root{--majed-ui-d:${s.uiFontSize - UI_BASE_PX}px;}\n`;
+            varStyle.textContent = `:root{--waycraft-ui-d:${s.uiFontSize - UI_BASE_PX}px;}\n`;
             applyFontFamily(s);
             regenerate();
           };
@@ -13647,21 +13683,21 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
             varStyle.remove();
             sizeStyle.remove();
           };
-        }, 'dsh-majed: apply settings');
+        }, 'dsh-waycraft: apply settings');
 
         try {
           subscriptions.applySkills(ctx);
         } catch (error) {
-          console.error('dsh-majed: Skill manager setup failed', error);
+          console.error('dsh-waycraft: Skill manager setup failed', error);
         }
         // Optional component setup must never interrupt the core registrations above.
         try {
           Promise.resolve(subscriptions.applySubscriptions(ctx)).catch(
             (error) =>
-              console.error('dsh-majed: Subscriptions setup failed', error),
+              console.error('dsh-waycraft: Subscriptions setup failed', error),
           );
         } catch (error) {
-          console.error('dsh-majed: Subscriptions setup failed', error);
+          console.error('dsh-waycraft: Subscriptions setup failed', error);
         }
       },
     };

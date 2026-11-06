@@ -7,7 +7,7 @@ import { getGlobalDispatcher, MockAgent, setGlobalDispatcher } from 'undici'
 import { proxiedFetch, proxySetConfig, proxyTestConnection, resetProxyForTests } from '../../src/http.js'
 
 test('disabled and bypassed plugin proxy preserve the host global dispatcher, including probes', async () => {
-  const dir = await mkdtemp(join('/tmp/majed-t130', 'subscriptions-proxy-host-'))
+  const dir = await mkdtemp(join('/tmp/waycraft-t130', 'subscriptions-proxy-host-'))
   const previousHome = process.env.DSH_HOME
   const previousDispatcher = getGlobalDispatcher()
   const host = new MockAgent()

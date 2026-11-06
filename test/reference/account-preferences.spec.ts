@@ -25,7 +25,7 @@ const options = (model: string): GenerateOptions => ({ provider: 'codex', model,
 async function consume(route: LlmAdapter, id: string) { for await (const _ of route.stream(options(id))) { /* collect */ } }
 
 test('registered account routes preserve provider retry policy in the DSH runtime', async () => {
-  const dir = await mkdtemp(join('/tmp/majed-t130', 'account-runtime-'))
+  const dir = await mkdtemp(join('/tmp/waycraft-t130', 'account-runtime-'))
   const raw = new Raw()
   const policy = resolveRetryPolicy({ mode: 'normal', maxRetries: 9, backoff: { maxDelayMs: 7200000 } }, 'test')
   raw.providerRetryPolicy = () => policy
@@ -38,7 +38,7 @@ test('registered account routes preserve provider retry policy in the DSH runtim
 })
 
 test('DSH prepared calls keep the account whose capabilities were resolved', async () => {
-  const dir = await mkdtemp(join('/tmp/majed-t130', 'account-prepared-'))
+  const dir = await mkdtemp(join('/tmp/waycraft-t130', 'account-prepared-'))
   const raw = new Raw()
   let order = ['a', 'b']
   const route = new AccountPreferencesAdapter({ provider: 'codex', adapter: raw,
@@ -56,7 +56,7 @@ test('DSH prepared calls keep the account whose capabilities were resolved', asy
 })
 
 test('DSH capability preparation promptly settles when cancelled during discovery', async () => {
-  const dir = await mkdtemp(join('/tmp/majed-t130', 'account-abort-'))
+  const dir = await mkdtemp(join('/tmp/waycraft-t130', 'account-abort-'))
   const raw = new Raw()
   let release!: () => void
   let enter!: () => void
@@ -79,7 +79,7 @@ test('DSH capability preparation promptly settles when cancelled during discover
 })
 
 test('revoking a prepared account refuses dispatch rather than bypassing preferences', async () => {
-  const dir = await mkdtemp(join('/tmp/majed-t130', 'account-revoked-'))
+  const dir = await mkdtemp(join('/tmp/waycraft-t130', 'account-revoked-'))
   const raw = new Raw()
   const settings = new ProviderSettingsStore(join(dir, 'settings.json'))
   const route = new AccountPreferencesAdapter({ provider: 'codex', adapter: raw, settings,
@@ -97,7 +97,7 @@ test('revoking a prepared account refuses dispatch rather than bypassing prefere
 })
 
 test('model display names decorate list and resolution without changing routing or capabilities', async () => {
-  const dir = await mkdtemp(join('/tmp/majed-t130', 'model-display-names-'))
+  const dir = await mkdtemp(join('/tmp/waycraft-t130', 'model-display-names-'))
   try {
     const settings = new ProviderSettingsStore(join(dir, 'settings.json'))
     const raw = new Raw()
@@ -122,7 +122,7 @@ test('model display names decorate list and resolution without changing routing 
 })
 
 test('account preferences validate, persist and distinguish absent and empty allowlists', async () => {
-  const dir = await mkdtemp(join('/tmp/majed-t130', 'account-preferences-'))
+  const dir = await mkdtemp(join('/tmp/waycraft-t130', 'account-preferences-'))
   try {
     const store = new ProviderSettingsStore(join(dir, 'settings.json'))
     await store.set('codex', { accounts: JSON.parse('{"__proto__":{"alias":"  Work  ","poolEnabled":false,"independentEntry":true,"poolModels":[]},"b":{}}') })
@@ -137,7 +137,7 @@ test('account preferences validate, persist and distinguish absent and empty all
 })
 
 test('independent entries use stable IDs, raw account capabilities and no default fallback', async () => {
-  const dir = await mkdtemp(join('/tmp/majed-t130', 'account-route-'))
+  const dir = await mkdtemp(join('/tmp/waycraft-t130', 'account-route-'))
   try {
     const settings = new ProviderSettingsStore(join(dir, 'settings.json'))
     const raw = new Raw()
@@ -169,7 +169,7 @@ test('independent entries use stable IDs, raw account capabilities and no defaul
 })
 
 test('singleton and explicit families/tiers enforce account and model exclusion at pool seams', async () => {
-  const dir = await mkdtemp(join('/tmp/majed-t130', 'account-pool-'))
+  const dir = await mkdtemp(join('/tmp/waycraft-t130', 'account-pool-'))
   try {
     const settings = new ProviderSettingsStore(join(dir, 'settings.json'))
     const raw = new Raw()
@@ -198,7 +198,7 @@ test('singleton and explicit families/tiers enforce account and model exclusion 
 })
 
 test('a timed-out discovery falls back to the account\'s last known catalog', async () => {
-  const dir = await mkdtemp(join('/tmp/majed-t130', 'account-timeout-'))
+  const dir = await mkdtemp(join('/tmp/waycraft-t130', 'account-timeout-'))
   try {
     class Hanging extends Raw {
       known: string[] | undefined = ['m:/模型']

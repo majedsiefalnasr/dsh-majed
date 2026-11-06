@@ -92,11 +92,11 @@ async function fixture(t, catalogs = {}, serverHandler, state) {
   t.after(stop);
   const send = async (body, { marker = true, signal } = {}) => {
     const r = await route.fetch(
-      new Request('http://localhost/api/majed-skills.catalog', {
+      new Request('http://localhost/api/waycraft-skills.catalog', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          ...(marker ? { 'x-majed-skills': '1' } : {}),
+          ...(marker ? { 'x-waycraft-skills': '1' } : {}),
         },
         body: JSON.stringify({ source: 'user-dsh', ...body }),
         signal,

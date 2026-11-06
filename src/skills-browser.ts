@@ -1,8 +1,9 @@
+import { LEGACY_PANEL_IDS } from './legacy-names.js';
 // Independently authored global catalog UI; reference same-origin API transport.
 export function applySkills(root: any): void {
   const fail = (error: unknown) =>
     // A failing optional Component must never disturb sibling registrations.
-    console.error('dsh-majed: Skill manager setup failed', error);
+    console.error('dsh-waycraft: Skill manager setup failed', error);
   try {
     Promise.resolve(
       root.inject(['slots', 'locale'], (ctx: any) => {
@@ -932,10 +933,10 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
       },
     };
     effect(
-      () => ctx.locale.register('majed.skills', dictionaries),
-      'majed-skills dictionaries',
+      () => ctx.locale.register('waycraft.skills', dictionaries),
+      'waycraft-skills dictionaries',
     );
-    const t = ctx.locale.bind('majed.skills');
+    const t = ctx.locale.bind('waycraft.skills');
     const isArabic = () => ctx.locale.language?.getSnapshot?.() === 'ar';
     const sourceLabel = (source: any) =>
       source.label ?? source.name ?? source.id;
@@ -1038,12 +1039,18 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
     const call = async (body: any, signal?: AbortSignal) => {
       const base = new URL(document.baseURI);
       if (!base.pathname.endsWith('/')) base.pathname += '/';
-      const response = await fetch(new URL('api/majed-skills.catalog', base), {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-majed-skills': '1' },
-        body: JSON.stringify(body),
-        signal,
-      });
+      const response = await fetch(
+        new URL('api/waycraft-skills.catalog', base),
+        {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            'x-waycraft-skills': '1',
+          },
+          body: JSON.stringify(body),
+          signal,
+        },
+      );
       if (!response.ok) {
         const failure: any = new Error(String(response.status));
         // Plain-text host rejections carry no JSON body, so the status selects the message.
@@ -1320,7 +1327,7 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
         );
       return h(
         'div',
-        { 'data-majed-catalogs': true },
+        { 'data-waycraft-catalogs': true },
         h(
           'form',
           {
@@ -1403,7 +1410,7 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
             const copies = copiesOf(item);
             return h(
               'li',
-              { key: item.id, 'data-majed-catalog-item': item.id },
+              { key: item.id, 'data-waycraft-catalog-item': item.id },
               h('strong', null, item.name),
               item.summary ? h('p', null, item.summary) : null,
               h('small', null, ...metadata(item)),
@@ -1443,7 +1450,10 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
                     ...recordsOf(item).map((entry: any) =>
                       h(
                         'li',
-                        { key: entry.id, 'data-majed-catalog-copy': entry.id },
+                        {
+                          key: entry.id,
+                          'data-waycraft-catalog-copy': entry.id,
+                        },
                         placeNode(data, entry),
                         ' · ',
                         h('bdi', { dir: 'ltr' }, `${entry.root}/${entry.name}`),
@@ -2553,7 +2563,7 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
       return h(
         'section',
         {
-          'data-majed-skills': true,
+          'data-waycraft-skills': true,
           dir: isArabic() ? 'rtl' : undefined,
         },
         h('h2', null, t('title')),
@@ -2563,7 +2573,7 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
         scope === 'trash'
           ? h(
               'div',
-              { 'data-majed-trash': true },
+              { 'data-waycraft-trash': true },
               h('h3', null, t('trash')),
               !data?.trashError && !data?.trash?.length
                 ? h('p', null, t('trashEmpty'))
@@ -2656,7 +2666,7 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
               {
                 role: 'tablist',
                 'aria-label': t('scopeDiscover'),
-                'data-majed-discover-tabs': true,
+                'data-waycraft-discover-tabs': true,
               },
               ...[
                 ['git', t('tabGit')],
@@ -2669,9 +2679,9 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
                     key: id,
                     type: 'button',
                     role: 'tab',
-                    id: `majed-discover-tab-${id}`,
+                    id: `waycraft-discover-tab-${id}`,
                     'aria-selected': tab === id,
-                    'aria-controls': 'majed-discover-panel',
+                    'aria-controls': 'waycraft-discover-panel',
                     tabIndex: tab === id ? 0 : -1,
                     onClick: () => setTab(id),
                     onKeyDown: (event: any) => {
@@ -2701,7 +2711,7 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
                       setTab(all[next][0]);
                       (
                         document.getElementById?.(
-                          `majed-discover-tab-${all[next][0]}`,
+                          `waycraft-discover-tab-${all[next][0]}`,
                         ) as HTMLElement | null
                       )?.focus?.();
                     },
@@ -2715,10 +2725,10 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
           ? h(
               'div',
               {
-                id: 'majed-discover-panel',
+                id: 'waycraft-discover-panel',
                 role: 'tabpanel',
-                'aria-labelledby': 'majed-discover-tab-git',
-                'data-majed-repositories': true,
+                'aria-labelledby': 'waycraft-discover-tab-git',
+                'data-waycraft-repositories': true,
               },
               h('h3', null, t('repositories')),
               h(
@@ -2868,7 +2878,7 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
                 if ((needle || repoStatusFilter) && !shown.length) return null;
                 return h(
                   'article',
-                  { key: repo.id, 'data-majed-repository': repo.id },
+                  { key: repo.id, 'data-waycraft-repository': repo.id },
                   h('strong', null, repo.label),
                   h(
                     'p',
@@ -2946,7 +2956,10 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
                   ...shown.map((skill: any) =>
                     h(
                       'div',
-                      { key: skill.path, 'data-majed-repo-skill': skill.path },
+                      {
+                        key: skill.path,
+                        'data-waycraft-repo-skill': skill.path,
+                      },
                       h('span', null, skill.name),
                       h('span', null, ` — ${t(`repoStatus.${skill.status}`)}`),
                       skill.code
@@ -3003,7 +3016,7 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
               ...(data?.repoInstalls ?? []).map((record: any) =>
                 h(
                   'article',
-                  { key: record.id, 'data-majed-repo-install': record.id },
+                  { key: record.id, 'data-waycraft-repo-install': record.id },
                   h('strong', null, record.name),
                   h('span', null, ` — ${t(`repoStatus.${record.status}`)}`),
                   record.updateAvailable && record.status !== 'update'
@@ -3088,12 +3101,12 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
                         'div',
                         {
                           role: 'group',
-                          'aria-labelledby': `majed-repo-preview-${record.id}`,
-                          'data-majed-repo-preview': record.id,
+                          'aria-labelledby': `waycraft-repo-preview-${record.id}`,
+                          'data-waycraft-repo-preview': record.id,
                         },
                         h(
                           'h5',
-                          { id: `majed-repo-preview-${record.id}` },
+                          { id: `waycraft-repo-preview-${record.id}` },
                           `${t('repoPreviewTitle')}: ${record.name}`,
                         ),
                         !repoPreviews[record.id].changes.length
@@ -3215,18 +3228,18 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
           : null,
         scope === 'discover' && tab !== 'git' && data && data.corrupt
           ? h('div', {
-              id: 'majed-discover-panel',
+              id: 'waycraft-discover-panel',
               role: 'tabpanel',
-              'aria-labelledby': `majed-discover-tab-${tab}`,
+              'aria-labelledby': `waycraft-discover-tab-${tab}`,
             })
           : null,
         scope === 'discover' && tab !== 'git' && data && !data.corrupt
           ? h(
               'div',
               {
-                id: 'majed-discover-panel',
+                id: 'waycraft-discover-panel',
                 role: 'tabpanel',
-                'aria-labelledby': `majed-discover-tab-${tab}`,
+                'aria-labelledby': `waycraft-discover-tab-${tab}`,
               },
               h(CatalogPanel, {
                 key: tab,
@@ -3249,7 +3262,7 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
         importing
           ? h(
               'div',
-              { 'data-majed-import': true },
+              { 'data-waycraft-import': true },
               h('p', null, t('importHint')),
               scope === 'global'
                 ? h(
@@ -3528,7 +3541,7 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
               'button',
               {
                 type: 'button',
-                'data-majed-skills-refresh': true,
+                'data-waycraft-skills-refresh': true,
                 'aria-label': t('refreshAria'),
                 'aria-busy': refreshing,
                 disabled: refreshing || switching || (inProject && !project),
@@ -3564,7 +3577,7 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
                   ? h(
                       'div',
                       {
-                        'data-majed-skills-stats': true,
+                        'data-waycraft-skills-stats': true,
                         role: 'group',
                         'aria-label': t('statsAria'),
                       },
@@ -3840,7 +3853,7 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
       return h(
         'div',
         {
-          'data-majed-skills-placement': true,
+          'data-waycraft-skills-placement': true,
           dir: isArabic() ? 'rtl' : undefined,
         },
         h('strong', null, t('placement')),
@@ -3889,7 +3902,7 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
             ctx.slots.register(
               {
                 name: 'settings.section',
-                id: 'majed-skills',
+                id: 'waycraft-skills',
                 order: 91,
                 label: () => t('title'),
               },
@@ -3904,8 +3917,8 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
           offMain = ctx.slots.register(
             {
               name: 'main',
-              key: 'majed-skills',
-              locale: 'majed.skills',
+              key: 'waycraft-skills',
+              locale: 'waycraft.skills',
               inject: () => ({}),
             },
             () => h(Section),
@@ -3913,19 +3926,20 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
           offSidebar = ctx.slots.register(
             {
               name: 'sidebar.panellist',
-              id: 'majed-skills',
+              id: 'waycraft-skills',
               order: 92,
               label: () => t('title'),
-              locale: 'majed.skills',
+              locale: 'waycraft.skills',
             },
             sidebarIcon,
           );
+          mapLegacyPanel();
         } else if (!inSidebar() && offSidebar) {
           // Leaving the sidebar must not strand the user on a vanished panel.
           try {
             if (
               layout?.panelInfo?.getSnapshot?.().activePanelId ===
-              'majed-skills'
+              'waycraft-skills'
             )
               layout.selectPanel?.(null);
           } catch {}
@@ -3961,8 +3975,18 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
           throw failure;
         }
       };
+      // Saved panel state from before the rename: map a legacy active panel id to the new id.
+      const mapLegacyPanel = () => {
+        try {
+          const active = layout?.panelInfo?.getSnapshot?.().activePanelId;
+          const mapped =
+            typeof active === 'string' ? LEGACY_PANEL_IDS[active] : undefined;
+          if (mapped !== undefined) layout.selectPanel?.(mapped);
+        } catch {}
+      };
       void ctx.inject?.(['layout'], (injected: any) => {
         layout = injected?.layout ?? injected;
+        mapLegacyPanel();
       });
       // Cheap presence check: the host ping never scans sources. Backs off (3s doubling to 60s) while failing.
       let delay = 3000;
@@ -3980,8 +4004,8 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
                 ctx.slots.register(
                   {
                     name: 'plugins.bundle.config',
-                    key: 'majed-skills',
-                    locale: 'majed.skills',
+                    key: 'waycraft-skills',
+                    locale: 'waycraft.skills',
                   },
                   (props: any) =>
                     props?.view === 'summary' ? null : h(PlacementControl),
@@ -4006,6 +4030,6 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
         offMain?.();
         offSidebar?.();
       };
-    }, 'majed-skills presence');
+    }, 'waycraft-skills presence');
   }
 }

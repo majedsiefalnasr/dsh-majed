@@ -9,13 +9,13 @@ type RpcResult<T> =
 
 /**
  * The node half mounts every endpoint as an exact POST route on the shared
- * `/api` channel (`/api/majed-subscriptions.<endpoint>`), so the browser
+ * `/api` channel (`/api/waycraft-subscriptions.<endpoint>`), so the browser
  * reaches it through the `/api` channel with a prefixed endpoint name.
  * A dedicated channel is no longer used: since dsh 0.1.5 `rpc.handle`
  * cannot register one from a plugin (see `src/auth/rpc.ts`).
  */
 const SUBSCRIPTIONS_AUTH_CHANNEL = '/api';
-const SUBSCRIPTIONS_AUTH_PREFIX = 'majed-subscriptions.';
+const SUBSCRIPTIONS_AUTH_PREFIX = 'waycraft-subscriptions.';
 
 /** Business error returned by a `subscriptions-auth` endpoint (error branch message). */
 export class SubscriptionsAuthError extends Error {}

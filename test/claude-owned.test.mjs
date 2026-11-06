@@ -122,7 +122,7 @@ function host({ io, config = {}, collideClaude = false } = {}) {
     adapters,
     routes,
     async call(endpoint, payload = {}) {
-      const method = `majed-subscriptions.${endpoint}`;
+      const method = `waycraft-subscriptions.${endpoint}`;
       const response = await routes.get(`/api/${method}`).fetch(
         new Request(`http://localhost/api/${method}`, {
           method: 'POST',
@@ -147,7 +147,7 @@ function host({ io, config = {}, collideClaude = false } = {}) {
 }
 const home = async (name) => {
   process.env.DSH_HOME = await mkdtemp(
-    join(tmpdir(), `majed-t129-claude-${name}-`),
+    join(tmpdir(), `waycraft-t129-claude-${name}-`),
   );
   return process.env.DSH_HOME;
 };
@@ -784,7 +784,7 @@ test('the prompt cache lifetime persists, follows config when cleared, and reach
     );
     const file = JSON.parse(
       await readFile(
-        join(dir, 'plugins/majed/subscriptions/provider-settings.json'),
+        join(dir, 'plugins/waycraft/subscriptions/provider-settings.json'),
         'utf8',
       ).catch(() => '{}'),
     );
@@ -917,7 +917,10 @@ test('browser OAuth through the RPC: state is verified, the token exchange is fa
     assert.equal(
       (
         await stat(
-          join(process.env.DSH_HOME, 'plugins/majed/subscriptions/auth.json'),
+          join(
+            process.env.DSH_HOME,
+            'plugins/waycraft/subscriptions/auth.json',
+          ),
         )
       ).mode & 0o777,
       0o600,

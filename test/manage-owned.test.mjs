@@ -45,7 +45,7 @@ function host() {
     },
     async call(endpoint, payload = {}, owner = true) {
       if (!owner) return { status: 401 };
-      const method = `majed-subscriptions.${endpoint}`,
+      const method = `waycraft-subscriptions.${endpoint}`,
         route = routes.get(`/api/${method}`);
       assert.ok(route, `registered ${endpoint}`);
       const response = await route.fetch(
@@ -70,7 +70,7 @@ function host() {
 
 test('Manage settings round-trip through owned RPC, update picker and enforce pool exclusion', async () => {
   const home = (process.env.DSH_HOME = await mkdtemp(
-    '/tmp/majed-t130/settings-',
+    '/tmp/waycraft-t130/settings-',
   ));
   const { saveAccountSession } = await import('../dist/auth/store.js');
   await saveAccountSession('codex', 'fixture', {
@@ -149,8 +149,11 @@ test('Manage settings round-trip through owned RPC, update picker and enforce po
       /No eligible account/,
     );
     assert.equal(
-      (await stat(`${home}/plugins/majed/subscriptions/provider-settings.json`))
-        .mode & 0o777,
+      (
+        await stat(
+          `${home}/plugins/waycraft/subscriptions/provider-settings.json`,
+        )
+      ).mode & 0o777,
       0o600,
     );
     assert.equal(

@@ -1,6 +1,6 @@
 // Adapted from V1ki/dsh-plugin-subscriptions v0.9.12 test/provider-settings-rpc.spec.ts (MIT, b802311).
 // Disposition: Codex portion only (Grok/Antigravity/MiniMax parts are other tickets); mounted on the real cordis
-// Context, real LlmRuntime and the real tools/agent-created event; endpoints are ours (`majed-subscriptions.*`).
+// Context, real LlmRuntime and the real tools/agent-created event; endpoints are ours (`waycraft-subscriptions.*`).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp } from 'node:fs/promises';
@@ -10,7 +10,7 @@ import * as plugin from '../dist/subscriptions.js';
 import { CodexAdapter } from '../dist/providers/codex.js';
 
 test('provider settings RPC edits picker visibility, names and tool policy without losing the editor catalog or existing sessions', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t130/settings-rpc-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t130/settings-rpc-');
   const { saveAccountSession } = await import('../dist/auth/store.js');
   const ctx = new Context();
   const adapters = new Map(),
@@ -67,7 +67,7 @@ test('provider settings RPC edits picker visibility, names and tool policy witho
   try {
     await new Promise((resolve) => setTimeout(resolve, 50));
     assert.ok(
-      routes.has('/api/majed-subscriptions.providerSettings'),
+      routes.has('/api/waycraft-subscriptions.providerSettings'),
       'the component mounted',
     );
     assert.deepEqual(llm.listProviders(), [
@@ -85,7 +85,7 @@ test('provider settings RPC edits picker visibility, names and tool policy witho
       accountId: 'account',
     });
     const call = async (endpoint, payload) => {
-      const method = `majed-subscriptions.${endpoint}`;
+      const method = `waycraft-subscriptions.${endpoint}`;
       const response = await routes.get(`/api/${method}`).fetch(
         new Request(`http://127.0.0.1/api/${method}`, {
           method: 'POST',

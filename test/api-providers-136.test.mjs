@@ -212,7 +212,7 @@ async function fixture(
               : key === 'apiCancel' &&
                   root.findAll(
                     (n) =>
-                      n.props.className === 'majed-subscription-add-actions',
+                      n.props.className === 'waycraft-subscription-add-actions',
                   ).length
                 ? 'cancel'
                 : key
@@ -237,7 +237,7 @@ async function fixture(
     });
   };
   const row = (id) =>
-    renderer.root.find((n) => n.props['data-majed-api-provider'] === id);
+    renderer.root.find((n) => n.props['data-waycraft-api-provider'] === id);
   const text = () => JSON.stringify(renderer.toJSON());
   return {
     dict,
@@ -290,8 +290,10 @@ test('API directory excludes subscription route IDs even when registered as conf
     await p.emit('llm/adapters-updated');
     assert.deepEqual(
       p.renderer.root
-        .findAll((n) => n.type === 'li' && n.props['data-majed-api-provider'])
-        .map((n) => n.props['data-majed-api-provider'])
+        .findAll(
+          (n) => n.type === 'li' && n.props['data-waycraft-api-provider'],
+        )
+        .map((n) => n.props['data-waycraft-api-provider'])
         .sort(),
       ['custom', 'deployment'],
     );
@@ -372,7 +374,7 @@ test('separate Add entries own subscription and API groups (#138)', async () => 
     rows: [
       React.createElement(
         'li',
-        { key: 'subscription', 'data-majed-subscription-row': 'codex' },
+        { key: 'subscription', 'data-waycraft-subscription-row': 'codex' },
         'Codex',
       ),
     ],
@@ -385,9 +387,9 @@ test('separate Add entries own subscription and API groups (#138)', async () => 
   const p = await fixture('en', { subscriptions });
   try {
     assert.equal(
-      p.renderer.root.findByProps({ 'data-majed-subscription-row': 'codex' })
+      p.renderer.root.findByProps({ 'data-waycraft-subscription-row': 'codex' })
         .parent.props.className,
-      'majed-api-rows',
+      'waycraft-api-rows',
     );
     await p.click('subscriptionAdd');
     assert.equal(selected, 'codex');
@@ -515,7 +517,8 @@ test('DeepSeek Account never exposes a generic key editor or credential lookup (
       p
         .row('deepseek-account')
         .findAll(
-          (n) => n.props['data-majed-credential-status'] === 'account-unknown',
+          (n) =>
+            n.props['data-waycraft-credential-status'] === 'account-unknown',
         ).length,
       1,
     );
@@ -536,8 +539,9 @@ test('missing credential metadata is unknown, not a missing key (#138)', async (
     assert.equal(
       p
         .row('custom')
-        .findAll((n) => n.props['data-majed-credential-status'] === 'unknown')
-        .length,
+        .findAll(
+          (n) => n.props['data-waycraft-credential-status'] === 'unknown',
+        ).length,
       1,
     );
     assert.equal(p.text().includes(p.dict.apiKeyMissing), false);
@@ -551,13 +555,13 @@ for (const locale of ['en', 'ar']) {
     try {
       assert.equal(
         p.renderer.root.findAll(
-          (n) => n.props['data-majed-api-provider'] === 'registered-only',
+          (n) => n.props['data-waycraft-api-provider'] === 'registered-only',
         ).length,
         0,
       );
       assert.equal(
         p.renderer.root.findAll(
-          (n) => n.props['data-majed-api-provider'] === 'builtin',
+          (n) => n.props['data-waycraft-api-provider'] === 'builtin',
         ).length,
         0,
       );
@@ -675,7 +679,7 @@ for (const locale of ['en', 'ar']) {
       await p.click('apiEdit', p.row('custom'));
       await p.click('apiModelAdd');
       const rows = p.renderer.root.findAll(
-        (n) => n.props['data-majed-api-model'] !== undefined,
+        (n) => n.props['data-waycraft-api-model'] !== undefined,
       );
       assert.equal(rows.length, 2);
       await p.click('apiModelRemove', rows[1]);

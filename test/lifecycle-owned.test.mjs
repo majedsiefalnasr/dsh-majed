@@ -59,7 +59,7 @@ function mount(ctx, options = {}, services = true) {
     ...options,
   });
   const call = async (endpoint, payload = {}) => {
-    const method = `majed-subscriptions.${endpoint}`;
+    const method = `waycraft-subscriptions.${endpoint}`;
     const response = await routes.get(`/api/${method}`).fetch(
       new Request(`http://127.0.0.1/api/${method}`, {
         method: 'POST',
@@ -81,7 +81,7 @@ function mount(ctx, options = {}, services = true) {
 const settle = () => new Promise((resolve) => setTimeout(resolve, 50));
 
 test('disposing the component removes every owned registration and stops owned work; remounting restores them', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t130/lifecycle-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t130/lifecycle-');
   const savedFetch = globalThis.fetch;
   let requests = 0;
   globalThis.fetch = async () => {
@@ -94,11 +94,11 @@ test('disposing the component removes every owned registration and stops owned w
     await settle();
     assert.equal(
       first.routes.size,
-      22,
-      'owned routes including image/video, speed and Zen enablement controls',
+      44,
+      '22 owned routes registered under both the waycraft prefix and the deprecated legacy prefix',
     );
     assert.equal(
-      first.routes.has('/api/majed-subscriptions.setZenEnabled'),
+      first.routes.has('/api/waycraft-subscriptions.setZenEnabled'),
       true,
     );
     assert.deepEqual(
@@ -120,7 +120,7 @@ test('disposing the component removes every owned registration and stops owned w
       true,
       'a pending authorization exists',
     );
-    const stale = first.routes.get('/api/majed-subscriptions.status');
+    const stale = first.routes.get('/api/waycraft-subscriptions.status');
     first.runtime.dispose();
     await settle();
     assert.equal(first.routes.size, 0, 'routes removed');
@@ -136,13 +136,13 @@ test('disposing the component removes every owned registration and stops owned w
       'web search provider unregistered',
     );
     const late = await stale.fetch(
-      new Request('http://127.0.0.1/api/majed-subscriptions.status', {
+      new Request('http://127.0.0.1/api/waycraft-subscriptions.status', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           type: 'client-request',
           rpcId: 'r',
-          method: 'majed-subscriptions.status',
+          method: 'waycraft-subscriptions.status',
           payload: {},
         }),
       }),
@@ -166,9 +166,9 @@ test('disposing the component removes every owned registration and stops owned w
     // A second mount of the same module works and is independent of the disposed one.
     const second = mount(ctx, {}, false);
     await settle();
-    assert.equal(second.routes.size, 22);
+    assert.equal(second.routes.size, 44);
     assert.equal(
-      second.routes.has('/api/majed-subscriptions.setZenEnabled'),
+      second.routes.has('/api/waycraft-subscriptions.setZenEnabled'),
       true,
     );
     assert.equal((await second.call('status')).ok, true);
@@ -180,9 +180,9 @@ test('disposing the component removes every owned registration and stops owned w
 
 test('status degrades per entry: a corrupt saved account is skipped while the call still succeeds', async () => {
   const home = (process.env.DSH_HOME = await mkdtemp(
-    '/tmp/majed-t130/corrupt-',
+    '/tmp/waycraft-t130/corrupt-',
   ));
-  const dir = `${home}/plugins/majed/subscriptions`;
+  const dir = `${home}/plugins/waycraft/subscriptions`;
   await mkdir(dir, { recursive: true });
   await writeFile(
     `${dir}/auth.json`,
@@ -220,9 +220,9 @@ test('status degrades per entry: a corrupt saved account is skipped while the ca
 
 test('a structurally broken store surfaces a safe actionable error without crashing mount', async () => {
   const home = (process.env.DSH_HOME = await mkdtemp(
-    '/tmp/majed-t130/broken-',
+    '/tmp/waycraft-t130/broken-',
   ));
-  const dir = `${home}/plugins/majed/subscriptions`;
+  const dir = `${home}/plugins/waycraft/subscriptions`;
   await mkdir(dir, { recursive: true });
   await writeFile(`${dir}/auth.json`, '{ not json', { mode: 0o600 });
   const ctx = new Context();

@@ -45,7 +45,7 @@ export function createClaudeCard(
     const call = async (endpoint: string, payload: object = {}) => {
       const response = await rpc.call(
         '/api',
-        `majed-subscriptions.${endpoint}`,
+        `waycraft-subscriptions.${endpoint}`,
         { provider: 'claude', ...payload },
       );
       if (!response?.ok)
@@ -174,7 +174,7 @@ export function createClaudeCard(
       );
     const date = (time: number) => new Date(time).toLocaleString();
     const part = (name: string, style: any, ...children: any[]) =>
-      h('div', { style, 'data-majed-claude-part': name }, ...children);
+      h('div', { style, 'data-waycraft-claude-part': name }, ...children);
     // `method` is 'oauth' (browser authorization) or 'keychain' (import Claude Code); omitted tries the import first.
     // An empty authorizeUrl means the import finished instantly: there is no page to open.
     const startLogin = (method?: 'oauth' | 'keychain') => {
@@ -231,8 +231,8 @@ export function createClaudeCard(
             : {}),
           textAlign: 'start',
         },
-        className: 'majed-subscriptions-settings',
-        'data-majed-claude-card': true,
+        className: 'waycraft-subscriptions-settings',
+        'data-waycraft-claude-card': true,
       },
       h('style', null, controlCss),
       manager
@@ -343,7 +343,7 @@ export function createClaudeCard(
             {
               key: account.key,
               style: styles.accountRow,
-              'data-majed-claude-part': 'account',
+              'data-waycraft-claude-part': 'account',
             },
             part(
               'account-header',
@@ -583,7 +583,7 @@ export function createClaudeCard(
               ref: (node: HTMLDialogElement | null) => {
                 if (node && !node.open) node.showModal();
               },
-              className: 'majed-reset-dialog',
+              className: 'waycraft-reset-dialog',
               role: 'dialog',
               'aria-modal': true,
               'aria-label': t('confirmLogout'),
@@ -612,7 +612,7 @@ export function createClaudeCard(
             h(
               'div',
               {
-                className: 'majed-subscription-dialog-actions',
+                className: 'waycraft-subscription-dialog-actions',
                 style: {
                   ...styles.actions,
                   justifyContent: 'flex-end',

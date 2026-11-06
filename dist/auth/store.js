@@ -1,5 +1,5 @@
 /**
- * On-disk OAuth session store at `~/.dsh/plugins/majed/subscriptions/auth.json`.
+ * On-disk OAuth session store at `~/.dsh/plugins/waycraft/subscriptions/auth.json`.
  *
  * The file is a JSON object keyed by provider id, each entry holding that
  * provider's ACCOUNTS: a map of account key → session plus the default
@@ -14,6 +14,7 @@
  */
 import { createHash } from 'node:crypto';
 import { decodeJwtPayload } from './jwt.js';
+import { readableStorePath } from '../storage-migration.js';
 import { chmod, mkdir, readFile, rename, rm, writeFile, } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths';
@@ -187,10 +188,10 @@ function tokenHash(refreshToken) {
 }
 /**
  * Absolute path of the auth store file.
- * @returns `dshHomePath('plugins', 'majed', 'subscriptions', 'auth.json')`.
+ * @returns `dshHomePath('plugins', 'waycraft', 'subscriptions', 'auth.json')`.
  */
 export function authFilePath() {
-    return dshHomePath('plugins', 'majed', 'subscriptions', 'auth.json');
+    return dshHomePath('plugins', 'waycraft', 'subscriptions', 'auth.json');
 }
 /** Check that one durable session carries the fields every session needs. */
 function assertSessionShape(provider, account, value) {
@@ -222,7 +223,7 @@ function assertSessionShape(provider, account, value) {
 export async function loadStore(path = authFilePath()) {
     let text;
     try {
-        text = await readFile(path, 'utf8');
+        text = await readFile(readableStorePath(path), 'utf8');
     }
     catch (error) {
         if (error.code !== 'ENOENT')

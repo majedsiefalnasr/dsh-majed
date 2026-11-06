@@ -27,7 +27,7 @@ test('browser factory registers the public package identity before activation', 
     assert.equal(typeof registrations[0].factory, 'function');
   }
 });
-const env = { ...process.env, npm_config_cache: '/tmp/npm-cache-majed' };
+const env = { ...process.env, npm_config_cache: '/tmp/npm-cache-waycraft' };
 test('packed package declares disabled component and resolves every component artifact', async () => {
   const [pack] = JSON.parse(
     execFileSync('npm', ['pack', '--dry-run', '--json'], {
@@ -54,7 +54,7 @@ test('packed package declares disabled component and resolves every component ar
       await readFile(new URL(`../locale/${lang}.json`, import.meta.url)),
     );
     assert.equal(meta.title, 'Waycraft for DSH');
-    assert.doesNotMatch(meta.description, /Majed/);
+    assert.doesNotMatch(meta.description, /Waycraft/);
   }
   for (const key of ['./subscriptions', './subscriptions/icon', './client'])
     assert.ok(paths.has(pkg.exports[key].slice(2)), key);

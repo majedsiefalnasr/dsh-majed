@@ -237,12 +237,12 @@ export const ProviderModelEditor = forwardRef<ProviderModelEditorHandle, Props>(
       >
         <h3 style={{ margin: 0 }}>{t('modelsEdit')}</h3>
         <div style={{ display: 'grid', gap: 12, marginBlockStart: 12 }}>
-          <p className="majed-subscription-hint">{t('modelsHint')}</p>
+          <p className="waycraft-subscription-hint">{t('modelsHint')}</p>
           {error && <p role="alert">{error}</p>}
           <div style={actions}>
             <button
               type="button"
-              className="majed-subscription-quiet"
+              className="waycraft-subscription-quiet"
               disabled={busy || disabled || dirty}
               onClick={() => {
                 void load(true);
@@ -279,7 +279,7 @@ export const ProviderModelEditor = forwardRef<ProviderModelEditorHandle, Props>(
                 {t('modelsAutomatic')}
               </label>
               {editorState.listState === 'provider-empty' ? (
-                <p className="majed-subscription-hint">
+                <p className="waycraft-subscription-hint">
                   {t(editorState.noticeKey)}
                 </p>
               ) : (

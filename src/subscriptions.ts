@@ -1,3 +1,5 @@
+import { LEGACY_RPC_PREFIX } from './legacy-names.js';
+import { legacyMediaDirectory } from './storage-migration.js';
 import { ZenAdapter } from './providers/zen.js';
 import { AntigravityAuthController } from './auth/antigravity-controller.js';
 import {
@@ -377,13 +379,13 @@ export function apply(
   } catch {
     zenRegistrationError = true;
   }
-  ctx.effect(() => () => zen.dispose(), 'dsh-majed: zen disposal');
+  ctx.effect(() => () => zen.dispose(), 'dsh-waycraft: zen disposal');
   const claudeCredsIo = options.claudeCredsIo ?? SYSTEM_CLAUDE_CREDS_IO;
   const claudeIdentity = {
     profile: options.claudeProfile ?? fetchClaudeProfile,
   };
   void loadModelDefaults().catch(() =>
-    ctx.logger.warn('dsh-majed: model defaults unavailable'),
+    ctx.logger.warn('dsh-waycraft: model defaults unavailable'),
   );
   const flows = new OAuthFlowManager();
   const version = new CodexClientVersionCache();
@@ -392,7 +394,7 @@ export function apply(
     enabled:
       config.pool?.enabled !== false &&
       (config.pool?.autoAccounts ?? config.pool?.autoFamilies ?? true),
-    onWarn: (message) => ctx.logger.warn(`dsh-majed: ${message}`),
+    onWarn: (message) => ctx.logger.warn(`dsh-waycraft: ${message}`),
   });
   let handle: ReturnType<Context['llm']['registerAdapter']> | undefined;
   // The raw registration error stays server-side; the browser gets `collisionText()`, built after the stored proxy
@@ -570,7 +572,7 @@ export function apply(
         grokHandle?.replace(['grok']);
       }
     },
-    onWarn: (message) => ctx.logger.warn(`dsh-majed: ${message}`),
+    onWarn: (message) => ctx.logger.warn(`dsh-waycraft: ${message}`),
   });
   const antigravityLifecycle = new AbortController();
   const antigravityOAuth = resolveAntigravityOAuthConfig(config.antigravity);
@@ -641,7 +643,7 @@ export function apply(
         antigravityHandle?.replace(['antigravity']);
       }
     },
-    onWarn: (message) => ctx.logger.warn(`dsh-majed: ${message}`),
+    onWarn: (message) => ctx.logger.warn(`dsh-waycraft: ${message}`),
   });
   const usage = new PoolUsageTracker((provider, account) =>
     provider === 'codex'
@@ -729,7 +731,7 @@ export function apply(
     },
     resolveAttachments: () => ctx.get('attachments') as never,
     pool: () => pool,
-    onWarn: (message) => ctx.logger.warn(`dsh-majed: ${message}`),
+    onWarn: (message) => ctx.logger.warn(`dsh-waycraft: ${message}`),
   });
   // Claude adapter (reference v0.9.12 `case 'claude'`). Registered under the shared provider id `claude` (ADR-0002);
   // a reference Claude registration already present makes this one fail, and the component reports it.
@@ -785,7 +787,7 @@ export function apply(
     pool: () => pool,
     promptCacheTtl: config.claudePromptCacheTtl ?? DEFAULT_PROMPT_CACHE_TTL,
     promptCacheTtlOverride: () => preferences.promptCacheTtl(),
-    onWarn: (message) => ctx.logger.warn(`dsh-majed: ${message}`),
+    onWarn: (message) => ctx.logger.warn(`dsh-waycraft: ${message}`),
   });
   let copilotHandle: ReturnType<Context['llm']['registerAdapter']> | undefined;
   let copilotCollision = false;
@@ -843,7 +845,7 @@ export function apply(
         copilotHandle?.replace(['copilot']);
       }
     },
-    onWarn: (message) => ctx.logger.warn(`dsh-majed: ${message}`),
+    onWarn: (message) => ctx.logger.warn(`dsh-waycraft: ${message}`),
   });
   const presentedCopilot = new AccountPreferencesAdapter({
     provider: 'copilot',
@@ -995,14 +997,14 @@ export function apply(
         const kept = members.filter((member) => member.provider === owner);
         if (kept.length < members.length)
           ctx.logger.warn(
-            `dsh-majed: pool "${id}": cross-provider members are ignored; only ${owner} accounts are pooled`,
+            `dsh-waycraft: pool "${id}": cross-provider members are ignored; only ${owner} accounts are pooled`,
           );
         families.set(poolKey(owner, id), { members: kept });
       }
       return families;
     },
     tiers: config.pool?.enabled === false ? {} : (config.pool?.tiers ?? {}),
-    onWarn: (message) => ctx.logger.warn(`dsh-majed: ${message}`),
+    onWarn: (message) => ctx.logger.warn(`dsh-waycraft: ${message}`),
   });
   try {
     handle = ctx.llm.registerAdapter(['codex'], presented);
@@ -1048,7 +1050,7 @@ export function apply(
       claudeAuth.dispose();
       void disposeProxyTransport();
     },
-    'dsh-majed: subscriptions auth disposal',
+    'dsh-waycraft: subscriptions auth disposal',
   );
   // Keep keychain-bound Claude accounts synced with Claude Code's own store (reference `claude background sync timer`).
   // One interval, bounded: each tick reads the account list and refreshes only bound sessions, errors are swallowed
@@ -1075,7 +1077,7 @@ export function apply(
     return () => {
       clearInterval(syncTimer);
     };
-  }, 'dsh-majed: claude background sync timer');
+  }, 'dsh-waycraft: claude background sync timer');
   if (handle)
     ctx.effect(
       () =>
@@ -1084,9 +1086,9 @@ export function apply(
             if ((await tokens.list()).length && !signal.aborted)
               await adapter.listOwnModels('codex', undefined, signal);
           },
-          () => ctx.logger.warn('dsh-majed: Codex catalog refresh failed'),
+          () => ctx.logger.warn('dsh-waycraft: Codex catalog refresh failed'),
         ),
-      'dsh-majed: subscriptions catalog refresh',
+      'dsh-waycraft: subscriptions catalog refresh',
     );
   if (copilotHandle)
     ctx.effect(
@@ -1096,9 +1098,9 @@ export function apply(
             if ((await copilotTokens.list()).length && !signal.aborted)
               await copilotAdapter.listOwnModels('copilot', undefined, signal);
           },
-          () => ctx.logger.warn('dsh-majed: Copilot catalog refresh failed'),
+          () => ctx.logger.warn('dsh-waycraft: Copilot catalog refresh failed'),
         ),
-      'dsh-majed: copilot catalog refresh',
+      'dsh-waycraft: copilot catalog refresh',
     );
   if (claudeHandle)
     ctx.effect(
@@ -1108,9 +1110,9 @@ export function apply(
             if ((await claudeTokens.list()).length && !signal.aborted)
               await claudeAdapter.listOwnModels('claude', undefined, signal);
           },
-          () => ctx.logger.warn('dsh-majed: Claude catalog refresh failed'),
+          () => ctx.logger.warn('dsh-waycraft: Claude catalog refresh failed'),
         ),
-      'dsh-majed: claude catalog refresh',
+      'dsh-waycraft: claude catalog refresh',
     );
 
   if (antigravityHandle && antigravityOAuth)
@@ -1126,9 +1128,9 @@ export function apply(
               );
           },
           () =>
-            ctx.logger.warn('dsh-majed: Antigravity catalog refresh failed'),
+            ctx.logger.warn('dsh-waycraft: Antigravity catalog refresh failed'),
         ),
-      'dsh-majed: antigravity catalog refresh',
+      'dsh-waycraft: antigravity catalog refresh',
     );
   if (grokHandle)
     ctx.effect(
@@ -1138,9 +1140,9 @@ export function apply(
             if ((await grokTokens.list()).length && !signal.aborted)
               await grokAdapter.listOwnModels('grok', undefined, signal);
           },
-          () => ctx.logger.warn('dsh-majed: Grok catalog refresh failed'),
+          () => ctx.logger.warn('dsh-waycraft: Grok catalog refresh failed'),
         ),
-      'dsh-majed: grok catalog refresh',
+      'dsh-waycraft: grok catalog refresh',
     );
 
   // `web` is optional on headless/minimal compositions. The Codex switch gates this provider's
@@ -1307,8 +1309,12 @@ export function apply(
       'speed',
       'setSpeed',
     ];
-    for (const endpoint of endpoints) {
-      const NS = 'majed-subscriptions.';
+    // The new prefix plus the deprecated legacy prefix (one release) for stale browser clients.
+    for (const [endpoint, NS] of endpoints.flatMap((e) =>
+      ['waycraft-subscriptions.', LEGACY_RPC_PREFIX].map(
+        (p) => [e, p] as const,
+      ),
+    )) {
       const method = `${NS}${endpoint}`;
       ctx.effect(
         () =>
@@ -1409,7 +1415,18 @@ export function apply(
                     const file = string('name');
                     if (!/^video-[a-zA-Z0-9_-]+\.mp4$/.test(file))
                       throw new Error('Invalid video name');
-                    const directory = videosDirectory();
+                    // Lazy media migration: a video generated before the rename is served from the
+                    // untouched legacy directory (never copied, never modified).
+                    let directory = videosDirectory();
+                    const legacyDirectory = legacyMediaDirectory(directory);
+                    if (
+                      legacyDirectory !== undefined &&
+                      !(await lstat(join(directory, file)).then(
+                        () => true,
+                        () => false,
+                      ))
+                    )
+                      directory = legacyDirectory;
                     const directoryStat = await lstat(directory);
                     if (
                       !directoryStat.isDirectory() ||
@@ -2370,7 +2387,7 @@ export function apply(
               });
             },
           }),
-        `dsh-majed: ${method} route`,
+        `dsh-waycraft: ${method} route`,
       );
     }
   });

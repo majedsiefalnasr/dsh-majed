@@ -25,6 +25,7 @@ import {
 import { dirname } from 'node:path';
 import { DIAGNOSTIC_INPUT_LIMIT, sanitizeDiagnostic } from './diagnostic.js';
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths';
+import { readableStorePath } from './storage-migration.js';
 
 /**
  * undici's own fetch, typed to the DOM fetch signature: its bundled types are
@@ -118,7 +119,7 @@ const probes = new Set<AbortController>();
 
 /** Absolute path of the proxy config file. */
 export function proxyFilePath(): string {
-  return dshHomePath('plugins', 'majed', 'subscriptions', 'proxy.json');
+  return dshHomePath('plugins', 'waycraft', 'subscriptions', 'proxy.json');
 }
 
 /** Render any thrown value as bounded text; hostile `toString`/`message` getters never throw out. */
@@ -326,7 +327,7 @@ async function applyConfig(cfg: ProxyConfig | undefined): Promise<void> {
 async function loadConfigFile(path: string): Promise<ProxyConfig> {
   let text: string;
   try {
-    text = await readFile(path, 'utf8');
+    text = await readFile(readableStorePath(path), 'utf8');
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT')
       return { ...DISABLED, bypass: [] };

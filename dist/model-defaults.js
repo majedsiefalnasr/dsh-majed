@@ -19,10 +19,11 @@
 import { chmod, mkdir, readFile, rename, rm, writeFile, } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths';
+import { readableStorePath } from './storage-migration.js';
 import { PROVIDER_IDS } from './auth/store.js';
 /** Absolute path of the defaults file. */
 export function modelDefaultsFilePath() {
-    return dshHomePath('plugins', 'majed', 'subscriptions', 'model-defaults.json');
+    return dshHomePath('plugins', 'waycraft', 'subscriptions', 'model-defaults.json');
 }
 const EMPTY = Object.freeze({});
 /** In-memory snapshot read by every consumer (adapters, RPC). */
@@ -78,7 +79,7 @@ function sanitizeDefaults(value) {
 async function loadFile(path) {
     let text;
     try {
-        text = await readFile(path, 'utf8');
+        text = await readFile(readableStorePath(path), 'utf8');
     }
     catch (error) {
         if (error.code === 'ENOENT')

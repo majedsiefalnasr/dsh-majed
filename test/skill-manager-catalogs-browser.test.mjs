@@ -128,7 +128,7 @@ async function mount(t, language, server) {
         return callback({
           layout: {
             panelInfo: {
-              getSnapshot: () => ({ activePanelId: 'majed-skills' }),
+              getSnapshot: () => ({ activePanelId: 'waycraft-skills' }),
             },
             selectPanel() {},
           },
@@ -162,7 +162,7 @@ async function mount(t, language, server) {
   api.apply({
     ...ctx,
     effect(start, label) {
-      if (label?.startsWith('majed-skills')) cleanups.push(start());
+      if (label?.startsWith('waycraft-skills')) cleanups.push(start());
     },
   });
   const settle = async () => {
@@ -331,8 +331,8 @@ for (const language of ['en', 'ar']) {
       u.field(d.catSort).props.onChange({ target: { value: 'name' } }),
     );
     const order = view.root
-      .findAll((x) => x.props?.['data-majed-catalog-item'])
-      .map((x) => x.props['data-majed-catalog-item']);
+      .findAll((x) => x.props?.['data-waycraft-catalog-item'])
+      .map((x) => x.props['data-waycraft-catalog-item']);
     assert.deepEqual(order, [
       'clawhub:acme/alpha',
       'clawhub:acme/beta-long',
@@ -809,12 +809,12 @@ test('corrupt catalog state keeps an empty, valid tabpanel for every tab', async
     action === 'catalog-install' ? { ...body, corrupt: true } : body;
   await install(c);
   assert.equal(
-    c.view.root.findAll((x) => x.props?.['data-majed-catalogs']).length,
+    c.view.root.findAll((x) => x.props?.['data-waycraft-catalogs']).length,
     0,
   );
   const panels = roles(c.view, 'tabpanel');
   assert.equal(panels.length, 1);
-  assert.equal(panels[0].props.id, 'majed-discover-panel');
+  assert.equal(panels[0].props.id, 'waycraft-discover-panel');
 });
 
 test('two install clicks in the same tick send exactly one install request', async (t) => {

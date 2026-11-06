@@ -89,11 +89,11 @@ async function fixture(t, repositories = {}, existing = undefined) {
   t.after(stop);
   const send = async (body, { marker = true, signal } = {}) => {
     const r = await route.fetch(
-      new Request('http://localhost/api/majed-skills.catalog', {
+      new Request('http://localhost/api/waycraft-skills.catalog', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          ...(marker ? { 'x-majed-skills': '1' } : {}),
+          ...(marker ? { 'x-waycraft-skills': '1' } : {}),
         },
         body: JSON.stringify({ source: 'user-dsh', ...body }),
         signal,
@@ -934,8 +934,8 @@ test('expansion bomb: extraction stops at the limit with repo-limit and never in
         { sources: [{ id: 'user-dsh', path: join(root, 'skills') }], statePath: join(root, 'state', 'state.json'),
           repositories: { allowPrivateHosts: true, githubArchiveBase: process.argv[1], maxTotalBytes: 2 * 1024 * 1024 } });
       const before = process.resourceUsage().maxRSS;
-      const r = await route.fetch(new Request('http://localhost/api/majed-skills.catalog', { method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-majed-skills': '1' },
+      const r = await route.fetch(new Request('http://localhost/api/waycraft-skills.catalog', { method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-waycraft-skills': '1' },
         body: JSON.stringify({ source: 'user-dsh', action: 'repo-add', repository: { url: 'owner/bomb' } }) }));
       const body = await r.json();
       console.log(JSON.stringify({ code: body.code, grown: (process.resourceUsage().maxRSS - before) / 1024 }));

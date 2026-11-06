@@ -59,7 +59,7 @@ test('a throwing component renders nothing, is reported once with its label, and
       true,
     );
     assert.deepEqual(reports, [
-      ['dsh-majed: usage badge failed to render', 'primitive vanished'],
+      ['dsh-waycraft: usage badge failed to render', 'primitive vanished'],
     ]);
     act(() => renderer.unmount());
   } finally {

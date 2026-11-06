@@ -156,7 +156,7 @@ async function mount({
   keepHome = false,
 } = {}) {
   if (!keepHome)
-    process.env.DSH_HOME = await mkdtemp('/tmp/majed-t130/bounded-');
+    process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t130/bounded-');
   const { saveAccountSession } = await import('../dist/auth/store.js');
   for (const account of accounts)
     await saveAccountSession('codex', account, {
@@ -206,7 +206,7 @@ async function mount({
   };
   apply(ctx, { codexClientVersion: '1.2.3', ...config.apply });
   const call = async (endpoint, payload = {}, signal) => {
-    const method = `majed-subscriptions.${endpoint}`;
+    const method = `waycraft-subscriptions.${endpoint}`;
     const response = await routes.get(`/api/${method}`).fetch(
       new Request(`http://localhost/api/${method}`, {
         method: 'POST',

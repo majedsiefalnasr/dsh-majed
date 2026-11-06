@@ -172,7 +172,7 @@ for (const locale of ['en', 'ar'])
     page.render();
     await page.settle();
     const group = (name) =>
-      page.nodes().find((n) => n.props['data-majed-codex-part'] === name);
+      page.nodes().find((n) => n.props['data-waycraft-codex-part'] === name);
     assert.ok(
       group('header'),
       'provider header groups status dot, name and CLI version',
@@ -695,7 +695,7 @@ test('automatic usage and manual refresh share one in-flight request', async () 
 
 test('start, unmount, remount on the same auth controller, paste then cancel frees host busy', async () => {
   const { mkdtemp } = await import('node:fs/promises');
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t129/remount-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t129/remount-');
   const { CodexAuthController } = await import('../dist/auth/controller.js');
   const { OAuthFlowManager } = await import('../dist/auth/oauth-flow.js');
   const controller = new CodexAuthController(new OAuthFlowManager(), () => {});

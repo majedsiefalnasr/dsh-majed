@@ -144,7 +144,7 @@ async function mount(t, language, { failList = false } = {}) {
   api.apply({
     ...ctx,
     effect(start, label) {
-      if (label?.startsWith('majed-skills')) cleanups.push(start());
+      if (label?.startsWith('waycraft-skills')) cleanups.push(start());
     },
     inject(names, callback) {
       if (names.length === 2 && names.includes('locale')) return callback(ctx);
@@ -184,11 +184,11 @@ async function mount(t, language, { failList = false } = {}) {
   const refreshButton = () =>
     view.root
       .findAllByType('button')
-      .find((x) => x.props['data-majed-skills-refresh'] !== undefined);
+      .find((x) => x.props['data-waycraft-skills-refresh'] !== undefined);
   // Reads the strip as [number, label] pairs, in order.
   const stats = () => {
     const strip = view.root.findAll(
-      (x) => x.props['data-majed-skills-stats'] !== undefined,
+      (x) => x.props['data-waycraft-skills-stats'] !== undefined,
     )[0];
     if (!strip) return null;
     return strip.children.map((cell) => ({
@@ -202,7 +202,7 @@ async function mount(t, language, { failList = false } = {}) {
   };
   const strip = () =>
     view.root.findAll(
-      (x) => x.props['data-majed-skills-stats'] !== undefined,
+      (x) => x.props['data-waycraft-skills-stats'] !== undefined,
     )[0];
   const alerts = () =>
     view.root.findAll((x) => x.type === 'div' && x.props.role === 'alert');
@@ -232,11 +232,11 @@ async function mount(t, language, { failList = false } = {}) {
     pick,
     post: (body) =>
       hostRoute.fetch(
-        new Request('https://example.test/api/majed-skills.catalog', {
+        new Request('https://example.test/api/waycraft-skills.catalog', {
           method: 'POST',
           headers: {
             'content-type': 'application/json',
-            'x-majed-skills': '1',
+            'x-waycraft-skills': '1',
           },
           body: JSON.stringify(body),
         }),

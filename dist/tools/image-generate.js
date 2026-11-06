@@ -146,7 +146,7 @@ export function parseImageGenerateResponse(payload) {
 }
 /** Directory the generated image files are written to. */
 export function imagesDirectory() {
-    return dshHomePath('plugins', 'majed', 'subscriptions', 'images');
+    return dshHomePath('plugins', 'waycraft', 'subscriptions', 'images');
 }
 /**
  * Sniff a generated image's media type from its magic bytes (codex serves

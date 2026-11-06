@@ -18,6 +18,7 @@ import { chmod, mkdir, readFile, rename, rm, writeFile, } from 'node:fs/promises
 import { dirname } from 'node:path';
 import { DIAGNOSTIC_INPUT_LIMIT, sanitizeDiagnostic } from './diagnostic.js';
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths';
+import { readableStorePath } from './storage-migration.js';
 /**
  * undici's own fetch, typed to the DOM fetch signature: its bundled types are
  * stricter (Request requires `duplex`, `RequestInit.body` is non-null) and
@@ -47,7 +48,7 @@ let proxyWrites = Promise.resolve();
 const probes = new Set();
 /** Absolute path of the proxy config file. */
 export function proxyFilePath() {
-    return dshHomePath('plugins', 'majed', 'subscriptions', 'proxy.json');
+    return dshHomePath('plugins', 'waycraft', 'subscriptions', 'proxy.json');
 }
 /** Render any thrown value as bounded text; hostile `toString`/`message` getters never throw out. */
 function boundedText(value) {
@@ -231,7 +232,7 @@ async function applyConfig(cfg) {
 async function loadConfigFile(path) {
     let text;
     try {
-        text = await readFile(path, 'utf8');
+        text = await readFile(readableStorePath(path), 'utf8');
     }
     catch (error) {
         if (error.code === 'ENOENT')

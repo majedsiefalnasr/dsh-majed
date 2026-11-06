@@ -1,6 +1,6 @@
 // Adapted from V1ki/dsh-plugin-subscriptions v0.9.12 (b802311) test/client-speed.spec.ts, MIT; see src/PROVENANCE.md.
 // Dispositions: the connection double is structural (`ConnectionLike`) instead of the reference's
-// `ConnectionHandle`; the RPC endpoint name is asserted with the owned `majed-subscriptions.` prefix.
+// `ConnectionHandle`; the RPC endpoint name is asserted with the owned `waycraft-subscriptions.` prefix.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { createSpeedLoader } from '../../src/speed/SpeedSelect.js'
@@ -29,6 +29,6 @@ test('Speed selector resolves a child default for the current model and rechecks
     { sessionId: 'child', model: 'plain-model' },
     { sessionId: 'child' },
   ])
-  assert.deepEqual(endpoints, ['majed-subscriptions.speed', 'majed-subscriptions.speed', 'majed-subscriptions.speed'])
+  assert.deepEqual(endpoints, ['waycraft-subscriptions.speed', 'waycraft-subscriptions.speed', 'waycraft-subscriptions.speed'])
   assert.deepEqual(await createSpeedLoader(connection, () => undefined, 'unknown')(), { visible: false, tier: 'standard' })
 })

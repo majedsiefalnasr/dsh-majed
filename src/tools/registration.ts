@@ -2,9 +2,9 @@ import type { ToolDefinition } from '@deepseek-ai/dsh-tools';
 
 /** Tool names owned by this plugin and their collision fallbacks. */
 export const TOOL_ALIASES = {
-  x_search: 'dsh_majed_x_search',
-  video_generate: 'dsh_majed_video_generate',
-  image_generate: 'dsh_majed_image_generate',
+  x_search: 'dsh_waycraft_x_search',
+  video_generate: 'dsh_waycraft_video_generate',
+  image_generate: 'dsh_waycraft_image_generate',
 } as const;
 
 export interface ToolRegistry {
@@ -29,7 +29,7 @@ export function registerWithAlias(
       };
     } catch (aliasError) {
       warn(
-        `dsh-majed: tool ${JSON.stringify(definition.name)} and alias ${JSON.stringify(alias)} are already registered; skipping (${aliasError instanceof Error ? aliasError.message : String(aliasError)})`,
+        `dsh-waycraft: tool ${JSON.stringify(definition.name)} and alias ${JSON.stringify(alias)} are already registered; skipping (${aliasError instanceof Error ? aliasError.message : String(aliasError)})`,
       );
       return undefined;
     }

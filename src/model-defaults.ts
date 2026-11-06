@@ -26,6 +26,7 @@ import {
 } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths';
+import { readableStorePath } from './storage-migration.js';
 import { PROVIDER_IDS, type ProviderId } from './auth/store.js';
 
 /** One model id → its configured default reasoning effort id. */
@@ -39,7 +40,7 @@ export type ModelDefaults = Readonly<
 export function modelDefaultsFilePath(): string {
   return dshHomePath(
     'plugins',
-    'majed',
+    'waycraft',
     'subscriptions',
     'model-defaults.json',
   );
@@ -106,7 +107,7 @@ function sanitizeDefaults(value: unknown): {
 async function loadFile(path: string): Promise<ModelDefaults> {
   let text: string;
   try {
-    text = await readFile(path, 'utf8');
+    text = await readFile(readableStorePath(path), 'utf8');
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return EMPTY;
     throw error;

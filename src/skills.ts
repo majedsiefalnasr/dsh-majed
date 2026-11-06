@@ -17,6 +17,8 @@ import { homedir } from 'node:os';
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import { parseDocument } from 'yaml';
 import { discoverReadonlyEntries } from './skills-discovery.js';
+import { LEGACY_SKILLS_HEADER, LEGACY_SKILLS_ROUTE } from './legacy-names.js';
+import { legacySkillsRoot, migrateTree } from './storage-migration.js';
 import {
   checkedTrashPath,
   listTrash,
@@ -245,7 +247,7 @@ async function scan(
         : 300 + order);
   const result: Candidate[] = [];
   const base = {
-    provider: 'majed-skills',
+    provider: 'waycraft-skills',
     source: sourceId,
     rank,
     eligible: true,
@@ -458,8 +460,25 @@ export function apply(ctx: HostContext, config: Config = {}) {
       rank: 510 + i,
     })),
   ];
+  const newStatePath =
+    config.statePath ?? join(dshHome, 'waycraft-skills', 'state.json');
+  // One-release migration: copy the retired state root once; a successful copy never modifies the legacy tree.
+  let skillsMigration =
+    config.statePath === undefined
+      ? migrateTree(dirname(newStatePath), legacySkillsRoot(dshHome))
+      : undefined;
+  if (skillsMigration?.status === 'failed')
+    skillsMigration = migrateTree(
+      dirname(newStatePath),
+      legacySkillsRoot(dshHome),
+    ); // one retry before degrading
+  // Degraded mode (migration failed twice, diagnosed by migrateTree): keep reading AND writing the legacy root as one
+  // consistent store so state, trash, repositories and catalogs never fork between two roots. A later start that
+  // migrates successfully copies the whole legacy tree, including those writes.
   const statePath =
-    config.statePath ?? join(dshHome, 'majed-skills', 'state.json');
+    skillsMigration?.status === 'failed'
+      ? join(legacySkillsRoot(dshHome), 'state.json')
+      : newStatePath;
   interface CustomRecord {
     id: string;
     label: string;
@@ -689,6 +708,11 @@ export function apply(ctx: HostContext, config: Config = {}) {
       })
       .catch((error: NodeJS.ErrnoException) => {
         corrupt = error.code !== 'ENOENT';
+        // Degraded legacy root that is a file, not a directory: fail closed with a clear, content-free diagnostic.
+        if (error.code === 'ENOTDIR')
+          console.warn(
+            `dsh-waycraft: skills state root ${basename(dirname(statePath))} is not a directory; skills state stays unavailable`,
+          );
       });
   let ready = loadState();
   const controls = new Set<Control>();
@@ -1012,7 +1036,7 @@ export function apply(ctx: HostContext, config: Config = {}) {
         };
       };
       return {
-        name: 'majed-skills',
+        name: 'waycraft-skills',
         async list(options?: { cwd?: string; signal?: AbortSignal }) {
           if (control.signal.aborted) return [];
           const { raw, scanDiagnostics } = await sharedScan();
@@ -1071,7 +1095,7 @@ export function apply(ctx: HostContext, config: Config = {}) {
       closing = true;
       return operations;
     },
-    'majed-skills pending state writes',
+    'waycraft-skills pending state writes',
   );
   /** Atomic, owner-only state replacement; callers hold the serialized `operations` slot. */
   const writeState = async (next: State) => {
@@ -1191,7 +1215,10 @@ export function apply(ctx: HostContext, config: Config = {}) {
       for (const control of controls) control.invalidate();
     },
   });
-  ctx.effect(() => () => repos.close(), 'majed-skills repository operations');
+  ctx.effect(
+    () => () => repos.close(),
+    'waycraft-skills repository operations',
+  );
   const catalogs = createCatalogs({
     config: config.catalogs,
     stateDir: dirname(statePath),
@@ -1203,7 +1230,10 @@ export function apply(ctx: HostContext, config: Config = {}) {
       for (const control of controls) control.invalidate();
     },
   });
-  ctx.effect(() => () => catalogs.close(), 'majed-skills catalog operations');
+  ctx.effect(
+    () => () => catalogs.close(),
+    'waycraft-skills catalog operations',
+  );
   const projectView = async (project: Project) => {
     if (!project.available)
       return {
@@ -1601,7 +1631,7 @@ export function apply(ctx: HostContext, config: Config = {}) {
       stopTool();
       stopGate();
     };
-  }, 'majed-skills create tool');
+  }, 'waycraft-skills create tool');
   const ORG_ACTIONS = [
     'category-create',
     'category-rename',
@@ -1853,334 +1883,406 @@ export function apply(ctx: HostContext, config: Config = {}) {
   ctx.inject?.(['connection'], (target) => {
     const connection = target.get?.('connection');
     if (!connection) return;
-    target.effect(
-      () =>
-        connection.fetch.register({
-          path: '/api/majed-skills.catalog',
-          methods: ['POST'],
-          requestBody: 'buffered',
-          async fetch(request: Request) {
-            if (closing)
-              return new Response('Skill manager is stopping', { status: 503 });
-            if (
-              request.headers.get('content-type')?.split(';')[0] !==
-              'application/json'
-            )
-              return new Response('JSON required', { status: 415 });
-            const origin = request.headers.get('origin');
-            if (origin && origin !== new URL(request.url).origin)
-              return new Response('Origin rejected', { status: 403 });
-            if (request.headers.get('sec-fetch-site') === 'cross-site')
-              return new Response('Origin rejected', { status: 403 });
-            const declared = Number(request.headers.get('content-length'));
-            if (Number.isFinite(declared) && declared > CREATE_REQUEST)
-              return new Response('Request too large', { status: 413 });
-            try {
-              const reader = request.body?.getReader();
-              let requestText = '';
-              let length = 0;
-              if (reader) {
-                try {
-                  const decoder = new TextDecoder();
-                  while (true) {
-                    const part = await reader.read();
-                    if (part.done) break;
-                    length += part.value.byteLength;
-                    if (length > CREATE_REQUEST) {
-                      await reader.cancel();
-                      return new Response('Request too large', { status: 413 });
-                    }
-                    requestText += decoder.decode(part.value, { stream: true });
+    const registerRoute = (path: string) =>
+      connection.fetch.register({
+        path,
+        methods: ['POST'],
+        requestBody: 'buffered',
+        async fetch(request: Request) {
+          if (closing)
+            return new Response('Skill manager is stopping', { status: 503 });
+          if (
+            request.headers.get('content-type')?.split(';')[0] !==
+            'application/json'
+          )
+            return new Response('JSON required', { status: 415 });
+          const origin = request.headers.get('origin');
+          if (origin && origin !== new URL(request.url).origin)
+            return new Response('Origin rejected', { status: 403 });
+          if (request.headers.get('sec-fetch-site') === 'cross-site')
+            return new Response('Origin rejected', { status: 403 });
+          const declared = Number(request.headers.get('content-length'));
+          if (Number.isFinite(declared) && declared > CREATE_REQUEST)
+            return new Response('Request too large', { status: 413 });
+          try {
+            const reader = request.body?.getReader();
+            let requestText = '';
+            let length = 0;
+            if (reader) {
+              try {
+                const decoder = new TextDecoder();
+                while (true) {
+                  const part = await reader.read();
+                  if (part.done) break;
+                  length += part.value.byteLength;
+                  if (length > CREATE_REQUEST) {
+                    await reader.cancel();
+                    return new Response('Request too large', { status: 413 });
                   }
-                  requestText += decoder.decode();
-                } finally {
-                  reader.releaseLock();
+                  requestText += decoder.decode(part.value, { stream: true });
                 }
+                requestText += decoder.decode();
+              } finally {
+                reader.releaseLock();
               }
-              const body = JSON.parse(requestText) as {
-                action?: string;
-                kind?: string;
-                id?: string;
-                enabled?: boolean;
-                project?: string;
-                path?: unknown;
-                label?: unknown;
-                group?: unknown;
-                items?: unknown;
-                include?: unknown;
-              } & Record<string, unknown>;
-              if (
-                body.action !== 'create' &&
-                body.action !== 'upload' &&
-                (length > MAX_REQUEST || declared > MAX_REQUEST)
-              )
-                return new Response('Request too large', { status: 413 });
-              const marked = request.headers.get('x-majed-skills') === '1';
-              const actions = [
-                'list',
-                'detail',
-                'toggle',
-                'ping',
-                'reload',
-                'create',
-                'import',
-                'upload',
-                'trash',
-                'trash-restore',
-                'trash-delete',
-                'repo-add',
-                'repo-refresh',
-                'repo-refresh-all',
-                'repo-remove',
-                'repo-install',
-                'repo-uninstall',
-                'repo-forget',
-                'repo-update-preview',
-                'repo-update',
-                'repo-rollback-preview',
-                'repo-rollback',
-                'catalog-clawhub-list',
-                'catalog-clawhub-search',
-                'catalog-skillsh-search',
-                'catalog-detail',
-                'catalog-install',
-                'catalog-uninstall',
-                'catalog-forget',
-                'custom-scan',
-                'custom-add',
-                'custom-update',
-                'custom-remove',
-                ...ORG_ACTIONS,
-              ];
-              if (
-                !body ||
-                typeof body !== 'object' ||
-                Array.isArray(body) ||
-                !actions.includes(body.action ?? 'list') ||
-                (body.project !== undefined && typeof body.project !== 'string')
-              )
-                return new Response('Invalid skill action', { status: 400 });
-              // Presence probe: proves the route exists without scanning any source.
-              if (body.action === 'ping') {
-                if (body.include !== 'placement')
-                  return Response.json({ ok: true });
-                await ready;
-                return Response.json({ ok: true, placement: state.placement });
-              }
-              // A project selector (and the project list itself) exposes workspace paths: marker only.
-              if (
-                body.action === 'list' &&
-                body.project !== undefined &&
-                !marked
-              )
+            }
+            const body = JSON.parse(requestText) as {
+              action?: string;
+              kind?: string;
+              id?: string;
+              enabled?: boolean;
+              project?: string;
+              path?: unknown;
+              label?: unknown;
+              group?: unknown;
+              items?: unknown;
+              include?: unknown;
+            } & Record<string, unknown>;
+            if (
+              body.action !== 'create' &&
+              body.action !== 'upload' &&
+              (length > MAX_REQUEST || declared > MAX_REQUEST)
+            )
+              return new Response('Request too large', { status: 413 });
+            const marked =
+              request.headers.get('x-waycraft-skills') === '1' ||
+              request.headers.get(LEGACY_SKILLS_HEADER) === '1';
+            const actions = [
+              'list',
+              'detail',
+              'toggle',
+              'ping',
+              'reload',
+              'create',
+              'import',
+              'upload',
+              'trash',
+              'trash-restore',
+              'trash-delete',
+              'repo-add',
+              'repo-refresh',
+              'repo-refresh-all',
+              'repo-remove',
+              'repo-install',
+              'repo-uninstall',
+              'repo-forget',
+              'repo-update-preview',
+              'repo-update',
+              'repo-rollback-preview',
+              'repo-rollback',
+              'catalog-clawhub-list',
+              'catalog-clawhub-search',
+              'catalog-skillsh-search',
+              'catalog-detail',
+              'catalog-install',
+              'catalog-uninstall',
+              'catalog-forget',
+              'custom-scan',
+              'custom-add',
+              'custom-update',
+              'custom-remove',
+              ...ORG_ACTIONS,
+            ];
+            if (
+              !body ||
+              typeof body !== 'object' ||
+              Array.isArray(body) ||
+              !actions.includes(body.action ?? 'list') ||
+              (body.project !== undefined && typeof body.project !== 'string')
+            )
+              return new Response('Invalid skill action', { status: 400 });
+            // Presence probe: proves the route exists without scanning any source.
+            if (body.action === 'ping') {
+              if (body.include !== 'placement')
+                return Response.json({ ok: true });
+              await ready;
+              return Response.json({ ok: true, placement: state.placement });
+            }
+            // A project selector (and the project list itself) exposes workspace paths: marker only.
+            if (body.action === 'list' && body.project !== undefined && !marked)
+              return new Response('Mutation marker required', {
+                status: 403,
+              });
+            if (body.action === 'reload') {
+              // Retry path for a corrupt state file: re-read it once the user fixed it.
+              if (!marked)
                 return new Response('Mutation marker required', {
                   status: 403,
                 });
-              if (body.action === 'reload') {
-                // Retry path for a corrupt state file: re-read it once the user fixed it.
-                if (!marked)
-                  return new Response('Mutation marker required', {
-                    status: 403,
-                  });
-                // Chained on the serialized operations so a toggle can never interleave with it.
-                const reloaded = operations.then(loadState);
-                operations = reloaded.catch(() => undefined);
-                ready = reloaded;
-                await reloaded;
-                // Native consumers must see the re-read state, not the old deny snapshot.
-                revision++;
-                for (const control of controls) control.invalidate();
-              }
-              await ready;
-              // The project is always re-resolved from the host registry; the id is only a selector.
-              let projectsOnce: Promise<Project[]> | undefined;
-              // Resolved at most once per request and shared by every step below.
-              const projects = () => (projectsOnce ??= registeredProjects());
-              let project: Project | undefined;
-              if (body.project !== undefined) {
-                project = (await projects()).find(
-                  (item) => item.id === body.project,
-                );
-                // Record-only forget must work after the project left the registry; it re-validates the scope itself.
-                if (
-                  !project &&
-                  !['repo-forget', 'catalog-forget'].includes(body.action ?? '')
-                )
-                  return fail(404, 'project-unregistered');
-              }
+              // Chained on the serialized operations so a toggle can never interleave with it.
+              const reloaded = operations.then(loadState);
+              operations = reloaded.catch(() => undefined);
+              ready = reloaded;
+              await reloaded;
+              // Native consumers must see the re-read state, not the old deny snapshot.
+              revision++;
+              for (const control of controls) control.invalidate();
+            }
+            await ready;
+            // The project is always re-resolved from the host registry; the id is only a selector.
+            let projectsOnce: Promise<Project[]> | undefined;
+            // Resolved at most once per request and shared by every step below.
+            const projects = () => (projectsOnce ??= registeredProjects());
+            let project: Project | undefined;
+            if (body.project !== undefined) {
+              project = (await projects()).find(
+                (item) => item.id === body.project,
+              );
+              // Record-only forget must work after the project left the registry; it re-validates the scope itself.
               if (
-                ['trash', 'trash-restore', 'trash-delete'].includes(
-                  body.action ?? '',
-                )
-              ) {
-                if (!marked) return fail(403, 'forbidden');
-                const mutation = operations.then(async () => {
-                  if (closing || request.signal.aborted)
-                    return fail(409, 'trash-cancelled');
-                  if (corrupt) return fail(409, 'state-invalid');
-                  try {
-                    const items = await listTrash(trashRoot);
-                    const item = items.find((entry) => entry.id === body.id);
-                    const scope =
-                      body.action === 'trash'
-                        ? (body.project ?? 'global')
-                        : item?.scope;
-                    // An explicit project must be the Trash item's own scope: never act on another scope.
+                !project &&
+                !['repo-forget', 'catalog-forget'].includes(body.action ?? '')
+              )
+                return fail(404, 'project-unregistered');
+            }
+            if (
+              ['trash', 'trash-restore', 'trash-delete'].includes(
+                body.action ?? '',
+              )
+            ) {
+              if (!marked) return fail(403, 'forbidden');
+              const mutation = operations.then(async () => {
+                if (closing || request.signal.aborted)
+                  return fail(409, 'trash-cancelled');
+                if (corrupt) return fail(409, 'state-invalid');
+                try {
+                  const items = await listTrash(trashRoot);
+                  const item = items.find((entry) => entry.id === body.id);
+                  const scope =
+                    body.action === 'trash'
+                      ? (body.project ?? 'global')
+                      : item?.scope;
+                  // An explicit project must be the Trash item's own scope: never act on another scope.
+                  if (
+                    body.action !== 'trash' &&
+                    body.project !== undefined &&
+                    item &&
+                    body.project !== item.scope
+                  )
+                    return fail(409, 'project-mismatch');
+                  const current =
+                    scope === 'global'
+                      ? undefined
+                      : (await registeredProjects()).find(
+                          (entry) => entry.id === scope,
+                        );
+                  if (
+                    scope !== 'global' &&
+                    (!current?.available || registryUnavailable)
+                  )
+                    return fail(404, 'project-unregistered');
+                  const sourceId =
+                    body.action === 'trash' ? body.source : item?.source;
+                  const sourceRoot =
+                    current?.root && sourceId === `project-dsh:${current.id}`
+                      ? join(current.root, '.dsh', 'skills')
+                      : scope === 'global'
+                        ? baseSources.find(
+                            (entry) =>
+                              entry.id === sourceId &&
+                              ['user-dsh', 'user-agents'].includes(entry.id),
+                          )?.path
+                        : undefined;
+                  if (!sourceRoot) return fail(403, 'trash-readonly');
+                  await checkedTrashPath(sourceRoot, true);
+                  const cancelled = () => closing || request.signal.aborted;
+                  let result;
+                  if (body.action === 'trash') {
+                    const view = current
+                      ? await projectCatalog(current)
+                      : await catalog();
+                    const copy = view.copies.find(
+                      (entry) =>
+                        entry.path === body.id && entry.source === sourceId,
+                    );
+                    if (!copy) return fail(404, 'trash-missing');
+                    // Resolve the discovered document, never a caller-supplied write path.
+                    const origin =
+                      basename(copy.path).toLowerCase() === 'skill.md'
+                        ? dirname(copy.path)
+                        : copy.path;
                     if (
-                      body.action !== 'trash' &&
-                      body.project !== undefined &&
-                      item &&
-                      body.project !== item.scope
+                      (await comparisonPath(origin)) ===
+                        (await comparisonPath(sourceRoot)) ||
+                      !isSameOrDescendant(resolve(sourceRoot), origin)
                     )
-                      return fail(409, 'project-mismatch');
-                    const current =
-                      scope === 'global'
-                        ? undefined
-                        : (await registeredProjects()).find(
-                            (entry) => entry.id === scope,
-                          );
+                      return fail(403, 'trash-readonly');
+                    result = await trashEntry(
+                      trashRoot,
+                      {
+                        name: copy.name,
+                        source: String(sourceId),
+                        scope: String(scope),
+                        root: resolve(sourceRoot),
+                        origin,
+                      },
+                      cancelled,
+                    );
+                    await repos.noteTrashed(
+                      resolve(sourceRoot),
+                      origin,
+                      result.id,
+                    );
+                    await catalogs.noteTrashed(
+                      resolve(sourceRoot),
+                      origin,
+                      result.id,
+                    );
+                  } else {
+                    if (!item) return fail(404, 'trash-missing');
                     if (
-                      scope !== 'global' &&
-                      (!current?.available || registryUnavailable)
+                      (await comparisonPath(item.root)) !==
+                        (await comparisonPath(resolve(sourceRoot))) ||
+                      !isSameOrDescendant(item.root, item.origin) ||
+                      (await comparisonPath(item.root)) ===
+                        (await comparisonPath(item.origin))
                     )
-                      return fail(404, 'project-unregistered');
-                    const sourceId =
-                      body.action === 'trash' ? body.source : item?.source;
-                    const sourceRoot =
-                      current?.root && sourceId === `project-dsh:${current.id}`
-                        ? join(current.root, '.dsh', 'skills')
-                        : scope === 'global'
-                          ? baseSources.find(
-                              (entry) =>
-                                entry.id === sourceId &&
-                                ['user-dsh', 'user-agents'].includes(entry.id),
-                            )?.path
-                          : undefined;
-                    if (!sourceRoot) return fail(403, 'trash-readonly');
-                    await checkedTrashPath(sourceRoot, true);
-                    const cancelled = () => closing || request.signal.aborted;
-                    let result;
-                    if (body.action === 'trash') {
+                      return fail(409, 'trash-invalid');
+                    if (body.action === 'trash-restore') {
+                      result = await restoreEntry(trashRoot, item, cancelled);
+                      await repos.noteRestored(item.id);
+                      await catalogs.noteRestored(item.id);
+                    } else {
+                      if (body.confirm !== true)
+                        return fail(400, 'trash-confirm');
+                      await deleteEntry(trashRoot, item);
+                      await repos.noteDeleted(item.id);
+                      await catalogs.noteDeleted(item.id);
+                      // Do not erase a newer active copy's annotations or policy.
                       const view = current
                         ? await projectCatalog(current)
                         : await catalog();
-                      const copy = view.copies.find(
-                        (entry) =>
-                          entry.path === body.id && entry.source === sourceId,
-                      );
-                      if (!copy) return fail(404, 'trash-missing');
-                      // Resolve the discovered document, never a caller-supplied write path.
-                      const origin =
-                        basename(copy.path).toLowerCase() === 'skill.md'
-                          ? dirname(copy.path)
-                          : copy.path;
                       if (
-                        (await comparisonPath(origin)) ===
-                          (await comparisonPath(sourceRoot)) ||
-                        !isSameOrDescendant(resolve(sourceRoot), origin)
-                      )
-                        return fail(403, 'trash-readonly');
-                      result = await trashEntry(
-                        trashRoot,
-                        {
-                          name: copy.name,
-                          source: String(sourceId),
-                          scope: String(scope),
-                          root: resolve(sourceRoot),
-                          origin,
-                        },
-                        cancelled,
-                      );
-                      await repos.noteTrashed(
-                        resolve(sourceRoot),
-                        origin,
-                        result.id,
-                      );
-                      await catalogs.noteTrashed(
-                        resolve(sourceRoot),
-                        origin,
-                        result.id,
-                      );
-                    } else {
-                      if (!item) return fail(404, 'trash-missing');
-                      if (
-                        (await comparisonPath(item.root)) !==
-                          (await comparisonPath(resolve(sourceRoot))) ||
-                        !isSameOrDescendant(item.root, item.origin) ||
-                        (await comparisonPath(item.root)) ===
-                          (await comparisonPath(item.origin))
-                      )
-                        return fail(409, 'trash-invalid');
-                      if (body.action === 'trash-restore') {
-                        result = await restoreEntry(trashRoot, item, cancelled);
-                        await repos.noteRestored(item.id);
-                        await catalogs.noteRestored(item.id);
-                      } else {
-                        if (body.confirm !== true)
-                          return fail(400, 'trash-confirm');
-                        await deleteEntry(trashRoot, item);
-                        await repos.noteDeleted(item.id);
-                        await catalogs.noteDeleted(item.id);
-                        // Do not erase a newer active copy's annotations or policy.
-                        const view = current
-                          ? await projectCatalog(current)
-                          : await catalog();
-                        if (
-                          !view.copies.some(
-                            (entry) =>
-                              entry.source === item.source &&
-                              entry.name === item.name,
-                          ) &&
-                          !items.some(
-                            (entry) =>
-                              entry.id !== item.id &&
-                              entry.scope === item.scope &&
-                              entry.source === item.source &&
-                              entry.name === item.name,
-                          )
-                        ) {
-                          const next = cloneState();
-                          const org =
-                            next.organization[item.scope]?.[item.source];
-                          if (org) {
-                            delete org.members[item.name];
-                            delete org.notes[item.name];
-                            for (const key of Object.keys(org.order))
-                              org.order[key] = org.order[key].filter(
-                                (name) => name !== item.name,
-                              );
-                          }
-                          const copies = current
-                            ? next.projects[current.id]?.copies
-                            : next.copies;
-                          if (copies) {
-                            delete copies[join(item.origin, 'SKILL.md')];
-                            delete copies[item.origin];
-                          }
-                          try {
-                            await writeState(next);
-                          } catch {
-                            result = { warning: 'trash-state' };
-                          }
+                        !view.copies.some(
+                          (entry) =>
+                            entry.source === item.source &&
+                            entry.name === item.name,
+                        ) &&
+                        !items.some(
+                          (entry) =>
+                            entry.id !== item.id &&
+                            entry.scope === item.scope &&
+                            entry.source === item.source &&
+                            entry.name === item.name,
+                        )
+                      ) {
+                        const next = cloneState();
+                        const org =
+                          next.organization[item.scope]?.[item.source];
+                        if (org) {
+                          delete org.members[item.name];
+                          delete org.notes[item.name];
+                          for (const key of Object.keys(org.order))
+                            org.order[key] = org.order[key].filter(
+                              (name) => name !== item.name,
+                            );
+                        }
+                        const copies = current
+                          ? next.projects[current.id]?.copies
+                          : next.copies;
+                        if (copies) {
+                          delete copies[join(item.origin, 'SKILL.md')];
+                          delete copies[item.origin];
+                        }
+                        try {
+                          await writeState(next);
+                        } catch {
+                          result = { warning: 'trash-state' };
                         }
                       }
                     }
-                    revision++;
-                    for (const control of controls) control.invalidate();
-                    return result ?? {};
-                  } catch (error) {
-                    return fail(
-                      409,
-                      error instanceof Error &&
-                        error.message.startsWith('trash-')
-                        ? error.message
-                        : 'trash-failed',
-                    );
                   }
-                });
-                operations = mutation.catch(() => undefined);
-                const result = await mutation;
-                if (result instanceof Response) return result;
+                  revision++;
+                  for (const control of controls) control.invalidate();
+                  return result ?? {};
+                } catch (error) {
+                  return fail(
+                    409,
+                    error instanceof Error && error.message.startsWith('trash-')
+                      ? error.message
+                      : 'trash-failed',
+                  );
+                }
+              });
+              operations = mutation.catch(() => undefined);
+              const result = await mutation;
+              if (result instanceof Response) return result;
+              return Response.json({
+                ...(await payload(project, await registeredProjects(), marked)),
+                result,
+              });
+            }
+            if (String(body.action).startsWith('catalog-')) {
+              if (!marked) return fail(403, 'forbidden');
+              const cancelled = () => closing || request.signal.aborted;
+              if (closing) return fail(503, 'stopping');
+              try {
+                if (corrupt) return fail(409, 'state-invalid');
+                const signal = request.signal;
+                // Browse/search/detail are read-only answers; mutations also return the refreshed list.
+                if (body.action === 'catalog-clawhub-list')
+                  return Response.json(
+                    await catalogs.clawhubList(
+                      {
+                        limit: body.limit,
+                        cursor: body.cursor,
+                        sort: body.sort,
+                      },
+                      signal,
+                    ),
+                  );
+                if (body.action === 'catalog-clawhub-search')
+                  return Response.json(
+                    await catalogs.clawhubSearch(
+                      { q: body.q, limit: body.limit },
+                      signal,
+                    ),
+                  );
+                if (body.action === 'catalog-skillsh-search')
+                  return Response.json(
+                    await catalogs.skillsShSearch({ q: body.q }, signal),
+                  );
+                if (body.action === 'catalog-detail')
+                  return Response.json(
+                    await catalogs.detail(body.skill, signal),
+                  );
+                let result: unknown;
+                if (body.action === 'catalog-install')
+                  result = await catalogs.install(
+                    {
+                      skill: body.skill,
+                      destination:
+                        body.destination ??
+                        (body.project === undefined ? 'user-dsh' : undefined),
+                      project: body.project,
+                      confirm: body.confirm,
+                      reassociate: body.reassociate,
+                    },
+                    cancelled,
+                    signal,
+                  );
+                else if (body.action === 'catalog-uninstall')
+                  result = await catalogs.uninstall(
+                    body.installId,
+                    body.project,
+                    cancelled,
+                  );
+                else if (body.action === 'catalog-forget') {
+                  // A record whose Trash entry vanished outside the app may be forgotten; only a clean Trash scan proves that.
+                  let trashIds: Set<string> | undefined;
+                  try {
+                    const scan = await scanTrash(trashRoot);
+                    if (!scan.overLimit && !scan.skipped)
+                      trashIds = new Set(scan.items.map((item) => item.id));
+                  } catch {
+                    trashIds = undefined;
+                  }
+                  result = await catalogs.forget(
+                    body.installId,
+                    body.project,
+                    trashIds,
+                  );
+                } else return fail(400, 'catalog-action');
                 return Response.json({
                   ...(await payload(
                     project,
@@ -2189,471 +2291,388 @@ export function apply(ctx: HostContext, config: Config = {}) {
                   )),
                   result,
                 });
+              } catch (error) {
+                if (error instanceof RepoError)
+                  return fail(error.status, error.code);
+                return fail(400, 'catalog-failed');
               }
-              if (String(body.action).startsWith('catalog-')) {
-                if (!marked) return fail(403, 'forbidden');
+            }
+            if (String(body.action).startsWith('repo-')) {
+              if (!marked) return fail(403, 'forbidden');
+              const cancelled = () => closing || request.signal.aborted;
+              if (closing) return fail(503, 'stopping');
+              try {
+                let result: unknown;
+                if (corrupt) return fail(409, 'state-invalid');
+                if (body.action === 'repo-add')
+                  result = await repos.add(body.repository, request.signal);
+                else if (body.action === 'repo-refresh')
+                  result = await repos.refresh(body.id, request.signal);
+                else if (body.action === 'repo-refresh-all')
+                  result = await repos.refreshAll(request.signal);
+                else if (body.action === 'repo-remove')
+                  result = await repos.remove(body.id);
+                else if (body.action === 'repo-install')
+                  result = await repos.install(
+                    {
+                      id: body.id,
+                      path: body.path,
+                      snapshot: body.snapshot,
+                      source:
+                        body.source ??
+                        (body.project === undefined ? 'user-dsh' : undefined),
+                      project: body.project,
+                    },
+                    cancelled,
+                  );
+                else if (body.action === 'repo-forget')
+                  result = await repos.forget(body.installId, body.project);
+                else if (
+                  body.action === 'repo-update-preview' ||
+                  body.action === 'repo-rollback-preview'
+                )
+                  result = await repos.preview(
+                    body.action === 'repo-update-preview'
+                      ? 'update'
+                      : 'rollback',
+                    body.installId,
+                    body.project,
+                  );
+                else if (
+                  body.action === 'repo-update' ||
+                  body.action === 'repo-rollback'
+                )
+                  result = await repos.replace(
+                    body.action === 'repo-update' ? 'update' : 'rollback',
+                    {
+                      id: body.installId,
+                      current: body.current,
+                      target: body.target,
+                      snapshot: body.snapshot,
+                      overwrite: body.overwrite,
+                      project: body.project,
+                    },
+                    cancelled,
+                  );
+                else
+                  result = await repos.uninstall(
+                    body.installId,
+                    body.project,
+                    cancelled,
+                  );
+                return Response.json({
+                  ...(await payload(
+                    project,
+                    await registeredProjects(),
+                    marked,
+                  )),
+                  result,
+                });
+              } catch (error) {
+                if (error instanceof RepoError)
+                  return fail(
+                    error.status,
+                    error.code,
+                    error.recovery.length
+                      ? { recovery: error.recovery.join(' ') }
+                      : {},
+                  );
+                return fail(400, 'repo-failed');
+              }
+            }
+            if (body.action === 'import' || body.action === 'upload') {
+              if (!marked) return fail(403, 'forbidden');
+              const mutation = operations.then(async () => {
+                if (closing || request.signal.aborted)
+                  return fail(409, 'import-cancelled');
+                if (corrupt) return fail(409, 'state-invalid');
+                const current =
+                  body.project === undefined
+                    ? undefined
+                    : (await registeredProjects()).find(
+                        (item) => item.id === body.project,
+                      );
+                if (
+                  body.project !== undefined &&
+                  (registryUnavailable || !current)
+                )
+                  return fail(404, 'project-unregistered');
+                const destination = current
+                  ? current.available &&
+                    current.root &&
+                    body.source === `project-dsh:${current.id}`
+                    ? join(current.root, '.dsh', 'skills')
+                    : undefined
+                  : baseSources.find(
+                      (item) =>
+                        item.id === body.source &&
+                        ['user-dsh', 'user-agents'].includes(item.id),
+                    )?.path;
+                if (!destination) return fail(403, 'create-readonly');
                 const cancelled = () => closing || request.signal.aborted;
-                if (closing) return fail(503, 'stopping');
                 try {
-                  if (corrupt) return fail(409, 'state-invalid');
-                  const signal = request.signal;
-                  // Browse/search/detail are read-only answers; mutations also return the refreshed list.
-                  if (body.action === 'catalog-clawhub-list')
-                    return Response.json(
-                      await catalogs.clawhubList(
-                        {
-                          limit: body.limit,
-                          cursor: body.cursor,
-                          sort: body.sort,
-                        },
-                        signal,
-                      ),
-                    );
-                  if (body.action === 'catalog-clawhub-search')
-                    return Response.json(
-                      await catalogs.clawhubSearch(
-                        { q: body.q, limit: body.limit },
-                        signal,
-                      ),
-                    );
-                  if (body.action === 'catalog-skillsh-search')
-                    return Response.json(
-                      await catalogs.skillsShSearch({ q: body.q }, signal),
-                    );
-                  if (body.action === 'catalog-detail')
-                    return Response.json(
-                      await catalogs.detail(body.skill, signal),
-                    );
-                  let result: unknown;
-                  if (body.action === 'catalog-install')
-                    result = await catalogs.install(
-                      {
-                        skill: body.skill,
-                        destination:
-                          body.destination ??
-                          (body.project === undefined ? 'user-dsh' : undefined),
-                        project: body.project,
-                        confirm: body.confirm,
-                        reassociate: body.reassociate,
-                      },
-                      cancelled,
-                      signal,
-                    );
-                  else if (body.action === 'catalog-uninstall')
-                    result = await catalogs.uninstall(
-                      body.installId,
-                      body.project,
-                      cancelled,
-                    );
-                  else if (body.action === 'catalog-forget') {
-                    // A record whose Trash entry vanished outside the app may be forgotten; only a clean Trash scan proves that.
-                    let trashIds: Set<string> | undefined;
-                    try {
-                      const scan = await scanTrash(trashRoot);
-                      if (!scan.overLimit && !scan.skipped)
-                        trashIds = new Set(scan.items.map((item) => item.id));
-                    } catch {
-                      trashIds = undefined;
-                    }
-                    result = await catalogs.forget(
-                      body.installId,
-                      body.project,
-                      trashIds,
-                    );
-                  } else return fail(400, 'catalog-action');
-                  return Response.json({
-                    ...(await payload(
-                      project,
-                      await registeredProjects(),
-                      marked,
-                    )),
-                    result,
-                  });
-                } catch (error) {
-                  if (error instanceof RepoError)
-                    return fail(error.status, error.code);
-                  return fail(400, 'catalog-failed');
-                }
-              }
-              if (String(body.action).startsWith('repo-')) {
-                if (!marked) return fail(403, 'forbidden');
-                const cancelled = () => closing || request.signal.aborted;
-                if (closing) return fail(503, 'stopping');
-                try {
-                  let result: unknown;
-                  if (corrupt) return fail(409, 'state-invalid');
-                  if (body.action === 'repo-add')
-                    result = await repos.add(body.repository, request.signal);
-                  else if (body.action === 'repo-refresh')
-                    result = await repos.refresh(body.id, request.signal);
-                  else if (body.action === 'repo-refresh-all')
-                    result = await repos.refreshAll(request.signal);
-                  else if (body.action === 'repo-remove')
-                    result = await repos.remove(body.id);
-                  else if (body.action === 'repo-install')
-                    result = await repos.install(
-                      {
-                        id: body.id,
-                        path: body.path,
-                        snapshot: body.snapshot,
-                        source:
-                          body.source ??
-                          (body.project === undefined ? 'user-dsh' : undefined),
-                        project: body.project,
-                      },
-                      cancelled,
-                    );
-                  else if (body.action === 'repo-forget')
-                    result = await repos.forget(body.installId, body.project);
-                  else if (
-                    body.action === 'repo-update-preview' ||
-                    body.action === 'repo-rollback-preview'
-                  )
-                    result = await repos.preview(
-                      body.action === 'repo-update-preview'
-                        ? 'update'
-                        : 'rollback',
-                      body.installId,
-                      body.project,
-                    );
-                  else if (
-                    body.action === 'repo-update' ||
-                    body.action === 'repo-rollback'
-                  )
-                    result = await repos.replace(
-                      body.action === 'repo-update' ? 'update' : 'rollback',
-                      {
-                        id: body.installId,
-                        current: body.current,
-                        target: body.target,
-                        snapshot: body.snapshot,
-                        overwrite: body.overwrite,
-                        project: body.project,
-                      },
-                      cancelled,
-                    );
-                  else
-                    result = await repos.uninstall(
-                      body.installId,
-                      body.project,
-                      cancelled,
-                    );
-                  return Response.json({
-                    ...(await payload(
-                      project,
-                      await registeredProjects(),
-                      marked,
-                    )),
-                    result,
-                  });
-                } catch (error) {
-                  if (error instanceof RepoError)
-                    return fail(
-                      error.status,
-                      error.code,
-                      error.recovery.length
-                        ? { recovery: error.recovery.join(' ') }
-                        : {},
-                    );
-                  return fail(400, 'repo-failed');
-                }
-              }
-              if (body.action === 'import' || body.action === 'upload') {
-                if (!marked) return fail(403, 'forbidden');
-                const mutation = operations.then(async () => {
-                  if (closing || request.signal.aborted)
-                    return fail(409, 'import-cancelled');
-                  if (corrupt) return fail(409, 'state-invalid');
-                  const current =
-                    body.project === undefined
-                      ? undefined
-                      : (await registeredProjects()).find(
-                          (item) => item.id === body.project,
-                        );
-                  if (
-                    body.project !== undefined &&
-                    (registryUnavailable || !current)
-                  )
-                    return fail(404, 'project-unregistered');
-                  const destination = current
-                    ? current.available &&
-                      current.root &&
-                      body.source === `project-dsh:${current.id}`
-                      ? join(current.root, '.dsh', 'skills')
-                      : undefined
-                    : baseSources.find(
-                        (item) =>
-                          item.id === body.source &&
-                          ['user-dsh', 'user-agents'].includes(item.id),
-                      )?.path;
-                  if (!destination) return fail(403, 'create-readonly');
-                  const cancelled = () => closing || request.signal.aborted;
-                  try {
-                    const found =
-                      body.action === 'import'
-                        ? await localItems(
-                            body.path,
-                            resolve(destination),
+                  const found =
+                    body.action === 'import'
+                      ? await localItems(
+                          body.path,
+                          resolve(destination),
+                          cancelled,
+                        )
+                      : body.archives !== undefined
+                        ? await uploadBatch(
+                            body.entries,
+                            body.archives,
                             cancelled,
                           )
-                        : body.archives !== undefined
-                          ? await uploadBatch(
-                              body.entries,
-                              body.archives,
-                              cancelled,
-                            )
-                          : body.zip === undefined
-                            ? uploadedItems(body.entries)
-                            : await zipItems(body.zip, cancelled);
-                    const result = await publishImports(
-                      found.items,
-                      resolve(destination),
-                      body.conflict,
-                      body.dryRun === true,
-                      cancelled,
-                    );
-                    result.failed.unshift(...found.failed);
-                    const response = {
-                      ...result,
-                      inputs: 'inputs' in found ? found.inputs : [],
-                    };
-                    if (result.imported.length) {
-                      revision++;
-                      for (const control of controls) control.invalidate();
-                    }
-                    return response;
-                  } catch (error) {
-                    return fail(
-                      400,
-                      error instanceof Error &&
-                        error.message.startsWith('import-')
-                        ? error.message
-                        : 'import-failed',
-                    );
+                        : body.zip === undefined
+                          ? uploadedItems(body.entries)
+                          : await zipItems(body.zip, cancelled);
+                  const result = await publishImports(
+                    found.items,
+                    resolve(destination),
+                    body.conflict,
+                    body.dryRun === true,
+                    cancelled,
+                  );
+                  result.failed.unshift(...found.failed);
+                  const response = {
+                    ...result,
+                    inputs: 'inputs' in found ? found.inputs : [],
+                  };
+                  if (result.imported.length) {
+                    revision++;
+                    for (const control of controls) control.invalidate();
                   }
-                });
-                operations = mutation.catch(() => undefined);
-                const result = await mutation;
-                if (result instanceof Response) return result;
-                return Response.json({
-                  ...(await payload(
-                    project,
-                    await registeredProjects(),
-                    marked,
-                  )),
-                  result,
-                });
-              }
-              if (body.action === 'create') {
-                if (!marked) return fail(403, 'forbidden');
-                const mutation = operations.then(async () => {
-                  // Re-read the registry inside the write queue, not from an earlier selector snapshot.
-                  const current =
-                    body.project === undefined
-                      ? undefined
-                      : (await registeredProjects()).find(
-                          (item) => item.id === body.project,
-                        );
-                  if (
-                    body.project !== undefined &&
-                    (registryUnavailable || !current)
-                  )
-                    return fail(404, 'project-unregistered');
-                  return createSkill(body, current);
-                });
-                operations = mutation.catch(() => undefined);
-                const created = await mutation;
-                if (created instanceof Response) return created;
-                return Response.json({
-                  ...(await payload(
-                    project,
-                    await registeredProjects(),
-                    marked,
-                  )),
-                  created,
-                });
-              }
-              if (body.action === 'detail') {
-                if (!marked)
-                  return new Response('Mutation marker required', {
-                    status: 403,
-                  });
-                const { copies } = project
-                  ? await projectCatalog(project)
-                  : await catalog();
-                const copy = copies.find((copy) => copy.path === body.id);
-                if (!copy)
-                  return new Response('Unknown skill', { status: 404 });
-                const { content: _content, original, ...rest } = copy;
-                return Response.json({ ...rest, content: original ?? '' });
-              }
-              if (body.action === 'custom-scan') {
-                if (!marked)
-                  return new Response('Mutation marker required', {
-                    status: 403,
-                  });
-                const found = await scanCandidates(
-                  body.path,
-                  await prepareRoots(
-                    await protectedRoots(await projects()),
-                    reservedFolders(),
-                  ),
-                  state.customSources.map((x) => x.path),
-                  request.signal,
-                );
-                if (!found.ok) return fail(409, found.code, found.params);
-                return Response.json(found);
-              }
-              if (body.action?.startsWith('custom-')) {
-                if (!marked)
-                  return new Response('Mutation marker required', {
-                    status: 403,
-                  });
-                const items = body.items;
+                  return response;
+                } catch (error) {
+                  return fail(
+                    400,
+                    error instanceof Error &&
+                      error.message.startsWith('import-')
+                      ? error.message
+                      : 'import-failed',
+                  );
+                }
+              });
+              operations = mutation.catch(() => undefined);
+              const result = await mutation;
+              if (result instanceof Response) return result;
+              return Response.json({
+                ...(await payload(project, await registeredProjects(), marked)),
+                result,
+              });
+            }
+            if (body.action === 'create') {
+              if (!marked) return fail(403, 'forbidden');
+              const mutation = operations.then(async () => {
+                // Re-read the registry inside the write queue, not from an earlier selector snapshot.
+                const current =
+                  body.project === undefined
+                    ? undefined
+                    : (await registeredProjects()).find(
+                        (item) => item.id === body.project,
+                      );
                 if (
-                  (body.action === 'custom-add' &&
-                    (!Array.isArray(items) ||
-                      !items.length ||
-                      items.length > 64 ||
-                      items.some(
-                        (x) => !x || typeof x !== 'object' || Array.isArray(x),
-                      ))) ||
-                  (body.action === 'custom-update' &&
-                    (typeof body.id !== 'string' ||
-                      typeof body.label !== 'string' ||
-                      !body.label.trim())) ||
-                  (body.action === 'custom-remove' &&
-                    typeof body.id !== 'string')
+                  body.project !== undefined &&
+                  (registryUnavailable || !current)
                 )
-                  return new Response('Invalid custom source request', {
-                    status: 400,
-                  });
-                let results: Array<Record<string, unknown>> | undefined;
-                const mutation = operations.then(async () => {
-                  if (closing)
-                    return new Response('Skill manager is stopping', {
-                      status: 503,
-                    });
-                  if (corrupt)
-                    return new Response('Skill state is invalid', {
-                      status: 409,
-                    });
-                  if (body.action === 'custom-add') {
-                    results = await customAdd(
-                      items as Array<Record<string, unknown>>,
-                      await projects(),
-                    );
-                    return undefined;
-                  }
-                  return body.action === 'custom-update'
-                    ? customUpdate(
-                        body as Record<string, unknown>,
-                        await projects(),
-                      )
-                    : customRemove(body.id as string);
+                  return fail(404, 'project-unregistered');
+                return createSkill(body, current);
+              });
+              operations = mutation.catch(() => undefined);
+              const created = await mutation;
+              if (created instanceof Response) return created;
+              return Response.json({
+                ...(await payload(project, await registeredProjects(), marked)),
+                created,
+              });
+            }
+            if (body.action === 'detail') {
+              if (!marked)
+                return new Response('Mutation marker required', {
+                  status: 403,
                 });
-                operations = mutation.catch(() => undefined);
-                const error = await mutation;
-                if (error) return error;
-                return Response.json({
-                  ...(await payload(project, await projects())),
-                  results,
+              const { copies } = project
+                ? await projectCatalog(project)
+                : await catalog();
+              const copy = copies.find((copy) => copy.path === body.id);
+              if (!copy) return new Response('Unknown skill', { status: 404 });
+              const { content: _content, original, ...rest } = copy;
+              return Response.json({ ...rest, content: original ?? '' });
+            }
+            if (body.action === 'custom-scan') {
+              if (!marked)
+                return new Response('Mutation marker required', {
+                  status: 403,
                 });
-              }
-              if (ORG_ACTIONS.includes(body.action ?? '')) {
-                if (!marked)
-                  return new Response('Mutation marker required', {
-                    status: 403,
+              const found = await scanCandidates(
+                body.path,
+                await prepareRoots(
+                  await protectedRoots(await projects()),
+                  reservedFolders(),
+                ),
+                state.customSources.map((x) => x.path),
+                request.signal,
+              );
+              if (!found.ok) return fail(409, found.code, found.params);
+              return Response.json(found);
+            }
+            if (body.action?.startsWith('custom-')) {
+              if (!marked)
+                return new Response('Mutation marker required', {
+                  status: 403,
+                });
+              const items = body.items;
+              if (
+                (body.action === 'custom-add' &&
+                  (!Array.isArray(items) ||
+                    !items.length ||
+                    items.length > 64 ||
+                    items.some(
+                      (x) => !x || typeof x !== 'object' || Array.isArray(x),
+                    ))) ||
+                (body.action === 'custom-update' &&
+                  (typeof body.id !== 'string' ||
+                    typeof body.label !== 'string' ||
+                    !body.label.trim())) ||
+                (body.action === 'custom-remove' && typeof body.id !== 'string')
+              )
+                return new Response('Invalid custom source request', {
+                  status: 400,
+                });
+              let results: Array<Record<string, unknown>> | undefined;
+              const mutation = operations.then(async () => {
+                if (closing)
+                  return new Response('Skill manager is stopping', {
+                    status: 503,
                   });
-                const mutation = operations.then(async () =>
-                  organize(body, project, await projects()),
-                );
-                operations = mutation.catch(() => undefined);
-                const error = await mutation;
-                if (error) return error;
-                return Response.json(
-                  await payload(project, await projects(), marked),
-                );
-              }
-              if (body.action === 'toggle') {
-                if (!marked)
-                  return new Response('Mutation marker required', {
-                    status: 403,
+                if (corrupt)
+                  return new Response('Skill state is invalid', {
+                    status: 409,
                   });
-                const mutation = operations.then(async () => {
-                  if (closing)
-                    return new Response('Skill manager is stopping', {
-                      status: 503,
-                    });
-                  if (corrupt)
-                    return new Response('Skill state is invalid', {
-                      status: 409,
-                    });
-                  if (
-                    typeof body.enabled !== 'boolean' ||
-                    typeof body.id !== 'string'
-                  )
-                    return new Response('Invalid toggle', { status: 400 });
-                  const next = cloneState();
-                  if (project) {
-                    const view = project.available
-                      ? await projectCatalog(project)
-                      : undefined;
-                    const own = (next.projects[project.id] ??= {
-                      sources: Object.create(null),
-                      copies: Object.create(null),
-                    });
-                    if (body.kind === 'source') {
-                      const source = view?.list.find((x) => x.id === body.id);
-                      if (!source)
-                        return new Response('Unknown skill target', {
-                          status: 400,
-                        });
-                      // Reference restriction: the project DSH source has no switch.
-                      if (source.kind === 'dsh')
-                        return fail(409, 'project-dsh-source');
-                      own.sources[source.kind ?? ''] = body.enabled;
-                    } else if (
-                      body.kind === 'copy' &&
-                      view?.copies.some((x) => x.path === body.id)
-                    )
-                      own.copies[body.id] = body.enabled;
-                    else
-                      return new Response('Unknown skill target', {
-                        status: 400,
-                      });
-                  } else {
-                    const { copies } = await catalog();
-                    const valid =
-                      body.kind === 'source'
-                        ? globalSources().some((x) => x.id === body.id)
-                        : body.kind === 'copy' &&
-                          copies.some((x) => x.path === body.id);
-                    if (!valid)
-                      return new Response('Unknown skill target', {
-                        status: 400,
-                      });
-                    (body.kind === 'source' ? next.sources : next.copies)[
-                      body.id
-                    ] = body.enabled;
-                  }
-                  await writeState(next);
+                if (body.action === 'custom-add') {
+                  results = await customAdd(
+                    items as Array<Record<string, unknown>>,
+                    await projects(),
+                  );
                   return undefined;
+                }
+                return body.action === 'custom-update'
+                  ? customUpdate(
+                      body as Record<string, unknown>,
+                      await projects(),
+                    )
+                  : customRemove(body.id as string);
+              });
+              operations = mutation.catch(() => undefined);
+              const error = await mutation;
+              if (error) return error;
+              return Response.json({
+                ...(await payload(project, await projects())),
+                results,
+              });
+            }
+            if (ORG_ACTIONS.includes(body.action ?? '')) {
+              if (!marked)
+                return new Response('Mutation marker required', {
+                  status: 403,
                 });
-                operations = mutation.catch(() => undefined);
-                const error = await mutation;
-                if (error) return error;
-              }
+              const mutation = operations.then(async () =>
+                organize(body, project, await projects()),
+              );
+              operations = mutation.catch(() => undefined);
+              const error = await mutation;
+              if (error) return error;
               return Response.json(
                 await payload(project, await projects(), marked),
               );
-            } catch {
-              return new Response('Skill operation failed', { status: 400 });
             }
-          },
-        }),
-      'majed-skills catalog',
-    );
+            if (body.action === 'toggle') {
+              if (!marked)
+                return new Response('Mutation marker required', {
+                  status: 403,
+                });
+              const mutation = operations.then(async () => {
+                if (closing)
+                  return new Response('Skill manager is stopping', {
+                    status: 503,
+                  });
+                if (corrupt)
+                  return new Response('Skill state is invalid', {
+                    status: 409,
+                  });
+                if (
+                  typeof body.enabled !== 'boolean' ||
+                  typeof body.id !== 'string'
+                )
+                  return new Response('Invalid toggle', { status: 400 });
+                const next = cloneState();
+                if (project) {
+                  const view = project.available
+                    ? await projectCatalog(project)
+                    : undefined;
+                  const own = (next.projects[project.id] ??= {
+                    sources: Object.create(null),
+                    copies: Object.create(null),
+                  });
+                  if (body.kind === 'source') {
+                    const source = view?.list.find((x) => x.id === body.id);
+                    if (!source)
+                      return new Response('Unknown skill target', {
+                        status: 400,
+                      });
+                    // Reference restriction: the project DSH source has no switch.
+                    if (source.kind === 'dsh')
+                      return fail(409, 'project-dsh-source');
+                    own.sources[source.kind ?? ''] = body.enabled;
+                  } else if (
+                    body.kind === 'copy' &&
+                    view?.copies.some((x) => x.path === body.id)
+                  )
+                    own.copies[body.id] = body.enabled;
+                  else
+                    return new Response('Unknown skill target', {
+                      status: 400,
+                    });
+                } else {
+                  const { copies } = await catalog();
+                  const valid =
+                    body.kind === 'source'
+                      ? globalSources().some((x) => x.id === body.id)
+                      : body.kind === 'copy' &&
+                        copies.some((x) => x.path === body.id);
+                  if (!valid)
+                    return new Response('Unknown skill target', {
+                      status: 400,
+                    });
+                  (body.kind === 'source' ? next.sources : next.copies)[
+                    body.id
+                  ] = body.enabled;
+                }
+                await writeState(next);
+                return undefined;
+              });
+              operations = mutation.catch(() => undefined);
+              const error = await mutation;
+              if (error) return error;
+            }
+            return Response.json(
+              await payload(project, await projects(), marked),
+            );
+          } catch {
+            return new Response('Skill operation failed', { status: 400 });
+          }
+        },
+      });
+    // New route plus the deprecated legacy route for one release (stale browser clients).
+    target.effect(() => {
+      const offs = ['/api/waycraft-skills.catalog', LEGACY_SKILLS_ROUTE].map(
+        registerRoute,
+      );
+      return () => {
+        for (const off of offs) off();
+      };
+    }, 'waycraft-skills catalog');
   });
   ctx.effect(() => {
     const stop = install(ctx);
@@ -2675,5 +2694,5 @@ export function apply(ctx: HostContext, config: Config = {}) {
       registrations.clear();
       stop();
     };
-  }, 'majed-skills availability overlay');
+  }, 'waycraft-skills availability overlay');
 }

@@ -86,8 +86,8 @@ export function createZenCard(
           width: '100%',
           textAlign: 'start',
         },
-        className: 'majed-subscriptions-settings',
-        'data-majed-zen-card': true,
+        className: 'waycraft-subscriptions-settings',
+        'data-waycraft-zen-card': true,
       },
       h('style', null, controlCss),
       h(
@@ -99,7 +99,7 @@ export function createZenCard(
           providerStatus(h, t, state, !enabled ? 'zenDisabled' : label),
           h(
             'div',
-            { className: 'majed-provider-identity' },
+            { className: 'waycraft-provider-identity' },
             h('span', { style: styles.name }, 'OpenCode Zen'),
           ),
           h(

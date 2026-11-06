@@ -8,7 +8,7 @@ import {
   proxyTestConnection,
 } from '../dist/http.js';
 test('owned proxy preserves omitted password and never returns it; URL credentials are rejected', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t130/proxy-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t130/proxy-');
   await resetProxyForTests();
   try {
     const secret = 'fixture-password-only';
@@ -30,11 +30,11 @@ test('owned proxy preserves omitted password and never returns it; URL credentia
       JSON.stringify(await proxyGetConfig()).includes(secret),
       false,
     );
-    const path = `${process.env.DSH_HOME}/plugins/majed/subscriptions/proxy.json`;
+    const path = `${process.env.DSH_HOME}/plugins/waycraft/subscriptions/proxy.json`;
     assert.equal((await stat(path)).mode & 0o777, 0o600);
     assert.equal(
-      (await stat(`${process.env.DSH_HOME}/plugins/majed/subscriptions`)).mode &
-        0o777,
+      (await stat(`${process.env.DSH_HOME}/plugins/waycraft/subscriptions`))
+        .mode & 0o777,
       0o700,
     );
     assert.ok((await readFile(path, 'utf8')).includes(secret));

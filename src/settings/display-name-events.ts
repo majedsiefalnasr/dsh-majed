@@ -1,7 +1,8 @@
 type SubscriptionProvider = 'codex' | 'claude';
 
 /** Notify mounted views after a successful save, without another quota request. */
-export const DISPLAY_NAME_CHANGED = 'majed-subscriptions-display-name-changed';
+export const DISPLAY_NAME_CHANGED =
+  'waycraft-subscriptions-display-name-changed';
 export interface DisplayNameChange {
   provider: SubscriptionProvider;
   displayName?: string;

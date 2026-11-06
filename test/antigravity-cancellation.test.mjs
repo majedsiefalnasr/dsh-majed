@@ -154,7 +154,7 @@ test('Antigravity controller ignores late token response after cancel', async ()
   const { AntigravityAuthController } = await import(
     '../dist/auth/antigravity-controller.js'
   );
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed135-late-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft135-late-');
   let completeFetch, started;
   const entered = new Promise((resolve) => {
     started = resolve;

@@ -1,9 +1,9 @@
 // Deterministic browser-only comparison. No host, profile, storage or provider access.
-// Renderer dependencies live only in /tmp/majed-t129-ui; reference is read-only.
+// Renderer dependencies live only in /tmp/waycraft-t129-ui; reference is read-only.
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
-const out = '/tmp/majed-t129-ui';
+const out = '/tmp/waycraft-t129-ui';
 const require = createRequire(`${out}/package.json`);
 const { build } = require('esbuild');
 const root = process.cwd();

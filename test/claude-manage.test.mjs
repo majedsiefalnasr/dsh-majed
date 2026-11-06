@@ -138,7 +138,7 @@ async function mount(locale, provider, handlers) {
     closed = [];
   const rpc = {
     async call(_, method, payload) {
-      const name = method.replace('majed-subscriptions.', '');
+      const name = method.replace('waycraft-subscriptions.', '');
       calls.push({ name, payload });
       return handlers[name](payload);
     },

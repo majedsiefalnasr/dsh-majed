@@ -117,7 +117,7 @@ async function mount(t, language) {
         return callback({
           layout: {
             panelInfo: {
-              getSnapshot: () => ({ activePanelId: 'majed-skills' }),
+              getSnapshot: () => ({ activePanelId: 'waycraft-skills' }),
             },
             selectPanel() {},
           },
@@ -151,7 +151,7 @@ async function mount(t, language) {
   api.apply({
     ...ctx,
     effect(start, label) {
-      if (label?.startsWith('majed-skills')) cleanups.push(start());
+      if (label?.startsWith('waycraft-skills')) cleanups.push(start());
     },
   });
   const settle = async () => {
@@ -638,7 +638,7 @@ for (const language of ['en', 'ar']) {
     );
     const article = () =>
       view.root.findAll(
-        (x) => x.type === 'article' && x.props['data-majed-repo-install'],
+        (x) => x.type === 'article' && x.props['data-waycraft-repo-install'],
       )[0];
     const flat = (node) =>
       typeof node === 'string'
@@ -657,7 +657,7 @@ for (const language of ['en', 'ar']) {
     );
     const skillRows = () =>
       view.root.findAll(
-        (x) => x.type === 'div' && x.props['data-majed-repo-skill'],
+        (x) => x.type === 'div' && x.props['data-waycraft-repo-skill'],
       );
     assert.equal(
       skillRows().length,

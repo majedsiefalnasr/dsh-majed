@@ -310,7 +310,7 @@ test('display setting persists the mode, shows the localized hint and reports bl
         select.props.onChange({ currentTarget: { value: 'hidden' } }),
       );
       assert.equal(
-        window.values.get('majed.subscriptions.usageBadgeMode'),
+        window.values.get('waycraft.subscriptions.usageBadgeMode'),
         'hidden',
       );
       assert.equal(page.root.findByType('select').props.value, 'hidden');
@@ -318,7 +318,7 @@ test('display setting persists the mode, shows the localized hint and reports bl
         select.props.onChange({ currentTarget: { value: 'bogus' } }),
       );
       assert.equal(
-        window.values.get('majed.subscriptions.usageBadgeMode'),
+        window.values.get('waycraft.subscriptions.usageBadgeMode'),
         'hidden',
         'unknown values are ignored',
       );
@@ -382,9 +382,9 @@ function rpcDouble(options = {}) {
     calls,
     call: async (channel, method, payload) => {
       calls.push({ channel, method, payload });
-      if (method === 'majed-subscriptions.status')
+      if (method === 'waycraft-subscriptions.status')
         return options.status ?? status;
-      if (method === 'majed-subscriptions.usage')
+      if (method === 'waycraft-subscriptions.usage')
         return options.usage?.(payload) ?? usage[payload.account];
       throw new Error(`unexpected ${method}`);
     },
@@ -436,7 +436,7 @@ for (const locale of ['en', 'ar']) {
         await tick();
         await tick();
         const pill = page.root.findByProps({
-          className: 'majed-subscription-usage-pill',
+          className: 'waycraft-subscription-usage-pill',
         });
         assert.equal(
           textOf(pill),
@@ -528,11 +528,12 @@ for (const locale of ['en', 'ar']) {
       assert.ok(
         rpc.calls.every(
           (c) =>
-            c.channel === '/api' && c.method.startsWith('majed-subscriptions.'),
+            c.channel === '/api' &&
+            c.method.startsWith('waycraft-subscriptions.'),
         ),
       );
       const pill = page.root.findByProps({
-        className: 'majed-subscription-usage-pill',
+        className: 'waycraft-subscription-usage-pill',
       });
       assert.match(textOf(pill), /Codex/);
       assert.match(textOf(pill), /13%/);
@@ -548,7 +549,7 @@ for (const locale of ['en', 'ar']) {
       await act(async () => pill.props.onClick());
       await tick();
       const dialog = page.root.findByProps({ role: 'dialog' });
-      assert.equal(dialog.props.className, 'majed-subscription-usage-panel');
+      assert.equal(dialog.props.className, 'waycraft-subscription-usage-panel');
       const panel = textOf(dialog);
       assert.ok(
         panel.includes('one@example.test') &&
@@ -573,7 +574,7 @@ for (const locale of ['en', 'ar']) {
       );
       await act(async () =>
         page.root
-          .findByProps({ className: 'majed-subscription-usage-pill' })
+          .findByProps({ className: 'waycraft-subscription-usage-pill' })
           .props.onClick(),
       );
       assert.equal(page.root.findAllByProps({ role: 'dialog' }).length, 0);
@@ -610,14 +611,17 @@ test('usage badge survives the authentic loginless Zen snapshot before Codex acc
       await tick();
       await tick();
       assert.equal(
-        page.root.findAllByProps({ className: 'majed-subscription-usage-pill' })
-          .length,
+        page.root.findAllByProps({
+          className: 'waycraft-subscription-usage-pill',
+        }).length,
         1,
         'Codex badge remains visible after loginless Zen',
       );
       assert.match(
         textOf(
-          page.root.findByProps({ className: 'majed-subscription-usage-pill' }),
+          page.root.findByProps({
+            className: 'waycraft-subscription-usage-pill',
+          }),
         ),
         /Codex 5h 13% · Wk 25%/,
       );
@@ -629,7 +633,7 @@ test('usage badge survives the authentic loginless Zen snapshot before Codex acc
       );
       await act(async () =>
         page.root
-          .findByProps({ className: 'majed-subscription-usage-pill' })
+          .findByProps({ className: 'waycraft-subscription-usage-pill' })
           .props.onClick(),
       );
       await tick();
@@ -685,7 +689,7 @@ test('usage roster preserves all account providers and skips empty, unknown and 
       );
       await act(async () =>
         page.root
-          .findByProps({ className: 'majed-subscription-usage-pill' })
+          .findByProps({ className: 'waycraft-subscription-usage-pill' })
           .props.onClick(),
       );
       await tick();
@@ -703,12 +707,12 @@ test('usage roster preserves all account providers and skips empty, unknown and 
       rpc.calls.length = 0;
       await act(async () =>
         page.root
-          .findByProps({ className: 'majed-subscription-usage-pill' })
+          .findByProps({ className: 'waycraft-subscription-usage-pill' })
           .props.onClick(),
       );
       await act(async () =>
         page.root
-          .findByProps({ className: 'majed-subscription-usage-pill' })
+          .findByProps({ className: 'waycraft-subscription-usage-pill' })
           .props.onClick(),
       );
       await tick();
@@ -717,8 +721,9 @@ test('usage roster preserves all account providers and skips empty, unknown and 
         0,
       );
       assert.equal(
-        page.root.findAllByProps({ className: 'majed-subscription-usage-pill' })
-          .length,
+        page.root.findAllByProps({
+          className: 'waycraft-subscription-usage-pill',
+        }).length,
         0,
       );
     } finally {
@@ -742,8 +747,9 @@ test('usage badge hidden mode renders only the invisible seat and polls nothing;
     await tick();
     assert.equal(rpc.calls.length, 0, 'hidden: no usage traffic');
     assert.equal(
-      page.root.findAllByProps({ className: 'majed-subscription-usage-pill' })
-        .length,
+      page.root.findAllByProps({
+        className: 'waycraft-subscription-usage-pill',
+      }).length,
       0,
     );
     assert.equal(
@@ -755,8 +761,9 @@ test('usage badge hidden mode renders only the invisible seat and polls nothing;
     await tick();
     assert.ok(rpc.calls.some((c) => c.method.endsWith('.usage')));
     assert.equal(
-      page.root.findAllByProps({ className: 'majed-subscription-usage-pill' })
-        .length,
+      page.root.findAllByProps({
+        className: 'waycraft-subscription-usage-pill',
+      }).length,
       1,
     );
     await act(async () => page.unmount());
@@ -777,8 +784,9 @@ test('usage badge shows nothing when status or usage fails, keeps last known win
     await tick();
     await tick();
     assert.equal(
-      page.root.findAllByProps({ className: 'majed-subscription-usage-pill' })
-        .length,
+      page.root.findAllByProps({
+        className: 'waycraft-subscription-usage-pill',
+      }).length,
       0,
       'error state: no pill, no throw',
     );
@@ -800,14 +808,15 @@ test('usage badge shows nothing when status or usage fails, keeps last known win
     await tick();
     await tick();
     assert.equal(
-      kept.root.findAllByProps({ className: 'majed-subscription-usage-pill' })
-        .length,
+      kept.root.findAllByProps({
+        className: 'waycraft-subscription-usage-pill',
+      }).length,
       1,
     );
     fail = true;
     await act(async () =>
       kept.root
-        .findByProps({ className: 'majed-subscription-usage-pill' })
+        .findByProps({ className: 'waycraft-subscription-usage-pill' })
         .props.onClick(),
     );
     await tick();
@@ -822,8 +831,9 @@ test('usage badge shows nothing when status or usage fails, keeps last known win
       React.createElement(SubscriptionUsageBadge, { t: translator('en') }),
     );
     assert.equal(
-      noRpc.root.findAllByProps({ className: 'majed-subscription-usage-pill' })
-        .length,
+      noRpc.root.findAllByProps({
+        className: 'waycraft-subscription-usage-pill',
+      }).length,
       0,
       'standalone render without rpc',
     );
@@ -850,8 +860,9 @@ test('usage badge ignores model reads that fail and unmount stops all polling', 
     // Faithful to the reference: with no readable model and no retained subscription the badge shows nothing,
     // but usage was still loaded (the next successful model read reveals it) and nothing threw.
     assert.equal(
-      page.root.findAllByProps({ className: 'majed-subscription-usage-pill' })
-        .length,
+      page.root.findAllByProps({
+        className: 'waycraft-subscription-usage-pill',
+      }).length,
       0,
       'no model selection: nothing shown',
     );
@@ -921,7 +932,7 @@ test('usage badge shows the current Claude model and lists Claude accounts next 
       ),
     );
     const pill = page.root.findByProps({
-      className: 'majed-subscription-usage-pill',
+      className: 'waycraft-subscription-usage-pill',
     });
     assert.match(textOf(pill), /Claude/);
     assert.match(textOf(pill), /61%/);
@@ -934,4 +945,27 @@ test('usage badge shows the current Claude model and lists Claude accounts next 
       'Claude and Codex accounts both listed',
     );
     await act(async () => page.unmount());
+  }));
+
+test('usage badge mode falls back to the legacy key, never deletes it and writes only the new key (ticket #159)', () =>
+  withWindow(async () => {
+    window.localStorage.setItem('majed.subscriptions.usageBadgeMode', 'hidden');
+    const page = await mount(
+      React.createElement(UsageBadgeDisplaySetting, { t: translator('en') }),
+    );
+    assert.equal(page.root.findByType('select').props.value, 'hidden');
+    await act(async () =>
+      page.root
+        .findByType('select')
+        .props.onChange({ currentTarget: { value: 'recent' } }),
+    );
+    assert.equal(
+      window.values.get('waycraft.subscriptions.usageBadgeMode'),
+      'recent',
+    );
+    assert.equal(
+      window.values.get('majed.subscriptions.usageBadgeMode'),
+      'hidden',
+      'legacy key untouched',
+    );
   }));

@@ -1,5 +1,5 @@
 /*
- * dsh-majed — Majed's DeepSeek Harness toolkit (client half).
+ * dsh-waycraft — Waycraft's DeepSeek Harness toolkit (client half).
  *
  * Nothing in DSH itself is modified: every feature below is added by this plugin
  * through public client extension points (slots + injected <style>/observers)
@@ -30,7 +30,10 @@ window.__ModuleLoader__.load({
     } catch (_) {}
 
     // ───────────────────────── own settings store (localStorage) ─────────────
-    const STORE_KEY = 'dsh-majed:settings:v1';
+    const STORE_KEY = 'dsh-waycraft:settings:v1';
+    // Deprecated (one release): read when the new key is absent; never written, never deleted.
+    const LEGACY_STORE_KEY = 'dsh-majed:settings:v1';
+    const LEGACY_GLOBAL = '__dshMajed';
     // App UI font size is a px number like the chat font size (DSH chrome is designed at 14px).
     const UI_BASE_PX = 14,
       UI_MIN_PX = 11,
@@ -48,167 +51,167 @@ window.__ModuleLoader__.load({
     };
     const NOTIFY_MODES = ['off', 'background', 'always'];
     // Bundled UI fonts (OFL-1.1, served by this plugin's host half from fonts/*.woff2).
-    const FONT_ROUTE = '/plugins/dsh-majed/fonts/';
+    const FONT_ROUTE = '/plugins/dsh-waycraft/fonts/';
     const BUNDLED_FONTS = {
-      inter: { label: 'Inter', family: 'Inter Majed' },
-      roboto: { label: 'Roboto', family: 'Roboto Majed' },
-      'open-sans': { label: 'Open Sans', family: 'Open Sans Majed' },
-      'noto-sans': { label: 'Noto Sans', family: 'Noto Sans Majed' },
+      inter: { label: 'Inter', family: 'Inter Waycraft' },
+      roboto: { label: 'Roboto', family: 'Roboto Waycraft' },
+      'open-sans': { label: 'Open Sans', family: 'Open Sans Waycraft' },
+      'noto-sans': { label: 'Noto Sans', family: 'Noto Sans Waycraft' },
       'ibm-plex-sans': {
         label: 'IBM Plex Sans',
-        family: 'IBM Plex Sans Majed',
+        family: 'IBM Plex Sans Waycraft',
       },
     };
     const FONT_FACES = [
       {
-        f: 'Inter Majed',
+        f: 'Inter Waycraft',
         u: 'inter-latin-wght-normal.woff2',
         w: '100 900',
         r: 'U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD',
         k: 'inter',
       },
       {
-        f: 'Inter Majed',
+        f: 'Inter Waycraft',
         u: 'inter-latin-ext-wght-normal.woff2',
         w: '100 900',
         r: 'U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF',
         k: 'inter',
       },
       {
-        f: 'Roboto Majed',
+        f: 'Roboto Waycraft',
         u: 'roboto-latin-wght-normal.woff2',
         w: '100 900',
         r: 'U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD',
         k: 'roboto',
       },
       {
-        f: 'Roboto Majed',
+        f: 'Roboto Waycraft',
         u: 'roboto-latin-ext-wght-normal.woff2',
         w: '100 900',
         r: 'U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF',
         k: 'roboto',
       },
       {
-        f: 'Open Sans Majed',
+        f: 'Open Sans Waycraft',
         u: 'open-sans-latin-wght-normal.woff2',
         w: '100 900',
         r: 'U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD',
         k: 'open-sans',
       },
       {
-        f: 'Open Sans Majed',
+        f: 'Open Sans Waycraft',
         u: 'open-sans-latin-ext-wght-normal.woff2',
         w: '100 900',
         r: 'U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF',
         k: 'open-sans',
       },
       {
-        f: 'Open Sans Majed',
+        f: 'Open Sans Waycraft',
         u: 'open-sans-hebrew-wght-normal.woff2',
         w: '100 900',
         r: 'U+0307-0308,U+0590-05FF,U+200C-2010,U+20AA,U+25CC,U+FB1D-FB4F',
         k: 'open-sans',
       },
       {
-        f: 'Noto Sans Majed',
+        f: 'Noto Sans Waycraft',
         u: 'noto-sans-latin-wght-normal.woff2',
         w: '100 900',
         r: 'U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD',
         k: 'noto-sans',
       },
       {
-        f: 'Noto Sans Majed',
+        f: 'Noto Sans Waycraft',
         u: 'noto-sans-latin-ext-wght-normal.woff2',
         w: '100 900',
         r: 'U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF',
         k: 'noto-sans',
       },
       {
-        f: 'Noto Sans Majed',
+        f: 'Noto Sans Waycraft',
         u: 'noto-sans-arabic-arabic-wght-normal.woff2',
         w: '100 900',
         r: 'U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0897-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FE74,U+FE76-FEFC,U+102E0-102FB,U+10E60-10E7E,U+10EC2-10EC4,U+10EFC-10EFF,U+1EE00-1EE03,U+1EE05-1EE1F,U+1EE21-1EE22,U+1EE24,U+1EE27,U+1EE29-1EE32,U+1EE34-1EE37,U+1EE39,U+1EE3B,U+1EE42,U+1EE47,U+1EE49,U+1EE4B,U+1EE4D-1EE4F,U+1EE51-1EE52,U+1EE54,U+1EE57,U+1EE59,U+1EE5B,U+1EE5D,U+1EE5F,U+1EE61-1EE62,U+1EE64,U+1EE67-1EE6A,U+1EE6C-1EE72,U+1EE74-1EE77,U+1EE79-1EE7C,U+1EE7E,U+1EE80-1EE89,U+1EE8B-1EE9B,U+1EEA1-1EEA3,U+1EEA5-1EEA9,U+1EEAB-1EEBB,U+1EEF0-1EEF1',
         k: 'noto-sans-arabic',
       },
       {
-        f: 'IBM Plex Sans Majed',
+        f: 'IBM Plex Sans Waycraft',
         u: 'ibm-plex-sans-latin-400-normal.woff2',
         w: '400',
         r: 'U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD',
         k: 'ibm-plex-sans',
       },
       {
-        f: 'IBM Plex Sans Majed',
+        f: 'IBM Plex Sans Waycraft',
         u: 'ibm-plex-sans-latin-ext-400-normal.woff2',
         w: '400',
         r: 'U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF',
         k: 'ibm-plex-sans',
       },
       {
-        f: 'IBM Plex Sans Majed',
+        f: 'IBM Plex Sans Waycraft',
         u: 'ibm-plex-sans-latin-500-normal.woff2',
         w: '500',
         r: 'U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD',
         k: 'ibm-plex-sans',
       },
       {
-        f: 'IBM Plex Sans Majed',
+        f: 'IBM Plex Sans Waycraft',
         u: 'ibm-plex-sans-latin-ext-500-normal.woff2',
         w: '500',
         r: 'U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF',
         k: 'ibm-plex-sans',
       },
       {
-        f: 'IBM Plex Sans Majed',
+        f: 'IBM Plex Sans Waycraft',
         u: 'ibm-plex-sans-latin-600-normal.woff2',
         w: '600',
         r: 'U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD',
         k: 'ibm-plex-sans',
       },
       {
-        f: 'IBM Plex Sans Majed',
+        f: 'IBM Plex Sans Waycraft',
         u: 'ibm-plex-sans-latin-ext-600-normal.woff2',
         w: '600',
         r: 'U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF',
         k: 'ibm-plex-sans',
       },
       {
-        f: 'IBM Plex Sans Majed',
+        f: 'IBM Plex Sans Waycraft',
         u: 'ibm-plex-sans-latin-700-normal.woff2',
         w: '700',
         r: 'U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD',
         k: 'ibm-plex-sans',
       },
       {
-        f: 'IBM Plex Sans Majed',
+        f: 'IBM Plex Sans Waycraft',
         u: 'ibm-plex-sans-latin-ext-700-normal.woff2',
         w: '700',
         r: 'U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF',
         k: 'ibm-plex-sans',
       },
       {
-        f: 'IBM Plex Sans Majed',
+        f: 'IBM Plex Sans Waycraft',
         u: 'ibm-plex-sans-arabic-arabic-400-normal.woff2',
         w: '400',
         r: 'U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0897-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FE74,U+FE76-FEFC,U+102E0-102FB,U+10E60-10E7E,U+10EC2-10EC4,U+10EFC-10EFF,U+1EE00-1EE03,U+1EE05-1EE1F,U+1EE21-1EE22,U+1EE24,U+1EE27,U+1EE29-1EE32,U+1EE34-1EE37,U+1EE39,U+1EE3B,U+1EE42,U+1EE47,U+1EE49,U+1EE4B,U+1EE4D-1EE4F,U+1EE51-1EE52,U+1EE54,U+1EE57,U+1EE59,U+1EE5B,U+1EE5D,U+1EE5F,U+1EE61-1EE62,U+1EE64,U+1EE67-1EE6A,U+1EE6C-1EE72,U+1EE74-1EE77,U+1EE79-1EE7C,U+1EE7E,U+1EE80-1EE89,U+1EE8B-1EE9B,U+1EEA1-1EEA3,U+1EEA5-1EEA9,U+1EEAB-1EEBB,U+1EEF0-1EEF1',
         k: 'ibm-plex-sans-arabic',
       },
       {
-        f: 'IBM Plex Sans Majed',
+        f: 'IBM Plex Sans Waycraft',
         u: 'ibm-plex-sans-arabic-arabic-500-normal.woff2',
         w: '500',
         r: 'U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0897-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FE74,U+FE76-FEFC,U+102E0-102FB,U+10E60-10E7E,U+10EC2-10EC4,U+10EFC-10EFF,U+1EE00-1EE03,U+1EE05-1EE1F,U+1EE21-1EE22,U+1EE24,U+1EE27,U+1EE29-1EE32,U+1EE34-1EE37,U+1EE39,U+1EE3B,U+1EE42,U+1EE47,U+1EE49,U+1EE4B,U+1EE4D-1EE4F,U+1EE51-1EE52,U+1EE54,U+1EE57,U+1EE59,U+1EE5B,U+1EE5D,U+1EE5F,U+1EE61-1EE62,U+1EE64,U+1EE67-1EE6A,U+1EE6C-1EE72,U+1EE74-1EE77,U+1EE79-1EE7C,U+1EE7E,U+1EE80-1EE89,U+1EE8B-1EE9B,U+1EEA1-1EEA3,U+1EEA5-1EEA9,U+1EEAB-1EEBB,U+1EEF0-1EEF1',
         k: 'ibm-plex-sans-arabic',
       },
       {
-        f: 'IBM Plex Sans Majed',
+        f: 'IBM Plex Sans Waycraft',
         u: 'ibm-plex-sans-arabic-arabic-600-normal.woff2',
         w: '600',
         r: 'U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0897-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FE74,U+FE76-FEFC,U+102E0-102FB,U+10E60-10E7E,U+10EC2-10EC4,U+10EFC-10EFF,U+1EE00-1EE03,U+1EE05-1EE1F,U+1EE21-1EE22,U+1EE24,U+1EE27,U+1EE29-1EE32,U+1EE34-1EE37,U+1EE39,U+1EE3B,U+1EE42,U+1EE47,U+1EE49,U+1EE4B,U+1EE4D-1EE4F,U+1EE51-1EE52,U+1EE54,U+1EE57,U+1EE59,U+1EE5B,U+1EE5D,U+1EE5F,U+1EE61-1EE62,U+1EE64,U+1EE67-1EE6A,U+1EE6C-1EE72,U+1EE74-1EE77,U+1EE79-1EE7C,U+1EE7E,U+1EE80-1EE89,U+1EE8B-1EE9B,U+1EEA1-1EEA3,U+1EEA5-1EEA9,U+1EEAB-1EEBB,U+1EEF0-1EEF1',
         k: 'ibm-plex-sans-arabic',
       },
       {
-        f: 'IBM Plex Sans Majed',
+        f: 'IBM Plex Sans Waycraft',
         u: 'ibm-plex-sans-arabic-arabic-700-normal.woff2',
         w: '700',
         r: 'U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0897-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FE74,U+FE76-FEFC,U+102E0-102FB,U+10E60-10E7E,U+10EC2-10EC4,U+10EFC-10EFF,U+1EE00-1EE03,U+1EE05-1EE1F,U+1EE21-1EE22,U+1EE24,U+1EE27,U+1EE29-1EE32,U+1EE34-1EE37,U+1EE39,U+1EE3B,U+1EE42,U+1EE47,U+1EE49,U+1EE4B,U+1EE4D-1EE4F,U+1EE51-1EE52,U+1EE54,U+1EE57,U+1EE59,U+1EE5B,U+1EE5D,U+1EE5F,U+1EE61-1EE62,U+1EE64,U+1EE67-1EE6A,U+1EE6C-1EE72,U+1EE74-1EE77,U+1EE79-1EE7C,U+1EE7E,U+1EE80-1EE89,U+1EE8B-1EE9B,U+1EEA1-1EEA3,U+1EEA5-1EEA9,U+1EEAB-1EEBB,U+1EEF0-1EEF1',
@@ -221,7 +224,11 @@ window.__ModuleLoader__.load({
       try {
         return {
           ...DEFAULTS,
-          ...JSON.parse(localStorage.getItem(STORE_KEY) || '{}'),
+          ...JSON.parse(
+            localStorage.getItem(STORE_KEY) ||
+              localStorage.getItem(LEGACY_STORE_KEY) ||
+              '{}',
+          ),
         };
       } catch (_) {
         return { ...DEFAULTS };
@@ -273,7 +280,7 @@ window.__ModuleLoader__.load({
       React.useSyncExternalStore(store.subscribe, () => store.get()[key]);
 
     // ───────────────────────── dictionaries ─────────────────────────
-    const NS = 'majed';
+    const NS = 'waycraft';
     const en = {
       'bidi.title': 'Bidirectional text',
       'bidi.description':
@@ -403,37 +410,37 @@ window.__ModuleLoader__.load({
 
     // ───────────────────────── settings rows ─────────────────────────
     const ROW_CSS = `
-.majed-row{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:16px 0;border-bottom:.5px solid var(--dsw-alias-border-l2)}
-.majed-text{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
-.majed-title{color:var(--dsw-alias-label-primary);font:var(--dsw-font-s-14)}
-.majed-desc{color:var(--dsw-alias-label-tertiary);font:var(--dsw-font-xxs-12)}
-.majed-control{display:inline-flex;align-items:center;gap:8px}
-.majed-stepper{display:inline-flex;align-items:center;justify-content:center;min-width:72px;height:36px;border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-module-platform);position:relative}
-.majed-value{min-width:30px;text-align:center;font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-primary);font:var(--dsw-font-s-14)}
-.majed-arrows{position:absolute;right:6px;display:flex;flex-direction:column;gap:2px;opacity:0}
-.majed-stepper:hover .majed-arrows,.majed-stepper:focus-within .majed-arrows{opacity:1}
-.majed-arrow{width:17px;height:12px;display:inline-flex;align-items:center;justify-content:center;border:none;padding:0;border-radius:var(--dsw-radius-xs);background:color-mix(in srgb,var(--dsw-alias-bg-layer-1) 75%,transparent);color:var(--dsw-alias-label-primary);cursor:pointer;font-size:calc(8px + var(--majed-ui-d,0px));line-height:1}
-.majed-arrow:hover:not(:disabled){background:var(--dsw-alias-bg-layer-1)}
-.majed-arrow:disabled{color:var(--dsw-alias-label-caption);cursor:default}
-.majed-unit{color:var(--dsw-alias-label-secondary);font:var(--dsw-font-s-14)}
-.majed-selector{display:inline-flex;align-items:center;gap:12px;height:36px;padding:0 14px;border:none;border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);font:var(--dsw-font-s-14);cursor:pointer}
-.majed-selector:hover{background:var(--dsw-alias-interactive-bg-hover)}
-.majed-chevron{flex:none}
-.majed-test{height:36px;padding:0 12px;border:none;border-radius:var(--dsw-radius-md);background:transparent;color:var(--dsw-alias-label-secondary);font:var(--dsw-font-xs-13);cursor:pointer}
-.majed-test:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
-.majed-test:disabled{opacity:.4;cursor:default}
-.majed-status{display:inline-block;margin-top:2px}
-.majed-status[data-state=granted]{color:var(--dsw-alias-state-success-primary,#3ecf8e)}
-.majed-status[data-state=denied],.majed-status[data-state=unsupported]{color:var(--dsw-alias-state-error-primary,#ff6b6b)}
-.majed-ap-trigger{display:inline-flex;align-items:center;gap:6px;min-width:0;max-width:200px;height:28px;padding:0 6px 0 8px;border:none;border-radius:var(--dsw-radius-sm);background:transparent;color:var(--dsw-alias-label-secondary);font:var(--dsw-font-xs-strong-13);cursor:pointer}
-.majed-ap-trigger:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}
-.majed-ap-trigger:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}
-.majed-ap-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.majed-ap-dot{flex:none;width:7px;height:7px;border-radius:50%;background:var(--dsw-alias-label-caption)}
-.majed-ap-trigger[data-mode=safe] .majed-ap-dot{background:var(--dsw-alias-state-success-primary,#3ecf8e)}
-.majed-ap-trigger[data-mode=aggressive] .majed-ap-dot{background:var(--dsw-alias-state-error-primary,#ff6b6b)}
-.majed-ap-trigger[data-mode=aggressive]{color:var(--dsw-alias-state-error-primary,#ff6b6b)}
-[data-majed-menu-trigger]{width:0!important;height:0!important;min-width:0!important;min-height:0!important;margin:0!important;padding:0!important;border:0!important;overflow:hidden!important;opacity:0!important;pointer-events:none!important;flex:none!important}
+.waycraft-row{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:16px 0;border-bottom:.5px solid var(--dsw-alias-border-l2)}
+.waycraft-text{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
+.waycraft-title{color:var(--dsw-alias-label-primary);font:var(--dsw-font-s-14)}
+.waycraft-desc{color:var(--dsw-alias-label-tertiary);font:var(--dsw-font-xxs-12)}
+.waycraft-control{display:inline-flex;align-items:center;gap:8px}
+.waycraft-stepper{display:inline-flex;align-items:center;justify-content:center;min-width:72px;height:36px;border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-module-platform);position:relative}
+.waycraft-value{min-width:30px;text-align:center;font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-primary);font:var(--dsw-font-s-14)}
+.waycraft-arrows{position:absolute;right:6px;display:flex;flex-direction:column;gap:2px;opacity:0}
+.waycraft-stepper:hover .waycraft-arrows,.waycraft-stepper:focus-within .waycraft-arrows{opacity:1}
+.waycraft-arrow{width:17px;height:12px;display:inline-flex;align-items:center;justify-content:center;border:none;padding:0;border-radius:var(--dsw-radius-xs);background:color-mix(in srgb,var(--dsw-alias-bg-layer-1) 75%,transparent);color:var(--dsw-alias-label-primary);cursor:pointer;font-size:calc(8px + var(--waycraft-ui-d,0px));line-height:1}
+.waycraft-arrow:hover:not(:disabled){background:var(--dsw-alias-bg-layer-1)}
+.waycraft-arrow:disabled{color:var(--dsw-alias-label-caption);cursor:default}
+.waycraft-unit{color:var(--dsw-alias-label-secondary);font:var(--dsw-font-s-14)}
+.waycraft-selector{display:inline-flex;align-items:center;gap:12px;height:36px;padding:0 14px;border:none;border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);font:var(--dsw-font-s-14);cursor:pointer}
+.waycraft-selector:hover{background:var(--dsw-alias-interactive-bg-hover)}
+.waycraft-chevron{flex:none}
+.waycraft-test{height:36px;padding:0 12px;border:none;border-radius:var(--dsw-radius-md);background:transparent;color:var(--dsw-alias-label-secondary);font:var(--dsw-font-xs-13);cursor:pointer}
+.waycraft-test:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
+.waycraft-test:disabled{opacity:.4;cursor:default}
+.waycraft-status{display:inline-block;margin-top:2px}
+.waycraft-status[data-state=granted]{color:var(--dsw-alias-state-success-primary,#3ecf8e)}
+.waycraft-status[data-state=denied],.waycraft-status[data-state=unsupported]{color:var(--dsw-alias-state-error-primary,#ff6b6b)}
+.waycraft-ap-trigger{display:inline-flex;align-items:center;gap:6px;min-width:0;max-width:200px;height:28px;padding:0 6px 0 8px;border:none;border-radius:var(--dsw-radius-sm);background:transparent;color:var(--dsw-alias-label-secondary);font:var(--dsw-font-xs-strong-13);cursor:pointer}
+.waycraft-ap-trigger:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}
+.waycraft-ap-trigger:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}
+.waycraft-ap-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.waycraft-ap-dot{flex:none;width:7px;height:7px;border-radius:50%;background:var(--dsw-alias-label-caption)}
+.waycraft-ap-trigger[data-mode=safe] .waycraft-ap-dot{background:var(--dsw-alias-state-success-primary,#3ecf8e)}
+.waycraft-ap-trigger[data-mode=aggressive] .waycraft-ap-dot{background:var(--dsw-alias-state-error-primary,#ff6b6b)}
+.waycraft-ap-trigger[data-mode=aggressive]{color:var(--dsw-alias-state-error-primary,#ff6b6b)}
+[data-waycraft-menu-trigger]{width:0!important;height:0!important;min-width:0!important;min-height:0!important;margin:0!important;padding:0!important;border:0!important;overflow:hidden!important;opacity:0!important;pointer-events:none!important;flex:none!important}
 `;
 
     function BidiRow({ t }) {
@@ -441,12 +448,12 @@ window.__ModuleLoader__.load({
       const Switch = primitives.Switch;
       return h(
         'div',
-        { className: 'majed-row' },
+        { className: 'waycraft-row' },
         h(
           'div',
-          { className: 'majed-text' },
-          h('div', { className: 'majed-title' }, t('bidi.title')),
-          h('div', { className: 'majed-desc' }, t('bidi.description')),
+          { className: 'waycraft-text' },
+          h('div', { className: 'waycraft-title' }, t('bidi.title')),
+          h('div', { className: 'waycraft-desc' }, t('bidi.description')),
         ),
         Switch
           ? h(Switch, {
@@ -470,28 +477,28 @@ window.__ModuleLoader__.load({
       const set = (v) => store.set({ uiFontSize: clampPx(v) });
       return h(
         'div',
-        { className: 'majed-row' },
+        { className: 'waycraft-row' },
         h(
           'div',
-          { className: 'majed-text' },
-          h('div', { className: 'majed-title' }, t('size.title')),
-          h('div', { className: 'majed-desc' }, t('size.description')),
+          { className: 'waycraft-text' },
+          h('div', { className: 'waycraft-title' }, t('size.title')),
+          h('div', { className: 'waycraft-desc' }, t('size.description')),
         ),
         h(
           'div',
-          { className: 'majed-control' },
+          { className: 'waycraft-control' },
           h(
             'div',
-            { className: 'majed-stepper' },
-            h('span', { className: 'majed-value' }, size),
+            { className: 'waycraft-stepper' },
+            h('span', { className: 'waycraft-value' }, size),
             h(
               'span',
-              { className: 'majed-arrows' },
+              { className: 'waycraft-arrows' },
               h(
                 'button',
                 {
                   type: 'button',
-                  className: 'majed-arrow',
+                  className: 'waycraft-arrow',
                   'aria-label': t('size.increase'),
                   disabled: size >= UI_MAX_PX,
                   onClick: () => set(size + 1),
@@ -502,7 +509,7 @@ window.__ModuleLoader__.load({
                 'button',
                 {
                   type: 'button',
-                  className: 'majed-arrow',
+                  className: 'waycraft-arrow',
                   'aria-label': t('size.decrease'),
                   disabled: size <= UI_MIN_PX,
                   onClick: () => set(size - 1),
@@ -511,7 +518,7 @@ window.__ModuleLoader__.load({
               ),
             ),
           ),
-          h('span', { className: 'majed-unit' }, t('size.unit')),
+          h('span', { className: 'waycraft-unit' }, t('size.unit')),
         ),
       );
     }
@@ -529,22 +536,22 @@ window.__ModuleLoader__.load({
         {
           ref,
           type: 'button',
-          className: 'majed-selector',
+          className: 'waycraft-selector',
           'aria-haspopup': 'menu',
           'aria-expanded': open,
           onClick: () => setOpen((v) => !v),
         },
         t('font.' + value),
-        Chevron ? h(Chevron, { className: 'majed-chevron' }) : '▾',
+        Chevron ? h(Chevron, { className: 'waycraft-chevron' }) : '▾',
       );
       return h(
         'div',
-        { className: 'majed-row' },
+        { className: 'waycraft-row' },
         h(
           'div',
-          { className: 'majed-text' },
-          h('div', { className: 'majed-title' }, t('font.title')),
-          h('div', { className: 'majed-desc' }, t('font.description')),
+          { className: 'waycraft-text' },
+          h('div', { className: 'waycraft-title' }, t('font.title')),
+          h('div', { className: 'waycraft-desc' }, t('font.description')),
         ),
         Menu
           ? h(Menu, {
@@ -594,26 +601,26 @@ window.__ModuleLoader__.load({
         {
           ref,
           type: 'button',
-          className: 'majed-selector',
+          className: 'waycraft-selector',
           'aria-haspopup': 'menu',
           'aria-expanded': open,
           onClick: () => setOpen((v) => !v),
         },
         current ? current.label : value,
-        Chevron ? h(Chevron, { className: 'majed-chevron' }) : '▾',
+        Chevron ? h(Chevron, { className: 'waycraft-chevron' }) : '▾',
       );
       return h(
         'div',
-        { className: 'majed-row' },
+        { className: 'waycraft-row' },
         h(
           'div',
-          { className: 'majed-text' },
-          h('div', { className: 'majed-title' }, title),
-          h('div', { className: 'majed-desc' }, description),
+          { className: 'waycraft-text' },
+          h('div', { className: 'waycraft-title' }, title),
+          h('div', { className: 'waycraft-desc' }, description),
         ),
         h(
           'div',
-          { className: 'majed-control' },
+          { className: 'waycraft-control' },
           extra || null,
           Menu
             ? h(Menu, {
@@ -644,12 +651,12 @@ window.__ModuleLoader__.load({
       const Switch = primitives.Switch;
       return h(
         'div',
-        { className: 'majed-row' },
+        { className: 'waycraft-row' },
         h(
           'div',
-          { className: 'majed-text' },
-          h('div', { className: 'majed-title' }, title),
-          h('div', { className: 'majed-desc' }, description),
+          { className: 'waycraft-text' },
+          h('div', { className: 'waycraft-title' }, title),
+          h('div', { className: 'waycraft-desc' }, description),
         ),
         Switch
           ? h(Switch, { checked, label: title, onChange: (n) => onChange(!!n) })
@@ -851,13 +858,13 @@ window.__ModuleLoader__.load({
         'button',
         {
           type: 'button',
-          className: 'majed-test',
+          className: 'waycraft-test',
           disabled: mode === 'off',
           onClick: async () => {
             await notify({
               title: 'DeepSeek Harness',
               body: t('notify.testBody'),
-              tag: 'majed:test',
+              tag: 'waycraft:test',
               fromGesture: true,
             });
             setTick((n) => n + 1);
@@ -874,7 +881,7 @@ window.__ModuleLoader__.load({
           h('br'),
           h(
             'span',
-            { className: 'majed-status', 'data-state': caps.permission },
+            { className: 'waycraft-status', 'data-state': caps.permission },
             t(statusKey),
           ),
         ),
@@ -930,8 +937,8 @@ window.__ModuleLoader__.load({
     }
     function markFooterTriggers(on) {
       for (const t of footerTriggers()) {
-        if (on) t.setAttribute('data-majed-menu-trigger', '');
-        else t.removeAttribute('data-majed-menu-trigger');
+        if (on) t.setAttribute('data-waycraft-menu-trigger', '');
+        else t.removeAttribute('data-waycraft-menu-trigger');
       }
     }
     function footerMenuItems() {
@@ -955,7 +962,7 @@ window.__ModuleLoader__.load({
       return out;
     }
     function removeInjectedItems() {
-      document.querySelectorAll('[data-majed-item]').forEach((b) => {
+      document.querySelectorAll('[data-waycraft-item]').forEach((b) => {
         const w = b.parentElement;
         if (w) w.remove();
       });
@@ -963,15 +970,15 @@ window.__ModuleLoader__.load({
     function injectAccountItems(menu, trigger) {
       const buttons = Array.from(
         menu.querySelectorAll('[role="menuitem"]'),
-      ).filter((b) => !b.hasAttribute('data-majed-item'));
+      ).filter((b) => !b.hasAttribute('data-waycraft-item'));
       if (!buttons.length) return;
       const template =
         buttons.find((b) => !b.querySelector('[aria-hidden="true"]')) ||
         buttons[0];
       const anchorWrap = buttons[buttons.length - 1].parentElement; // before Sign out / Sign in
       const have = new Set(
-        Array.from(menu.querySelectorAll('[data-majed-item]')).map((n) =>
-          n.getAttribute('data-majed-item'),
+        Array.from(menu.querySelectorAll('[data-waycraft-item]')).map((n) =>
+          n.getAttribute('data-waycraft-item'),
         ),
       );
       const items = [...footerMenuItems(), ...accountItems.values()].sort(
@@ -982,7 +989,7 @@ window.__ModuleLoader__.load({
         const wrap = template.parentElement.cloneNode(true);
         wrap.querySelectorAll('[role="separator"]').forEach((n) => n.remove());
         const btn = wrap.querySelector('[role="menuitem"]');
-        btn.setAttribute('data-majed-item', item.id);
+        btn.setAttribute('data-waycraft-item', item.id);
         btn.removeAttribute('disabled');
         btn.removeAttribute('aria-keyshortcuts');
         const spans = Array.from(btn.children).filter(
@@ -1055,9 +1062,11 @@ window.__ModuleLoader__.load({
           };
         },
       };
-      window.__dshMajed = Object.assign(window.__dshMajed || {}, {
+      window.__dshWaycraft = Object.assign(window.__dshWaycraft || {}, {
         accountMenu: api,
       });
+      // Deprecated alias (one release): the old hook points at the same object.
+      window[LEGACY_GLOBAL] = window.__dshWaycraft;
       schedule();
       return () => {
         observer.disconnect();
@@ -1066,7 +1075,9 @@ window.__ModuleLoader__.load({
         markFooterTriggers(false);
         removeInjectedItems();
         accountItems.clear();
-        if (window.__dshMajed) delete window.__dshMajed.accountMenu;
+        if (window.__dshWaycraft) delete window.__dshWaycraft.accountMenu;
+        if (window[LEGACY_GLOBAL] === window.__dshWaycraft)
+          delete window[LEGACY_GLOBAL];
       };
     }
     function AccountMenuRow({ t }) {
@@ -1091,9 +1102,9 @@ window.__ModuleLoader__.load({
     // Lightweight toast that matches DSH's own (same tokens, top-centre, ~2s). It lives in <body>, outside
     // React, so it works from plain DOM listeners; one element is reused so rapid copies don't stack.
     const TOAST_CSS = `
-.majed-toast{position:fixed;top:40px;left:50%;z-index:2147483000;transform:translate(-50%,-6px);display:flex;align-items:center;gap:10px;width:max-content;max-width:min(640px,calc(100vw - 48px));padding:12px 16px;border-radius:var(--dsw-radius-lg,16px);background:var(--dsw-alias-toast-bg,#2b2b2e);color:var(--dsw-alias-toast-label,#fff);font:var(--dsw-font-s-14);box-shadow:var(--dsw-shadow-lv3,0 8px 24px rgba(0,0,0,.28));pointer-events:none;opacity:0;transition:opacity .16s ease,transform .16s ease}
-.majed-toast[data-show]{opacity:1;transform:translate(-50%,0)}
-.majed-toast svg{flex:none;width:16px;height:16px;color:var(--dsw-alias-state-success-primary,#3ecf8e)}
+.waycraft-toast{position:fixed;top:40px;left:50%;z-index:2147483000;transform:translate(-50%,-6px);display:flex;align-items:center;gap:10px;width:max-content;max-width:min(640px,calc(100vw - 48px));padding:12px 16px;border-radius:var(--dsw-radius-lg,16px);background:var(--dsw-alias-toast-bg,#2b2b2e);color:var(--dsw-alias-toast-label,#fff);font:var(--dsw-font-s-14);box-shadow:var(--dsw-shadow-lv3,0 8px 24px rgba(0,0,0,.28));pointer-events:none;opacity:0;transition:opacity .16s ease,transform .16s ease}
+.waycraft-toast[data-show]{opacity:1;transform:translate(-50%,0)}
+.waycraft-toast svg{flex:none;width:16px;height:16px;color:var(--dsw-alias-state-success-primary,#3ecf8e)}
 `;
     let toastEl = null,
       toastTimer = null,
@@ -1102,13 +1113,13 @@ window.__ModuleLoader__.load({
       if (!document.body) return;
       if (!toastStyle) {
         toastStyle = document.createElement('style');
-        toastStyle.setAttribute('data-majed-toast-style', '');
+        toastStyle.setAttribute('data-waycraft-toast-style', '');
         toastStyle.textContent = TOAST_CSS;
         document.head.appendChild(toastStyle);
       }
       if (!toastEl) {
         toastEl = document.createElement('div');
-        toastEl.className = 'majed-toast';
+        toastEl.className = 'waycraft-toast';
         toastEl.setAttribute('role', 'status');
         toastEl.setAttribute('aria-live', 'polite');
         toastEl.innerHTML =
@@ -3484,7 +3495,7 @@ window.__ModuleLoader__.load({
           ref,
           type: 'button',
           disabled: !!locked,
-          className: 'majed-ap-trigger',
+          className: 'waycraft-ap-trigger',
           'data-mode': mode,
           'aria-haspopup': 'menu',
           'aria-expanded': open,
@@ -3492,8 +3503,8 @@ window.__ModuleLoader__.load({
           title: t('ap.aria'),
           onClick: () => setOpen((v) => !v),
         },
-        h('span', { className: 'majed-ap-dot', 'aria-hidden': 'true' }),
-        h('span', { className: 'majed-ap-label' }, t('ap.' + mode)),
+        h('span', { className: 'waycraft-ap-dot', 'aria-hidden': 'true' }),
+        h('span', { className: 'waycraft-ap-label' }, t('ap.' + mode)),
         Chevron ? h(Chevron, { size: 12 }) : '▾',
       );
       if (!Menu) return trigger;
@@ -3513,14 +3524,14 @@ window.__ModuleLoader__.load({
     // ───────────────────────── app-UI font size + font source ─────────────────────────
     // Only TEXT grows: we read DSH's own stylesheets (<style data-plugin-css>) and, for every
     // rule that sets a px font-size / line-height, emit an override
-    //   calc(<original px> + var(--majed-ui-d))      (d = chosen size - 14, in px)
+    //   calc(<original px> + var(--waycraft-ui-d))      (d = chosen size - 14, in px)
     // so spacing, icons and borders are untouched. Chat transcript sheets are skipped because
     // the built-in "chat font size" already drives them.
     const SKIP_SHEETS =
       /(AssistantMarkdown|MessageItem|ChatView|ToolDetails|ToolRow|bash-sample|FileDiff|TextPreview|TrajectoryTable|stat-dialog)\.module\.css$/;
     const PX = /^(-?\d*\.?\d+)px$/;
     // Additive, like DSH's own chat font size: size' = size + (chosen - 14)px, so the chrome's 14px body text
-    // becomes exactly the chosen number. `--majed-ui-d` carries that difference.
+    // becomes exactly the chosen number. `--waycraft-ui-d` carries that difference.
     // Sizes bound to DSH's chat-size variables follow the CHAT font size; they are only re-based onto the
     // UI size in shell sheets (<link> bundles), where they style app chrome such as menus.
     const CONTENT_VAR = /^(?:var|calc|min|max)\(.*--dsh-content-font-size.*\)$/;
@@ -3529,7 +3540,7 @@ window.__ModuleLoader__.load({
         .trim()
         .replace(/\s*!important$/, '');
       const m = PX.exec(t);
-      if (m) return `calc(${m[1]}px + var(--majed-ui-d))`;
+      if (m) return `calc(${m[1]}px + var(--waycraft-ui-d))`;
       if (shell && CONTENT_VAR.test(t)) {
         // evaluate the chat variables at their 14px defaults, then add the UI delta
         const base = t
@@ -3538,7 +3549,7 @@ window.__ModuleLoader__.load({
             '$1',
           )
           .replace(/var\(--dsh-content-font-size\s*,\s*([\d.]+px)\)/g, '$1');
-        return `calc((${base}) + var(--majed-ui-d))`;
+        return `calc((${base}) + var(--waycraft-ui-d))`;
       }
       return null;
     };
@@ -3591,11 +3602,11 @@ window.__ModuleLoader__.load({
     // account menu...) live in <link rel=stylesheet> bundles, so those are scanned too.
     // Generated sheets of ours must never be re-scanned (it would compound the scale).
     const OWN_GENERATED = [
-      'data-majed-appearance',
-      'data-majed-ui-font',
-      'data-majed-bidi',
-      'data-majed-settings',
-      'data-majed-toast-style',
+      'data-waycraft-appearance',
+      'data-waycraft-ui-font',
+      'data-waycraft-bidi',
+      'data-waycraft-settings',
+      'data-waycraft-toast-style',
     ];
     function isOwnGenerated(el) {
       return OWN_GENERATED.some((a) => el.hasAttribute(a));
@@ -3702,7 +3713,7 @@ window.__ModuleLoader__.load({
           `src:url("${FONT_ROUTE}${f.u}") format("woff2");unicode-range:${f.r}}`,
       );
       fontFaceStyle = document.createElement('style');
-      fontFaceStyle.setAttribute('data-majed-fontfaces', '');
+      fontFaceStyle.setAttribute('data-waycraft-fontfaces', '');
       fontFaceStyle.textContent = rules.join('\n');
       document.head.appendChild(fontFaceStyle);
       loadedFont = key;
@@ -4153,7 +4164,7 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
     /** Start the bidi engine; returns a stop() that removes every trace. */
     function startBidi() {
       const style = document.createElement('style');
-      style.setAttribute('data-majed-bidi', '');
+      style.setAttribute('data-waycraft-bidi', '');
       style.textContent = CHAT_CSS + GENUI_CSS;
       document.head.appendChild(style);
 
@@ -4251,27 +4262,27 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
             });
             live.clear();
           },
-          'dsh-majed: notification cleanup',
+          'dsh-waycraft: notification cleanup',
         );
         ctx.effect(
           () => ctx.locale.register(NS, { zh, en }),
-          'dsh-majed: dictionaries',
+          'dsh-waycraft: dictionaries',
         );
 
         ctx.effect(() => {
           const style = document.createElement('style');
-          style.setAttribute('data-majed-settings', '');
+          style.setAttribute('data-waycraft-settings', '');
           style.textContent = ROW_CSS;
           document.head.appendChild(style);
           return () => style.remove();
-        }, 'dsh-majed: settings row styles');
+        }, 'dsh-waycraft: settings row styles');
 
         // Settings > General rows (same slot the built-in rows use).
         ctx.slots.inject('settings.general.item', () =>
           ctx.slots.register(
             {
               name: 'settings.general.item',
-              id: 'majed-ui-font-size',
+              id: 'waycraft-ui-font-size',
               order: 11.5,
               locale: NS,
             },
@@ -4282,7 +4293,7 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
           ctx.slots.register(
             {
               name: 'settings.general.item',
-              id: 'majed-font-source',
+              id: 'waycraft-font-source',
               order: 11.6,
               locale: NS,
             },
@@ -4293,7 +4304,7 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
           ctx.slots.register(
             {
               name: 'settings.general.item',
-              id: 'majed-bidi',
+              id: 'waycraft-bidi',
               order: 13,
               locale: NS,
             },
@@ -4305,7 +4316,7 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
           ctx.slots.register(
             {
               name: 'settings.general.item',
-              id: 'majed-notify-mode',
+              id: 'waycraft-notify-mode',
               order: 13.1,
               locale: NS,
             },
@@ -4316,7 +4327,7 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
           ctx.slots.register(
             {
               name: 'settings.general.item',
-              id: 'majed-notify-done',
+              id: 'waycraft-notify-done',
               order: 13.2,
               locale: NS,
             },
@@ -4327,7 +4338,7 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
           ctx.slots.register(
             {
               name: 'settings.general.item',
-              id: 'majed-notify-action',
+              id: 'waycraft-notify-action',
               order: 13.3,
               locale: NS,
             },
@@ -4338,7 +4349,7 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
           ctx.slots.register(
             {
               name: 'settings.general.item',
-              id: 'majed-account-menu',
+              id: 'waycraft-account-menu',
               order: 13.4,
               locale: NS,
             },
@@ -4349,7 +4360,7 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
           ctx.slots.register(
             {
               name: 'conversation.input.left',
-              id: 'majed-auto-approve',
+              id: 'waycraft-auto-approve',
               order: 50,
               locale: NS,
             },
@@ -4360,7 +4371,7 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
           ctx.slots.register(
             {
               name: 'conversation.session.header.utilities',
-              id: 'majed-auto-approver',
+              id: 'waycraft-auto-approver',
               order: 9999,
               locale: NS,
             },
@@ -4371,7 +4382,7 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
           ctx.slots.register(
             {
               name: 'settings.general.item',
-              id: 'majed-auto-copy',
+              id: 'waycraft-auto-copy',
               order: 13.5,
               locale: NS,
             },
@@ -4380,7 +4391,7 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
         );
         ctx.effect(
           () => startAccountMenu(),
-          'dsh-majed: account menu grouping',
+          'dsh-waycraft: account menu grouping',
         );
         ctx.effect(() => {
           let stop = null;
@@ -4400,11 +4411,11 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
             if (stop) stop();
             disposeToast();
           };
-        }, 'dsh-majed: copy on select');
+        }, 'dsh-waycraft: copy on select');
         // Invisible watcher on the frame-wide overlay layer: reads session status via the standard hook.
         ctx.slots.inject('shell.overlay', () =>
           ctx.slots.register(
-            { name: 'shell.overlay', id: 'majed-notifications', locale: NS },
+            { name: 'shell.overlay', id: 'waycraft-notifications', locale: NS },
             NotificationWatcher,
           ),
         );
@@ -4413,9 +4424,9 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
         ctx.effect(() => {
           let stopBidi = null;
           const varStyle = document.createElement('style'); // k + font family
-          varStyle.setAttribute('data-majed-appearance', '');
+          varStyle.setAttribute('data-waycraft-appearance', '');
           const sizeStyle = document.createElement('style'); // generated overrides
-          sizeStyle.setAttribute('data-majed-ui-font', '');
+          sizeStyle.setAttribute('data-waycraft-ui-font', '');
           document.head.append(varStyle, sizeStyle);
 
           let lastOverrides = null;
@@ -4434,7 +4445,7 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
               stopBidi();
               stopBidi = null;
             }
-            varStyle.textContent = `:root{--majed-ui-d:${s.uiFontSize - UI_BASE_PX}px;}\n`;
+            varStyle.textContent = `:root{--waycraft-ui-d:${s.uiFontSize - UI_BASE_PX}px;}\n`;
             applyFontFamily(s);
             regenerate();
           };
@@ -4485,21 +4496,21 @@ ${R} :is(input[type="text"], input[type="number"], input[type="email"], input[ty
             varStyle.remove();
             sizeStyle.remove();
           };
-        }, 'dsh-majed: apply settings');
+        }, 'dsh-waycraft: apply settings');
 
         try {
           subscriptions.applySkills(ctx);
         } catch (error) {
-          console.error('dsh-majed: Skill manager setup failed', error);
+          console.error('dsh-waycraft: Skill manager setup failed', error);
         }
         // Optional component setup must never interrupt the core registrations above.
         try {
           Promise.resolve(subscriptions.applySubscriptions(ctx)).catch(
             (error) =>
-              console.error('dsh-majed: Subscriptions setup failed', error),
+              console.error('dsh-waycraft: Subscriptions setup failed', error),
           );
         } catch (error) {
-          console.error('dsh-majed: Subscriptions setup failed', error);
+          console.error('dsh-waycraft: Subscriptions setup failed', error);
         }
       },
     };

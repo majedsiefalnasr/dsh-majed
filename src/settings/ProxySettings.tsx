@@ -105,7 +105,7 @@ export function ProxySettings({
     }
   };
   return (
-    <section className="majed-proxy-settings">
+    <section className="waycraft-proxy-settings">
       <header>
         <strong>{t('proxyTitle')}</strong>{' '}
         <button
@@ -139,9 +139,9 @@ export function ProxySettings({
       {error && !open && <p role="alert">{error}</p>}
       {open && (
         <dialog
-          className="majed-subscription-manager majed-proxy-dialog"
+          className="waycraft-subscription-manager waycraft-proxy-dialog"
           ref={dialog}
-          aria-labelledby="majed-proxy-title"
+          aria-labelledby="waycraft-proxy-title"
           onCancel={close}
           style={{
             width: 620,
@@ -168,7 +168,7 @@ export function ProxySettings({
                 gap: 12,
               }}
             >
-              <h2 id="majed-proxy-title" style={{ margin: 0 }}>
+              <h2 id="waycraft-proxy-title" style={{ margin: 0 }}>
                 {t('proxyDialogTitle')}
               </h2>
               <button type="button" onClick={close}>
@@ -197,7 +197,7 @@ export function ProxySettings({
                     value={draft[key]}
                     onChange={(event) => field(key, event.target.value)}
                   />
-                  <small className="majed-subscription-hint">
+                  <small className="waycraft-subscription-hint">
                     {t(`proxy${key[0].toUpperCase()}${key.slice(1)}Hint`)}
                   </small>
                 </label>
@@ -212,7 +212,7 @@ export function ProxySettings({
                 />
                 {t('proxyClearPassword')}
               </label>
-              <p className="majed-subscription-hint">{t('proxyNote')}</p>
+              <p className="waycraft-subscription-hint">{t('proxyNote')}</p>
               {error && <p role="alert">{error}</p>}
               {result && (
                 <p role="status">

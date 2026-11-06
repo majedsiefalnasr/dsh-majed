@@ -4,10 +4,10 @@
  * theme tokens follow the host's settings-form and ui-primitives controls.
  */
 const formScope =
-  ':is(.majed-subscription-manager, .majed-subscriptions-settings)';
+  ':is(.waycraft-subscription-manager, .waycraft-subscriptions-settings)';
 
 export const providerSettingsCss = `
-.majed-subscription-manager {
+.waycraft-subscription-manager {
   box-sizing: border-box;
   padding: 0;
   border: 0;
@@ -20,7 +20,7 @@ export const providerSettingsCss = `
   line-height: 1.5;
   color-scheme: light;
 }
-.majed-subscriptions-settings {
+.waycraft-subscriptions-settings {
   font-family: inherit;
   font-size: 13px;
   line-height: 1.5;
@@ -29,7 +29,7 @@ export const providerSettingsCss = `
 body[data-ds-dark-theme] ${formScope} {
   color-scheme: dark;
 }
-.majed-subscription-manager::backdrop {
+.waycraft-subscription-manager::backdrop {
   background: var(--dsw-alias-bg-mask-1, #0006);
   backdrop-filter: var(--dsw-mask-blur, none);
 }
@@ -44,7 +44,7 @@ ${formScope} h3 {
   font-weight: 500;
 }
 ${formScope} strong,
-${formScope} .majed-subscription-label {
+${formScope} .waycraft-subscription-label {
   font-size: 13px;
   line-height: 1.5;
   font-weight: 500;
@@ -55,7 +55,7 @@ ${formScope} legend {
   font-weight: 500;
 }
 ${formScope} small,
-${formScope} .majed-subscription-hint,
+${formScope} .waycraft-subscription-hint,
 ${formScope} [role="status"] {
   margin: 0;
   font-size: 12px;
@@ -151,24 +151,24 @@ ${formScope} button:disabled {
   opacity: 0.4;
   cursor: default;
 }
-${formScope} button.majed-subscription-quiet {
+${formScope} button.waycraft-subscription-quiet {
   border-color: transparent;
   color: var(--dsw-alias-label-secondary, var(--dsw-alias-label-primary));
 }
-${formScope} :is(footer, .majed-subscription-dialog-actions) button {
+${formScope} :is(footer, .waycraft-subscription-dialog-actions) button {
   min-height: 34px;
   padding: 0 14px;
   border-radius: var(--dsw-radius-md, 8px);
   font-size: 13px;
   line-height: 1.5;
 }
-${formScope} button.majed-subscription-primary {
+${formScope} button.waycraft-subscription-primary {
   border-color: transparent;
   background: var(--dsw-alias-button-primary-fill, var(--dsw-alias-label-primary));
   color: var(--dsw-alias-label-primary-foreground, var(--dsw-alias-bg-layer-1));
   font-weight: 500;
 }
-${formScope} button.majed-subscription-primary:hover:not(:disabled) {
+${formScope} button.waycraft-subscription-primary:hover:not(:disabled) {
   background: var(--dsw-alias-button-primary-hover, var(--dsw-alias-label-secondary));
 }
 ${formScope} button:focus-visible,
@@ -187,35 +187,35 @@ ${formScope} summary:hover {
 
 /** Composer controls retain their own geometry, separate from settings forms. */
 export const subscriptionChromeCss = `
-.majed-subscription-usage-pill { corner-shape: round; touch-action: manipulation; }
-.majed-subscription-usage-pill>svg { flex-shrink: 0; }
-.majed-subscription-usage-close {
+.waycraft-subscription-usage-pill { corner-shape: round; touch-action: manipulation; }
+.waycraft-subscription-usage-pill>svg { flex-shrink: 0; }
+.waycraft-subscription-usage-close {
   display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
   inline-size: 28px; block-size: 28px; padding: 0; border: 0; border-radius: var(--dsw-radius-sm, 8px);
   color: var(--dsw-alias-label-secondary); background: transparent; cursor: pointer;
 }
-.majed-subscription-usage-close:hover { background: var(--dsw-alias-interactive-bg-hover); }
-.majed-subscription-usage-close:focus-visible {
+.waycraft-subscription-usage-close:hover { background: var(--dsw-alias-interactive-bg-hover); }
+.waycraft-subscription-usage-close:focus-visible {
   outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px;
 }
 @media (max-width: 480px) {
-  .majed-subscription-usage-pill { max-inline-size: min(220px, calc(100vw - 24px)); }
-  .majed-subscription-usage-panel { padding: 12px !important; }
+  .waycraft-subscription-usage-pill { max-inline-size: min(220px, calc(100vw - 24px)); }
+  .waycraft-subscription-usage-panel { padding: 12px !important; }
 }
-.majed-subscription-usage-tooltip,
-.majed-subscription-usage-panel {
+.waycraft-subscription-usage-tooltip,
+.waycraft-subscription-usage-panel {
   --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
   backdrop-filter: var(--dsw-menu-backdrop-filter, none);
 }
-.majed-subscription-speed button:hover:not(:disabled) {
-  --majed-subscription-speed-hover: var(--dsw-alias-interactive-bg-hover);
+.waycraft-subscription-speed button:hover:not(:disabled) {
+  --waycraft-subscription-speed-hover: var(--dsw-alias-interactive-bg-hover);
 }
-.majed-subscription-speed button:active:not(:disabled) {
-  --majed-subscription-speed-hover: var(--dsw-alias-interactive-bg-active);
+.waycraft-subscription-speed button:active:not(:disabled) {
+  --waycraft-subscription-speed-hover: var(--dsw-alias-interactive-bg-active);
 }
-.majed-subscription-speed button:disabled { opacity: 0.4; cursor: default; }
-.majed-subscription-speed button:focus-visible,
-.majed-subscription-usage-pill:focus-visible {
+.waycraft-subscription-speed button:disabled { opacity: 0.4; cursor: default; }
+.waycraft-subscription-speed button:focus-visible,
+.waycraft-subscription-usage-pill:focus-visible {
   outline: var(--dsw-focus-ring-width, 2px) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: 2px;
 }

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { apply } from '../dist/subscriptions.js';
 import { apply as coreApply } from '../index.js';
 import { mkdtempSync } from 'node:fs';
-process.env.DSH_HOME = mkdtempSync('/tmp/majed-t129-host-');
+process.env.DSH_HOME = mkdtempSync('/tmp/waycraft-t129-host-');
 
 function harness() {
   const routes = new Map();
@@ -51,16 +51,16 @@ function harness() {
     async call(owner = true, body = {}) {
       // DSH's shared /api transport authenticates and owner-gates exact routes.
       if (!owner) return new Response('unauthorized', { status: 401 });
-      const route = routes.get('/api/majed-subscriptions.status');
+      const route = routes.get('/api/waycraft-subscriptions.status');
       if (!route) return new Response('not found', { status: 404 });
       return route.fetch(
-        new Request('http://localhost/api/majed-subscriptions.status', {
+        new Request('http://localhost/api/waycraft-subscriptions.status', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
             type: 'client-request',
             rpcId: 'probe',
-            method: 'majed-subscriptions.status',
+            method: 'waycraft-subscriptions.status',
             ...body,
           }),
         }),
@@ -72,13 +72,13 @@ function harness() {
 test('Owner can probe the mounted component; unauthenticated calls are rejected', async () => {
   const host = harness();
   apply(host.ctx);
-  assert.equal(host.routes.size, 22);
+  assert.equal(host.routes.size, 44);
   assert.ok(
-    host.routes.has('/api/majed-subscriptions.zenStatus'),
+    host.routes.has('/api/waycraft-subscriptions.zenStatus'),
     'dedicated lazy Zen status route',
   );
   assert.ok(
-    host.routes.has('/api/majed-subscriptions.setZenEnabled'),
+    host.routes.has('/api/waycraft-subscriptions.setZenEnabled'),
     'persisted Zen availability route',
   );
   const response = await host.call();
@@ -106,7 +106,7 @@ test('a component registration error leaves the independently mounted core font 
   await host.font.handler(
     {
       method: 'HEAD',
-      url: '/plugins/dsh-majed/fonts/inter-latin-wght-normal.woff2',
+      url: '/plugins/dsh-waycraft/fonts/inter-latin-wght-normal.woff2',
     },
     {
       writeHead(value) {

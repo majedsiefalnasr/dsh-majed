@@ -67,7 +67,7 @@ const text = (node) =>
     .join('');
 for (const locale of ['en', 'ar'])
   test(`Antigravity rendered Manage persists two independent account drafts through real RPC in ${locale}`, async () => {
-    process.env.DSH_HOME = await mkdtemp('/tmp/majed135-manage-');
+    process.env.DSH_HOME = await mkdtemp('/tmp/waycraft135-manage-');
     for (const key of ['a', 'b'])
       await saveAccountSession('antigravity', key, {
         projectId: `project-${key}`,
@@ -229,7 +229,7 @@ for (const locale of ['en', 'ar'])
       assert.equal(closed, 1);
       const saved = await rpc.call(
         null,
-        'majed-subscriptions.providerSettings',
+        'waycraft-subscriptions.providerSettings',
         { provider: 'antigravity', force: true },
       );
       assert.equal(saved.ok, true);

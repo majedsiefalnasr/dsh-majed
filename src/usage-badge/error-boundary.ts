@@ -16,7 +16,7 @@ export function guarded<P>(
       return { failed: true };
     }
     componentDidCatch(error: unknown) {
-      report(`dsh-majed: ${label} failed to render`, error);
+      report(`dsh-waycraft: ${label} failed to render`, error);
     }
     render() {
       return (this.state as { failed: boolean }).failed

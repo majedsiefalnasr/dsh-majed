@@ -16,6 +16,7 @@ import { syncBuiltinESMExports } from 'node:module';
 import React from 'react';
 import { act, create } from 'react-test-renderer';
 import { apply as applyHost } from '../dist/skills.js';
+import { LEGACY_PANEL_IDS } from '../dist/legacy-names.js';
 import { zipSync } from 'fflate';
 
 const code = await readFile(
@@ -25,7 +26,8 @@ const code = await readFile(
 const doc = (name) =>
   `---\nname: ${name}\ndescription: About ${name}\n---\nBody`;
 
-async function mount(t, language, initial, creation = false) {
+const LEGACY_SKILLS_PANEL = Object.keys(LEGACY_PANEL_IDS)[0];
+async function mount(t, language, initial, creation = false, activePanel) {
   const root = await realpath(
     await mkdtemp(join(tmpdir(), 'waycraft-org-ui-')),
   );
@@ -143,8 +145,9 @@ async function mount(t, language, initial, creation = false) {
   const cleanups = [];
   const dictionaries = {};
   const selected = [];
+  const layoutState = { active: activePanel ?? 'waycraft-skills' };
   const layout = {
-    panelInfo: { getSnapshot: () => ({ activePanelId: 'majed-skills' }) },
+    panelInfo: { getSnapshot: () => ({ activePanelId: layoutState.active }) },
     selectPanel: (id) => selected.push(id),
   };
   const ctx = {
@@ -181,7 +184,7 @@ async function mount(t, language, initial, creation = false) {
   api.apply({
     ...ctx,
     effect(start, label) {
-      if (label?.startsWith('majed-skills')) cleanups.push(start());
+      if (label?.startsWith('waycraft-skills')) cleanups.push(start());
     },
   });
   const settle = async () => {
@@ -240,17 +243,18 @@ async function mount(t, language, initial, creation = false) {
     settle,
     failPlacement,
     selected,
+    layoutState,
     statePath,
     dictionaries,
     api,
     hostFetch: (body) =>
       hostRoute
         .fetch(
-          new Request('http://localhost/api/majed-skills.catalog', {
+          new Request('http://localhost/api/waycraft-skills.catalog', {
             method: 'POST',
             headers: {
               'content-type': 'application/json',
-              'x-majed-skills': '1',
+              'x-waycraft-skills': '1',
             },
             body: JSON.stringify(body),
           }),
@@ -1222,3 +1226,17 @@ for (const language of ['en', 'ar'])
     const assign = u.button(`${d.assignSelected}: base`);
     assert.equal(assign.props.disabled, false, 'live selection kept');
   });
+
+test('a saved legacy active panel id is mapped to the new panel id (ticket #159)', async (t) => {
+  const ui = await mount(
+    t,
+    'en',
+    { placement: 'sidebar' },
+    false,
+    LEGACY_SKILLS_PANEL,
+  );
+  assert.ok(
+    ui.selected.includes('waycraft-skills'),
+    'legacy active panel re-selected under the new id',
+  );
+});

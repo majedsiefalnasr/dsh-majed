@@ -81,12 +81,12 @@ async function harness(t, { sources, workspaces = [], statePath } = {}) {
     apply(ctx, { sources: sources?.(root) ?? [], statePath: state });
     const post = (body, headers = {}, signal) =>
       route.fetch(
-        new Request('http://localhost/api/majed-skills.catalog', {
+        new Request('http://localhost/api/waycraft-skills.catalog', {
           method: 'POST',
           signal,
           headers: {
             'content-type': 'application/json',
-            'x-majed-skills': '1',
+            'x-waycraft-skills': '1',
             ...headers,
           },
           body: JSON.stringify(body),
@@ -319,7 +319,7 @@ test('malformed custom requests are rejected and mutation needs the marker', asy
       (
         await h.post(
           { action, path: h.root, items: [{ path: h.root }], id: 'custom:a' },
-          { 'x-majed-skills': '' },
+          { 'x-waycraft-skills': '' },
         )
       ).status,
       403,
@@ -1060,7 +1060,7 @@ test('the limit rejection names the limit, and project selectors need the marker
   assert.deepEqual(body.results[32].params, { limit: '32' });
   const dir = await project(h.root, 'app', { '.agents': ['ok'] });
   h.registry.workspaces.push(dir);
-  const none = { 'x-majed-skills': '' };
+  const none = { 'x-waycraft-skills': '' };
   const plain = await json(await h.post({ action: 'list' }, none));
   assert.deepEqual(plain.projects, []);
   const [entry] = (await json(await h.post({ action: 'list' }))).projects;

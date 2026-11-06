@@ -138,7 +138,7 @@ for (const language of ['en', 'ar'])
     const coreContext = {
       ...ctx,
       effect(start, label) {
-        if (label?.startsWith('majed-skills')) cleanups.push(start());
+        if (label?.startsWith('waycraft-skills')) cleanups.push(start());
       },
       inject(names, callback) {
         if (
@@ -207,7 +207,8 @@ for (const language of ['en', 'ar'])
     );
     assert.ok(
       requests.every(
-        (url) => url === 'https://example.test/prefix/api/majed-skills.catalog',
+        (url) =>
+          url === 'https://example.test/prefix/api/waycraft-skills.catalog',
       ),
     );
     await act(async () => view.unmount());
@@ -251,7 +252,7 @@ test('presence ping backs off while the host route is missing and resets on succ
       if (names.includes('locale') && names.includes('slots')) callback(ctx);
     },
     effect(start, label) {
-      if (label?.startsWith('majed-skills')) cleanups.push(start());
+      if (label?.startsWith('waycraft-skills')) cleanups.push(start());
     },
     locale: {
       register(_ns, value) {

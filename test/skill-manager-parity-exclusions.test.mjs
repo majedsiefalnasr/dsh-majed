@@ -138,7 +138,7 @@ for (const language of ['en', 'ar'])
     const coreContext = {
       ...ctx,
       effect(start, label) {
-        if (label?.startsWith('majed-skills')) cleanups.push(start());
+        if (label?.startsWith('waycraft-skills')) cleanups.push(start());
       },
       inject(names, callback) {
         if (
@@ -205,11 +205,11 @@ for (const language of ['en', 'ar'])
     // The host exposes no update-check or issue action either.
     for (const action of ['check-update', 'online-update', 'issues']) {
       const response = await hostRoute.fetch(
-        new Request('https://example.test/api/majed-skills.catalog', {
+        new Request('https://example.test/api/waycraft-skills.catalog', {
           method: 'POST',
           headers: {
             'content-type': 'application/json',
-            'x-majed-skills': '1',
+            'x-waycraft-skills': '1',
           },
           body: JSON.stringify({ action }),
         }),

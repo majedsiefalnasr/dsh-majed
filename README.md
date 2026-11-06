@@ -1,6 +1,6 @@
 # Waycraft for DSH
 
-**Waycraft** (`dsh-waycraft`, formerly `dsh-majed`) is an interface, workflow and provider toolkit for **DeepSeek Harness (DSH)**. It never patches DSH itself — everything is added through public client extension points when the plugin is enabled, and removed again when it is disabled.
+**Waycraft** (`dsh-waycraft`) is an interface, workflow and provider toolkit for **DeepSeek Harness (DSH)**. It never patches DSH itself — everything is added through public client extension points when the plugin is enabled, and removed again when it is disabled.
 
 ## Features
 
@@ -47,28 +47,28 @@ Rules: a chain (`&&`, `;`, `\|`) is judged by its **worst** part; command substi
 - Source: `lib/classify.cjs` (also inlined into `client.js`); tests: `node test/classify.test.cjs` (166 cases).
 
 ### Bundled fonts
-The five fonts ship inside this package (`fonts/*.woff2`, ~1.1 MB, from [Fontsource](https://fontsource.org)) and are served by the plugin's host half at `/plugins/dsh-majed/fonts/`, so they work offline and on paired phones. Subsets: Latin + Latin-Ext for all, **Arabic** for Noto Sans and IBM Plex Sans, Hebrew for Open Sans. Inter, Roboto and Open Sans have no Arabic glyphs, so Arabic text falls back to the system font — pick **Noto Sans** or **IBM Plex Sans** for Arabic/Persian. All licensed under the SIL Open Font License 1.1 (licenses in `fonts/LICENSE-*.txt`). Needs an app restart after install (the plugin now has a host half).
+The five fonts ship inside this package (`fonts/*.woff2`, ~1.1 MB, from [Fontsource](https://fontsource.org)) and are served by the plugin's host half at `/plugins/dsh-waycraft/fonts/`, so they work offline and on paired phones. Subsets: Latin + Latin-Ext for all, **Arabic** for Noto Sans and IBM Plex Sans, Hebrew for Open Sans. Inter, Roboto and Open Sans have no Arabic glyphs, so Arabic text falls back to the system font — pick **Noto Sans** or **IBM Plex Sans** for Arabic/Persian. All licensed under the SIL Open Font License 1.1 (licenses in `fonts/LICENSE-*.txt`). Needs an app restart after install (the plugin now has a host half).
 
 ### Styling note
 All text in this plugin's own UI (settings rows, dropdowns, toast, Approvals control) uses DSH's design tokens (`font: var(--dsw-font-s-14)` etc.), never hard-coded px, so it follows the **App UI font size** exactly like built-in rows.
 
 ### For plugin authors
-`window.__dshMajed.accountMenu.register({ id, label, icon /* svg markup */, order, onSelect })` adds an item to the account menu and returns an unregister function.
+`window.__dshWaycraft.accountMenu.register({ id, label, icon /* svg markup */, order, onSelect })` adds an item to the account menu and returns an unregister function.
 
-Settings are stored per-browser/desktop profile in `localStorage` (`dsh-majed:settings:v1`).
+Settings are stored per-browser/desktop profile in `localStorage` (`dsh-waycraft:settings:v1`).
 
 ## Identity and upgrade compatibility
 
-The product is **Waycraft for DSH**, with package name `dsh-waycraft`. The source repository remains `majedsiefalnasr/dsh-majed`; a repository rename is a separate operation. Legacy `majed` Loader row ids, RPC/tool names, CSS hooks, font route, `window.__dshMajed`, browser settings keys and account storage paths intentionally remain stable so the branding change does not discard user data or break integrations. These are compatibility identifiers, not the current product name.
+The product is **Waycraft for DSH**, with package name `dsh-waycraft`. The source repository remains `majedsiefalnasr/dsh-waycraft`; a repository rename is a separate operation. All owned identifiers use the `waycraft` prefix. For one release the plugin still answers the earlier RPC routes, header, font route and browser global, reads the earlier browser settings keys, and copies (never moves) earlier account/credential/media/skills storage to the new location on first start. The earlier files are never deleted or modified, so rolling back is a reinstall of the earlier archive. See `docs/ai/rename-waycraft.md` for the full table, migration behavior, removal plan and open items (Loader row ids).
 
-Do not install Waycraft alongside the old package: both declare the same component ids and capabilities. An installed upgrade requires a separately approved replacement with backup/rollback, followed by a full DSH restart. This source rename does not change an already installed package or imply an npm release exists. Historical release notes, source attributions and evidence retain their original names.
+Do not install Waycraft alongside the package it replaces: both declare the same component ids and capabilities. An installed upgrade requires a separately approved replacement with backup/rollback, followed by a full DSH restart. This source rename does not change an already installed package or imply an npm release exists. Historical release notes, source attributions and evidence retain their original names.
 
 ## Install
 
 Via the Plugins page, or:
 
 ```sh
-dsh plugin install github:majedsiefalnasr/dsh-majed
+dsh plugin install github:majedsiefalnasr/dsh-waycraft
 ```
 
 Then remove `dsh-persian-rtl` (this plugin supersedes it). After installing or updating, fully restart DSH: newly added component rows do not appear through in-place discovery without a restart (Owner-verified).

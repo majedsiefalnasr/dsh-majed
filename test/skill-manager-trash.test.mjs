@@ -61,9 +61,12 @@ async function fixture(t) {
   };
   const post = async (body, signal) => {
     const r = await route.fetch(
-      new Request('http://localhost/api/majed-skills.catalog', {
+      new Request('http://localhost/api/waycraft-skills.catalog', {
         method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-majed-skills': '1' },
+        headers: {
+          'content-type': 'application/json',
+          'x-waycraft-skills': '1',
+        },
         body: JSON.stringify({ source: 'user-dsh', ...body }),
         signal,
       }),

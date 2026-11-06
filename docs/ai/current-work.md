@@ -1,5 +1,13 @@
 # Current work
 
+## #159 Retire the `majed` name, prefix `waycraft` — 2026-11-05
+
+Work contract: ticket #159, branch impl/159-waycraft-rename, base c473b8a, sole writer, no commit/push/install/new dependency/core/profile/network change. Acceptance: (1) every owned identifier uses `waycraft`; (2) storage migrates by copy with read-fallback, old data never modified or deleted; (3) one release of deprecated aliases (RPC routes, skills route/header, font route, localStorage keys, global hook, panel ids, toolview keys) centralized in `src/legacy-names.ts` / `src/storage-migration.ts`; (4) a guard test (`test/legacy-name-guard.test.mjs`) keeps `/majed/i` out of owned sources except a justified allow-list; (5) `docs/ai/rename-waycraft.md` records the old->new table, migration, removal plan, rollback and open items.
+
+- Owner decisions: Loader row ids in `cordis.patch.yml` are NOT renamed here (the Owner verifies the effect on enabled state by experiment); old collision-fallback tool names are not kept as aliases (registration seam cannot prove restriction handling).
+- Verification: see the final report of the ticket; fixtures only. Unproven: installed app, real Loader rows, real data upgrade, paired remote, crash durability.
+- State (candidate, unmerged, uncommitted): worktree `impl/159-waycraft-rename`. Stop: no commit/push.
+
 ## #157 Parity evidence and consolidated acceptance preparation — 2026-11-05
 
 Work contract: ticket #157 (parent #145), branch impl/157-parity-evidence, base 4dfbf48 (= #156), sole writer, no commit/push/install/new dependency/core/profile/network change. Acceptance: (1) every reference function and UI element reconciled against implementation and test evidence with honest gaps; (2) regression and reproducibility results recorded; (3) one Owner desktop acceptance checklist (EN/AR, shutdown, restart, rollback, not-proven list); (4) every Owner-pending/deferred item of #146-#156 in one decision table with a recommended disposition.

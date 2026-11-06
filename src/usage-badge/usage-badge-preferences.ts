@@ -1,19 +1,22 @@
 // Adapted from V1ki/dsh-plugin-subscriptions v0.9.12 (b802311) src/client/usage-badge-preferences.ts, MIT; see src/PROVENANCE.md.
-// Storage key and event carry the majed prefix (ADR-0002); the stored values are unchanged.
+// Storage key and event carry the waycraft prefix (ADR-0002); the stored values are unchanged.
 import { useSyncExternalStore } from 'react';
+import { LEGACY_USAGE_BADGE_KEY } from '../legacy-names.js';
 
 /** Display-only preference: no credentials or account history are stored. */
 export type UsageBadgeMode = 'recent' | 'hidden';
-const MODE_KEY = 'majed.subscriptions.usageBadgeMode';
-const MODE_EVENT = 'majed:subscriptions:usage-badge-mode';
+const MODE_KEY = 'waycraft.subscriptions.usageBadgeMode';
+const MODE_EVENT = 'waycraft:subscriptions:usage-badge-mode';
 
 /** Read the browser preference; blocked storage retains the default display. */
 export function readUsageBadgeMode(): UsageBadgeMode {
   if (typeof window === 'undefined') return 'recent';
   try {
-    return window.localStorage.getItem(MODE_KEY) === 'hidden'
-      ? 'hidden'
-      : 'recent';
+    // New key first, then the deprecated legacy key (read only; never deleted).
+    const stored =
+      window.localStorage.getItem(MODE_KEY) ??
+      window.localStorage.getItem(LEGACY_USAGE_BADGE_KEY);
+    return stored === 'hidden' ? 'hidden' : 'recent';
   } catch (error) {
     if (!(error instanceof DOMException) || error.name !== 'SecurityError')
       throw error;

@@ -79,8 +79,8 @@ test('Skill manager is independently default-off and activation disposes its pro
   };
   assert.deepEqual([...providers.keys()], ['other-component']);
   apply(ctx, config);
-  assert.equal(providers.has('majed-skills'), true);
-  const provider = providers.get('majed-skills');
+  assert.equal(providers.has('waycraft-skills'), true);
+  const provider = providers.get('waycraft-skills');
   const listed = await provider.list();
   assert.equal(listed.length, 1);
   assert.deepEqual(listed[0].invocation, {
@@ -99,9 +99,9 @@ test('Skill manager is independently default-off and activation disposes its pro
   // A second activation must not collide with a leaked registration.
   effects.length = 0;
   apply(ctx, config);
-  assert.equal(providers.has('majed-skills'), true);
+  assert.equal(providers.has('waycraft-skills'), true);
   // Re-applying restores the persisted denial policy.
-  const again = await providers.get('majed-skills').list();
+  const again = await providers.get('waycraft-skills').list();
   assert.deepEqual(again[0].invocation, {
     modelInvocable: false,
     userInvocable: false,

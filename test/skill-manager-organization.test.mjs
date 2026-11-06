@@ -93,11 +93,11 @@ async function host(t, existingState) {
   });
   const post = async (body, marked = true) => {
     const response = await route.fetch(
-      new Request('http://localhost/api/majed-skills.catalog', {
+      new Request('http://localhost/api/waycraft-skills.catalog', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          ...(marked ? { 'x-majed-skills': '1' } : {}),
+          ...(marked ? { 'x-waycraft-skills': '1' } : {}),
         },
         body: JSON.stringify(body),
       }),

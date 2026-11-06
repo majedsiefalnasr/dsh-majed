@@ -5,7 +5,7 @@ import { mkdtemp } from 'node:fs/promises';
 import { apply } from '../dist/subscriptions.js';
 
 async function mount() {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t133-registered-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t133-registered-');
   const store = await import('../dist/auth/store.js');
   for (const key of ['a', 'b'])
     await store.saveAccountSession('grok', key, {
@@ -80,7 +80,7 @@ async function mount() {
     limited,
     billing,
     async call(endpoint, payload) {
-      const method = `majed-subscriptions.${endpoint}`;
+      const method = `waycraft-subscriptions.${endpoint}`;
       return (
         await (
           await routes.get(`/api/${method}`).fetch(

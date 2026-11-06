@@ -146,7 +146,7 @@ async function mount(t, language) {
   api.apply({
     ...ctx,
     effect(start, label) {
-      if (label?.startsWith('majed-skills')) cleanups.push(start());
+      if (label?.startsWith('waycraft-skills')) cleanups.push(start());
     },
     inject(names, callback) {
       if (
