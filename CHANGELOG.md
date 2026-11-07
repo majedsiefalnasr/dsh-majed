@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-11-07
+
+- Release only: 0.3.0 was tagged and released on GitHub but could not be published to npm because the Sigstore transparency log returned errors during provenance signing, and the retry then conflicted with the entry already recorded for that tarball. 0.3.1 carries the identical content under a new version. Use 0.3.1.
+
 ## [0.3.0] - 2026-11-07
 
 - Follow-ups (#160, rc.20): `dsh_waycraft_create_skill` uses the host `defineTool` pattern (same name and approval). Skills installed by create, import, repository or catalog are enabled even if a disabled flag from a previously removed copy at the same path remained. `category-move` and `organization.order` are removed (old state files still load; old clients get 400). Long skill lists render in windows of 100 with a "Show more" link. The Skill manager layout follows its container width (`@container`) instead of the window. The subscriptions RPC adds a stable `kind` (`invalid-request`, `not-found`, `forbidden`, `conflict`, `too-large`, `unavailable`, `internal`) beside the unchanged `subscriptions/error` code. Generated videos stream from the new binary `waycraft-subscriptions.videoFile` GET route (same owner-only gate, same 100 MiB cap); the JSON `video` route is deprecated and will be removed after rc.20. Opt-in real-browser suite: `npm run test:browser`. Attribution for the #156 destination picker added.
@@ -157,7 +161,8 @@ First Waycraft npm release; see [final release scope, upgrade and limitations](d
 
 Baseline for the component-by-component plan. Features: Bidirectional text, App UI font size, App font with bundled fonts, System notifications, sidebar actions grouped in the account menu, Copy on select, and the composer Approvals dropdown with the deterministic command classifier. See `README.md`.
 
-[Unreleased]: https://github.com/majedsiefalnasr/dsh-waycraft/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/majedsiefalnasr/dsh-waycraft/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/majedsiefalnasr/dsh-waycraft/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/majedsiefalnasr/dsh-waycraft/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/majedsiefalnasr/dsh-waycraft/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/majedsiefalnasr/dsh-waycraft/compare/v0.2.0...v0.2.1
