@@ -1,4 +1,4 @@
-// Rendered Manage/Proxy UI matrices (ticket #130 items 2, 5, 6, 7): real components under react-test-renderer
+// Rendered Manage/Proxy UI matrices: real components under react-test-renderer
 // with a controllable fake RPC. Reference analogues: account-manager-ui.spec.ts and SubscriptionsSection proxy dialog.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -153,7 +153,7 @@ async function mountManager(locale, handlers) {
     closed = [];
   const rpc = {
     async call(_, method, payload) {
-      const name = method.replace('majed-subscriptions.', '');
+      const name = method.replace('waycraft-subscriptions.', '');
       calls.push({ name, payload });
       return handlers[name](
         payload,
@@ -467,7 +467,7 @@ async function mountProxy(
     calls = [];
   const rpc = {
     async call(_, method, payload) {
-      const name = method.replace('majed-subscriptions.', '');
+      const name = method.replace('waycraft-subscriptions.', '');
       calls.push({ name, payload });
       return name === 'proxyGet' ? ok(view) : handlers[name](payload);
     },

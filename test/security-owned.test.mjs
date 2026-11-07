@@ -1,4 +1,4 @@
-// Ticket #130 security matrices: real DSH HostConnectionService gate (no hand-written 401) and
+// security matrices: real DSH HostConnectionService gate (no hand-written 401) and
 // proxy-secret absence across every serialized RPC response. Loopback-only; no real network.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -64,7 +64,7 @@ async function mount() {
     principal: { kind: 'api', id: 'stranger' },
   });
   const envelope = (endpoint, payload = {}, extra = {}) =>
-    new Request(`http://127.0.0.1/api/majed-subscriptions.${endpoint}`, {
+    new Request(`http://127.0.0.1/api/waycraft-subscriptions.${endpoint}`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', ...extra.headers },
       body:
@@ -72,7 +72,7 @@ async function mount() {
         JSON.stringify({
           type: 'client-request',
           rpcId: 'r',
-          method: `majed-subscriptions.${endpoint}`,
+          method: `waycraft-subscriptions.${endpoint}`,
           payload,
         }),
       ...extra.init,
@@ -92,7 +92,7 @@ async function mount() {
 }
 
 test('every exact route is owner-only at the real host gate and never runs for a non-owner or untrusted caller', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t130/security-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t130/security-');
   const host = await mount();
   try {
     for (const endpoint of ENDPOINTS) {
@@ -109,12 +109,12 @@ test('every exact route is owner-only at the real host gate and never runs for a
     // The denied setProviderSettings never reached the store: no provider-settings file exists.
     await assert.rejects(
       stat(
-        `${process.env.DSH_HOME}/plugins/majed/subscriptions/provider-settings.json`,
+        `${process.env.DSH_HOME}/plugins/waycraft/subscriptions/provider-settings.json`,
       ),
       { code: 'ENOENT' },
     );
     await assert.rejects(
-      stat(`${process.env.DSH_HOME}/plugins/majed/subscriptions/proxy.json`),
+      stat(`${process.env.DSH_HOME}/plugins/waycraft/subscriptions/proxy.json`),
       { code: 'ENOENT' },
     );
     // The transport admission gate (the caller of the shared handler) refuses untrusted and unauthenticated requests.
@@ -167,7 +167,7 @@ test('every exact route is owner-only at the real host gate and never runs for a
         `${endpoint} owner is admitted`,
       );
     const get = await host.handler.fetch(
-      new Request('http://127.0.0.1/api/majed-subscriptions.status', {
+      new Request('http://127.0.0.1/api/waycraft-subscriptions.status', {
         method: 'GET',
       }),
       host.owner,
@@ -179,7 +179,7 @@ test('every exact route is owner-only at the real host gate and never runs for a
 });
 
 test('Grok auth, billing and media routes pass the real Owner admission gate and refuse foreign principals without network', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t133-security-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t133-security-');
   const original = globalThis.fetch;
   let network = 0;
   globalThis.fetch = async () => {
@@ -247,7 +247,7 @@ test('Grok billing current, legacy, null and error responses cross the assembled
       [{ config: null }, undefined],
       [undefined, undefined],
     ]) {
-      process.env.DSH_HOME = await mkdtemp('/tmp/majed-t133-billing-');
+      process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t133-billing-');
       const { saveAccountSession } = await import('../dist/auth/store.js');
       const token = `fixture.${Buffer.from(JSON.stringify({ tier: 1 })).toString('base64url')}.fixture`;
       await saveAccountSession('grok', 'fixture', {
@@ -298,12 +298,13 @@ test('Grok billing current, legacy, null and error responses cross the assembled
 });
 
 test('invalid envelopes are rejected before any endpoint runs and are not business errors', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t130/security-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t130/security-');
   const host = await mount();
   try {
     const status = async (request) =>
       (await host.handler.fetch(request, host.owner)).status;
-    const url = 'http://127.0.0.1/api/majed-subscriptions.setProviderSettings';
+    const url =
+      'http://127.0.0.1/api/waycraft-subscriptions.setProviderSettings';
     const post = (body, type = 'application/json') =>
       new Request(url, {
         method: 'POST',
@@ -323,7 +324,7 @@ test('invalid envelopes are rejected before any endpoint runs and are not busine
           JSON.stringify({
             type: 'server-response',
             rpcId: 'r',
-            method: 'majed-subscriptions.setProviderSettings',
+            method: 'waycraft-subscriptions.setProviderSettings',
           }),
         ),
       ),
@@ -335,7 +336,7 @@ test('invalid envelopes are rejected before any endpoint runs and are not busine
           JSON.stringify({
             type: 'client-request',
             rpcId: 7,
-            method: 'majed-subscriptions.setProviderSettings',
+            method: 'waycraft-subscriptions.setProviderSettings',
           }),
         ),
       ),
@@ -347,7 +348,7 @@ test('invalid envelopes are rejected before any endpoint runs and are not busine
           JSON.stringify({
             type: 'client-request',
             rpcId: 'r',
-            method: 'majed-subscriptions.status',
+            method: 'waycraft-subscriptions.status',
           }),
         ),
       ),
@@ -367,7 +368,7 @@ test('invalid envelopes are rejected before any endpoint runs and are not busine
     );
     await assert.rejects(
       stat(
-        `${process.env.DSH_HOME}/plugins/majed/subscriptions/provider-settings.json`,
+        `${process.env.DSH_HOME}/plugins/waycraft/subscriptions/provider-settings.json`,
       ),
       { code: 'ENOENT' },
     );
@@ -396,13 +397,15 @@ test('invalid envelopes are rejected before any endpoint runs and are not busine
       body.result.error.message,
       /payload\.provider must be one of codex, claude/,
     );
+    // Stable kind next to the legacy code; old clients only read `code`/`message`.
+    assert.equal(body.result.error.kind, 'invalid-request');
   } finally {
     host.dispose();
   }
 });
 
 test('a saved proxy password is never present in any serialized RPC response, including errors', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t130/security-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t130/security-');
   const { resetProxyForTests } = await import('../dist/http.js');
   await resetProxyForTests();
   const original = globalThis.fetch;
@@ -523,7 +526,7 @@ test('a saved proxy password is never present in any serialized RPC response, in
     // The secret is persisted only in the owner-only proxy file.
     assert.deepEqual(
       (
-        await readdir(`${process.env.DSH_HOME}/plugins/majed/subscriptions`)
+        await readdir(`${process.env.DSH_HOME}/plugins/waycraft/subscriptions`)
       ).includes('proxy.json'),
       true,
     );

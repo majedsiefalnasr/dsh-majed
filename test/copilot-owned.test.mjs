@@ -1,4 +1,4 @@
-// #134 assembled host seam. All traffic, identities and credentials are fixtures.
+// assembled host seam. All traffic, identities and credentials are fixtures.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp } from 'node:fs/promises';
@@ -41,7 +41,7 @@ function host() {
   return {
     adapters,
     async call(endpoint, payload = {}) {
-      const method = `majed-subscriptions.${endpoint}`;
+      const method = `waycraft-subscriptions.${endpoint}`;
       const response = await routes.get(`/api/${method}`).fetch(
         new Request(`http://localhost/api/${method}`, {
           method: 'POST',
@@ -63,7 +63,7 @@ function host() {
 }
 
 test('Copilot RPC device login persists privately, lists models, streams chat and logs out without leaking tokens', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t134/host-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t134/host-');
   const savedFetch = globalThis.fetch,
     requests = [];
   let release;

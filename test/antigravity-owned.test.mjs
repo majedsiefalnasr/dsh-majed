@@ -1,4 +1,4 @@
-// #134 assembled host seam. All traffic, identities and credentials are fixtures.
+// assembled host seam. All traffic, identities and credentials are fixtures.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp } from 'node:fs/promises';
@@ -41,7 +41,7 @@ function host(antigravity = { clientId: 'dummy-authorized-client' }) {
   return {
     adapters,
     async call(endpoint, payload = {}) {
-      const method = `majed-subscriptions.${endpoint}`;
+      const method = `waycraft-subscriptions.${endpoint}`;
       const response = await routes.get(`/api/${method}`).fetch(
         new Request(`http://localhost/api/${method}`, {
           method: 'POST',
@@ -63,7 +63,7 @@ function host(antigravity = { clientId: 'dummy-authorized-client' }) {
 }
 
 test('Antigravity assembled Google login, quotas, Manage, chat and logout use owned storage only', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed135-host-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft135-host-');
   const previous = globalThis.fetch;
   const calls = [];
   globalThis.fetch = async (url, init) => {
@@ -151,7 +151,7 @@ test('Antigravity assembled Google login, quotas, Manage, chat and logout use ow
 });
 
 test('zero-config Antigravity is available without HTTP or exposing its bundled identity', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-oauth-default-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-oauth-default-');
   const id = process.env.ANTIGRAVITY_CLIENT_ID,
     secret = process.env.ANTIGRAVITY_CLIENT_SECRET;
   delete process.env.ANTIGRAVITY_CLIENT_ID;
@@ -184,7 +184,7 @@ test('zero-config Antigravity is available without HTTP or exposing its bundled 
 });
 
 test('malformed Antigravity overrides retain expired sessions without HTTP or blocking other providers', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-oauth-setup-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-oauth-setup-');
   const { saveAccountSession, getAccountSession } = await import(
     '../dist/auth/store.js'
   );
@@ -291,7 +291,7 @@ test('Antigravity token body cancellation releases its reader', async () => {
 });
 
 test('Antigravity explicit account entries isolate Google tokens and project envelopes', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed135-isolation-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft135-isolation-');
   const { saveAccountSession } = await import('../dist/auth/store.js');
   for (const key of ['a', 'b'])
     await saveAccountSession('antigravity', key, {

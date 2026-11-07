@@ -1,5 +1,7 @@
 # #136 API providers — candidate verification
 
+> Historical names: this evidence predates the #159 rename; `majed*` identifiers below are the retired names of the current `waycraft*` ones (see `rename-waycraft.md`).
+
 ## Owner acceptance disposition — 2026-11-01
 
 Owner reported successful provider addition and cross-page synchronization, and subsequently confirmed `Key configured` appears for ordinary providers. Owner explicitly deferred the missing visual status indicator and DeepSeek Account status presentation to the final UI/UX improvement scope. No ordinary-provider lookup defect was established; no speculative repair was applied. Owner explicitly accepted the existing automated revision-conflict tests instead of a live conflict trial and authorized closing #136. This is Owner acceptance with a stated validation substitution, not evidence of a live conflict test or provider connectivity. Final integrated automated evidence remains Node837/837, fresh-build match and independent Standards/Spec PASS. The final UI/UX ticket is still to be proposed after functional tickets; preserve these deferred items there.

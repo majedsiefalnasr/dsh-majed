@@ -1,5 +1,7 @@
 # Ticket #133 verification — isolated candidate
 
+> Historical names: this evidence predates the #159 rename; `majed*` identifiers below are the retired names of the current `waycraft*` ones (see `rename-waycraft.md`).
+
 ## Owned response-reader correction (2026-10-31)
 
 Approved remaining P2 from `544d3e6`: native `response.json()`/`text()` abort races settled the caller but retained locked, uncancelled bodies. Direct surgical-patch/TDD at the approved execute/injected-fetch seam; only this worktree source/tests/generated/evidence, no nested agents, Claude, installed state, secrets, providers, sibling writes, merge or push. Candidate still requires independent Lead review.

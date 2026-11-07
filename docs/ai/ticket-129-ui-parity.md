@@ -1,5 +1,7 @@
 # Ticket #129: Codex UI parity correction
 
+> Historical names: this evidence predates the #159 rename; `majed*` identifiers below are the retired names of the current `waycraft*` ones (see `rename-waycraft.md`).
+
 ## Contract and authority
 
 Owner rejected the installed simplified Codex card. This bounded correction ports presentation, not a redesign: V1ki/dsh-plugin-subscriptions v0.9.12, `b8023110864494acefc6f5963c2a197d85dda20c`, MIT, read-only `/tmp/upstream-0.9.12`. Candidate starts at `085692c` on `impl/129-codex`; Lead integration at assignment was `3796839`. Latest authoritative override was read from sibling `dsh-majed-subscriptions/docs/ai/current-work.md` without modifying it. #129 stays open; no #130+ implementation or installed changes.

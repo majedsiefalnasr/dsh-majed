@@ -39,7 +39,7 @@ import {
 
 test('video streamed download without length stops above limit and cancels stalled reads', async () => {
   for (const mode of ['oversize', 'cancel'] as const) {
-    const dir = mkdtempSync(join(tmpdir(), 'majed-t133-stream-'))
+    const dir = mkdtempSync(join(tmpdir(), 'waycraft-t133-stream-'))
     const controller = new AbortController()
     let cancelled = false, sent = false
     const fetchFn: FetchFn = async url => {
@@ -606,7 +606,7 @@ test('video overall deadline aborts stalled submit headers', async () => {
 for (const stage of ['submit headers', 'submit body', 'poll headers', 'poll body', 'download headers', 'download body', 'sleep'] as const) {
   for (const cause of ['deadline', 'caller'] as const) {
     test(`video overall budget settles stalled ${stage} on ${cause}`, async () => {
-      const dir = mkdtempSync(join(tmpdir(), 'majed-t133-deadline-'))
+      const dir = mkdtempSync(join(tmpdir(), 'waycraft-t133-deadline-'))
       const caller = new AbortController()
       let observed: AbortSignal | null | undefined
       let cancelled = false
@@ -722,7 +722,7 @@ for (const stage of ['submit', 'poll', 'download error'] as const) {
 }
 
 test('video successful completion releases deadline timer and caller listener', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'majed-t133-release-'))
+  const dir = mkdtempSync(join(tmpdir(), 'waycraft-t133-release-'))
   const caller = new AbortController()
   let observed: AbortSignal | null | undefined
   const fetchFn: FetchFn = async (url, init) => {
@@ -786,7 +786,7 @@ test('video_generate execute: submit, poll to done, download and save', async ()
 
 test('video download rejects wrong MIME and oversized declared bodies without saving', async () => {
   for (const headers of [{ 'content-type': 'text/html' }, { 'content-type': 'video/mp4', 'content-length': String(101 * 1024 * 1024) }]) {
-    const dir = mkdtempSync(join(tmpdir(), 'majed-t133-video-bound-'))
+    const dir = mkdtempSync(join(tmpdir(), 'waycraft-t133-video-bound-'))
     const { fetchFn } = sequenceFetch([
       Response.json({ request_id: 'fixture' }),
       Response.json({ status: 'done', video: { url: 'https://vidgen.x.ai/v.mp4' } }),

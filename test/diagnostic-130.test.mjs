@@ -1,4 +1,4 @@
-// Final #130 P2 security regressions: diagnostic sanitization of arbitrary exception text (http.ts safeDiagnostic).
+// P2 security regressions: diagnostic sanitization of arbitrary exception text (http.ts safeDiagnostic).
 // Independent review of d6d849a found unknown-secret forms, known-secret encodings, JSON tails and a quadratic cost.
 // Fake fetch only; no real network, accounts or proxy. Timing guards are deliberately loose (CI-noise tolerant).
 import { test } from 'node:test';
@@ -19,7 +19,7 @@ import {
   resetProxyForTests,
 } from '../dist/http.js';
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
-await mkdir('/tmp/majed-t130', { recursive: true });
+await mkdir('/tmp/waycraft-t130', { recursive: true });
 
 const b64 = (value) => Buffer.from(value, 'utf8').toString('base64');
 const UNK = 'UNK-secret-91Zq';
@@ -124,7 +124,7 @@ test('useful safe diagnostics stay readable and unchanged', () => {
 // ---------------------------------------------------------------- known stored/draft secrets in every encoding
 test('known secrets disappear in raw, URI, form, JSON-escaped, base64 and combined user:password forms', async () => {
   await resetProxyForTests();
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t130/diag-known-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t130/diag-known-');
   try {
     const password = `Pa ss/wörd"+&=\\${UNK}`;
     const username = 'fixture.user@corp';
@@ -207,7 +207,7 @@ test('known secrets disappear in raw, URI, form, JSON-escaped, base64 and combin
 
 test('a secret cut by the input bound leaves no partial prefix behind', async () => {
   await resetProxyForTests();
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t130/diag-cut-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t130/diag-cut-');
   try {
     const secret = `S${'S'.repeat(38)}!`; // 40 chars; replaced copies shrink to 10, so the cut tail would surface in the output
     const out = safeDiagnostic(secret.repeat(102) + secret, [secret]);
@@ -379,7 +379,7 @@ async function mountHost() {
   };
   apply(ctx, { codexClientVersion: '1.2.3' });
   const raw = async (endpoint, payload = {}) => {
-    const method = `majed-subscriptions.${endpoint}`;
+    const method = `waycraft-subscriptions.${endpoint}`;
     return (
       await routes.get(`/api/${method}`).fetch(
         new Request(`http://localhost/api/${method}`, {
@@ -400,7 +400,7 @@ async function mountHost() {
 
 test('known and unknown secrets are absent from the complete serialized RPC response and the rendered error (saved and draft)', async () => {
   await resetProxyForTests();
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t130/diag-rpc-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t130/diag-rpc-');
   const host = await mountHost();
   const originalFetch = globalThis.fetch;
   const SAVED = 'saved pw/"+ 9Zq',
@@ -422,7 +422,7 @@ test('known and unknown secrets are absent from the complete serialized RPC resp
     const stored = JSON.stringify(
       JSON.parse(
         await readFile(
-          `${process.env.DSH_HOME}/plugins/majed/subscriptions/proxy.json`,
+          `${process.env.DSH_HOME}/plugins/waycraft/subscriptions/proxy.json`,
           'utf8',
         ),
       ),
@@ -583,7 +583,7 @@ test('known and unknown secrets are absent from the complete serialized RPC resp
       JSON.stringify(
         JSON.parse(
           await readFile(
-            `${process.env.DSH_HOME}/plugins/majed/subscriptions/proxy.json`,
+            `${process.env.DSH_HOME}/plugins/waycraft/subscriptions/proxy.json`,
             'utf8',
           ),
         ),

@@ -1,4 +1,4 @@
-const majedSubscriptionsFactory = (require) => {
+const waycraftSubscriptionsFactory = (require) => {
 var module = { exports: {} }; var exports = module.exports;
 //#region rolldown:runtime
 var __create = Object.create;
@@ -28,7 +28,3980 @@ react = __toESM(react);
 let react_jsx_runtime = require("react/jsx-runtime");
 react_jsx_runtime = __toESM(react_jsx_runtime);
 
+//#region src/legacy-names.ts
+/** Old localStorage keys (read fallback only; never written, never deleted). */
+const LEGACY_USAGE_BADGE_KEY = "majed.subscriptions.usageBadgeMode";
+/** Old slot/section/panel ids mapped to their new ids (saved nav state). */
+const LEGACY_PANEL_IDS = {
+	"majed-skills": "waycraft-skills",
+	"majed-subscriptions": "waycraft-subscriptions"
+};
+/** Old toolview slot key for a tool name. */
+const legacyToolviewKey = (name) => `dsh_majed_${name}`;
+
+//#endregion
+//#region src/skills-browser.ts
+function applySkills(root) {
+	const fail = (error) => console.error("dsh-waycraft: Skill manager setup failed", error);
+	try {
+		Promise.resolve(root.inject(["slots", "locale"], (ctx) => {
+			try {
+				setupSkills(ctx, fail);
+			} catch (error) {
+				fail(error);
+			}
+		})).catch(fail);
+	} catch (error) {
+		fail(error);
+	}
+}
+function setupSkills(ctx, fail) {
+	{
+		const effect = (run, label) => {
+			const result = ctx.effect(run, label);
+			Promise.resolve(result).catch(fail);
+			return result;
+		};
+		const React = require("react");
+		const h = React.createElement;
+		const dictionaries = {
+			en: {
+				trash: "Trash",
+				moveTrash: "Move to Trash",
+				restoreTrash: "Restore original",
+				deleteTrash: "Delete permanently",
+				confirmTrash: "Confirm permanent deletion",
+				trashWarning: "This permanently deletes the recoverable files. This cannot be undone.",
+				trashOrigin: "Original location",
+				trashEmpty: "Trash is empty",
+				"code.trash-conflict": "The original location already contains a skill",
+				"code.trash-readonly": "This source is read-only",
+				"code.trash-unavailable": "Trash storage is unavailable; the skill catalog is still available",
+				"code.trash-linked": "Linked or special write targets are not allowed",
+				"code.trash-failed": "The operation failed; check the original and Trash before retrying",
+				"code.trash-cancelled": "The operation was cancelled",
+				"code.trash-limit": "The skill exceeds safe processing limits",
+				"code.trash-overflow": "Trash has too many entries to list safely; organization data is kept",
+				"code.trash-skipped": "Some Trash records are unreadable; organization data is kept",
+				"code.trash-invalid": "The original location is no longer valid",
+				"code.trash-missing": "This Trash entry no longer exists",
+				"code.trash-confirm": "Confirm permanent deletion first",
+				"code.trash-cleanup": "Operation completed; remaining files need cleanup",
+				"code.trash-recovery": "Original removal failed; the complete Trash copy was retained for recovery",
+				"code.trash-state": "Files deleted, but annotation cleanup failed; reload state before retrying",
+				repositories: "Repositories",
+				scopeDiscover: "Discover Skills",
+				tabGit: "Git Repos",
+				catSourceLabel: "Discover sources",
+				catSourceClawhub: "ClawHub",
+				catSourceSkillsh: "skills.sh",
+				catSearchClawhub: "Search ClawHub",
+				catSearchSkillsh: "Search skills.sh",
+				catSearch: "Search",
+				catPopularNote: "ClawHub download ranking · Up to 100; sort only displayed items",
+				catSkillshHint: "skills.sh offers search only; enter a query to find skills.",
+				catLoading: "Loading…",
+				catLoadingMore: "Loading more…",
+				catLoadMore: "Load 10 more",
+				catEmpty: "No skills to show",
+				catSearchEmpty: "No skills match this search",
+				catLoadError: "Failed to load the catalog. Check your connection and retry.",
+				catRetry: "Retry",
+				catDownloads: "downloads",
+				catInstalls: "installs",
+				catStars: "stars",
+				catSort: "Sort displayed items",
+				catSortDownloads: "Downloads (ranking)",
+				catSortInstalls: "Installs (high to low)",
+				catSortName: "Name (A–Z)",
+				catStatusFilter: "Catalog status",
+				catStatusAll: "All statuses",
+				catStatusAvailable: "Not installed",
+				catStatusInstalled: "Installed",
+				catInstalled: "Installed",
+				catDetails: "Catalog details",
+				catInstall: "Install from catalog",
+				catInstallElsewhere: "Install elsewhere",
+				catUninstall: "Uninstall catalog copy",
+				catForget: "Forget catalog record",
+				catReassociate: "Adopt identical existing copy",
+				catCopy: "Copy SKILL.md",
+				catCopied: "Copied",
+				catCopyFailed: "Copy failed",
+				catClose: "Close",
+				catOrigin: "Origin",
+				catDetailLoading: "Loading details…",
+				catInstallTitle: "Install from catalog",
+				catInstallConfirm: "Confirm install",
+				destPath: "Destination folder",
+				destInvalid: "Choose an available destination to install",
+				destNoProjects: "No registered projects: only your DSH and Shared Agents folders are available.",
+				destProjectNote: "Written inside the project and may be committed to its repository.",
+				catInstallDone: "Installed from catalog",
+				catCopies: "Installed copies",
+				catUninstallTitle: "Uninstall catalog copy",
+				catUninstallBody: "This moves \"{name}\" from {where} to Trash. You can restore it from Trash.",
+				catForgetTitle: "Forget catalog record",
+				catForgetBody: "This removes the catalog record for \"{name}\" only. No files are changed or deleted.",
+				catSharedWarning: "This copy is in the shared agents folder. Other tools that read this folder will stop seeing it.",
+				catConfirmUninstall: "Move to Trash",
+				catConfirmForget: "Forget record",
+				"catHint.trashed": "A copy is in Trash. Restore it from Trash, or install into a different destination.",
+				"catHint.missing": "Its Trash entry no longer exists. Forget the record, then install again.",
+				"catHint.invalid-root": "The copy location is unavailable. Forget the record, then install again.",
+				"catStatus.installed": "Installed",
+				"catStatus.modified": "Modified locally",
+				"catStatus.missing": "Missing from disk",
+				"catStatus.trashed": "In Trash",
+				"catStatus.invalid-root": "Location unavailable",
+				"code.catalog-query": "The search or paging request is not valid",
+				"code.catalog-upstream": "The catalog could not be reached",
+				"code.catalog-response": "The catalog returned an unusable response",
+				"code.catalog-identity": "This catalog skill identity is not valid",
+				"code.catalog-package": "The catalog package is not a valid skill",
+				"code.catalog-confirm": "Confirm the installation first",
+				"code.catalog-action": "This catalog action is not supported",
+				"code.catalog-failed": "The catalog operation failed",
+				repoAddTitle: "Subscribe to a repository",
+				repoUrl: "Repository (owner/name, https URL or absolute folder)",
+				repoRef: "Branch or tag (optional)",
+				repoSubdirectory: "Subdirectory (optional)",
+				repoAdd: "Subscribe",
+				repoRefresh: "Refresh",
+				repoRefreshAll: "Refresh all",
+				repoFootnote: "Refresh checks repositories and skill updates without replacing local files. Historical backups are not cleaned automatically and use additional disk space.",
+				repoRefreshing: "Refreshing…",
+				repoUnsubscribe: "Unsubscribe (keeps installed skills)",
+				repoFilter: "Filter repository skills",
+				repoStatusFilter: "Filter by status",
+				repoRepoFilter: "Filter by repository",
+				repoAllStatuses: "All statuses",
+				repoAllRepositories: "All repositories",
+				repoConfirmUnsubscribe: "Unsubscribe from this repository? Installed skills and their provenance stay; the saved snapshot is removed.",
+				repoConfirmUnsubscribeYes: "Unsubscribe",
+				repoForget: "Forget record (deletes nothing)",
+				repoConfirmForget: "Forget this installation record? Only the tracking record is removed; no files are read, moved or deleted.",
+				repoConfirmForgetYes: "Forget record",
+				"repoStatus.update": "Update available",
+				repoUpdatePreview: "Preview update",
+				repoRollbackPreview: "Preview rollback to previous version",
+				repoApplyUpdate: "Apply update",
+				repoApplyRollback: "Apply rollback",
+				repoPreviewTitle: "Changes to the installed copy",
+				repoNoChanges: "No file changes",
+				repoLocalModified: "This copy was edited locally. Applying replaces those edits; the current copy is kept as the previous version.",
+				repoOverwrite: "Replace local edits",
+				repoApplying: "Applying…",
+				repoUpdated: "Updated {name}. The previous version is kept for rollback.",
+				repoRolledBack: "Rolled back {name} to the previous version.",
+				repoTrackedHint: "Only file contents and the executable bit are tracked; empty folders and other file attributes are not.",
+				repoUpstream: "Upstream",
+				"repoChange.added": "Added",
+				"repoChange.removed": "Removed",
+				"repoChange.modified": "Modified",
+				"code.repo-preview-stale": "The copy or the repository changed after this preview; preview again",
+				"code.repo-local-modified": "The copy has local edits; confirm replacing them first",
+				"code.repo-local-unsafe": "The installed copy contains links, special files or exceeds safe limits",
+				"code.repo-up-to-date": "This copy already matches the repository",
+				"code.repo-no-backup": "There is no previous version to roll back to",
+				"code.repo-backup-changed": "The saved previous version changed; rollback refused",
+				"code.repo-skill-renamed": "The skill was renamed upstream; the installed copy is unchanged",
+				"code.repo-recovery": "Automatic recovery failed; the original files are kept at {recovery}. Do not repeat the operation",
+				"code.repo-invalid-root": "The destination changed since install; the copy is not touched. Forget the record instead.",
+				"code.repo-root-valid": "The destination is unchanged; use Uninstall to Trash",
+				repoConflictIn: "Name already used in",
+				repoEmpty: "No repository subscriptions",
+				repoNoSkills: "No skills found in this snapshot",
+				repoInstall: "Install",
+				repoUninstall: "Uninstall to Trash",
+				repoDestination: "Install into",
+				dragTip: "Drag to move this skill to another category",
+				dragMoved: "Moved to another category:",
+				repoTracked: "Tracked installations",
+				repoSnapshot: "Snapshot",
+				repoLastError: "Last refresh failed; showing the previous snapshot",
+				repoBulk: "Refreshed {done} of {total}; {failed} failed",
+				repoFromSource: "Source",
+				repoInstalledAt: "Installed in",
+				repoNoInstalls: "No tracked installations",
+				"repoKind.git-commit": "Git commit",
+				"repoKind.archive-sha256": "Archive fingerprint (not a Git commit)",
+				"repoKind.folder-sha256": "Folder content fingerprint",
+				"repoStatus.available": "Available",
+				"repoStatus.installed": "Installed",
+				"repoStatus.modified": "Modified locally",
+				"repoStatus.missing": "Missing",
+				"repoStatus.conflict": "Name conflict",
+				"repoStatus.invalid": "Invalid",
+				"repoStatus.trashed": "In Trash",
+				"repoStatus.invalid-root": "Destination changed",
+				"code.repo-url": "Repository address is not supported (use owner/name, an https/http URL without credentials, or an absolute folder)",
+				"code.repo-ref": "Branch or tag name is not valid",
+				"code.repo-subdirectory": "Subdirectory is not valid or does not exist",
+				"code.repo-host": "Local, private and link-local network hosts are not allowed",
+				"code.repo-local": "The local folder is missing or is not a usable folder",
+				"code.repo-git": "Git could not read this repository",
+				"code.repo-git-missing": "Git is not installed or not on PATH",
+				"code.repo-network": "The repository could not be reached (redirects are not followed)",
+				"code.repo-notfound": "Repository, branch or tag was not found",
+				"code.repo-auth": "Authentication is required; credentials are not supported",
+				"code.repo-timeout": "The repository operation timed out",
+				"code.repo-limit": "The repository exceeds safe size, file-count or depth limits",
+				"code.repo-archive": "The repository archive is invalid or unsafe",
+				"code.repo-cancelled": "The operation was cancelled",
+				"code.repo-duplicate": "This repository is already subscribed",
+				"code.repo-busy": "This repository is already being refreshed",
+				"code.repo-not-found": "This subscription no longer exists",
+				"code.repo-stale": "The repository changed; refresh the preview and try again",
+				"code.repo-conflict": "A skill with this name already exists; nothing was overwritten",
+				"code.repo-skill-missing": "This skill is not in the current snapshot",
+				"code.repo-skill-invalid": "This skill is invalid and cannot be installed",
+				"code.repo-skill-limit": "This skill exceeds safe size limits",
+				"code.repo-skill-metadata": "This skill has invalid metadata",
+				"code.repo-snapshot-changed": "The stored snapshot no longer matches; refresh the repository",
+				"code.repo-not-installed": "This tracked installation no longer exists",
+				"code.repo-trashed": "This installation is already in Trash",
+				"code.repo-missing": "The installed copy is missing from disk",
+				"code.repo-state-invalid": "Repository state is unreadable and was left untouched",
+				"code.repo-state-write": "Repository state could not be saved",
+				"code.repo-install-failed": "The skill could not be installed",
+				"code.repo-failed": "The repository operation failed",
+				importSkills: "Import skills",
+				importPath: "Local absolute path",
+				previewImport: "Preview local import",
+				importNow: "Import now",
+				uploadFiles: "ZIP or Markdown files",
+				uploadFolder: "Skill folder",
+				importConflict: "Existing skills",
+				skipImport: "Skip existing",
+				overwriteImport: "Overwrite existing (replace all bundled files)",
+				importResult: "Import results",
+				pendingImport: "Ready",
+				conflictsImport: "Conflicts",
+				importedImport: "Imported",
+				skippedImport: "Skipped",
+				failedImport: "Failed",
+				warningsImport: "Cleanup warnings",
+				inputsImport: "Archives processed",
+				"code.import-cleanup": "Imported successfully; backup cleanup failed. Check the remaining backup path; its contents may be incomplete",
+				importHint: "Copies original files. Select skip or overwrite explicitly. Local preview never writes.",
+				create: "Create skill",
+				skillName: "Skill name",
+				skillDescription: "Routing description",
+				skillBody: "Markdown instructions",
+				destination: "Creation destination",
+				created: "Skill created",
+				"code.create-invalid": "Enter a valid name, description and instructions",
+				"code.create-conflict": "A skill with this name already exists",
+				"code.create-readonly": "This source is read-only",
+				"code.create-linked-root": "Linked writable folders are not allowed",
+				"code.create-too-large": "Skill content exceeds the size limit",
+				"code.create-failed": "Unable to create the skill",
+				"code.import-path": "Unsafe import path",
+				"code.import-limit": "Import exceeds file, byte, depth or entry limits",
+				"code.import-linked": "Linked or special files are not allowed",
+				"code.import-empty": "No skill documents found",
+				"code.import-metadata": "Skill metadata is invalid",
+				"code.import-name": "Skill name is invalid",
+				"code.import-duplicate": "Duplicate import paths or names",
+				"code.import-encoding": "Invalid upload encoding",
+				"code.import-archive": "Invalid or incomplete ZIP archive",
+				"code.import-cancelled": "Import cancelled; unpublished changes discarded",
+				"code.import-overlap": "Import source overlaps the destination",
+				"code.import-conflict": "Choose skip or overwrite explicitly",
+				"code.import-failed": "Unable to import this skill",
+				"code.import-recovery": "Restoration failed; original backup retained in the destination for recovery",
+				title: "Skill manager",
+				search: "Search skills",
+				all: "All sources",
+				any: "All statuses",
+				enabled: "Enabled",
+				disabled: "Disabled",
+				invalid: "Invalid",
+				shadowed: "Shadowed",
+				retry: "Retry",
+				loading: "Loading skills…",
+				error: "Unable to load skills",
+				details: "Details",
+				close: "Close",
+				empty: "No matching skills",
+				source: "Source",
+				toggle: "Toggle",
+				diagnostics: "Diagnostics",
+				blocked: "Blocked by author",
+				copyText: "Copy text",
+				copyCopy: "Toggle copy",
+				toggleSource: "Toggle source",
+				modelInvocation: "Model invocation",
+				userInvocation: "User invocation",
+				allowed: "Allowed",
+				denied: "Denied",
+				shadowedBy: "Shadowed by",
+				reloadState: "Reload state",
+				refresh: "Refresh",
+				refreshAria: "Refresh skills",
+				actionsAria: "Skill actions",
+				refreshing: "Refreshing…",
+				statsAria: "Skill statistics",
+				statSkill: "skill",
+				statSkills: "skills",
+				statEnabled: "enabled",
+				statDisabled: "disabled",
+				statDiagnostic: "diagnostic",
+				statDiagnostics: "diagnostics",
+				stateLocked: "Skill state is invalid; changes are locked",
+				"diag.discovery-truncated": "Discovery stopped at the safe limit",
+				sourceProblems: "to review",
+				linkedReadOnly: "Linked (read-only)",
+				diagWarnings: "warnings",
+				diagWarning: "warning",
+				diagNotes: "notes",
+				diagNote: "note",
+				showMoreCount: "Show {count} more",
+				diagGeneral: "General",
+				showLess: "Show less",
+				diagProblems: "problems need attention",
+				diagProblem: "problem needs attention",
+				diagEntriesCount: "{count} entries could not be read",
+				diagEntriesOne: "1 entry could not be read",
+				"diagReason.permission": "Reason: permission denied",
+				"diagReason.not-directory": "Reason: expected a folder but found a file",
+				"diagReason.broken-link": "Reason: a link points to something that no longer exists",
+				"diagReason.unknown": "Reason: the folder could not be read",
+				"diagNext.unreadable-entries": "Check the folder permissions. These entries are skipped; your other skills are unaffected.",
+				"diagNext.source-unavailable": "Check that the folder exists and is readable, or change the folder.",
+				"diagNext.unreadable-skill": "Check the file permissions or replace the file.",
+				"diagNext.oversized-skill": "Shorten SKILL.md; very large files are skipped.",
+				"diagNext.empty-skill": "Add the skill name and description.",
+				"diagNext.linked-outside-root": "This is allowed and read-only; nothing needs to be done.",
+				diagDetails: "Affected paths",
+				diagMore: "+{count} more",
+				sourceOn: "On",
+				sourceOff: "Off",
+				"diag.source-unavailable": "Source unavailable",
+				"diag.unreadable-entries": "Some entries could not be read",
+				"diag.unreadable-skill": "Skill could not be read",
+				"diag.oversized-skill": "Skill exceeds the size limit",
+				"diag.empty-skill": "Skill file is empty",
+				"diag.invalid-frontmatter": "Invalid frontmatter",
+				"diag.invalid-yaml": "Invalid YAML",
+				"diag.invalid-metadata": "Invalid metadata",
+				"diag.invalid-policy": "Invalid invocation policy",
+				"diag.linked-outside-root": "Skill document is linked from outside its source",
+				"diag.state-invalid": "Invalid skill state; managed skills are disabled",
+				"diag.project-unavailable": "Project unavailable",
+				"diag.project-missing": "Project folder is missing",
+				"diag.project-unreadable": "Project folder is not readable",
+				"diag.project-source-outside": "Project skill folder resolves outside the project",
+				"diag.project-source-overlap": "Project skill folder overlaps another source",
+				scope: "View",
+				scopeGlobal: "Global skills",
+				scopeProject: "Project skills",
+				project: "Project",
+				projectNone: "Select a registered project",
+				projectEmpty: "No registered projects yet",
+				projectHint: "Project skills are read from the project and switched only for that project",
+				readOnlySource: "Project DSH skills have no source switch",
+				"code.project-missing": "folder missing",
+				"code.project-unreadable": "not readable",
+				"code.project-unavailable": "unavailable",
+				"code.project-unregistered": "Project is not registered",
+				"code.project-mismatch": "The selected project does not match this item",
+				"code.project-dsh-source": "Project DSH skills have no source switch",
+				"code.root-not-absolute": "Enter an absolute folder path",
+				"code.root-too-long": "The folder path is too long",
+				"code.root-not-found": "The folder does not exist",
+				"code.root-not-directory": "The path is not a folder",
+				"code.root-reserved": "This folder is reserved by the Skill manager",
+				"code.root-overlap": "This folder overlaps another skill source",
+				"code.custom-limit": "The limit of {limit} custom sources is reached",
+				"code.custom-label": "The name or group is invalid or too long",
+				"code.custom-unknown": "This custom source no longer exists",
+				"code.scan-aborted": "The folder preview was cancelled",
+				"code.forbidden": "The request was rejected; reload the page and retry",
+				"code.unsupported": "The request format is not supported",
+				"code.stopping": "The Skill manager is stopping; try again shortly",
+				"code.state-invalid": "Skill state is invalid; reload the state before changing sources",
+				"diag.registry-unavailable": "The workspace registry is unavailable; project policy may not apply",
+				addSourceNamed: "Add source",
+				editNamed: "Edit",
+				removeNamed: "Remove source",
+				confirmNamed: "Confirm removal",
+				folders: "Source folders",
+				foldersHint: "Preview a folder first; nothing is registered until you add it. Removing a source never deletes files",
+				folderPath: "Folder path",
+				scanFolder: "Preview folder",
+				addFolder: "Add folder",
+				addSource: "Add source",
+				candidates: "Candidate sources",
+				noCandidates: "No skill folders found within two levels",
+				candidateRegistered: "Registered",
+				candidateConflict: "Overlaps another source",
+				skillCount: "skills",
+				customBadge: "Custom folder",
+				browse: "Browse…",
+				customTag: "custom",
+				addCategoryHere: "New category in this source",
+				folderTitleFor: "Change the skills folder for",
+				folderHelp: "DSH reads this source from the folder below. Pick another folder if you keep these skills elsewhere.",
+				folderDefault: "Default folder",
+				categoryHint: "Group skills in",
+				categoryTaken: "A category with this name already exists.",
+				editFolder: "Edit folder",
+				more: "More actions",
+				newCategory: "New category",
+				addSkillsHere: "Add selected skills",
+				enabledCount: "enabled",
+				editNote: "Edit note",
+				noteAndDescription: "Note replaces the description in this list",
+				browseAria: "Browse for a folder",
+				changeFolder: "Change folder",
+				saveFolder: "Save folder",
+				resetFolder: "Reset to default",
+				folderRedirected: "Folder changed from the default",
+				"code.root-unsupported": "This source folder cannot be changed",
+				"code.project-scope-unsupported": "Provider folders can only be changed in Global skills",
+				"diag.root-override-ignored": "A saved folder override was ignored because it is no longer allowed",
+				edit: "Edit",
+				save: "Save",
+				cancel: "Cancel",
+				label: "Name",
+				group: "Group",
+				remove: "Remove source",
+				removeNote: "This removes only the source entry. Skill files are not deleted",
+				confirmRemove: "Confirm removal",
+				added: "Source added",
+				registered: "This folder is already a source",
+				categories: "Categories",
+				categoryName: "Category name",
+				addCategory: "Add category",
+				uncategorized: "Uncategorized",
+				renameCategory: "Rename category",
+				deleteCategory: "Delete category",
+				confirmDeleteCategory: "Confirm delete category",
+				deleteCategoryNote: "Skills in this category become uncategorized. No skill files are changed",
+				selectSkill: "Select skill",
+				assignTo: "Assign selected to",
+				filterCategory: "Category",
+				allCategories: "All categories",
+				note: "Note",
+				saveNote: "Save note",
+				noteHint: "Notes are searchable and never change the skill description",
+				noteLimit: "Up to 500 characters",
+				confirmNote: "Confirm",
+				importDropTitle: "Drop a skill here",
+				importDropHint: "Supports .zip, a skill folder, or one SKILL.md",
+				importChooseFolder: "Choose folder",
+				importChooseFile: "Choose file",
+				importChosen: "{count} item(s) selected",
+				importClear: "Clear",
+				importDropUnsupported: "Only .zip files, folders and SKILL.md files can be imported; other items were ignored.",
+				importDropFailed: "The dropped items could not be read.",
+				skillSource: "Skill source",
+				skillSourcePick: "Choose a source…",
+				hideForm: "Hide form",
+				destLocation: "Location",
+				catHelp: "Categories stay in this source and do not move files.",
+				catEmptyHere: "No skills yet. Use More on a skill to place it here.",
+				addSkillsTo: "Add skills to category",
+				addSkillsNone: "No other skills to add.",
+				addSkillsCount: "Add skills",
+				toggleCategory: "Toggle category",
+				createHere: "Add skill",
+				createHereBlocked: "Skills cannot be added here: this folder is read-only for Waycraft",
+				createBlockedTool: "Read-only for Waycraft: this folder belongs to another tool. Add skills to DSH or Agents instead.",
+				createBlockedCustom: "Read-only for Waycraft: custom sources are only read. Add skills to DSH or Agents instead.",
+				destScope: "Scope",
+				destScopeUser: "User directory",
+				destScopeProject: "Project",
+				noteSavedHint: "Saved in the plugin display layer without modifying SKILL.md. Clear to revert to original description.",
+				copied: "Copied",
+				pathChip: "Writes to",
+				createFootnote: "Created skills are not linked to repository updates, and no source file is modified.",
+				importReqTitle: "File requirements",
+				importReq1: "Archives and folders must contain SKILL.md.",
+				importReq2: "SKILL.md must include a YAML name and description.",
+				importReq3: "Import copies all content and never modifies the source.",
+				customSources: "Custom sources",
+				"code.invalid-request": "The request was not valid",
+				"code.source-unknown": "This source is not available in this view",
+				"code.organization-limit": "Too many categories, notes or assignments for this source",
+				"code.state-too-large": "The saved organization data is too large; remove some notes or categories",
+				placement: "Entry placement",
+				placementHint: "Choose where the Skill manager appears: Settings, the sidebar or both",
+				placementBoth: "Both",
+				placementSidebar: "Sidebar only",
+				placementSettings: "Settings only",
+				"code.category-name": "Enter a category name of up to 24 characters",
+				"code.category-duplicate": "A category with this name already exists",
+				"code.category-unknown": "This category no longer exists",
+				"code.category-limit": "The limit of {limit} categories is reached",
+				"code.skill-unknown": "This skill is not available in this view",
+				"code.note-too-long": "The note is longer than {limit} characters",
+				"code.placement-invalid": "The entry placement is invalid"
+			},
+			ar: {
+				trash: "سلة المحذوفات",
+				moveTrash: "نقل إلى سلة المحذوفات",
+				restoreTrash: "استعادة إلى المصدر",
+				deleteTrash: "حذف نهائي",
+				confirmTrash: "تأكيد الحذف النهائي",
+				trashWarning: "سيتم حذف الملفات القابلة للاستعادة نهائياً. لا يمكن التراجع.",
+				trashOrigin: "الموقع الأصلي",
+				trashEmpty: "سلة المحذوفات فارغة",
+				"code.trash-conflict": "يوجد بالفعل مهارة في الموقع الأصلي",
+				"code.trash-readonly": "هذا المصدر للقراءة فقط",
+				"code.trash-unavailable": "تخزين سلة المحذوفات غير متاح؛ ما زال كتالوج المهارات متاحًا",
+				"code.trash-linked": "لا يُسمح بالكتابة إلى روابط أو ملفات خاصة",
+				"code.trash-failed": "فشلت العملية؛ افحص المصدر والسلة قبل المحاولة مجدداً",
+				"code.trash-cancelled": "أُلغيت العملية",
+				"code.trash-limit": "تتجاوز المهارة حدود المعالجة الآمنة",
+				"code.trash-overflow": "عدد عناصر سلة المحذوفات أكبر من أن يُعرض بأمان؛ بيانات التنظيم محفوظة",
+				"code.trash-skipped": "بعض سجلات سلة المحذوفات غير قابلة للقراءة؛ بيانات التنظيم محفوظة",
+				"code.trash-invalid": "لم يعد الموقع الأصلي صالحاً",
+				"code.trash-missing": "لم يعد هذا العنصر في سلة المحذوفات",
+				"code.trash-confirm": "أكد الحذف النهائي أولاً",
+				"code.trash-cleanup": "اكتملت العملية؛ تحتاج الملفات المتبقية إلى تنظيف",
+				"code.trash-recovery": "فشل حذف المصدر؛ حُفظت نسخة كاملة في السلة للاستعادة",
+				"code.trash-state": "حُذفت الملفات لكن فشل تنظيف التعليقات؛ أعد تحميل الحالة",
+				repositories: "المستودعات",
+				scopeDiscover: "اكتشاف المهارات",
+				tabGit: "مستودعات Git",
+				catSourceLabel: "مصادر الاكتشاف",
+				catSourceClawhub: "ClawHub",
+				catSourceSkillsh: "skills.sh",
+				catSearchClawhub: "ابحث في ClawHub",
+				catSearchSkillsh: "ابحث في skills.sh",
+				catSearch: "بحث",
+				catPopularNote: "ترتيب ClawHub حسب التنزيلات · حتى 100؛ الفرز للعناصر المعروضة فقط",
+				catSkillshHint: "يوفّر skills.sh البحث فقط؛ أدخل عبارة بحث للعثور على المهارات.",
+				catLoading: "جارٍ التحميل…",
+				catLoadingMore: "جارٍ تحميل المزيد…",
+				catLoadMore: "تحميل 10 أخرى",
+				catEmpty: "لا توجد مهارات للعرض",
+				catSearchEmpty: "لا توجد مهارات مطابقة لهذا البحث",
+				catLoadError: "تعذر تحميل الفهرس. تحقق من الاتصال وأعد المحاولة.",
+				catRetry: "إعادة المحاولة",
+				catDownloads: "تنزيل",
+				catInstalls: "تثبيت",
+				catStars: "نجمة",
+				catSort: "فرز العناصر المعروضة",
+				catSortDownloads: "التنزيلات (الترتيب)",
+				catSortInstalls: "التثبيتات (من الأعلى)",
+				catSortName: "الاسم (أ–ي)",
+				catStatusFilter: "حالة الفهرس",
+				catStatusAll: "كل الحالات",
+				catStatusAvailable: "غير مثبتة",
+				catStatusInstalled: "مثبتة",
+				catInstalled: "مثبتة",
+				catDetails: "تفاصيل الفهرس",
+				catInstall: "تثبيت من الفهرس",
+				catInstallElsewhere: "تثبيت في موضع آخر",
+				catUninstall: "إزالة نسخة الفهرس",
+				catForget: "نسيان سجل الفهرس",
+				catReassociate: "تبنّي النسخة المطابقة الموجودة",
+				catCopy: "نسخ SKILL.md",
+				catCopied: "تم النسخ",
+				catCopyFailed: "فشل النسخ",
+				catClose: "إغلاق",
+				catOrigin: "المصدر",
+				catDetailLoading: "جارٍ تحميل التفاصيل…",
+				catInstallTitle: "تثبيت من الفهرس",
+				catInstallConfirm: "تأكيد التثبيت",
+				destPath: "مجلد الوجهة",
+				destInvalid: "اختر وجهة متاحة للتثبيت",
+				destNoProjects: "لا توجد مشاريع مسجلة: المتاح فقط مجلدا DSH والوكلاء المشتركين.",
+				destProjectNote: "يُكتب داخل المشروع وقد يُرفع إلى مستودعه.",
+				catInstallDone: "تم التثبيت من الفهرس",
+				catCopies: "النسخ المثبتة",
+				catUninstallTitle: "إزالة نسخة الفهرس",
+				catUninstallBody: "سيُنقل \"{name}\" من {where} إلى السلة. يمكنك استعادته من السلة.",
+				catForgetTitle: "نسيان سجل الفهرس",
+				catForgetBody: "سيُزال سجل الفهرس الخاص بـ \"{name}\" فقط. لن تتغير أي ملفات ولن تُحذف.",
+				catSharedWarning: "هذه النسخة في مجلد الوكلاء المشترك. ستتوقف الأدوات الأخرى التي تقرأ هذا المجلد عن رؤيتها.",
+				catConfirmUninstall: "نقل إلى السلة",
+				catConfirmForget: "نسيان السجل",
+				"catHint.trashed": "توجد نسخة في السلة. استعدها من السلة أو ثبّت في وجهة مختلفة.",
+				"catHint.missing": "لم يعد عنصرها في السلة. انسَ السجل ثم ثبّت مرة أخرى.",
+				"catHint.invalid-root": "موضع النسخة غير متاح. انسَ السجل ثم ثبّت مرة أخرى.",
+				"catStatus.installed": "مثبتة",
+				"catStatus.modified": "معدّلة محلياً",
+				"catStatus.missing": "مفقودة من القرص",
+				"catStatus.trashed": "في السلة",
+				"catStatus.invalid-root": "الموقع غير متاح",
+				"code.catalog-query": "طلب البحث أو التصفح غير صالح",
+				"code.catalog-upstream": "تعذر الوصول إلى الفهرس",
+				"code.catalog-response": "أعاد الفهرس استجابة غير صالحة للاستخدام",
+				"code.catalog-identity": "هوية مهارة الفهرس غير صالحة",
+				"code.catalog-package": "حزمة الفهرس ليست مهارة صالحة",
+				"code.catalog-confirm": "أكّد التثبيت أولاً",
+				"code.catalog-action": "إجراء الفهرس هذا غير مدعوم",
+				"code.catalog-failed": "فشلت عملية الفهرس",
+				repoAddTitle: "الاشتراك في مستودع",
+				repoUrl: "المستودع (owner/name أو رابط https أو مجلد مطلق)",
+				repoRef: "الفرع أو الوسم (اختياري)",
+				repoSubdirectory: "المجلد الفرعي (اختياري)",
+				repoAdd: "اشتراك",
+				repoRefresh: "تحديث",
+				repoRefreshAll: "تحديث الكل",
+				repoFootnote: "يتحقق التحديث من المستودعات وتحديثات المهارات دون استبدال الملفات المحلية. لا تُنظَّف النسخ الاحتياطية السابقة تلقائيًا وتستهلك مساحة قرص إضافية.",
+				repoRefreshing: "جارٍ التحديث…",
+				repoUnsubscribe: "إلغاء الاشتراك (تبقى المهارات المثبتة)",
+				repoFilter: "تصفية مهارات المستودع",
+				repoStatusFilter: "تصفية حسب الحالة",
+				repoRepoFilter: "تصفية حسب المستودع",
+				repoAllStatuses: "كل الحالات",
+				repoAllRepositories: "كل المستودعات",
+				repoConfirmUnsubscribe: "إلغاء الاشتراك في هذا المستودع؟ تبقى المهارات المثبتة وسجل مصدرها، وتُحذف اللقطة المحفوظة.",
+				repoConfirmUnsubscribeYes: "إلغاء الاشتراك",
+				repoForget: "نسيان السجل (لا يحذف شيئاً)",
+				repoConfirmForget: "نسيان سجل هذا التثبيت؟ يُزال سجل التتبع فقط؛ لا تُقرأ ملفات ولا تُنقل ولا تُحذف.",
+				repoConfirmForgetYes: "نسيان السجل",
+				"repoStatus.update": "تحديث متاح",
+				repoUpdatePreview: "معاينة التحديث",
+				repoRollbackPreview: "معاينة الرجوع إلى النسخة السابقة",
+				repoApplyUpdate: "تطبيق التحديث",
+				repoApplyRollback: "تطبيق الرجوع",
+				repoPreviewTitle: "التغييرات على النسخة المثبتة",
+				repoNoChanges: "لا تغييرات في الملفات",
+				repoLocalModified: "عُدّلت هذه النسخة محلياً. سيستبدل التطبيق تلك التعديلات وتُحفظ النسخة الحالية كنسخة سابقة.",
+				repoOverwrite: "استبدال التعديلات المحلية",
+				repoApplying: "جارٍ التطبيق…",
+				repoUpdated: "تم تحديث {name}. تُحفظ النسخة السابقة للرجوع إليها.",
+				repoRolledBack: "تم الرجوع بـ {name} إلى النسخة السابقة.",
+				repoTrackedHint: "يُتتبَّع محتوى الملفات وإذن التنفيذ فقط؛ لا تُتتبَّع المجلدات الفارغة ولا سمات الملفات الأخرى.",
+				repoUpstream: "المصدر",
+				"repoChange.added": "مضاف",
+				"repoChange.removed": "محذوف",
+				"repoChange.modified": "معدّل",
+				"code.repo-preview-stale": "تغيرت النسخة أو المستودع بعد هذه المعاينة؛ أعد المعاينة",
+				"code.repo-local-modified": "للنسخة تعديلات محلية؛ أكّد استبدالها أولاً",
+				"code.repo-local-unsafe": "تحتوي النسخة المثبتة على روابط أو ملفات خاصة أو تتجاوز الحدود الآمنة",
+				"code.repo-up-to-date": "هذه النسخة مطابقة للمستودع بالفعل",
+				"code.repo-no-backup": "لا توجد نسخة سابقة للرجوع إليها",
+				"code.repo-backup-changed": "تغيرت النسخة السابقة المحفوظة؛ رُفض الرجوع",
+				"code.repo-skill-renamed": "أُعيدت تسمية المهارة في المصدر؛ لم تتغير النسخة المثبتة",
+				"code.repo-recovery": "فشل الاسترداد التلقائي؛ الملفات الأصلية محفوظة في {recovery}. لا تكرر العملية",
+				"code.repo-invalid-root": "تغيّرت الوجهة منذ التثبيت؛ لا يُمس النسخ. انسَ السجل بدلاً من ذلك.",
+				"code.repo-root-valid": "الوجهة لم تتغير؛ استخدم النقل إلى سلة المحذوفات",
+				repoConflictIn: "الاسم مستخدم في",
+				repoEmpty: "لا توجد اشتراكات مستودعات",
+				repoNoSkills: "لا توجد مهارات في هذه اللقطة",
+				repoInstall: "تثبيت",
+				repoUninstall: "إزالة إلى السلة",
+				repoDestination: "التثبيت في",
+				dragTip: "اسحب لنقل هذه المهارة إلى تصنيف آخر",
+				dragMoved: "تم النقل إلى تصنيف آخر:",
+				repoTracked: "التثبيتات المتتبعة",
+				repoSnapshot: "اللقطة",
+				repoLastError: "فشل آخر تحديث؛ تُعرض اللقطة السابقة",
+				repoBulk: "حُدّث {done} من {total}؛ فشل {failed}",
+				repoFromSource: "المصدر",
+				repoInstalledAt: "مثبّت في",
+				repoNoInstalls: "لا توجد تثبيتات متتبعة",
+				"repoKind.git-commit": "إيداع Git",
+				"repoKind.archive-sha256": "بصمة الأرشيف (ليست إيداع Git)",
+				"repoKind.folder-sha256": "بصمة محتوى المجلد",
+				"repoStatus.available": "متاحة",
+				"repoStatus.installed": "مثبتة",
+				"repoStatus.modified": "معدلة محلياً",
+				"repoStatus.missing": "مفقودة",
+				"repoStatus.conflict": "تعارض اسم",
+				"repoStatus.invalid": "غير صالحة",
+				"repoStatus.trashed": "في السلة",
+				"repoStatus.invalid-root": "تغيّرت الوجهة",
+				"code.repo-url": "عنوان المستودع غير مدعوم (استخدم owner/name أو رابط https/http بلا بيانات اعتماد أو مجلداً مطلقاً)",
+				"code.repo-ref": "اسم الفرع أو الوسم غير صالح",
+				"code.repo-subdirectory": "المجلد الفرعي غير صالح أو غير موجود",
+				"code.repo-host": "المضيفات المحلية والخاصة غير مسموحة",
+				"code.repo-local": "المجلد المحلي مفقود أو غير صالح",
+				"code.repo-git": "تعذرت قراءة المستودع عبر Git",
+				"code.repo-git-missing": "Git غير مثبت أو غير موجود في PATH",
+				"code.repo-network": "تعذر الوصول إلى المستودع (لا تُتبع إعادة التوجيه)",
+				"code.repo-notfound": "لم يُعثر على المستودع أو الفرع أو الوسم",
+				"code.repo-auth": "المصادقة مطلوبة؛ بيانات الاعتماد غير مدعومة",
+				"code.repo-timeout": "انتهت مهلة عملية المستودع",
+				"code.repo-limit": "يتجاوز المستودع حدود الحجم أو عدد الملفات أو العمق الآمنة",
+				"code.repo-archive": "أرشيف المستودع غير صالح أو غير آمن",
+				"code.repo-cancelled": "أُلغيت العملية",
+				"code.repo-duplicate": "هذا المستودع مشترك فيه بالفعل",
+				"code.repo-busy": "يجري تحديث هذا المستودع بالفعل",
+				"code.repo-not-found": "لم يعد هذا الاشتراك موجوداً",
+				"code.repo-stale": "تغير المستودع؛ حدّث المعاينة وأعد المحاولة",
+				"code.repo-conflict": "توجد مهارة بهذا الاسم؛ لم يُستبدل شيء",
+				"code.repo-skill-missing": "هذه المهارة ليست في اللقطة الحالية",
+				"code.repo-skill-invalid": "هذه المهارة غير صالحة ولا يمكن تثبيتها",
+				"code.repo-skill-limit": "تتجاوز هذه المهارة حدود الحجم الآمنة",
+				"code.repo-skill-metadata": "بيانات هذه المهارة الوصفية غير صالحة",
+				"code.repo-snapshot-changed": "لم تعد اللقطة المخزنة مطابقة؛ حدّث المستودع",
+				"code.repo-not-installed": "لم يعد هذا التثبيت المتتبع موجوداً",
+				"code.repo-trashed": "هذا التثبيت موجود بالفعل في السلة",
+				"code.repo-missing": "النسخة المثبتة مفقودة من القرص",
+				"code.repo-state-invalid": "حالة المستودعات غير مقروءة وتُركت دون تغيير",
+				"code.repo-state-write": "تعذر حفظ حالة المستودعات",
+				"code.repo-install-failed": "تعذر تثبيت المهارة",
+				"code.repo-failed": "فشلت عملية المستودع",
+				importSkills: "استيراد مهارات",
+				importPath: "المسار المحلي المطلق",
+				previewImport: "معاينة الاستيراد المحلي",
+				importNow: "استيراد الآن",
+				uploadFiles: "ملفات ZIP أو Markdown",
+				uploadFolder: "مجلد مهارة",
+				importConflict: "المهارات الموجودة",
+				skipImport: "تخطي الموجود",
+				overwriteImport: "استبدال الموجود (كل ملفات الحزمة)",
+				importResult: "نتائج الاستيراد",
+				pendingImport: "جاهزة",
+				conflictsImport: "تعارضات",
+				importedImport: "مستوردة",
+				skippedImport: "متخطاة",
+				failedImport: "فاشلة",
+				warningsImport: "تحذيرات التنظيف",
+				inputsImport: "الأرشيفات المعالجة",
+				"code.import-cleanup": "تم الاستيراد بنجاح؛ تعذر تنظيف النسخة الاحتياطية. تحقق من مسار البقايا؛ قد تكون محتوياتها غير مكتملة",
+				importHint: "ينسخ الملفات الأصلية. اختر التخطي أو الاستبدال صراحةً. المعاينة المحلية لا تكتب ملفات.",
+				create: "إنشاء مهارة",
+				skillName: "اسم المهارة",
+				skillDescription: "وصف الاستخدام",
+				skillBody: "تعليمات Markdown",
+				destination: "وجهة الإنشاء",
+				created: "تم إنشاء المهارة",
+				"code.create-invalid": "أدخل اسمًا ووصفًا وتعليمات صالحة",
+				"code.create-conflict": "توجد مهارة بهذا الاسم بالفعل",
+				"code.create-readonly": "هذا المصدر للقراءة فقط",
+				"code.create-linked-root": "لا يُسمح بمجلدات كتابة مرتبطة",
+				"code.create-too-large": "محتوى المهارة يتجاوز الحد المسموح",
+				"code.create-failed": "تعذر إنشاء المهارة",
+				"code.import-path": "مسار الاستيراد غير آمن",
+				"code.import-limit": "يتجاوز الاستيراد حدود الملفات أو الحجم أو العمق أو عدد العناصر",
+				"code.import-linked": "لا يُسمح بالملفات المرتبطة أو الخاصة",
+				"code.import-empty": "لم يتم العثور على مستندات مهارات",
+				"code.import-metadata": "بيانات المهارة غير صالحة",
+				"code.import-name": "اسم المهارة غير صالح",
+				"code.import-duplicate": "مسارات أو أسماء استيراد مكررة",
+				"code.import-encoding": "ترميز الرفع غير صالح",
+				"code.import-archive": "أرشيف ZIP غير صالح أو غير مكتمل",
+				"code.import-cancelled": "تم إلغاء الاستيراد والتخلص من التغييرات غير المنشورة",
+				"code.import-overlap": "يتداخل مصدر الاستيراد مع الوجهة",
+				"code.import-conflict": "اختر التخطي أو الاستبدال صراحةً",
+				"code.import-failed": "تعذر استيراد هذه المهارة",
+				"code.import-recovery": "فشلت الاستعادة؛ تم الاحتفاظ بالنسخة الأصلية في مجلد الوجهة لاستعادتها",
+				title: "مدير المهارات",
+				search: "البحث عن مهارات",
+				all: "كل المصادر",
+				any: "كل الحالات",
+				enabled: "مفعلة",
+				disabled: "معطلة",
+				invalid: "غير صالحة",
+				shadowed: "محجوبة بنسخة أعلى أولوية",
+				retry: "إعادة المحاولة",
+				loading: "جارٍ تحميل المهارات…",
+				error: "تعذر تحميل المهارات",
+				details: "التفاصيل",
+				close: "إغلاق",
+				empty: "لا توجد مهارات مطابقة",
+				source: "المصدر",
+				toggle: "تبديل",
+				diagnostics: "التشخيصات",
+				blocked: "محجوبة بقيد المؤلف",
+				copyText: "نسخ النص",
+				copyCopy: "تبديل النسخة",
+				toggleSource: "تبديل المصدر",
+				modelInvocation: "استدعاء النموذج",
+				userInvocation: "استدعاء المستخدم",
+				allowed: "مسموح",
+				denied: "مرفوض",
+				shadowedBy: "محجوبة بواسطة",
+				reloadState: "إعادة قراءة الحالة",
+				refresh: "إعادة تحميل",
+				refreshAria: "إعادة تحميل المهارات",
+				actionsAria: "إجراءات المهارات",
+				refreshing: "جارٍ إعادة التحميل…",
+				statsAria: "إحصاءات المهارات",
+				statSkill: "مهارة",
+				statSkills: "مهارات",
+				statEnabled: "مفعلة",
+				statDisabled: "معطلة",
+				statDiagnostic: "تشخيص",
+				statDiagnostics: "تشخيصات",
+				stateLocked: "حالة المهارات غير صالحة؛ التغييرات مقفلة",
+				"diag.discovery-truncated": "توقف الاكتشاف عند الحد الآمن",
+				sourceProblems: "للمراجعة",
+				linkedReadOnly: "مرتبطة (للقراءة فقط)",
+				diagWarnings: "تحذيرات",
+				diagWarning: "تحذير",
+				diagNotes: "ملاحظات",
+				diagNote: "ملاحظة",
+				showMoreCount: "عرض {count} إضافية",
+				diagGeneral: "عام",
+				showLess: "عرض أقل",
+				diagProblems: "مشكلات تحتاج إلى انتباه",
+				diagProblem: "مشكلة تحتاج إلى انتباه",
+				diagEntriesCount: "تعذرت قراءة {count} عنصر",
+				diagEntriesOne: "تعذرت قراءة عنصر واحد",
+				"diagReason.permission": "السبب: تم رفض الإذن",
+				"diagReason.not-directory": "السبب: كان المتوقع مجلدًا لكن وُجد ملف",
+				"diagReason.broken-link": "السبب: رابط يشير إلى عنصر لم يعد موجودًا",
+				"diagReason.unknown": "السبب: تعذرت قراءة المجلد",
+				"diagNext.unreadable-entries": "تحقق من أذونات المجلد. يتم تخطي هذه العناصر ولا تتأثر مهاراتك الأخرى.",
+				"diagNext.source-unavailable": "تحقق من وجود المجلد وقابليته للقراءة، أو غيّر المجلد.",
+				"diagNext.unreadable-skill": "تحقق من أذونات الملف أو استبدله.",
+				"diagNext.oversized-skill": "قصّر ملف SKILL.md؛ يتم تخطي الملفات الكبيرة جدًا.",
+				"diagNext.empty-skill": "أضف اسم المهارة ووصفها.",
+				"diagNext.linked-outside-root": "هذا مسموح وللقراءة فقط؛ لا يلزم أي إجراء.",
+				diagDetails: "المسارات المتأثرة",
+				diagMore: "+{count} أخرى",
+				sourceOn: "مفعّل",
+				sourceOff: "معطّل",
+				"diag.source-unavailable": "المصدر غير متاح",
+				"diag.unreadable-entries": "تعذرت قراءة بعض العناصر",
+				"diag.unreadable-skill": "تعذرت قراءة المهارة",
+				"diag.oversized-skill": "حجم المهارة يتجاوز الحد",
+				"diag.empty-skill": "ملف المهارة فارغ",
+				"diag.invalid-frontmatter": "بيانات وصفية غير صالحة",
+				"diag.invalid-yaml": "بيانات YAML غير صالحة",
+				"diag.invalid-metadata": "بيانات وصفية غير صالحة",
+				"diag.invalid-policy": "سياسة استدعاء غير صالحة",
+				"diag.linked-outside-root": "وثيقة المهارة مرتبطة من خارج مصدرها",
+				"diag.state-invalid": "حالة المهارات غير صالحة؛ المهارات المُدارة معطلة",
+				"diag.project-unavailable": "المشروع غير متاح",
+				"diag.project-missing": "مجلد المشروع غير موجود",
+				"diag.project-unreadable": "تتعذر قراءة مجلد المشروع",
+				"diag.project-source-outside": "مجلد مهارات المشروع يشير إلى خارج المشروع",
+				"diag.project-source-overlap": "مجلد مهارات المشروع يتداخل مع مصدر آخر",
+				scope: "العرض",
+				scopeGlobal: "المهارات العامة",
+				scopeProject: "مهارات المشروع",
+				project: "المشروع",
+				projectNone: "اختر مشروعاً مسجلاً",
+				projectEmpty: "لا توجد مشاريع مسجلة بعد",
+				projectHint: "تُقرأ مهارات المشروع من المشروع نفسه وتُبدَّل لذلك المشروع فقط",
+				readOnlySource: "مهارات DSH في المشروع بلا مفتاح تبديل للمصدر",
+				"code.project-missing": "المجلد غير موجود",
+				"code.project-unreadable": "تتعذر قراءته",
+				"code.project-unavailable": "غير متاح",
+				"code.project-unregistered": "المشروع غير مسجل",
+				"code.project-mismatch": "المشروع المحدد لا يطابق هذا العنصر",
+				"code.project-dsh-source": "مهارات DSH في المشروع بلا مفتاح تبديل للمصدر",
+				"code.root-not-absolute": "أدخل مسار مجلد مطلقاً",
+				"code.root-too-long": "مسار المجلد طويل جداً",
+				"code.root-not-found": "المجلد غير موجود",
+				"code.root-not-directory": "المسار ليس مجلداً",
+				"code.root-reserved": "هذا المجلد محجوز لمدير المهارات",
+				"code.root-overlap": "هذا المجلد يتداخل مع مصدر مهارات آخر",
+				"code.custom-limit": "بلغت الحد الأقصى وهو {limit} مصدراً مخصصاً",
+				"code.custom-label": "الاسم أو المجموعة غير صالح أو طويل جداً",
+				"code.custom-unknown": "هذا المصدر المخصص لم يعد موجوداً",
+				"code.scan-aborted": "أُلغيت معاينة المجلد",
+				"code.forbidden": "رُفض الطلب؛ أعد تحميل الصفحة وحاول مجدداً",
+				"code.unsupported": "صيغة الطلب غير مدعومة",
+				"code.stopping": "مدير المهارات قيد الإيقاف؛ حاول بعد قليل",
+				"code.state-invalid": "حالة المهارات غير صالحة؛ أعد قراءة الحالة قبل تغيير المصادر",
+				"diag.registry-unavailable": "سجل مساحات العمل غير متاح؛ قد لا تُطبَّق سياسة المشاريع",
+				addSourceNamed: "إضافة مصدر",
+				editNamed: "تعديل",
+				removeNamed: "إزالة المصدر",
+				confirmNamed: "تأكيد الإزالة",
+				folders: "مجلدات المصادر",
+				foldersHint: "عاين المجلد أولاً؛ لا يُسجَّل شيء حتى تضيفه. إزالة المصدر لا تحذف أي ملفات",
+				folderPath: "مسار المجلد",
+				scanFolder: "معاينة المجلد",
+				addFolder: "إضافة المجلد",
+				addSource: "إضافة مصدر",
+				candidates: "المصادر المرشحة",
+				noCandidates: "لا توجد مجلدات مهارات ضمن مستويين",
+				candidateRegistered: "مسجل",
+				candidateConflict: "يتداخل مع مصدر آخر",
+				skillCount: "مهارات",
+				customBadge: "مجلد مخصص",
+				browse: "استعراض…",
+				customTag: "مخصص",
+				addCategoryHere: "تصنيف جديد في هذا المصدر",
+				folderTitleFor: "تغيير مجلد المهارات لـ",
+				folderHelp: "يقرأ DSH هذا المصدر من المجلد أدناه. اختر مجلدًا آخر إن كنت تحتفظ بالمهارات في مكان مختلف.",
+				folderDefault: "المجلد الافتراضي",
+				categoryHint: "تجميع المهارات في",
+				categoryTaken: "يوجد تصنيف بهذا الاسم بالفعل.",
+				editFolder: "تعديل المجلد",
+				more: "مزيد من الإجراءات",
+				newCategory: "تصنيف جديد",
+				addSkillsHere: "إضافة المهارات المحددة",
+				enabledCount: "مفعلة",
+				editNote: "تعديل الملاحظة",
+				noteAndDescription: "تحل الملاحظة محل الوصف في هذه القائمة",
+				browseAria: "استعراض لاختيار مجلد",
+				changeFolder: "تغيير المجلد",
+				saveFolder: "حفظ المجلد",
+				resetFolder: "استعادة الافتراضي",
+				folderRedirected: "تم تغيير المجلد عن الافتراضي",
+				"code.root-unsupported": "لا يمكن تغيير مجلد هذا المصدر",
+				"code.project-scope-unsupported": "لا يمكن تغيير مجلدات المزوّدين إلا في المهارات العامة",
+				"diag.root-override-ignored": "تم تجاهل تجاوز مجلد محفوظ لأنه لم يعد مسموحًا",
+				edit: "تعديل",
+				save: "حفظ",
+				cancel: "إلغاء",
+				label: "الاسم",
+				group: "المجموعة",
+				remove: "إزالة المصدر",
+				removeNote: "هذا يزيل إدخال المصدر فقط ولا تُحذف ملفات المهارات",
+				confirmRemove: "تأكيد الإزالة",
+				added: "أُضيف المصدر",
+				registered: "هذا المجلد مصدر بالفعل",
+				categories: "التصنيفات",
+				categoryName: "اسم التصنيف",
+				addCategory: "إضافة تصنيف",
+				uncategorized: "بدون تصنيف",
+				renameCategory: "إعادة تسمية التصنيف",
+				deleteCategory: "حذف التصنيف",
+				confirmDeleteCategory: "تأكيد حذف التصنيف",
+				deleteCategoryNote: "تصبح مهارات هذا التصنيف بلا تصنيف. لا تتغير أي ملفات مهارات",
+				selectSkill: "تحديد المهارة",
+				assignTo: "إسناد المحدد إلى",
+				filterCategory: "التصنيف",
+				allCategories: "كل التصنيفات",
+				note: "ملاحظة",
+				saveNote: "حفظ الملاحظة",
+				noteHint: "الملاحظات قابلة للبحث ولا تغيّر وصف المهارة",
+				noteLimit: "حتى 500 حرف",
+				confirmNote: "تأكيد",
+				importDropTitle: "أفلت المهارة هنا",
+				importDropHint: "يدعم ملف .zip أو مجلد مهارة أو ملف SKILL.md واحد",
+				importChooseFolder: "اختيار مجلد",
+				importChooseFile: "اختيار ملف",
+				importChosen: "تم اختيار {count} عنصر",
+				importClear: "مسح",
+				importDropUnsupported: "يمكن استيراد ملفات .zip والمجلدات وملفات SKILL.md فقط؛ تم تجاهل العناصر الأخرى.",
+				importDropFailed: "تعذرت قراءة العناصر المُفلتة.",
+				skillSource: "مصدر المهارات",
+				skillSourcePick: "اختر مصدرًا…",
+				hideForm: "إخفاء النموذج",
+				destLocation: "الموقع",
+				catHelp: "تبقى التصنيفات داخل هذا المصدر ولا تنقل الملفات.",
+				catEmptyHere: "لا توجد مهارات بعد. استخدم «المزيد» في مهارة لوضعها هنا.",
+				addSkillsTo: "إضافة مهارات إلى التصنيف",
+				addSkillsNone: "لا توجد مهارات أخرى للإضافة.",
+				addSkillsCount: "إضافة مهارات",
+				toggleCategory: "تبديل التصنيف",
+				createHere: "إضافة مهارة",
+				createHereBlocked: "لا يمكن إضافة مهارات هنا: هذا المجلد للقراءة فقط في Waycraft",
+				createBlockedTool: "للقراءة فقط في Waycraft: هذا المجلد يتبع أداة أخرى. أضف المهارات إلى DSH أو Agents بدلًا من ذلك.",
+				createBlockedCustom: "للقراءة فقط في Waycraft: المصادر المخصصة تُقرأ فقط. أضف المهارات إلى DSH أو Agents بدلًا من ذلك.",
+				destScope: "النطاق",
+				destScopeUser: "مجلد المستخدم",
+				destScopeProject: "مشروع",
+				noteSavedHint: "تُحفظ في طبقة العرض الخاصة بالإضافة دون تعديل SKILL.md. امسح الحقل للرجوع إلى الوصف الأصلي.",
+				copied: "تم النسخ",
+				pathChip: "يُكتب في",
+				createFootnote: "المهارات المُنشأة غير مرتبطة بتحديثات المستودعات، ولا يتم تعديل أي ملف مصدر.",
+				importReqTitle: "متطلبات الملفات",
+				importReq1: "يجب أن تحتوي الأرشيفات والمجلدات على SKILL.md.",
+				importReq2: "يجب أن يتضمن SKILL.md اسمًا ووصفًا بصيغة YAML.",
+				importReq3: "يقوم الاستيراد بنسخ كل المحتوى ولا يعدّل المصدر أبدًا.",
+				customSources: "مصادر مخصصة",
+				"code.invalid-request": "الطلب غير صالح",
+				"code.source-unknown": "هذا المصدر غير متاح في هذا العرض",
+				"code.organization-limit": "عدد التصنيفات أو الملاحظات أو الإسنادات لهذا المصدر كبير جدا",
+				"code.state-too-large": "بيانات التنظيم المحفوظة كبيرة جدا؛ احذف بعض الملاحظات أو التصنيفات",
+				placement: "موضع الدخول",
+				placementHint: "اختر مكان ظهور مدير المهارات: الإعدادات أو الشريط الجانبي أو كليهما",
+				placementBoth: "كلاهما",
+				placementSidebar: "الشريط الجانبي فقط",
+				placementSettings: "الإعدادات فقط",
+				"code.category-name": "أدخل اسم تصنيف لا يتجاوز 24 حرفاً",
+				"code.category-duplicate": "يوجد تصنيف بهذا الاسم بالفعل",
+				"code.category-unknown": "لم يعد هذا التصنيف موجوداً",
+				"code.category-limit": "بلغت الحد الأقصى وهو {limit} تصنيفاً",
+				"code.skill-unknown": "هذه المهارة غير متاحة في هذا العرض",
+				"code.note-too-long": "الملاحظة أطول من {limit} حرفاً",
+				"code.placement-invalid": "موضع الدخول غير صالح"
+			}
+		};
+		effect(() => ctx.locale.register("waycraft.skills", dictionaries), "waycraft-skills dictionaries");
+		const t = ctx.locale.bind("waycraft.skills");
+		const isArabic = () => ctx.locale.language?.getSnapshot?.() === "ar";
+		let pickDirectory;
+		try {
+			ctx.inject?.(["uiWorkspace"], (injected) => {
+				const workspace = injected?.uiWorkspace ?? injected;
+				if (typeof workspace?.pickDirectory === "function") pickDirectory = () => workspace.pickDirectory();
+			});
+		} catch {}
+		const sourceLabel = (source) => source.label ?? source.name ?? source.id;
+		const PROJECT_DEST = "project-dsh:";
+		const projectOfDest = (id) => id.startsWith(PROJECT_DEST) ? id.slice(12) : void 0;
+		const pathParts = (value) => String(value).split(/[\\/]+/).filter(Boolean);
+		const projectLabel = (data, id) => {
+			const list = data?.projects ?? [];
+			const found = list.find((x) => x.id === id);
+			if (!found) return id;
+			const same = list.filter((x) => x.name === found.name);
+			if (same.length < 2) return found.name;
+			const longest = Math.max(...same.map((x) => pathParts(x.path).length));
+			for (let depth = 2; depth <= longest; depth++) {
+				const tails = same.map((x) => pathParts(x.path).slice(-depth, -1).join("/"));
+				if (tails.every(Boolean) && new Set(tails).size === tails.length) return `${found.name} (${pathParts(found.path).slice(-depth, -1).join("/")})`;
+			}
+			return `${found.name} (${found.path})`;
+		};
+		const projectFolder = (project) => {
+			if (!project.available || !project.root) return void 0;
+			const sep = project.root.includes("\\") && !project.root.includes("/") ? "\\" : "/";
+			return `${project.root}${sep}.dsh${sep}skills`;
+		};
+		const destinationsOf = (data) => [...["user-dsh", "user-agents"].flatMap((id) => {
+			const found = data?.sources?.find((x) => x.id === id);
+			return found ? [{
+				id,
+				label: sourceLabel(found),
+				path: found.path
+			}] : [];
+		}), ...(data?.projects ?? []).map((x) => ({
+			id: `${PROJECT_DEST}${x.id}`,
+			label: `${projectLabel(data, x.id)} — DSH`,
+			path: projectFolder(x),
+			project: true,
+			...x.available ? {} : {
+				disabled: true,
+				reason: t(`code.${x.code ?? "project-unavailable"}`)
+			}
+		}))];
+		const validDestination = (data, id) => destinationsOf(data).find((x) => x.id === id && !x.disabled);
+		const destinationOption = (item, label = item.label) => h("option", {
+			key: item.id,
+			value: item.id,
+			disabled: !!item.disabled
+		}, item.disabled ? `${label} · ${item.reason}` : label);
+		const destinationInfo = (data, selected) => [
+			!(data?.projects ?? []).length ? h("p", null, t("destNoProjects")) : null,
+			selected ? selected.path ? h("p", null, `${t("destPath")}: `, h("bdi", { dir: "ltr" }, selected.path)) : null : h("p", null, t("destInvalid")),
+			selected?.project ? h("p", null, t("destProjectNote")) : null
+		];
+		const placeName = (data, entry) => {
+			if (entry.project) return `${projectLabel(data, entry.project)} — DSH`;
+			const found = (data?.sources ?? []).find((x) => x.id === entry.source);
+			return found ? sourceLabel(found) : entry.source;
+		};
+		const placeNode = (data, entry) => h("bdi", { dir: "ltr" }, placeName(data, entry));
+		const responsive = (condition, rules) => `@container (${condition}){${rules}}\n@supports not (container-type:inline-size){@media (${condition}){${rules}}}`;
+		const SKILLS_STYLE = `
+.waycraft-skills{container-type:inline-size;inline-size:100%;max-inline-size:720px;min-inline-size:0;display:flex;flex-direction:column;gap:12px;color:var(--dsw-alias-label-primary);font-size:14px;line-height:22px}
+.waycraft-skills *{box-sizing:border-box;min-inline-size:0}
+.waycraft-skills bdi{unicode-bidi:isolate}
+.waycraft-skills-path{direction:ltr;unicode-bidi:isolate;overflow-wrap:anywhere;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}
+.waycraft-skills-header{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.waycraft-skills-title{margin:0;flex:1 1 auto;font-size:18px;line-height:26px;font-weight:600;color:var(--dsw-alias-label-primary)}
+.waycraft-skills-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.waycraft-skills-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.waycraft-skills-toolbar select{order:1}
+.waycraft-skills-toolbar input{order:2;flex:1 1 160px}
+.waycraft-skills-toolbar .waycraft-skills-iconbar{order:3}
+.waycraft-skills-toolbar select{flex:0 1 150px}
+.waycraft-skills button,.waycraft-skills input,.waycraft-skills select,.waycraft-skills textarea{font:inherit;color:inherit}
+.waycraft-skills button{min-block-size:28px;padding-inline:12px;border:0.5px solid var(--dsw-alias-border-l3,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-sm,8px);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);cursor:pointer;transition:background-color .2s cubic-bezier(.4,0,.2,1)}
+.waycraft-skills button:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-3))}
+.waycraft-skills button:active:not(:disabled){background:var(--dsw-alias-interactive-bg-active,var(--dsw-alias-bg-layer-3))}
+.waycraft-skills button:disabled{opacity:.5;cursor:not-allowed}
+.waycraft-skills-header button{min-block-size:36px;border-radius:var(--dsw-radius-md,12px)}
+.waycraft-skills button.waycraft-skills-primary{background:var(--dsw-alias-button-primary-fill,var(--dsw-alias-brand-primary));border-color:transparent;color:var(--dsw-alias-label-primary-foreground,var(--dsw-alias-bg-base))}
+.waycraft-skills button.waycraft-skills-primary:hover:not(:disabled),.waycraft-skills button.waycraft-skills-primary:active:not(:disabled){background:var(--dsw-alias-button-primary-hover,var(--dsw-alias-brand-primary));border-color:transparent;color:var(--dsw-alias-label-primary-foreground,var(--dsw-alias-bg-base))}
+.waycraft-skills button.waycraft-skills-primary:disabled{background:var(--dsw-alias-button-primary-dimmed,var(--dsw-alias-button-primary-fill,var(--dsw-alias-brand-primary)));opacity:.5}
+.waycraft-skills button.waycraft-skills-danger{color:var(--dsw-alias-state-error-primary)}
+.waycraft-skills button.waycraft-skills-danger:hover:not(:disabled),.waycraft-skills button.waycraft-skills-danger:active:not(:disabled){background:var(--dsw-alias-interactive-bg-hover-danger,var(--dsw-alias-interactive-bg-hover));color:var(--dsw-alias-state-error-primary)}
+.waycraft-skills select{appearance:none;-webkit-appearance:none;block-size:32px;min-block-size:32px;padding-block:0;padding-inline:12px 32px;border-radius:var(--dsw-radius-md,12px);background-color:var(--dsw-alias-bg-layer-1);background-repeat:no-repeat;background-position:calc(100% - 15px) 14px,calc(100% - 10px) 14px;background-size:5px 5px,5px 5px;background-image:linear-gradient(45deg,transparent 50%,var(--dsw-alias-label-tertiary) 50%),linear-gradient(135deg,var(--dsw-alias-label-tertiary) 50%,transparent 50%);max-inline-size:100%;cursor:pointer}
+.waycraft-skills select:dir(rtl),.waycraft-skills [dir=rtl] select{background-position:15px 14px,10px 14px;padding-inline:32px 12px}
+.waycraft-skills select{color:var(--dsw-alias-label-primary);border:0.5px solid var(--dsw-alias-border-l4,var(--dsw-alias-border-l2))}
+.waycraft-skills select:focus{border-color:var(--dsw-alias-state-business-primary)}
+.waycraft-skills select:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary,var(--dsw-alias-brand-primary));outline-offset:2px}
+.waycraft-skills select:disabled{opacity:.6;cursor:not-allowed}
+.waycraft-skills-toolbar select{max-inline-size:240px}
+.waycraft-skills-dialog select,.waycraft-skills-menu select{max-inline-size:none;inline-size:100%}
+.waycraft-skills input{min-block-size:32px;padding-inline:12px;border:0.5px solid var(--dsw-alias-border-l3,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-md,12px);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary)}
+.waycraft-skills input::placeholder{color:var(--dsw-alias-label-tertiary)}
+.waycraft-skills button:focus-visible,.waycraft-skills input:focus-visible,.waycraft-skills summary:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}
+.waycraft-skills-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:0.5px solid var(--dsw-alias-settings-card-stroke,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-xl,20px);background:var(--dsw-alias-settings-card-fill,var(--dsw-alias-bg-layer-2));overflow:hidden}
+.waycraft-skills-stat{display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 8px;text-align:center;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px}
+.waycraft-skills-stat+.waycraft-skills-stat{border-inline-start:0.5px solid var(--dsw-alias-border-l2)}
+.waycraft-skills-stat strong{font-size:18px;line-height:26px;color:var(--dsw-alias-label-primary)}
+.waycraft-skills-source{border:0.5px solid var(--dsw-alias-settings-card-stroke,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-xl,20px);background:var(--dsw-alias-settings-card-fill,var(--dsw-alias-bg-layer-2));overflow:hidden}
+.waycraft-skills-source>summary{display:flex;align-items:center;gap:8px;min-block-size:44px;padding:8px 16px;cursor:pointer;font-weight:600;list-style:none}
+.waycraft-skills-source>summary::-webkit-details-marker{display:none}
+.waycraft-skills-chev{flex:none;inline-size:6px;block-size:6px;margin-inline:4px;border-inline-end:1.5px solid var(--dsw-alias-label-tertiary);border-block-end:1.5px solid var(--dsw-alias-label-tertiary);transform:rotate(-45deg);transition:transform .2s cubic-bezier(.4,0,.2,1)}
+.waycraft-skills-source:dir(rtl) .waycraft-skills-chev{transform:rotate(135deg)}
+.waycraft-skills-source[open] .waycraft-skills-chev,.waycraft-skills-source:dir(rtl)[open] .waycraft-skills-chev{transform:rotate(45deg)}
+.waycraft-skills-source[data-off]>summary>.waycraft-skills-source-name,.waycraft-skills-source[data-off]>summary>.waycraft-skills-count,.waycraft-skills-source[data-off]>summary>.waycraft-skills-source-icon{opacity:.55}
+.waycraft-skills-source-name{flex:0 1 auto;overflow-wrap:anywhere}
+.waycraft-skills-source-icon{inline-size:16px;block-size:16px;flex:none;color:var(--dsw-alias-label-secondary)}
+.waycraft-skills-source-path{flex:1 1 0;min-inline-size:0;margin-inline-start:auto;text-align:end;font-weight:400;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.waycraft-skills-count{flex:none;color:var(--dsw-alias-label-secondary);font-size:12px;font-weight:400;white-space:nowrap}
+${responsive("min-width:521px", `.waycraft-skills-source-meta .waycraft-skills-path{display:none}`)}
+${responsive("max-width:520px", `.waycraft-skills-source-path{display:none}`)}
+.waycraft-skills-badge{white-space:nowrap;display:inline-flex;align-items:center;gap:4px;padding-inline:8px;border:0.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-xs,4px);color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px;font-weight:400}
+.waycraft-skills-status{display:inline-flex;align-items:center;gap:8px;color:var(--dsw-alias-label-secondary);font-size:12px;font-weight:400}
+.waycraft-skills-source-body{display:flex;flex-direction:column;gap:12px;padding:12px 16px}
+.waycraft-skills-source-meta{display:flex;flex-wrap:wrap;align-items:center;gap:8px;justify-content:space-between}
+.waycraft-skills button.waycraft-skills-switch{box-sizing:border-box;position:relative;display:flex;align-items:center;justify-content:flex-start;flex:0 0 auto;inline-size:36px;min-inline-size:36px;block-size:20px;min-block-size:0;padding:2px;border:0;border-radius:999px;background:var(--dsw-alias-border-l3);font-size:0;line-height:0;cursor:pointer}
+.waycraft-skills button.waycraft-skills-switch[aria-checked=true]{background:var(--dsw-alias-brand-primary)}
+.waycraft-skills button.waycraft-skills-switch:hover:not(:disabled),.waycraft-skills button.waycraft-skills-switch:active:not(:disabled){background:var(--dsw-alias-border-l3)}
+.waycraft-skills button.waycraft-skills-switch[aria-checked=true]:hover:not(:disabled),.waycraft-skills button.waycraft-skills-switch[aria-checked=true]:active:not(:disabled){background:var(--dsw-alias-brand-primary)}
+.waycraft-skills button.waycraft-skills-switch:disabled{cursor:default;opacity:.5}
+.waycraft-skills button.waycraft-skills-switch:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:2px}
+.waycraft-skills-switch-thumb{display:block;flex:none;inline-size:16px;block-size:16px;border-radius:50%;background:var(--dsw-alias-label-primary-foreground);transition:transform .12s ease}
+.waycraft-skills-switch[aria-checked=false] .waycraft-skills-switch-thumb{background:var(--dsw-alias-switch-thumb)}
+.waycraft-skills-switch[aria-checked=true] .waycraft-skills-switch-thumb{transform:translate(16px)}
+.waycraft-skills-switch[aria-checked=true]:dir(rtl) .waycraft-skills-switch-thumb{transform:translate(-16px)}
+@media (prefers-reduced-motion:reduce){.waycraft-skills-switch-thumb{transition:none}}
+.waycraft-skills button.waycraft-skills-switch::after{content:"";position:absolute;inset:-6px -4px}
+@media (pointer:coarse){.waycraft-skills button.waycraft-skills-icon-btn,.waycraft-skills-row-actions button:not(.waycraft-skills-switch){min-inline-size:40px;min-block-size:40px}.waycraft-skills button.waycraft-skills-switch::after{inset:-12px -8px}}
+.waycraft-skills-form[hidden]{display:none}
+.waycraft-skills .waycraft-skills-row[draggable=true]{grid-template-columns:16px minmax(0,1fr) auto;column-gap:8px}
+.waycraft-skills-grip{flex:none;align-self:center;cursor:grab;color:var(--dsw-alias-label-tertiary);font-size:13px;line-height:1;user-select:none;inline-size:16px;text-align:center}
+.waycraft-skills-grip:active{cursor:grabbing}
+.waycraft-skills .waycraft-skills-row.waycraft-skills-dragging{opacity:.4}
+.waycraft-skills .waycraft-skills-catsec.waycraft-skills-drop-over{box-shadow:inset 0 0 0 1.5px var(--dsw-alias-brand-primary)}
+.waycraft-skills [data-waycraft-repository]{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;padding:12px 16px}
+.waycraft-skills .waycraft-skills-repohead{flex:1 1 100%;display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px}
+.waycraft-skills .waycraft-skills-repohead>strong{flex:1 1 160px;overflow-wrap:anywhere;direction:ltr;text-align:start}
+.waycraft-skills .waycraft-skills-repohead .waycraft-skills-badge{flex:none}
+.waycraft-skills .waycraft-skills-repohead .waycraft-skills-cathead-actions{min-inline-size:0;flex:none;margin-inline-start:0}
+.waycraft-skills [data-waycraft-repository]>p{flex:1 1 100%;margin:0;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px;overflow-wrap:anywhere}
+.waycraft-skills [data-waycraft-repository]>button{min-block-size:28px}
+.waycraft-skills [data-waycraft-repository]>[data-waycraft-repo-skill]{flex:1 1 100%;display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;padding-block:12px;border-block-start:0.5px solid var(--dsw-alias-border-l2)}
+.waycraft-skills [data-waycraft-repository]>[data-waycraft-repo-skill]>span:first-child{font-weight:600}
+.waycraft-skills [data-waycraft-repository]>[data-waycraft-repo-skill]>span+span{color:var(--dsw-alias-label-secondary);font-size:12px}
+.waycraft-skills [data-waycraft-repository]>[data-waycraft-repo-skill]>p{flex:1 1 100%;margin:0;color:var(--dsw-alias-label-secondary);display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden}
+.waycraft-skills [data-waycraft-repository]>[data-waycraft-repo-skill]>button{margin-inline-start:auto;min-block-size:28px}
+.waycraft-skills-filterrow>select.waycraft-skills-first{order:-1}
+.waycraft-skills-caption{margin:0;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}
+.waycraft-skills-filterrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.waycraft-skills-filterrow>select{flex:0 1 200px;min-inline-size:140px}
+.waycraft-skills-filterrow>input,.waycraft-skills-filterrow>.waycraft-skills-searchform{flex:1 1 180px;min-inline-size:0}
+.waycraft-skills-searchform{display:flex;align-items:center;gap:4px;margin:0;padding:0;border:0;background:transparent}
+.waycraft-skills-searchform>input{flex:1 1 auto;min-inline-size:0}
+.waycraft-skills-emptystate{padding:24px 12px;text-align:center;color:var(--dsw-alias-label-secondary)}
+.waycraft-skills-list{display:flex;flex-direction:column;margin:0;padding:0;list-style:none}
+.waycraft-skills-listrow{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:4px 12px;padding:12px 16px;border-block-start:0.5px solid var(--dsw-alias-border-l2)}
+.waycraft-skills-listrow:first-child{border-block-start:0}
+.waycraft-skills-listrow>ul{grid-column:1/-1}
+.waycraft-skills .waycraft-skills-row.waycraft-skills-discover-row{align-items:start;padding:8px 0;background:transparent;transition:none}
+.waycraft-skills-discover-row .waycraft-skills-row-title{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px}
+.waycraft-skills-discover-row .waycraft-skills-row-title strong{font-weight:600;overflow-wrap:anywhere}
+.waycraft-skills-discover-row .waycraft-skills-row-desc{margin:0;color:var(--dsw-alias-label-secondary);display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.waycraft-skills-meta-line{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;margin-block-start:4px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}
+.waycraft-skills-origin{overflow-wrap:anywhere}
+.waycraft-skills-stat-pill{display:inline-flex;align-items:center;gap:4px;color:var(--dsw-alias-label-tertiary)}
+.waycraft-skills-stat-pill svg{inline-size:12px;block-size:12px}
+.waycraft-skills-sr{position:absolute;inline-size:1px;block-size:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.waycraft-skills button.waycraft-skills-install{display:inline-flex;align-items:center;gap:8px;min-block-size:28px;padding-inline:8px;border:0;background:transparent;color:var(--dsw-alias-label-secondary);white-space:nowrap}
+.waycraft-skills button.waycraft-skills-install:hover:not(:disabled),.waycraft-skills button.waycraft-skills-install:active:not(:disabled){background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-3));color:var(--dsw-alias-label-primary)}
+.waycraft-skills-badge-quiet{color:var(--dsw-alias-label-tertiary)}
+.waycraft-skills-repolist{margin-block-start:8px}
+.waycraft-skills-meta{margin:0;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;overflow-wrap:anywhere}
+.waycraft-skills .waycraft-skills-listrow .waycraft-skills-row-actions{flex-wrap:nowrap;gap:4px}
+.waycraft-skills .waycraft-skills-tabs button{min-block-size:32px;padding:0 16px;border-radius:999px}
+${responsive("max-width:640px", `.waycraft-skills-filterrow>select{flex:1 1 100%}`)}
+${responsive("max-width:420px", `.waycraft-skills-panel{padding:8px}.waycraft-skills-listrow{padding:12px 8px;column-gap:8px}`)}
+.waycraft-skills-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;align-items:start;padding:8px 0;border-block-start:0.5px solid var(--dsw-alias-border-l2)}
+.waycraft-skills-row-main{display:flex;flex-direction:column;gap:4px}
+.waycraft-skills-row-title{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.waycraft-skills-row-desc{margin:0;color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden}
+.waycraft-skills-row-actions{display:flex;flex-wrap:nowrap;align-items:center;gap:4px;justify-content:flex-end}
+.waycraft-skills-row-note{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px}
+.waycraft-skills-row-note input{flex:1 1 200px}
+.waycraft-skills-diag{border:0.5px solid var(--dsw-alias-settings-card-stroke,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-md,12px);overflow:hidden;background:var(--dsw-alias-settings-card-fill,var(--dsw-alias-bg-layer-2))}
+.waycraft-skills-diag[data-tone=issue]{border-color:var(--dsw-alias-state-error-primary)}
+.waycraft-skills-diag>summary{display:flex;align-items:center;gap:8px;min-block-size:36px;padding:8px 12px;cursor:pointer}
+.waycraft-skills-diag[data-tone=quiet]>summary{color:var(--dsw-alias-label-secondary);font-size:12px}
+.waycraft-skills-diag ul{margin:0;padding:0 12px 8px;list-style:none;display:flex;flex-direction:column;gap:4px}
+.waycraft-skills-diag li{display:flex;gap:8px;align-items:baseline;overflow-wrap:anywhere}
+.waycraft-skills .waycraft-skills-diag li.waycraft-skills-diag-item{flex-direction:column;align-items:stretch;gap:4px;padding-block:8px;border-block-start:0.5px solid var(--dsw-alias-border-l2)}
+.waycraft-skills-diag-title{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:baseline}
+.waycraft-skills-diag-source{color:var(--dsw-alias-label-secondary);font-size:12px}
+.waycraft-skills-diag-chip{align-self:flex-start;max-inline-size:100%;overflow-wrap:anywhere}
+.waycraft-skills-diag-detail{margin:0;color:var(--dsw-alias-label-secondary);font-size:12px}
+.waycraft-skills-diag-more{display:flex;flex-direction:column;gap:4px}
+.waycraft-skills-diag-more>summary{cursor:pointer;color:var(--dsw-alias-label-secondary);font-size:12px;border-radius:var(--dsw-radius-sm,8px)}
+.waycraft-skills-diagregion{border:0.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md,12px);overflow:hidden;background:transparent}
+.waycraft-skills-diagregion[data-tone=issue]{border-color:var(--dsw-alias-state-error-primary)}
+.waycraft-skills-diagregion[data-tone=warning]{border-color:var(--dsw-alias-state-warn-label)}
+.waycraft-skills-diagregion>summary{display:flex;align-items:center;gap:8px;min-block-size:32px;padding:4px 12px;cursor:pointer;font-size:12px;color:var(--dsw-alias-label-secondary);border-radius:inherit}
+.waycraft-skills-diagregion>summary:hover{background:var(--dsw-alias-interactive-bg-hover)}
+.waycraft-skills-diagregion[data-tone=issue] .waycraft-skills-icon{color:var(--dsw-alias-state-error-primary)}
+.waycraft-skills-diagregion[data-tone=warning] .waycraft-skills-icon{color:var(--dsw-alias-state-warn-label)}
+.waycraft-skills-diagregion-text{flex:1 1 auto;min-inline-size:0}
+.waycraft-skills-diagregion[open]>summary .waycraft-skills-chev{transform:rotate(45deg)}
+.waycraft-skills-diagregion:dir(rtl)>summary .waycraft-skills-chev{transform:rotate(135deg)}
+.waycraft-skills-diagregion:dir(rtl)[open]>summary .waycraft-skills-chev{transform:rotate(45deg)}
+.waycraft-skills-diagregion-body{display:flex;flex-direction:column;gap:8px;padding:0 12px 8px}
+.waycraft-skills-diaggroup{display:flex;flex-direction:column;gap:4px}
+.waycraft-skills-diaggroup ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:4px}
+.waycraft-skills-diaggroup li{overflow-wrap:anywhere}
+.waycraft-skills-diaggroup-head{display:flex;align-items:center;gap:8px;margin:0;font-size:12px;font-weight:600;color:var(--dsw-alias-label-secondary)}
+.waycraft-skills-diaggroup[data-tone=issue] .waycraft-skills-icon{color:var(--dsw-alias-state-error-primary)}
+.waycraft-skills-diaggroup[data-tone=warning] .waycraft-skills-icon{color:var(--dsw-alias-state-warn-label)}
+.waycraft-skills-diag-foot{padding:0 12px 12px;display:flex;justify-content:flex-start}
+.waycraft-skills-diag-hint{margin:0;padding:0 12px 4px;color:var(--dsw-alias-label-tertiary);font-size:12px}
+.waycraft-skills-icon{flex:none;inline-size:16px;block-size:16px}
+.waycraft-skills-diag[data-tone=warning]{border-color:var(--dsw-alias-state-warn-label)}
+.waycraft-skills-diag[data-tone=warning] .waycraft-skills-icon{color:var(--dsw-alias-state-warn-label)}
+.waycraft-skills-diag[data-tone=note]>summary{color:var(--dsw-alias-label-secondary);font-size:12px}
+.waycraft-skills-linked{display:inline-flex;align-items:center;gap:8px;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}
+.waycraft-skills-badge-warn{border-color:var(--dsw-alias-state-warn-label);color:var(--dsw-alias-state-warn-label)}
+.waycraft-skills-diag[data-tone=issue] .waycraft-skills-icon{color:var(--dsw-alias-state-error-primary)}
+.waycraft-skills-empty,.waycraft-skills-loading{margin:0;padding:16px;text-align:center;color:var(--dsw-alias-label-secondary);border:0.5px dashed var(--dsw-alias-border-l3,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-lg,16px)}
+.waycraft-skills-alert{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 12px;border:0.5px solid var(--dsw-alias-state-error-primary);border-radius:var(--dsw-radius-lg,16px);color:var(--dsw-alias-state-error-primary)}
+.waycraft-skills-notice{margin:0;color:var(--dsw-alias-label-secondary)}
+.waycraft-skills [aria-busy=true]{cursor:progress}
+.waycraft-skills-inline{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.waycraft-skills-member{display:flex;align-items:center;gap:8px;min-block-size:28px;cursor:pointer}
+.waycraft-skills-member-name{flex:1 1 auto;overflow-wrap:anywhere}
+.waycraft-skills input[type=checkbox]{appearance:none;-webkit-appearance:none;position:relative;inline-size:16px;block-size:16px;min-block-size:0;padding:0;border:1px solid var(--dsw-alias-label-tertiary);border-radius:var(--dsw-radius-xs,4px);background:var(--dsw-alias-bg-layer-1);flex:none;cursor:pointer}
+.waycraft-skills input[type=checkbox]:checked{background:var(--dsw-alias-brand-primary);border-color:transparent}
+.waycraft-skills input[type=checkbox]:checked::after{content:"";position:absolute;inset-inline-start:5px;inset-block-start:2px;inline-size:4px;block-size:8px;border:solid var(--dsw-alias-label-primary-foreground);border-width:0 1.5px 1.5px 0;transform:rotate(45deg)}
+.waycraft-skills-panel{display:flex;flex-direction:column;gap:8px;padding:12px 16px;border:0.5px solid var(--dsw-alias-settings-card-stroke,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-xl,20px);background:var(--dsw-alias-settings-card-fill,var(--dsw-alias-bg-layer-2))}
+.waycraft-skills-panel h3,.waycraft-skills-panel h4{margin:0;font-size:14px;line-height:22px;font-weight:600}
+.waycraft-skills-panel p{margin:0}
+.waycraft-skills-panel>button,.waycraft-skills-panel>select,.waycraft-skills-panel>input{align-self:flex-start;max-inline-size:100%}
+.waycraft-skills-panel>input:not([type=file]),.waycraft-skills-panel>select{align-self:stretch}
+.waycraft-skills-card{padding:8px 12px;border:0.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-lg,16px);background:var(--dsw-alias-bg-layer-1);list-style:none}
+.waycraft-skills-tabs{display:inline-flex;flex-wrap:wrap;gap:4px;padding:4px;border:0.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md,12px);background:var(--dsw-alias-bg-layer-1);align-self:flex-start}
+.waycraft-skills-tabs button{min-block-size:28px;border-color:transparent;background:transparent;border-radius:var(--dsw-radius-sm,8px)}
+.waycraft-skills-tabs button[aria-selected=true],.waycraft-skills-tabs button[aria-pressed=true]{background:var(--dsw-alias-bg-layer-3,var(--dsw-alias-bg-layer-2));border-color:var(--dsw-alias-border-l3,var(--dsw-alias-border-l2))}
+.waycraft-skills-form{display:flex;flex-direction:column;gap:8px;padding:12px 16px;border:0.5px solid var(--dsw-alias-settings-card-stroke,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-xl,20px);background:var(--dsw-alias-settings-card-fill,var(--dsw-alias-bg-layer-2))}
+.waycraft-skills-form p{margin:0;color:var(--dsw-alias-label-secondary)}
+.waycraft-skills-form button{align-self:flex-start}
+.waycraft-skills-textarea{min-block-size:120px;padding:8px 12px;border:0.5px solid var(--dsw-alias-border-l3,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-md,12px);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);resize:vertical}
+.waycraft-skills textarea:focus-visible,.waycraft-skills [tabindex="-1"]:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}
+.waycraft-skills-dialog{display:flex;flex-direction:column;gap:8px;max-inline-size:min(600px,100%);padding:16px;border:0.5px solid var(--dsw-alias-border-l3,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-xl,20px);background:var(--dsw-alias-bg-layer-2);box-shadow:var(--dsw-elevation-soft,var(--dsw-shadow-lv3))}
+.waycraft-skills-dialog{padding:0;gap:0;overflow:hidden}
+.waycraft-skills-dialog-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:16px 24px;border-block-end:0.5px solid var(--dsw-alias-border-l2)}
+.waycraft-skills-dialog-head h3{font-size:16px;line-height:24px;font-weight:600}
+.waycraft-skills-dialog-body{display:flex;flex-direction:column;gap:16px;padding:24px;overflow:auto;min-block-size:0}
+.waycraft-skills-dialog-footer{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;padding:16px 24px;border-block-start:0.5px solid var(--dsw-alias-border-l2)}
+.waycraft-skills-dialog .waycraft-skills-form,.waycraft-skills-dialog .waycraft-skills-panel{padding:0;border:0;background:transparent;gap:8px}
+.waycraft-skills-dialog-body .waycraft-skills-dialog-footer{margin:12px -24px -24px;inline-size:auto}
+.waycraft-skills-dialog-body .waycraft-skills-form .waycraft-skills-dialog-footer button{align-self:auto}
+.waycraft-skills-dialog-footer button{min-block-size:36px;border-radius:var(--dsw-radius-md,12px)}
+.waycraft-skills-drop{display:flex;flex-direction:column;align-items:center;gap:4px;padding:24px 16px;text-align:center;cursor:pointer;border:1px dashed var(--dsw-alias-border-l3,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-lg,16px);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-secondary);transition:background-color .2s cubic-bezier(.4,0,.2,1),border-color .2s cubic-bezier(.4,0,.2,1)}
+.waycraft-skills-drop strong{color:var(--dsw-alias-label-primary);font-weight:600}
+.waycraft-skills-drop:hover,.waycraft-skills-drop[data-drag=over]{background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-3));border-color:var(--dsw-alias-brand-primary)}
+.waycraft-skills-drop:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}
+.waycraft-skills-customlist{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+.waycraft-skills-customlist li{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px}
+.waycraft-skills-reqs{margin:0;padding-inline-start:24px;color:var(--dsw-alias-label-secondary);font-size:12px;display:flex;flex-direction:column;gap:4px}
+.waycraft-skills-divider{margin:0;border:0;border-block-start:0.5px solid var(--dsw-alias-border-l2)}
+.waycraft-skills-pathrow{display:flex;gap:8px;align-items:flex-end}
+.waycraft-skills-pathrow .waycraft-skills-labeled{flex:1 1 auto;min-inline-size:0}
+.waycraft-skills-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px}
+.waycraft-skills-grid>*{min-inline-size:0}
+.waycraft-skills-panel>.waycraft-skills-form{border:0;padding:0;background:transparent}
+.waycraft-skills-labeled{display:flex;flex-direction:column;gap:8px;font-size:12px;color:var(--dsw-alias-label-secondary)}
+.waycraft-skills-labeled input{inline-size:100%;font-size:14px;color:var(--dsw-alias-label-primary)}
+.waycraft-skills-helper{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;color:var(--dsw-alias-label-secondary);font-size:12px}
+.waycraft-skills button.waycraft-skills-link{min-block-size:0;padding:0;border:0;background:transparent;color:var(--dsw-alias-brand-primary);text-decoration:underline;cursor:pointer}
+.waycraft-skills button.waycraft-skills-link:hover:not(:disabled),.waycraft-skills button.waycraft-skills-link:active:not(:disabled){background:transparent;color:var(--dsw-alias-button-primary-hover,var(--dsw-alias-brand-primary))}
+.waycraft-skills summary:hover{background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-1))}
+.waycraft-skills input[type=file]::file-selector-button:hover{background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-3))}
+.waycraft-skills input[type=file]::file-selector-button:active{background:var(--dsw-alias-interactive-bg-active,var(--dsw-alias-bg-layer-3))}
+.waycraft-skills-field-error{color:var(--dsw-alias-state-error-primary)}
+.waycraft-skills-dialog p,.waycraft-skills-dialog h3{margin:0;overflow-wrap:anywhere}
+.waycraft-skills-dialog pre{margin:0;padding:8px 12px;max-block-size:320px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;border-radius:var(--dsw-radius-md,12px);background:var(--dsw-alias-bg-layer-1);font-family:var(--ds-font-family-code)}
+.waycraft-skills button.waycraft-skills-danger:hover:not(:disabled){border-color:var(--dsw-alias-state-error-primary)}
+.waycraft-skills-form button,.waycraft-skills-panel>button,.waycraft-skills-header button{min-block-size:36px;border-radius:var(--dsw-radius-md,12px)}
+@media (min-width:561px){.waycraft-skills-dialog-head,.waycraft-skills-dialog-footer{padding-inline:24px}.waycraft-skills-dialog-body{padding:24px 24px}.waycraft-skills-dialog-body .waycraft-skills-dialog-footer{margin:12px -24px -24px}}
+${responsive("max-width:520px", `.waycraft-skills .waycraft-skills-row,.waycraft-skills .waycraft-skills-row[draggable=true]{grid-template-columns:minmax(0,1fr) auto}.waycraft-skills .waycraft-skills-row[draggable=true]{grid-template-columns:16px minmax(0,1fr) auto}.waycraft-skills-toolbar select,.waycraft-skills-toolbar input{flex:1 1 100%}`)}
+@media (prefers-reduced-motion:reduce){.waycraft-skills *,.waycraft-skills *::before{transition:none!important;animation:none!important}}
+.waycraft-skills input[type=file]::file-selector-button{min-block-size:28px;margin-inline-end:8px;padding-inline:12px;border:0.5px solid var(--dsw-alias-border-l3,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-sm,8px);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:inherit;cursor:pointer}
+.waycraft-skills-row-actions button{min-block-size:28px}
+.waycraft-skills-row{grid-template-columns:minmax(0,1fr) auto;align-items:center}
+.waycraft-skills-ico{flex:none}
+.waycraft-skills button.waycraft-skills-icon-btn{display:inline-flex;align-items:center;justify-content:center;inline-size:28px;block-size:28px;min-block-size:28px;padding:0;border:0;border-radius:var(--dsw-radius-sm,8px);background:transparent;color:var(--dsw-alias-label-tertiary)}
+.waycraft-skills button.waycraft-skills-icon-btn:hover:not(:disabled),.waycraft-skills button.waycraft-skills-icon-btn:active:not(:disabled){background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-3));color:var(--dsw-alias-label-primary)}
+.waycraft-skills button.waycraft-skills-icon-btn:disabled{opacity:.4}
+.waycraft-skills button.waycraft-skills-icon-btn.waycraft-skills-icon-btn--danger:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover-danger,var(--dsw-alias-interactive-bg-hover));color:var(--dsw-alias-state-error-primary)}
+.waycraft-skills button.waycraft-skills-icon-btn.waycraft-skills-icon-btn--primary{background:var(--dsw-alias-button-primary-fill,var(--dsw-alias-brand-primary));color:var(--dsw-alias-label-primary-foreground,var(--dsw-alias-bg-base))}
+.waycraft-skills button.waycraft-skills-icon-btn.waycraft-skills-icon-btn--primary:hover:not(:disabled){background:var(--dsw-alias-button-primary-hover,var(--dsw-alias-brand-primary));color:var(--dsw-alias-label-primary-foreground,var(--dsw-alias-bg-base))}
+.waycraft-skills-icon-btn svg{inline-size:16px;block-size:16px}
+.waycraft-skills-seg{display:inline-flex;flex-wrap:wrap;max-inline-size:100%;gap:4px;padding:4px;border:0.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md,12px);background:var(--dsw-alias-bg-layer-1);min-block-size:32px;flex:0 0 auto}
+.waycraft-skills-seg button{display:inline-flex;align-items:center;gap:8px;min-block-size:28px;padding-inline:8px;border-color:transparent;background:transparent;border-radius:var(--dsw-radius-sm,8px)}
+.waycraft-skills-seg button[aria-pressed=true]{background:var(--dsw-alias-bg-layer-3,var(--dsw-alias-bg-layer-2));border-color:var(--dsw-alias-border-l3,var(--dsw-alias-border-l2))}
+.waycraft-skills-sr{position:absolute;inline-size:1px;block-size:1px;overflow:hidden;clip-path:inset(50%);opacity:0;pointer-events:none;padding:0;border:0}
+.waycraft-skills-iconbar{display:inline-flex;flex:none;align-items:stretch;block-size:32px;border:0.5px solid var(--dsw-alias-border-l4,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-md,12px);background:var(--dsw-alias-bg-layer-1);overflow:hidden}
+.waycraft-skills .waycraft-skills-iconbar button.waycraft-skills-icon-btn{inline-size:32px;block-size:100%;min-block-size:0;border-radius:0;color:var(--dsw-alias-label-secondary)}
+.waycraft-skills .waycraft-skills-iconbar button.waycraft-skills-icon-btn+button.waycraft-skills-icon-btn{border-inline-start:0.5px solid var(--dsw-alias-border-l2)}
+.waycraft-skills .waycraft-skills-iconbar button.waycraft-skills-icon-btn:focus-visible{outline-offset:-2px}
+.waycraft-skills-toolbar .waycraft-skills-iconbar{margin-inline-start:auto}
+.waycraft-skills-source>summary .waycraft-skills-icon-btn,.waycraft-skills-source>summary .waycraft-skills-switch{flex:none}
+${responsive("max-width:520px", `.waycraft-skills-source>summary{flex-wrap:wrap}.waycraft-skills-source-name{flex:1 1 auto;min-inline-size:4ch}.waycraft-skills-source>summary .waycraft-skills-switch{font-size:0}.waycraft-skills-source>summary .waycraft-skills-status{display:none}.waycraft-skills-source>summary>:first-child+*{white-space:nowrap}`)}
+.waycraft-skills-pop{position:fixed;inset:auto;z-index:1000;inline-size:auto;max-inline-size:calc(100vw - 16px);display:block}
+.waycraft-skills-overlay{position:fixed;inset:0;z-index:1000;inline-size:auto;max-inline-size:none;display:flex;align-items:center;justify-content:center;padding:16px;background:var(--dsw-alias-bg-base);background:color-mix(in srgb,var(--dsw-alias-bg-base) 60%,transparent);overflow:auto}
+.waycraft-skills-overlay .waycraft-skills-dialog{inline-size:min(var(--waycraft-skills-w,600px),100%);min-inline-size:0;max-block-size:calc(100vh - 32px);max-block-size:calc(100dvh - 32px);overflow:hidden;overflow-wrap:anywhere}
+.waycraft-skills-menu{max-block-size:calc(100vh - 16px);max-block-size:calc(100dvh - 16px);overflow:auto;box-shadow:var(--dsw-elevation-soft,var(--dsw-shadow-lv3));display:flex;flex-direction:column;gap:4px;min-inline-size:160px;padding:8px;border:0.5px solid var(--dsw-alias-border-l3,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-lg,16px);background:var(--dsw-alias-bg-layer-2)}
+.waycraft-skills-menu button,.waycraft-skills-menu select{inline-size:100%;text-align:start}
+.waycraft-skills-diag,.waycraft-skills-catsec{overflow:hidden}
+.waycraft-skills-diag>summary,.waycraft-skills-catsec>summary{border-radius:inherit}
+.waycraft-skills button.waycraft-skills-link.waycraft-skills-danger,.waycraft-skills button.waycraft-skills-link.waycraft-skills-danger:hover:not(:disabled){color:var(--dsw-alias-state-error-primary)}
+${responsive("max-width:520px", `.waycraft-skills-stats{grid-template-columns:repeat(2,minmax(0,1fr))}`)}
+${responsive("max-width:520px", `.waycraft-skills .waycraft-skills-row.waycraft-skills-discover-row{grid-template-columns:minmax(0,1fr);align-items:start}.waycraft-skills .waycraft-skills-discover-row .waycraft-skills-row-actions{justify-content:flex-end}`)}
+.waycraft-skills-catempty{margin:0;padding-inline:32px 8px;padding-block-end:8px}
+.waycraft-skills-pathrow>button{white-space:nowrap;flex:none}
+.waycraft-skills-cathead{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;min-block-size:40px;padding-inline:8px;font-weight:600;font-size:13px}
+.waycraft-skills-cathead>.waycraft-skills-source-name{flex:0 1 auto;min-inline-size:max-content;max-inline-size:100%;overflow-wrap:normal}
+.waycraft-skills-cathead-actions{display:flex;align-items:center;justify-content:flex-end;gap:4px;flex:1 0 auto;margin-inline-start:auto}
+.waycraft-skills-footnote{margin:0;padding:8px;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}
+.waycraft-skills-catico{display:inline-flex;color:var(--dsw-alias-state-warn-label)}
+.waycraft-skills-catbody>summary{display:flex;align-items:center;gap:8px;min-block-size:28px;padding-inline:8px;cursor:pointer;color:var(--dsw-alias-label-secondary);font-size:12px;list-style:none}
+.waycraft-skills-catbody>summary::-webkit-details-marker{display:none}
+.waycraft-skills .waycraft-skills-catbody>summary .waycraft-skills-chev{transform:rotate(-45deg)}
+.waycraft-skills .waycraft-skills-catbody>summary:dir(rtl) .waycraft-skills-chev{transform:rotate(135deg)}
+.waycraft-skills .waycraft-skills-catbody[open]>summary .waycraft-skills-chev,.waycraft-skills .waycraft-skills-catbody[open]>summary:dir(rtl) .waycraft-skills-chev{transform:rotate(45deg)}
+.waycraft-skills-picklist{display:flex;flex-direction:column;gap:4px;max-block-size:260px;overflow:auto}
+.waycraft-skills-catsec{border-block-start:0.5px solid var(--dsw-alias-border-l2)}
+.waycraft-skills-catsec>summary{display:flex;align-items:center;gap:8px;min-block-size:32px;cursor:pointer;font-weight:600;font-size:13px}
+.waycraft-skills-catsec>summary .waycraft-skills-source-name{flex:1 1 auto}
+.waycraft-skills-catsec>summary:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}
+${responsive("max-width:520px", `.waycraft-skills-seg span:not(.waycraft-skills-badge){display:none}.waycraft-skills-toolbar .waycraft-skills-iconbar{margin-inline-start:0}`)}
+
+`;
+		const diagnosticText = (item) => {
+			const label = dictionaries.en[`diag.${item.code}`] ? t(`diag.${item.code}`) : item.message ?? item.code;
+			const where = item.params?.path ?? item.params?.source;
+			return where ? `${label} — ${where}` : label;
+		};
+		const isAbsentDefault = (item, sources, items) => {
+			const id = item.params?.source;
+			if (!sources.find((x) => x.id === id && !x.custom)) return false;
+			if (item.code === "source-unavailable") return true;
+			return item.code === "unreadable-entries" && item.params?.count === "1" && items.some((x) => x.code === "source-unavailable" && x.params?.source === id);
+		};
+		const NOTE_CODES = ["linked-outside-root"];
+		const WARNING_CODES = [
+			"discovery-truncated",
+			"oversized-skill",
+			"empty-skill",
+			"invalid-frontmatter",
+			"invalid-yaml",
+			"invalid-metadata",
+			"invalid-policy",
+			"project-source-outside",
+			"project-source-overlap",
+			"root-override-ignored",
+			"unreadable-entries"
+		];
+		const severityOf = (item) => item.severity === "error" || item.severity === "warning" || item.severity === "note" ? item.severity : NOTE_CODES.includes(item.code) ? "note" : WARNING_CODES.includes(item.code) ? "warning" : "error";
+		const DIAG_CAP = 8;
+		const ROW_CAP = 100;
+		const SEVERITY_PATHS = {
+			error: "M8 2a6 6 0 1 0 0 12A6 6 0 0 0 8 2zM8 5v3.5M8 10.5v.01",
+			warning: "M8 2.5l6 10.5H2zM8 6.5v3M8 11.5v.01",
+			note: "M8 2a6 6 0 1 0 0 12A6 6 0 0 0 8 2zM8 7.5V11M8 5v.01"
+		};
+		const severityIcon = (level, extra) => h("svg", {
+			viewBox: "0 0 16 16",
+			width: 16,
+			height: 16,
+			fill: "none",
+			stroke: "currentColor",
+			strokeWidth: 1.5,
+			strokeLinecap: "round",
+			strokeLinejoin: "round",
+			"aria-hidden": true,
+			...extra
+		}, h("path", { d: SEVERITY_PATHS[level] ?? SEVERITY_PATHS.note }));
+		function DiagGroup(props) {
+			const [all, setAll] = React.useState(false);
+			const shown = all ? props.rows : props.rows.slice(0, DIAG_CAP);
+			const key = props.level === "error" ? props.count === 1 ? "diagProblem" : "diagProblems" : props.level === "warning" ? props.count === 1 ? "diagWarning" : "diagWarnings" : props.count === 1 ? "diagNote" : "diagNotes";
+			return h("div", {
+				className: "waycraft-skills-diaggroup",
+				"data-tone": props.level === "error" ? "issue" : props.level,
+				[`data-waycraft-skills-diag-${props.level}`]: true,
+				...props.level === "error" ? { "data-waycraft-skills-diag-issues": true } : {},
+				dir: isArabic() ? "rtl" : void 0
+			}, props.head ? h("p", { className: "waycraft-skills-diaggroup-head" }, severityIcon(props.level, {
+				className: "waycraft-skills-icon",
+				"data-waycraft-skills-icon": props.level
+			}), h("bdi", null, String(props.count)), " ", t(key)) : null, props.hint ? h("p", { className: "waycraft-skills-diag-hint" }, props.hint) : null, h("ul", null, ...shown), props.rows.length > DIAG_CAP ? h("div", { className: "waycraft-skills-diag-foot" }, h("button", {
+				type: "button",
+				className: "waycraft-skills-link",
+				onClick: () => setAll(!all)
+			}, all ? t("showLess") : t("showMoreCount").replace("{count}", String(props.rows.length - DIAG_CAP)))) : null);
+		}
+		const diagnosticsRegion = (items, sources, id, ctl) => {
+			const rest = items.filter((x) => (x.params?.source ?? "") === id && !isAbsentDefault(x, sources, items));
+			const pathOf = (x) => x.params?.path ?? sources.find((y) => y.id === x.params?.source)?.path ?? "";
+			const chip = (value, key) => h("code", {
+				key,
+				className: "waycraft-skills-path waycraft-skills-diag-chip"
+			}, h("bdi", { dir: "ltr" }, value));
+			const titleOf = (x) => {
+				if (x.code === "unreadable-entries") {
+					const n = Number(x.params?.count ?? "0");
+					return n === 1 ? t("diagEntriesOne") : t("diagEntriesCount").replace("{count}", String(n));
+				}
+				return dictionaries.en[`diag.${x.code}`] ? t(`diag.${x.code}`) : x.message ?? x.code;
+			};
+			const hasKey = (key) => !!dictionaries.en[key];
+			const line = (x, i) => {
+				const paths = String(x.params?.paths ?? "").split("\n").filter(Boolean);
+				const total = Number(x.params?.count ?? paths.length);
+				const reason = x.params?.reason;
+				const next = hasKey(`diagNext.${x.code}`) ? t(`diagNext.${x.code}`) : "";
+				const where = x.params?.path ?? (paths.length ? "" : pathOf(x));
+				return h("li", {
+					key: `${x.code}:${i}`,
+					className: "waycraft-skills-diag-item"
+				}, h("div", { className: "waycraft-skills-diag-title" }, h("strong", null, titleOf(x))), where ? chip(where, "path") : null, reason && hasKey(`diagReason.${reason}`) ? h("p", { className: "waycraft-skills-diag-detail" }, t(`diagReason.${reason}`)) : null, next ? h("p", { className: "waycraft-skills-diag-detail" }, next) : null, paths.length ? h("details", { className: "waycraft-skills-diag-more" }, h("summary", null, t("diagDetails")), ...paths.map((path) => chip(path, path)), total > paths.length ? h("span", {
+					key: "more",
+					className: "waycraft-skills-diag-detail"
+				}, t("diagMore").replace("{count}", String(total - paths.length))) : null) : null);
+			};
+			const seen = /* @__PURE__ */ new Set();
+			const dedupe = (list) => list.filter((x) => {
+				const key = `${x.code}|${x.params?.source ?? ""}|${x.params?.path ?? ""}`;
+				if (seen.has(key)) return false;
+				seen.add(key);
+				return true;
+			});
+			const groups = [];
+			const counts = {};
+			const mixed = new Set(rest.map((x) => severityOf(x))).size > 1;
+			for (const level of [
+				"error",
+				"warning",
+				"note"
+			]) {
+				const rows = dedupe(rest.filter((x) => severityOf(x) === level));
+				counts[level] = rows.length;
+				if (rows.length) groups.push(h(DiagGroup, {
+					key: level,
+					level,
+					count: rows.length,
+					rows: rows.map((x, i) => line(x, i)),
+					head: mixed
+				}));
+			}
+			if (!groups.length) return null;
+			const worst = counts.error ? "error" : counts.warning ? "warning" : "note";
+			const label = (level, n) => `${n} ${t(level === "error" ? n === 1 ? "diagProblem" : "diagProblems" : level === "warning" ? n === 1 ? "diagWarning" : "diagWarnings" : n === 1 ? "diagNote" : "diagNotes")}`;
+			const summary = [
+				"error",
+				"warning",
+				"note"
+			].filter((level) => counts[level]).map((level) => label(level, counts[level])).join(" · ");
+			return h("details", {
+				key: `diag:${id}`,
+				id: `waycraft-diag-${id || "general"}`,
+				className: "waycraft-skills-diagregion",
+				"data-tone": worst === "error" ? "issue" : worst,
+				"data-waycraft-diag-source": id,
+				open: ctl.open,
+				onToggle: (event) => {
+					const open = !!event.currentTarget?.open;
+					if (open !== ctl.open) ctl.onToggle(open);
+				},
+				dir: isArabic() ? "rtl" : void 0
+			}, h("summary", null, severityIcon(worst, {
+				className: "waycraft-skills-icon",
+				"data-waycraft-skills-icon": worst
+			}), h("span", { className: "waycraft-skills-diagregion-text" }, id ? summary : `${t("diagGeneral")} · ${summary}`), h("span", {
+				className: "waycraft-skills-chev",
+				"aria-hidden": true
+			})), h("div", { className: "waycraft-skills-diagregion-body" }, ...groups));
+		};
+		const call = async (body, signal) => {
+			const base = new URL(document.baseURI);
+			if (!base.pathname.endsWith("/")) base.pathname += "/";
+			const response = await fetch(new URL("api/waycraft-skills.catalog", base), {
+				method: "POST",
+				headers: {
+					"content-type": "application/json",
+					"x-waycraft-skills": "1"
+				},
+				body: JSON.stringify(body),
+				signal
+			});
+			if (!response.ok) {
+				const failure = new Error(String(response.status));
+				const body$1 = await response.json().catch(() => ({}));
+				failure.params = body$1.params;
+				failure.code = body$1.code ?? {
+					403: "forbidden",
+					415: "unsupported",
+					503: "stopping"
+				}[response.status] ?? (response.status === 409 ? "state-invalid" : void 0);
+				throw failure;
+			}
+			return response.json();
+		};
+		const copyText = (text) => {
+			const clipboard = typeof navigator === "undefined" ? void 0 : navigator.clipboard;
+			if (!clipboard || typeof clipboard.writeText !== "function") return Promise.reject(/* @__PURE__ */ new Error("clipboard-unavailable"));
+			return Promise.resolve().then(() => clipboard.writeText(text));
+		};
+		const errorText = (failure) => failure?.code && dictionaries.en[`code.${failure.code}`] ? t(`code.${failure.code}`).replace("{limit}", String(failure.params?.limit ?? "")).replace("{recovery}", String(failure.params?.recovery ?? "")) : t("error");
+		const icon = (d, extra) => h("svg", {
+			viewBox: "0 0 16 16",
+			width: 16,
+			height: 16,
+			fill: "none",
+			stroke: "currentColor",
+			strokeWidth: 1.5,
+			strokeLinecap: "round",
+			strokeLinejoin: "round",
+			"aria-hidden": true,
+			className: "waycraft-skills-ico",
+			...extra
+		}, h("path", { d }));
+		const ICONS = {
+			refresh: "M13 8a5 5 0 1 1-1.5-3.5M13 2.5v3h-3",
+			plus: "M8 3v10M3 8h10",
+			filePlus: "M4 2h5l3 3v9H4zM9 2v3h3M8 8v4M6 10h4",
+			folderPlus: "M2 4.5h4l1.5 1.5H14v7H2zM8 8v3M6.5 9.5h3",
+			pencil: "M3 13l.5-3L10.5 3l2.5 2.5L6 12.5zM9 4.5L11.5 7",
+			importIcon: "M8 2v8M5 7l3 3 3-3M3 13h10",
+			folder: "M2 4.5h4l1.5 1.5H14v7H2z",
+			global: "M8 2a6 6 0 1 0 0 12A6 6 0 0 0 8 2zM2 8h12M8 2c2.5 2.5 2.5 9.5 0 12M8 2c-2.5 2.5-2.5 9.5 0 12",
+			search: "M7 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM10 10l3.5 3.5",
+			trash: "M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.5 9h6l.5-9",
+			more: "M3.5 8h.01M8 8h.01M12.5 8h.01",
+			file: "M4 2h5l3 3v9H4zM9 2v3h3M6 9h4M6 11.5h4",
+			download: "M8 2v8M5 7l3 3 3-3M3 13h10",
+			check: "M3 8.5l3.5 3.5L13 4.5",
+			star: "M8 2.2l1.8 3.7 4 .6-2.9 2.8.7 4L8 11.4 4.4 13.3l.7-4L2.2 6.5l4-.6z"
+		};
+		const CATALOG_CAP = 100;
+		const discoverRow = (p) => h(p.tag ?? "li", {
+			key: p.key,
+			className: "waycraft-skills-row waycraft-skills-listrow waycraft-skills-discover-row",
+			...p.attrs
+		}, h("div", { className: "waycraft-skills-row-main" }, h("span", { className: "waycraft-skills-row-title" }, h("strong", null, p.name), ...p.badges ?? []), p.description ? h("p", { className: "waycraft-skills-row-desc" }, p.description) : null, p.meta?.length ? h("div", { className: "waycraft-skills-meta-line" }, ...p.meta) : null, ...p.notes ?? []), h("span", { className: "waycraft-skills-row-actions" }, p.details ? h("button", {
+			type: "button",
+			className: "waycraft-skills-icon-btn",
+			"aria-label": p.details.label,
+			title: p.details.label.split(":")[0],
+			onClick: p.details.onClick
+		}, icon(ICONS.file)) : null, p.install ? h("button", {
+			type: "button",
+			className: "waycraft-skills-install",
+			"aria-label": p.install.aria,
+			title: p.install.title ?? p.install.aria.split(":")[0],
+			...p.install.haspopup ? { "aria-haspopup": "dialog" } : {},
+			disabled: p.install.disabled,
+			onClick: p.install.onClick
+		}, icon(ICONS.download), h("span", null, p.install.label)) : null), ...p.after ?? []);
+		const statPill = (iconPath, value, words) => h("span", {
+			className: "waycraft-skills-stat-pill",
+			title: `${value} ${words}`
+		}, icon(iconPath), h("span", null, value), h("span", { className: "waycraft-skills-sr" }, ` ${words}`));
+		/** Body portal target; null without a DOM (unit tests), where overlays render inline. */
+		const portalTarget = () => {
+			try {
+				const body = document.body;
+				return body ? {
+					body,
+					dom: require("react-dom")
+				} : null;
+			} catch {
+				return null;
+			}
+		};
+		/** On/off switch. Always our own role=switch button: the host's native Switch could not be verified to
+		*  render correctly inside plugin-scoped styles (it depends on host CSS-module scope), so it is not used. */
+		const switchControl = (p) => h("button", {
+			type: "button",
+			role: "switch",
+			"aria-checked": p.checked,
+			className: `waycraft-skills-switch${p.bare ? " waycraft-skills-switch-bare" : ""}`,
+			disabled: p.disabled,
+			"aria-label": p.label,
+			title: p.title,
+			onClick: p.onToggle
+		}, h("span", {
+			className: "waycraft-skills-switch-thumb",
+			"aria-hidden": true
+		}), p.text);
+		const FOCUSABLE = "button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex=\"-1\"])";
+		function CatalogDialog(props) {
+			const ref = React.useRef(null);
+			React.useEffect(() => {
+				const previous = document.activeElement;
+				(ref.current?.querySelector?.(".waycraft-skills-dialog-body input:not([type=file]):not([type=checkbox]):not([disabled]),.waycraft-skills-dialog-body textarea:not([disabled]),.waycraft-skills-dialog-body select:not([disabled])") ?? ref.current)?.focus?.();
+				return () => previous?.focus?.();
+			}, []);
+			const parts = React.Children.toArray(props.children);
+			const lead = parts[0];
+			const heading = lead && (lead.type === "h3" || lead.type === "h4") ? lead : null;
+			const rest = heading ? parts.slice(1) : parts;
+			const isButton = (x) => x?.type === "button";
+			const strong = (x) => /waycraft-skills-(primary|danger)/.test(String(x.props?.className ?? ""));
+			const actions$2 = rest.filter(isButton).sort((a, b) => Number(strong(a)) - Number(strong(b)));
+			const body = rest.filter((x) => !isButton(x));
+			const footer = actions$2.length ? [h("div", { className: "waycraft-skills-dialog-footer" }, ...actions$2)] : [];
+			const title = heading ? heading.props.children : props.title ?? props.label;
+			const dialog = h("div", {
+				role: "dialog",
+				className: "waycraft-skills-dialog",
+				style: { "--waycraft-skills-w": `${{
+					sm: 400,
+					md: 520,
+					lg: 600,
+					xl: 760
+				}[props.size ?? (props.wide ? "xl" : "lg")]}px` },
+				"aria-modal": true,
+				"aria-label": props.label,
+				dir: isArabic() ? "rtl" : void 0,
+				ref,
+				tabIndex: -1,
+				onKeyDown: (event) => {
+					if (event.key === "Escape") {
+						event.stopPropagation?.();
+						props.onClose();
+						return;
+					}
+					if (event.key === "Enter" && event.target?.tagName === "INPUT" && ![
+						"file",
+						"checkbox",
+						"button"
+					].includes(event.target.type)) {
+						const primary = ref.current?.querySelector?.(".waycraft-skills-dialog-footer .waycraft-skills-primary:not([disabled]),.waycraft-skills-dialog-footer .waycraft-skills-danger:not([disabled])");
+						if (primary) {
+							event.preventDefault?.();
+							primary.click();
+						}
+						return;
+					}
+					if (event.key !== "Tab") return;
+					const items = Array.from(ref.current?.querySelectorAll?.(FOCUSABLE) ?? []);
+					if (!items.length) return;
+					const first = items[0];
+					const last = items[items.length - 1];
+					const active = document.activeElement;
+					if (event.shiftKey && (active === first || active === ref.current)) {
+						event.preventDefault?.();
+						last.focus();
+					} else if (!event.shiftKey && active === last) {
+						event.preventDefault?.();
+						first.focus();
+					}
+				}
+			}, h("div", { className: "waycraft-skills-dialog-head" }, h("h3", null, title), h("button", {
+				type: "button",
+				className: "waycraft-skills-icon-btn waycraft-skills-dialog-x",
+				"aria-label": t("close"),
+				title: t("close"),
+				onClick: props.onClose
+			}, h("svg", {
+				viewBox: "0 0 16 16",
+				width: 16,
+				height: 16,
+				fill: "none",
+				stroke: "currentColor",
+				strokeWidth: 1.5,
+				strokeLinecap: "round",
+				"aria-hidden": true
+			}, h("path", { d: "M4 4l8 8M12 4l-8 8" })))), h("div", { className: "waycraft-skills-dialog-body" }, ...body), ...footer);
+			const host = portalTarget();
+			return host ? host.dom.createPortal(h("div", {
+				className: "waycraft-skills waycraft-skills-overlay",
+				dir: isArabic() ? "rtl" : void 0
+			}, dialog), host.body) : dialog;
+		}
+		/** Row action menu: an anchored popover (never pushes layout) that flips, stays in the viewport,
+		*  closes after an action, on Escape and outside press, and returns focus to its trigger. */
+		function MoreMenu(props) {
+			const trigger = React.useRef(null);
+			const menu = React.useRef(null);
+			const [open, setOpen] = React.useState(false);
+			const [pos, setPos] = React.useState(null);
+			const close = (focus) => {
+				setOpen(false);
+				setPos(null);
+				if (focus) trigger.current?.focus?.();
+			};
+			React.useEffect(() => {
+				if (!open) return void 0;
+				const place = () => {
+					const rect = trigger.current?.getBoundingClientRect?.();
+					const box = menu.current;
+					if (!rect || !box) return;
+					const root = document.documentElement;
+					const vh = globalThis.innerHeight || root?.clientHeight || 0;
+					const vw = globalThis.innerWidth || root?.clientWidth || 0;
+					const mh = box.offsetHeight || 0;
+					const mw = box.offsetWidth || 0;
+					let top = rect.bottom + 4;
+					if (top + mh > vh - 8 && rect.top - 4 - mh >= 8) top = rect.top - 4 - mh;
+					top = Math.max(8, Math.min(top, vh - mh - 8));
+					let left = isArabic() ? rect.left : rect.right - mw;
+					left = Math.max(8, Math.min(left, vw - mw - 8));
+					setPos((old) => old && old.top === top && old.left === left ? old : {
+						top,
+						left
+					});
+				};
+				place();
+				const items = Array.from(menu.current?.querySelectorAll?.("button") ?? []);
+				for (const item of items) item.setAttribute?.("role", "menuitem");
+				(items.find((item) => !item.disabled) ?? menu.current?.querySelector?.(FOCUSABLE))?.focus?.();
+				const away = (event) => {
+					if (!trigger.current?.contains?.(event.target) && !menu.current?.contains?.(event.target)) close(false);
+				};
+				document.addEventListener?.("pointerdown", away, true);
+				document.addEventListener?.("scroll", place, true);
+				globalThis.addEventListener?.("resize", place);
+				return () => {
+					document.removeEventListener?.("pointerdown", away, true);
+					document.removeEventListener?.("scroll", place, true);
+					globalThis.removeEventListener?.("resize", place);
+				};
+			}, [open]);
+			const host = portalTarget();
+			const list = open || !host ? h("div", {
+				ref: menu,
+				role: "menu",
+				hidden: !open,
+				className: "waycraft-skills-menu",
+				dir: isArabic() ? "rtl" : void 0,
+				onClick: (event) => {
+					if (event.target?.closest?.("button")) close(true);
+				},
+				onChange: () => close(true),
+				onBlur: (event) => {
+					const next = event.relatedTarget;
+					if (next && !menu.current?.contains?.(next) && !trigger.current?.contains?.(next)) close(false);
+				},
+				onKeyDown: (event) => {
+					if (event.key === "Escape") {
+						event.stopPropagation?.();
+						close(true);
+					} else if (["ArrowDown", "ArrowUp"].includes(event.key)) {
+						const items = Array.from(menu.current?.querySelectorAll?.(FOCUSABLE) ?? []);
+						const next = items[(items.indexOf(document.activeElement) + (event.key === "ArrowDown" ? 1 : -1) + items.length) % items.length];
+						if (next) {
+							event.preventDefault?.();
+							next.focus();
+						}
+					}
+				}
+			}, props.children) : null;
+			return h(React.Fragment, null, h("button", {
+				type: "button",
+				ref: trigger,
+				className: "waycraft-skills-icon-btn",
+				"aria-label": props.label,
+				title: props.title,
+				"aria-haspopup": "menu",
+				"aria-expanded": open,
+				onClick: () => open ? close(false) : setOpen(true),
+				onKeyDown: (event) => {
+					if (event.key === "Escape" && open) {
+						event.stopPropagation?.();
+						close(true);
+					} else if (!open && (event.key === "ArrowDown" || event.key === "ArrowUp")) {
+						event.preventDefault?.();
+						setOpen(true);
+					}
+				}
+			}, props.trigger), list && host ? host.dom.createPortal(h("div", {
+				className: "waycraft-skills waycraft-skills-pop",
+				style: {
+					top: pos?.top ?? 0,
+					left: pos?.left ?? 0,
+					visibility: pos ? "visible" : "hidden"
+				}
+			}, list), host.body) : list);
+		}
+		function CatalogPanel(props) {
+			const { kind, data, setData, setNotice } = props;
+			const [typed, setTyped] = React.useState(""), [committed, setCommitted] = React.useState(""), [items, setItems] = React.useState([]), [cursor, setCursor] = React.useState(null), [phase, setPhase] = React.useState("loading"), [more, setMore] = React.useState(false), [attempt, setAttempt] = React.useState(0), [sort, setSort] = React.useState("downloads"), [status, setStatus] = React.useState(""), [detail, setDetail] = React.useState(null), [copy, setCopy] = React.useState(""), [installing, setInstalling] = React.useState(null), [target, setTarget] = React.useState("user-dsh"), [conflict, setConflict] = React.useState(false), [confirming, setConfirming] = React.useState(null), [working, setWorking] = React.useState(""), [message, setMessage] = React.useState("");
+			const request = React.useRef(null);
+			React.useEffect(() => {
+				if (data && !validDestination(data, target)) setTarget("user-dsh");
+			}, [data]);
+			const sending = React.useRef(false);
+			const searching = committed !== "";
+			const recordsOf = (item) => (data?.catalogInstalls ?? []).filter((entry) => entry.catalogId === item.id);
+			const copiesOf = (item) => recordsOf(item).filter((entry) => entry.status === "installed" || entry.status === "modified");
+			const bodyFor = (item) => item.catalog === "clawhub" ? {
+				catalog: "clawhub",
+				owner: item.owner,
+				slug: item.slug
+			} : {
+				catalog: "skillsh",
+				source: item.source,
+				skillId: item.skillId
+			};
+			const load = (after) => {
+				request.current?.abort();
+				const current = request.current = new AbortController();
+				if (after) setMore(true);
+				else {
+					setPhase("loading");
+					setItems([]);
+					setCursor(null);
+				}
+				return call(kind === "skillsh" ? {
+					action: "catalog-skillsh-search",
+					q: committed
+				} : searching ? {
+					action: "catalog-clawhub-search",
+					q: committed
+				} : {
+					action: "catalog-clawhub-list",
+					...after ? { cursor: after } : {}
+				}, current.signal).then((value) => {
+					if (request.current !== current) return;
+					setItems((all) => after ? [...all, ...value.items].slice(0, CATALOG_CAP) : value.items);
+					setCursor(value.nextCursor ?? null);
+					setPhase("ready");
+					setMore(false);
+				}).catch((failure) => {
+					if (failure?.name === "AbortError" || request.current !== current) return;
+					setPhase("error");
+					setMore(false);
+				});
+			};
+			React.useEffect(() => {
+				if (kind === "skillsh" && !committed) {
+					request.current?.abort();
+					setItems([]);
+					setPhase("idle");
+					return;
+				}
+				load();
+				return () => request.current?.abort();
+			}, [
+				kind,
+				committed,
+				attempt
+			]);
+			React.useEffect(() => {
+				const handle = setTimeout(() => setCommitted(typed.trim()), 300);
+				return () => clearTimeout(handle);
+			}, [typed]);
+			const shown = items.filter((item) => {
+				const copies = copiesOf(item).length;
+				return !status || (status === "installed" ? copies > 0 : copies === 0);
+			}).slice().sort((a, b) => sort === "name" ? a.name.localeCompare(b.name) : sort === "installs" ? (b.installs ?? 0) - (a.installs ?? 0) : 0);
+			const send = async (busyKey, body, done) => {
+				if (working || sending.current) return;
+				sending.current = true;
+				setWorking(busyKey);
+				setNotice("");
+				setMessage("");
+				try {
+					const value = await call(body);
+					setData(value);
+					done?.(value);
+				} catch (failure) {
+					setNotice(errorText(failure));
+					if (failure?.code === "repo-conflict") setConflict(true);
+				} finally {
+					sending.current = false;
+					setWorking("");
+				}
+			};
+			const openDetail = async (item) => {
+				setCopy("");
+				setDetail({
+					item,
+					loading: true
+				});
+				try {
+					setDetail({
+						item,
+						value: await call({
+							action: "catalog-detail",
+							skill: bodyFor(item)
+						})
+					});
+				} catch (failure) {
+					setDetail(null);
+					setNotice(errorText(failure));
+				}
+			};
+			const confirmInstall = (reassociate) => send(`install:${installing.id}`, {
+				action: "catalog-install",
+				skill: bodyFor(installing),
+				destination: target,
+				...projectOfDest(target) ? { project: projectOfDest(target) } : {},
+				confirm: true,
+				...reassociate ? { reassociate: true } : {}
+			}, () => {
+				setInstalling(null);
+				setConflict(false);
+				setMessage(t("catInstallDone"));
+			});
+			const num = (n) => Number(n).toLocaleString("en-US");
+			const metadata = (item) => [
+				h("bdi", {
+					key: "origin",
+					dir: "ltr",
+					className: "waycraft-skills-origin"
+				}, item.catalog === "clawhub" ? `${item.owner}/${item.slug}` : `${item.source}/${item.skillId}`),
+				item.downloads !== void 0 ? statPill(ICONS.download, num(item.downloads), t("catDownloads")) : null,
+				item.installs !== void 0 ? statPill(ICONS.check, num(item.installs), t("catInstalls")) : null,
+				item.stars !== void 0 ? statPill(ICONS.star, num(item.stars), t("catStars")) : null
+			].filter(Boolean);
+			const shared = (entry) => entry.source === "user-agents";
+			const confirmAction = () => send(`${confirming.action}:${confirming.entry.id}`, {
+				action: confirming.action === "uninstall" ? "catalog-uninstall" : "catalog-forget",
+				installId: confirming.entry.id,
+				...confirming.entry.project ? { project: confirming.entry.project } : {}
+			}, () => setConfirming(null));
+			return h("div", {
+				"data-waycraft-catalogs": true,
+				className: "waycraft-skills-panel"
+			}, h("div", { className: "waycraft-skills-filterrow" }, kind === "clawhub" && !searching ? h("select", {
+				"aria-label": t("catSort"),
+				value: sort,
+				onChange: (event) => setSort(event.target.value)
+			}, h("option", { value: "downloads" }, t("catSortDownloads")), h("option", { value: "installs" }, t("catSortInstalls")), h("option", { value: "name" }, t("catSortName"))) : null, !searching || kind === "skillsh" ? h("select", {
+				"aria-label": t("catStatusFilter"),
+				value: status,
+				onChange: (event) => setStatus(event.target.value)
+			}, h("option", { value: "" }, t("catStatusAll")), h("option", { value: "available" }, t("catStatusAvailable")), h("option", { value: "installed" }, t("catStatusInstalled"))) : null, h("form", {
+				className: "waycraft-skills-searchform",
+				onSubmit: (event) => {
+					event.preventDefault();
+					setCommitted(typed.trim());
+					setAttempt((n) => n + 1);
+				}
+			}, h("input", {
+				"aria-label": kind === "clawhub" ? t("catSearchClawhub") : t("catSearchSkillsh"),
+				placeholder: kind === "clawhub" ? t("catSearchClawhub") : t("catSearchSkillsh"),
+				maxLength: 100,
+				value: typed,
+				onChange: (event) => setTyped(event.target.value)
+			}), h("button", {
+				type: "submit",
+				className: "waycraft-skills-icon-btn",
+				"aria-label": t("catSearch"),
+				title: t("catSearch")
+			}, icon(ICONS.search)))), kind === "clawhub" && !searching ? h("p", { className: "waycraft-skills-caption" }, t("catPopularNote")) : null, kind === "skillsh" && !searching ? h("p", { className: "waycraft-skills-caption" }, t("catSkillshHint")) : null, message ? h("p", { role: "status" }, message) : null, phase === "loading" ? h("p", { role: "status" }, t("catLoading")) : null, phase === "error" ? h("div", { role: "alert" }, h("p", null, t("catLoadError")), h("button", { onClick: () => setAttempt((n) => n + 1) }, t("catRetry"))) : null, phase === "ready" && !shown.length ? h("p", null, searching ? t("catSearchEmpty") : t("catEmpty")) : null, h("ul", { className: "waycraft-skills-list" }, ...shown.map((item) => {
+				const copies = copiesOf(item);
+				return discoverRow({
+					key: item.id,
+					attrs: { "data-waycraft-catalog-item": item.id },
+					name: item.name,
+					badges: copies.length ? [h("span", {
+						key: "installed",
+						className: "waycraft-skills-badge"
+					}, t("catInstalled"))] : [],
+					description: item.summary,
+					meta: metadata(item),
+					notes: !copies.length && recordsOf(item).length ? [h("p", {
+						key: "hint",
+						role: "note",
+						className: "waycraft-skills-meta"
+					}, t(`catHint.${recordsOf(item)[0].status}`))] : [],
+					details: {
+						label: `${t("catDetails")}: ${item.name}`,
+						onClick: () => void openDetail(item)
+					},
+					install: {
+						aria: `${copies.length ? t("catInstallElsewhere") : t("catInstall")}: ${item.name}`,
+						label: t("repoInstall"),
+						title: copies.length ? t("catInstallElsewhere") : t("catInstall"),
+						disabled: !!working,
+						onClick: () => {
+							setInstalling(item);
+							setConflict(false);
+							setTarget("user-dsh");
+						}
+					},
+					after: [recordsOf(item).length ? h("ul", { "aria-label": `${t("catCopies")}: ${item.name}` }, ...recordsOf(item).map((entry) => h("li", {
+						key: entry.id,
+						"data-waycraft-catalog-copy": entry.id
+					}, placeNode(data, entry), " · ", h("bdi", { dir: "ltr" }, `${entry.root}/${entry.name}`), ` · ${t(`catStatus.${entry.status}`)}`, entry.status === "invalid-root" || entry.status === "missing" ? h("button", {
+						className: "waycraft-skills-danger",
+						"aria-label": `${t("catForget")}: ${item.name} — ${placeName(data, entry)}`,
+						disabled: !!working,
+						onClick: () => setConfirming({
+							action: "forget",
+							entry,
+							item
+						})
+					}, t("catForget")) : entry.status === "trashed" ? null : h("button", {
+						className: "waycraft-skills-danger",
+						"aria-label": `${t("catUninstall")}: ${item.name} — ${placeName(data, entry)}`,
+						disabled: !!working,
+						onClick: () => setConfirming({
+							action: "uninstall",
+							entry,
+							item
+						})
+					}, t("catUninstall"))))) : null]
+				});
+			})), kind === "clawhub" && !searching && cursor && items.length < CATALOG_CAP ? h("button", {
+				disabled: more,
+				"aria-live": "polite",
+				"aria-busy": more,
+				onClick: () => void load(cursor)
+			}, more ? t("catLoadingMore") : t("catLoadMore")) : null, detail ? h(CatalogDialog, {
+				label: t("catDetails"),
+				onClose: () => setDetail(null)
+			}, h("h4", null, detail.item.name), detail.loading ? h("p", { role: "status" }, t("catDetailLoading")) : h("div", null, h("p", null, detail.value.description), h("p", null, `${t("catOrigin")}: `, h("bdi", { dir: "ltr" }, detail.value.origin)), h("textarea", {
+				readOnly: true,
+				"aria-label": "SKILL.md",
+				value: detail.value.body
+			}), h("button", { onClick: () => copyText(detail.value.body).then(() => setCopy(t("catCopied")), () => setCopy(t("catCopyFailed"))) }, t("catCopy")), copy ? h("span", { role: "status" }, copy) : null), h("button", {
+				className: "waycraft-skills-primary",
+				onClick: () => setDetail(null)
+			}, t("catClose"))) : null, installing ? h(CatalogDialog, {
+				label: t("catInstallTitle"),
+				onClose: () => setInstalling(null)
+			}, h("h4", null, `${t("catInstallTitle")}: ${installing.name}`), h("p", { className: "waycraft-skills-meta-line" }, ...metadata(installing)), h("select", {
+				"aria-label": t("repoDestination"),
+				value: target,
+				onChange: (event) => setTarget(event.target.value)
+			}, ...destinationsOf(data).map((item) => destinationOption(item))), ...destinationInfo(data, validDestination(data, target)), h("button", {
+				className: "waycraft-skills-primary",
+				disabled: !!working || !validDestination(data, target),
+				onClick: () => void confirmInstall(false)
+			}, t("catInstallConfirm")), conflict ? h("button", {
+				disabled: !!working || !validDestination(data, target),
+				onClick: () => void confirmInstall(true)
+			}, t("catReassociate")) : null, h("button", { onClick: () => setInstalling(null) }, t("cancel"))) : null, confirming ? h(CatalogDialog, {
+				label: confirming.action === "uninstall" ? t("catUninstallTitle") : t("catForgetTitle"),
+				onClose: () => setConfirming(null)
+			}, h("h4", null, confirming.action === "uninstall" ? t("catUninstallTitle") : t("catForgetTitle")), h("p", null, ...(confirming.action === "uninstall" ? t("catUninstallBody") : t("catForgetBody")).replace("{name}", confirming.item.name).split("{where}").flatMap((part, index) => index ? [
+				placeNode(data, confirming.entry),
+				" (",
+				h("bdi", { dir: "ltr" }, `${confirming.entry.root}/${confirming.entry.name}`),
+				")",
+				part
+			] : [part])), confirming.action === "uninstall" && shared(confirming.entry) ? h("p", { role: "alert" }, t("catSharedWarning")) : null, h("button", {
+				disabled: !!working,
+				onClick: () => void confirmAction()
+			}, confirming.action === "uninstall" ? t("catConfirmUninstall") : t("catConfirmForget")), h("button", { onClick: () => setConfirming(null) }, t("cancel"))) : null);
+		}
+		function Section() {
+			const [data, setData] = React.useState(null), [error, setError] = React.useState(false), [query, setQuery] = React.useState(""), [source, setSource] = React.useState(""), [status, setStatus] = React.useState(""), [detail, setDetail] = React.useState(null), [detailError, setDetailError] = React.useState(false), [copiedDetail, setCopiedDetail] = React.useState(false), [scope, setScope] = React.useState("global"), [tab, setTab] = React.useState("git"), [project, setProject] = React.useState(""), [folderPath, setFolderPath] = React.useState(""), [candidates, setCandidates] = React.useState(null), [editing, setEditing] = React.useState(null), [removing, setRemoving] = React.useState(""), [rootEdit, setRootEdit] = React.useState(null), [pendingScan, setPendingScan] = React.useState(false), [loaded, setLoaded] = React.useState(""), [notice, setNotice] = React.useState(""), [managing, setManaging] = React.useState(false), [addOpen, setAddOpen] = React.useState(false), [catDialog, setCatDialog] = React.useState(null), [addTo, setAddTo] = React.useState(null), [addPick, setAddPick] = React.useState([]), [addQuery, setAddQuery] = React.useState(""), [catName, setCatName] = React.useState({}), [catEdit, setCatEdit] = React.useState(null), [catRemoving, setCatRemoving] = React.useState(""), [catFilter, setCatFilter] = React.useState(""), [noteDrafts, setNoteDrafts] = React.useState({}), [noteDialog, setNoteDialog] = React.useState(null), [orgOpen, setOrgOpen] = React.useState({}), [rowsOpen, setRowsOpen] = React.useState({}), [importing, setImporting] = React.useState(false), [importPath, setImportPath] = React.useState(""), [importFiles, setImportFiles] = React.useState([]), [importConflict, setImportConflict] = React.useState(""), [importResult, setImportResult] = React.useState(null), [importBusy, setImportBusy] = React.useState(false), [importDrag, setImportDrag] = React.useState(false), [importMsg, setImportMsg] = React.useState(""), [trashDeleting, setTrashDeleting] = React.useState(""), [repoFormOpen, setRepoFormOpen] = React.useState(false), dragRef = React.useRef(null), copiedTimer = React.useRef(null), [repoInstalling, setRepoInstalling] = React.useState(""), [repoForm, setRepoForm] = React.useState({
+				url: "",
+				ref: "",
+				subdirectory: ""
+			}), [repoFilter, setRepoFilter] = React.useState(""), [repoStatusFilter, setRepoStatusFilter] = React.useState(""), [repoRepoFilter, setRepoRepoFilter] = React.useState(""), [repoUnsubscribing, setRepoUnsubscribing] = React.useState(""), [repoForgetting, setRepoForgetting] = React.useState(""), [repoTarget, setRepoTarget] = React.useState("user-dsh"), [repoBusy, setRepoBusy] = React.useState(""), [repoSummary, setRepoSummary] = React.useState(""), [repoPreviews, setRepoPreviews] = React.useState({}), [repoOverwrites, setRepoOverwrites] = React.useState({}), [refreshing, setRefreshing] = React.useState(false), [creating, setCreating] = React.useState(false), [createName, setCreateName] = React.useState(""), [createDescription, setCreateDescription] = React.useState(""), [createBody, setCreateBody] = React.useState(""), [createSource, setCreateSource] = React.useState("user-dsh");
+			React.useEffect(() => {
+				if (!creating && !importing) return;
+				setCreateSource((prev) => scope === "project" && project ? `${PROJECT_DEST}${project}` : projectOfDest(prev) !== void 0 ? "user-dsh" : prev);
+			}, [
+				creating,
+				importing,
+				scope,
+				project
+			]);
+			const fileInput = React.useRef(null);
+			const dirInput = React.useRef(null);
+			React.useEffect(() => () => {
+				if (copiedTimer.current) clearTimeout(copiedTimer.current);
+			}, []);
+			const repoDestination = validDestination(data, repoTarget);
+			React.useEffect(() => {
+				if (data && !validDestination(data, repoTarget)) setRepoTarget("user-dsh");
+			}, [data]);
+			const lifetime = React.useRef(new AbortController());
+			const busy = React.useRef(false);
+			const controller = React.useRef(null);
+			const selected = scope === "project" && project ? { project } : {};
+			const key = scope === "project" && project ? project : "";
+			const keyRef = React.useRef(key);
+			keyRef.current = key;
+			const switching = loaded !== key;
+			const load = () => {
+				const requested = key;
+				controller.current?.abort();
+				const current = controller.current = new AbortController();
+				setError(false);
+				return call({
+					action: "list",
+					...selected
+				}, current.signal).then((value) => {
+					if (keyRef.current !== requested) return;
+					setData(value);
+					setLoaded(requested);
+				}).catch((error$1) => {
+					if (error$1.name !== "AbortError" && keyRef.current === requested) setError(true);
+				});
+			};
+			React.useEffect(() => () => {
+				controller.current?.abort();
+				lifetime.current.abort();
+			}, []);
+			React.useEffect(() => {
+				setNotice("");
+				setCandidates(null);
+				setCatFilter("");
+				setNoteDrafts({});
+				setCatEdit(null);
+				setCatRemoving("");
+				load();
+			}, [scope, project]);
+			React.useEffect(() => {
+				setCatFilter("");
+			}, [source]);
+			const toggle = async (kind, id, enabled) => {
+				if (busy.current || switching || lifetime.current.signal.aborted) return;
+				busy.current = true;
+				try {
+					const requested = key;
+					await call({
+						action: "toggle",
+						kind,
+						id,
+						enabled,
+						...selected
+					}, lifetime.current.signal);
+					if (!lifetime.current.signal.aborted && keyRef.current === requested) await load();
+				} catch {
+					if (!lifetime.current.signal.aborted && keyRef.current === key) setError(true);
+				} finally {
+					busy.current = false;
+				}
+			};
+			const mutate = async (body, done) => {
+				if (busy.current || lifetime.current.signal.aborted) return;
+				busy.current = true;
+				setNotice("");
+				const requested = key;
+				try {
+					const value = await call(body, lifetime.current.signal);
+					if (lifetime.current.signal.aborted || keyRef.current !== requested) return;
+					setData(value);
+					setError(false);
+					done?.(value);
+				} catch (failure) {
+					if (!lifetime.current.signal.aborted && keyRef.current === requested) setNotice(errorText(failure));
+				} finally {
+					busy.current = false;
+				}
+			};
+			const repoAction = async (busyKey, body, done) => {
+				if (repoBusy || busy.current) return;
+				setRepoBusy(busyKey);
+				setRepoSummary("");
+				try {
+					await mutate(body, done);
+				} finally {
+					setRepoBusy("");
+				}
+			};
+			const repoWarning = (value) => {
+				const result = value?.result;
+				const lines = [];
+				if (result?.warning) lines.push(`${t(`code.${result.warning}`)} ${result.path ?? ""}`.trim());
+				for (const item of result?.warnings ?? []) lines.push(`${item.name}: ${t(`code.${item.code}`)} ${(item.recovery ?? []).join(" ")}`.trim());
+				if (lines.length) setNotice(lines.join(" · "));
+			};
+			const repoPreview = (record, kind) => void repoAction(record.id, {
+				action: `repo-${kind}-preview`,
+				installId: record.id,
+				...record.project ? { project: record.project } : {}
+			}, (value) => {
+				setRepoPreviews((all) => ({
+					...all,
+					[record.id]: {
+						kind,
+						...value.result
+					}
+				}));
+				setRepoOverwrites((all) => ({
+					...all,
+					[record.id]: false
+				}));
+			});
+			const repoApply = (record) => {
+				const preview = repoPreviews[record.id];
+				if (!preview) return;
+				const clear = () => setRepoPreviews(({ [record.id]: _gone,...rest }) => rest);
+				repoAction(`apply:${record.id}`, {
+					action: `repo-${preview.kind}`,
+					installId: record.id,
+					current: preview.current,
+					target: preview.target.digest,
+					snapshot: preview.snapshot,
+					overwrite: !!repoOverwrites[record.id],
+					...record.project ? { project: record.project } : {}
+				}, (value) => {
+					clear();
+					setNotice(t(preview.kind === "update" ? "repoUpdated" : "repoRolledBack").replace("{name}", record.name));
+					repoWarning(value);
+				});
+			};
+			const MAX_DROP = 600;
+			const readAll = (reader) => new Promise((resolve, reject) => {
+				const out = [];
+				const next = () => reader.readEntries((batch) => {
+					if (!batch.length) return resolve(out);
+					out.push(...batch);
+					next();
+				}, reject);
+				next();
+			});
+			const entryFiles = async (entry, out) => {
+				if (out.length > MAX_DROP) return;
+				if (entry.isFile) {
+					const file = await new Promise((resolve, reject) => entry.file(resolve, reject));
+					out.push({
+						name: file.name,
+						size: file.size,
+						webkitRelativePath: String(entry.fullPath ?? file.name).replace(/^\/+/, ""),
+						arrayBuffer: () => file.arrayBuffer()
+					});
+				} else if (entry.isDirectory) for (const child of await readAll(entry.createReader())) await entryFiles(child, out);
+			};
+			const dropItems = async (transfer) => {
+				setImportDrag(false);
+				const taken = Array.from(transfer?.items ?? []).filter((item) => item.kind !== "string").map((item) => ({
+					entry: item.webkitGetAsEntry?.() ?? void 0,
+					file: item.getAsFile?.() ?? void 0
+				}));
+				if (!taken.length) for (const file of Array.from(transfer?.files ?? [])) taken.push({ file });
+				const out = [];
+				let skipped = 0;
+				try {
+					for (const item of taken) if (item.entry?.isDirectory) await entryFiles(item.entry, out);
+					else {
+						const name = String(item.entry?.name ?? item.file?.name ?? "");
+						if (!/\.(zip|md)$/i.test(name)) {
+							skipped++;
+							continue;
+						}
+						if (item.entry) await entryFiles(item.entry, out);
+						else out.push(item.file);
+					}
+				} catch {
+					setImportMsg(t("importDropFailed"));
+					return;
+				}
+				setImportPath("");
+				setImportResult(null);
+				setImportFiles(out);
+				setImportMsg(skipped ? t("importDropUnsupported") : "");
+			};
+			const runImport = async (dryRun) => {
+				if (busy.current || switching || importBusy || !importConflict) return;
+				setImportBusy(true);
+				const requested = key;
+				try {
+					const body = {
+						action: "import",
+						path: importPath,
+						dryRun,
+						conflict: importConflict,
+						...destRequest()
+					};
+					if (!dryRun && importFiles.length) {
+						body.action = "upload";
+						if (importFiles.length > 512 || importFiles.reduce((sum, file) => sum + file.size, 0) > 1048576) throw new Error(t("code.import-limit"));
+						const entries = [];
+						for (const file of importFiles) {
+							if (lifetime.current.signal.aborted) return;
+							const bytes = new Uint8Array(await file.arrayBuffer());
+							let binary = "";
+							for (const byte of bytes) binary += String.fromCharCode(byte);
+							entries.push({
+								path: file.webkitRelativePath || file.name,
+								data: btoa(binary)
+							});
+						}
+						body.archives = entries.filter((entry) => !entry.path.includes("/") && /\.zip$/i.test(entry.path));
+						body.entries = entries.filter((entry) => entry.path.includes("/") || !/\.zip$/i.test(entry.path));
+					}
+					await destMutate(body, (value) => setImportResult(value.result));
+				} catch (error$1) {
+					if (keyRef.current === requested) setNotice(error$1.message);
+				} finally {
+					setImportBusy(false);
+				}
+			};
+			const addFolders = (items) => mutate({
+				action: "custom-add",
+				items
+			}, (value) => {
+				const result = value.results?.[0];
+				setCandidates(null);
+				setNotice(result?.status === "rejected" ? errorText(result) : result?.status === "registered" ? t("registered") : t("added"));
+			});
+			const scanFolder = async () => {
+				if (pendingScan) return;
+				setPendingScan(true);
+				setNotice("");
+				const requested = key;
+				try {
+					const found = await call({
+						action: "custom-scan",
+						path: folderPath
+					}, lifetime.current.signal);
+					if (!lifetime.current.signal.aborted && keyRef.current === requested) setCandidates(found.candidates);
+				} catch (failure) {
+					if (!lifetime.current.signal.aborted && keyRef.current === requested) {
+						setCandidates(null);
+						setNotice(errorText(failure));
+					}
+				} finally {
+					setPendingScan(false);
+				}
+			};
+			const copyStatus = (copy) => copy.metadataValid === false || !copy.policyValid ? "invalid" : !copy.eligible ? "disabled" : copy.shadowedBy ? "shadowed" : copy.author && !copy.author.modelInvocable && !copy.author.userInvocable ? "blocked" : "enabled";
+			const inProject = scope === "project";
+			const view = scope === "trash" || scope === "discover" ? {
+				sources: [],
+				copies: [],
+				diagnostics: []
+			} : inProject ? data?.project ?? {
+				sources: [],
+				copies: [],
+				diagnostics: []
+			} : data;
+			const visibleSources = (view?.sources ?? []).filter((x) => x.id === "user-dsh" || x.id === "user-agents" || x.kind === "dsh" || x.custom || (view?.copies ?? []).some((c) => c.source === x.id) || (view?.diagnostics ?? []).some((d) => d.params?.source === x.id && !isAbsentDefault(d, view?.sources ?? [], view?.diagnostics ?? [])));
+			const totals = {
+				total: 0,
+				enabled: 0,
+				disabled: 0,
+				invalid: 0
+			};
+			for (const copy of view?.copies ?? []) {
+				const state = copyStatus(copy);
+				totals.total++;
+				if (state === "enabled") totals.enabled++;
+				else if (state === "disabled") totals.disabled++;
+				else if (state === "invalid") totals.invalid++;
+			}
+			const refresh = async () => {
+				if (refreshing || switching || busy.current) return;
+				setRefreshing(true);
+				try {
+					await mutate({
+						action: "reload",
+						...selected
+					});
+				} finally {
+					setRefreshing(false);
+				}
+			};
+			const stat = (count, one, other) => h("div", {
+				key: other,
+				className: "waycraft-skills-stat"
+			}, h("strong", null, h("bdi", null, String(count))), " ", t(count === 1 ? one : other));
+			const orgOf = (sourceId) => ({
+				categories: [],
+				members: {},
+				notes: {},
+				...view?.organization?.[sourceId] ?? {}
+			});
+			const filterCategories = source ? orgOf(source).categories : [];
+			const activeCat = catFilter === "__none" || filterCategories.some((c) => c.id === catFilter) ? catFilter : "";
+			const copies = React.useMemo(() => (view?.copies ?? []).filter((copy) => {
+				const organization = orgOf(copy.source);
+				return (!source || copy.source === source) && (!query || `${copy.name} ${copy.description} ${copy.path} ${organization.notes[copy.name] ?? ""} ${t(copyStatus(copy))} ${sourceLabel((view?.sources ?? []).find((x) => x.id === copy.source) ?? { id: copy.source })}`.toLowerCase().includes(query.toLowerCase())) && (!status || copyStatus(copy) === status) && (!activeCat || (activeCat === "__none" ? !organization.members[copy.name] : organization.members[copy.name] === activeCat));
+			}), [
+				view,
+				query,
+				source,
+				status,
+				activeCat,
+				t
+			]);
+			const mineBySource = React.useMemo(() => {
+				const map = Object.create(null);
+				for (const copy of copies) (map[copy.source] ??= []).push(copy);
+				return map;
+			}, [copies]);
+			const projects = data?.projects ?? [];
+			const projectName = (id) => projects.find((x) => x.id === id)?.name ?? id;
+			const destRequest = () => {
+				const p = projectOfDest(createSource);
+				return {
+					source: createSource,
+					...p ? { project: p } : {}
+				};
+			};
+			const destMutate = async (body, done) => {
+				if ((projectOfDest(createSource) ?? "") === key) return mutate(body, done);
+				if (busy.current || lifetime.current.signal.aborted) return;
+				busy.current = true;
+				setNotice("");
+				try {
+					const value = await call(body, lifetime.current.signal);
+					if (lifetime.current.signal.aborted) return;
+					done?.(value);
+					await load();
+				} catch (failure) {
+					if (!lifetime.current.signal.aborted) setNotice(errorText(failure));
+				} finally {
+					busy.current = false;
+				}
+			};
+			/** Scope + Location selects, project hints and the resolved folder chip (path comes from the payload). */
+			const destPick = () => {
+				const list = destinationsOf(data);
+				const isProject = projectOfDest(createSource) !== void 0;
+				const users = list.filter((x) => !x.project);
+				const projects$1 = list.filter((x) => x.project);
+				const chosen = validDestination(data, createSource);
+				const shown = isProject ? projects$1 : users;
+				return [
+					h("div", { className: "waycraft-skills-grid" }, labeled(t("destScope"), h("select", {
+						"aria-label": t("destScope"),
+						value: isProject ? "project" : "user",
+						disabled: switching,
+						onChange: (event) => setCreateSource(event.target.value === "project" ? projects$1.find((x) => !x.disabled)?.id ?? projects$1[0]?.id ?? PROJECT_DEST : users[0]?.id ?? "user-dsh")
+					}, h("option", { value: "user" }, t("destScopeUser")), h("option", { value: "project" }, t("destScopeProject")))), labeled(t("destLocation"), h("select", {
+						"aria-label": t("destination"),
+						value: createSource,
+						onChange: (event) => setCreateSource(event.target.value)
+					}, ...shown.map((item) => destinationOption(item, item.id === "user-dsh" ? "DSH" : item.id === "user-agents" ? "Shared Agents" : item.label))))),
+					isProject && !projects$1.length ? h("p", { className: "waycraft-skills-helper" }, t("destNoProjects")) : null,
+					isProject && !chosen && projects$1.length ? h("p", { className: "waycraft-skills-helper" }, t("destInvalid")) : null,
+					chosen?.path ? h("p", { className: "waycraft-skills-helper" }, `${t("pathChip")}: `, h("bdi", {
+						dir: "ltr",
+						className: "waycraft-skills-path"
+					}, chosen.path)) : null,
+					isProject && chosen ? h("p", { className: "waycraft-skills-helper" }, t("destProjectNote")) : null
+				];
+			};
+			const projectOption = (x) => h("option", {
+				key: x.id,
+				value: x.id,
+				disabled: !x.available
+			}, x.available ? x.name : `${x.name} · ${t(`code.${x.code}`)}`);
+			const field = (label, value, set) => h("input", {
+				"aria-label": label,
+				placeholder: label,
+				value,
+				onChange: (e) => set(e.target.value)
+			});
+			/** A field with a visible caption (dialog forms); the input keeps its aria-label. */
+			const labeled = (caption, input) => h("label", { className: "waycraft-skills-labeled" }, h("span", null, caption), input);
+			const organize = (body, done) => mutate({
+				...body,
+				...selected
+			}, done);
+			const skillNames = (sourceId) => [...new Set((view?.copies ?? []).filter((c) => c.source === sourceId && c.metadataValid !== false).map((c) => c.name))];
+			const browse = (set, label) => pickDirectory ? h("button", {
+				type: "button",
+				"data-waycraft-browse": true,
+				"aria-label": `${t("browseAria")}: ${label}`,
+				onClick: () => void Promise.resolve().then(() => pickDirectory?.()).then((value) => {
+					if (typeof value === "string" && value) set(value);
+				}).catch(() => {})
+			}, t("browse")) : null;
+			const rootControls = (x) => !x.overridable ? null : h("div", { className: "waycraft-skills-inline" }, x.overridden ? h("span", {
+				className: "waycraft-skills-badge",
+				"data-waycraft-overridden": true
+			}, t("folderRedirected"), " ", h("bdi", { dir: "ltr" }, x.defaultPath)) : null);
+			const manager = () => h("div", { className: "waycraft-skills-form waycraft-skills-manager" }, h("div", { className: "waycraft-skills-pathrow" }, labeled(t("folderPath"), field(t("folderPath"), folderPath, setFolderPath)), browse(setFolderPath, t("folderPath"))), h("div", { className: "waycraft-skills-actions" }, h("button", {
+				disabled: pendingScan,
+				onClick: () => void scanFolder()
+			}, t("scanFolder")), h("button", {
+				className: "waycraft-skills-primary",
+				disabled: !folderPath.trim(),
+				onClick: () => void addFolders([{ path: folderPath }])
+			}, t("addFolder"))), notice ? h("p", { role: "status" }, notice) : null, candidates ? h("div", null, h("h4", null, t("candidates")), candidates.length ? null : h("p", null, t("noCandidates")), ...candidates.map((c) => h("div", { key: c.path }, h("strong", null, c.label), h("p", null, h("bdi", { dir: "ltr" }, c.path), ` · ${c.skillCount} ${t("skillCount")}`), c.registered ? h("span", null, t("candidateRegistered")) : c.conflict ? h("span", null, t("candidateConflict")) : h("button", {
+				className: "waycraft-skills-primary",
+				"aria-label": `${t("addSourceNamed")}: ${c.label}`,
+				onClick: () => void addFolders([{
+					path: c.path,
+					label: c.label,
+					group: c.group
+				}])
+			}, t("addSource"))))) : null);
+			const customControls = (x) => removing === x.id ? h(CatalogDialog, {
+				label: `${t("confirmRemove")}: ${sourceLabel(x)}`,
+				size: "sm",
+				onClose: () => setRemoving("")
+			}, h("p", null, t("removeNote")), h("button", {
+				className: "waycraft-skills-danger",
+				"aria-label": `${t("confirmNamed")}: ${x.label ?? x.id}`,
+				onClick: () => void mutate({
+					action: "custom-remove",
+					id: x.id
+				}, () => setRemoving(""))
+			}, t("confirmRemove")), h("button", {
+				"aria-label": `${t("cancel")}: ${x.label ?? x.id}`,
+				onClick: () => setRemoving("")
+			}, t("cancel"))) : h("div", null, h("span", null, t("customBadge")), h("button", {
+				"aria-label": `${t("editNamed")}: ${x.label ?? x.id}`,
+				onClick: () => setEditing({
+					id: x.id,
+					label: x.label ?? "",
+					group: x.group ?? "",
+					path: x.path
+				})
+			}, t("edit")), h("button", {
+				className: "waycraft-skills-danger",
+				"aria-label": `${t("removeNamed")}: ${x.label ?? x.id}`,
+				onClick: () => setRemoving(x.id)
+			}, t("remove")));
+			const foldersOpen = !inProject && (managing || !!rootEdit || !!editing);
+			const closeFolders = () => {
+				setManaging(false);
+				setRootEdit(null);
+				setEditing(null);
+				setAddOpen(false);
+			};
+			const foldersDialog = () => {
+				const list = (data?.sources ?? []).filter((x) => x.custom || x.overridable);
+				const picked = rootEdit?.id ?? editing?.id ?? "";
+				const cur = list.find((x) => x.id === picked);
+				const pick = (id) => {
+					const x = list.find((y) => y.id === id);
+					setRootEdit(null);
+					setEditing(null);
+					if (!x) return;
+					if (x.custom) setEditing({
+						id: x.id,
+						label: x.label ?? "",
+						group: x.group ?? "",
+						path: x.path
+					});
+					else setRootEdit({
+						id: x.id,
+						path: x.path
+					});
+				};
+				const rootDirty = cur && rootEdit ? String(rootEdit.path ?? "").trim() !== "" && rootEdit.path !== cur.path : false;
+				const customDirty = cur && editing ? String(editing.path ?? "").trim() !== "" && (editing.path !== cur.path || editing.label !== (cur.label ?? "") || editing.group !== (cur.group ?? "")) : false;
+				const name = cur ? sourceLabel(cur) : "";
+				const customs = list.filter((x) => x.custom);
+				return h(CatalogDialog, {
+					label: t("folders"),
+					size: "md",
+					onClose: closeFolders
+				}, h("h3", null, t("folders")), h("p", { className: "waycraft-skills-notice" }, t("folderHelp")), labeled(t("skillSource"), h("select", {
+					"aria-label": t("skillSource"),
+					value: picked,
+					onChange: (event) => pick(event.target.value)
+				}, h("option", { value: "" }, t("skillSourcePick")), ...list.map((x) => h("option", {
+					key: x.id,
+					value: x.id
+				}, sourceLabel(x))))), cur && rootEdit ? h("div", { className: "waycraft-skills-form" }, h("div", {
+					"data-waycraft-root-edit": cur.id,
+					className: "waycraft-skills-pathrow"
+				}, labeled(t("folderPath"), field(`${t("changeFolder")}: ${name}`, rootEdit.path, (v) => setRootEdit({
+					...rootEdit,
+					path: v
+				}))), browse((v) => setRootEdit((prev) => prev ? {
+					...prev,
+					path: v
+				} : prev), name)), h("p", { className: "waycraft-skills-helper" }, `${t("folderDefault")}: `, h("bdi", { dir: "ltr" }, cur.defaultPath ?? cur.path), cur.overridden ? h("button", {
+					type: "button",
+					className: "waycraft-skills-link",
+					"aria-label": `${t("resetFolder")}: ${name}`,
+					onClick: () => void mutate({
+						action: "root-set",
+						id: cur.id,
+						path: ""
+					}, () => setRootEdit(null))
+				}, t("resetFolder")) : null), h("div", { className: "waycraft-skills-actions" }, h("button", {
+					type: "button",
+					"aria-label": `${t("cancel")}: ${name}`,
+					onClick: () => setRootEdit(null)
+				}, t("cancel")), h("button", {
+					type: "button",
+					className: "waycraft-skills-primary",
+					"aria-label": `${t("saveFolder")}: ${name}`,
+					disabled: !rootDirty,
+					onClick: () => void mutate({
+						action: "root-set",
+						id: cur.id,
+						path: rootEdit.path
+					}, () => setRootEdit(null))
+				}, t("saveFolder")))) : null, cur && editing ? h("div", { className: "waycraft-skills-form" }, labeled(t("label"), field(t("label"), editing.label, (v) => setEditing({
+					...editing,
+					label: v
+				}))), labeled(t("group"), field(t("group"), editing.group, (v) => setEditing({
+					...editing,
+					group: v
+				}))), h("div", { className: "waycraft-skills-pathrow" }, labeled(t("folderPath"), field(`${t("edit")}: ${t("folderPath")}`, editing.path, (v) => setEditing({
+					...editing,
+					path: v
+				}))), browse((v) => setEditing((prev) => prev ? {
+					...prev,
+					path: v
+				} : prev), `${t("edit")}: ${t("folderPath")}`)), h("div", { className: "waycraft-skills-actions" }, h("button", {
+					type: "button",
+					"aria-label": `${t("cancel")}: ${name}`,
+					onClick: () => setEditing(null)
+				}, t("cancel")), h("button", {
+					type: "button",
+					className: "waycraft-skills-primary",
+					disabled: !customDirty,
+					"aria-label": `${t("save")}: ${name}`,
+					onClick: () => void mutate({
+						action: "custom-update",
+						id: cur.id,
+						label: editing.label,
+						group: editing.group,
+						path: editing.path
+					}, () => setEditing(null))
+				}, t("save")))) : null, h("hr", { className: "waycraft-skills-divider" }), h("div", { className: "waycraft-skills-pathrow" }, h("div", { className: "waycraft-skills-labeled" }, h("strong", null, t("customSources")), h("span", null, t("foldersHint"))), h("button", {
+					type: "button",
+					"aria-expanded": addOpen,
+					onClick: () => setAddOpen(!addOpen)
+				}, addOpen ? t("hideForm") : t("addSource"))), addOpen ? manager() : null, notice && !addOpen ? h("p", {
+					role: "status",
+					className: "waycraft-skills-notice"
+				}, notice) : null, customs.length ? h("ul", { className: "waycraft-skills-customlist" }, ...customs.map((x) => h("li", { key: x.id }, h("strong", null, sourceLabel(x)), h("bdi", {
+					dir: "ltr",
+					className: "waycraft-skills-path"
+				}, x.path), h("button", {
+					type: "button",
+					className: "waycraft-skills-link",
+					"aria-label": `${t("editNamed")}: ${sourceLabel(x)}`,
+					onClick: () => pick(x.id)
+				}, t("edit")), h("button", {
+					type: "button",
+					className: "waycraft-skills-link waycraft-skills-danger",
+					"aria-label": `${t("removeNamed")}: ${sourceLabel(x)}`,
+					onClick: () => setRemoving(x.id)
+				}, t("remove"))))) : null);
+			};
+			const changeScope = (value) => {
+				setScope(value);
+				setSource("");
+				setNotice("");
+			};
+			const openDetail = (copy) => call({
+				action: "detail",
+				id: copy.path,
+				...selected
+			}, lifetime.current.signal).then((value) => {
+				if (!lifetime.current.signal.aborted) {
+					setDetailError(false);
+					setDetail(value);
+				}
+			}).catch(() => {
+				if (!lifetime.current.signal.aborted) setDetailError(true);
+			});
+			const clearDrop = (root) => root?.querySelectorAll?.(".waycraft-skills-drop-over").forEach((n) => n.classList.remove("waycraft-skills-drop-over"));
+			const dragDone = (info) => setNotice(`${t("dragMoved")} ${info.name}`);
+			const organizationOf = (id) => orgOf(id);
+			const rowDrag = (copy, movable) => {
+				if (!movable || !orgOf(copy.source).categories.length) return {};
+				const cat = orgOf(copy.source).members[copy.name] ?? "";
+				return {
+					draggable: true,
+					onDragStart: (e) => {
+						const info = {
+							source: copy.source,
+							name: copy.name,
+							category: cat
+						};
+						dragRef.current = info;
+						if (e.dataTransfer) {
+							e.dataTransfer.effectAllowed = "move";
+							e.dataTransfer.setData("text/plain", JSON.stringify(info));
+						}
+						e.currentTarget.classList.add("waycraft-skills-dragging");
+					},
+					onDragEnd: (e) => {
+						dragRef.current = null;
+						e.currentTarget.classList.remove("waycraft-skills-dragging");
+						clearDrop(e.currentTarget.closest?.("[data-waycraft-skills]"));
+					}
+				};
+			};
+			const catDrop = (sourceId, categoryId) => ({
+				onDragOver: (e) => {
+					const d = dragRef.current;
+					if (!d || d.source !== sourceId || d.category === categoryId) return;
+					e.preventDefault();
+					if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+					e.currentTarget.classList.add("waycraft-skills-drop-over");
+				},
+				onDragLeave: (e) => e.currentTarget.classList.remove("waycraft-skills-drop-over"),
+				onDrop: (e) => {
+					const d = dragRef.current;
+					e.currentTarget.classList.remove("waycraft-skills-drop-over");
+					dragRef.current = null;
+					if (!d || d.source !== sourceId || d.category === categoryId) return;
+					e.preventDefault();
+					organize({
+						action: "category-assign",
+						source: sourceId,
+						names: [d.name],
+						category: categoryId
+					}, () => dragDone(d));
+				}
+			});
+			const skillRow = (x, copy) => {
+				const organization = orgOf(copy.source);
+				const note = organization.notes[copy.name];
+				const status$1 = copyStatus(copy);
+				const movable = copy.metadataValid !== false && !data.corrupt;
+				const linked = (view?.diagnostics ?? []).some((d) => d.code === "linked-outside-root" && d.params?.source === copy.source && d.params?.path === copy.path);
+				const canTrash = ["user-dsh", "user-agents"].includes(copy.source) || copy.source === `project-dsh:${project}`;
+				return h("article", {
+					key: copy.path,
+					className: "waycraft-skills-row",
+					"data-waycraft-skill": copy.name,
+					...rowDrag(copy, movable)
+				}, movable && organizationOf(copy.source).categories.length ? h("span", {
+					className: "waycraft-skills-grip",
+					"aria-hidden": true,
+					title: t("dragTip")
+				}, "⋮⋮") : null, h("div", { className: "waycraft-skills-row-main" }, h("div", { className: "waycraft-skills-row-title" }, h("strong", null, copy.name), status$1 === "invalid" || status$1 === "shadowed" || status$1 === "blocked" ? h("span", {
+					className: "waycraft-skills-badge waycraft-skills-badge-warn",
+					"data-waycraft-skills-status": status$1
+				}, t(status$1)) : null, organization.members[copy.name] ? h("span", { className: "waycraft-skills-badge" }, organization.categories.find((c) => c.id === organization.members[copy.name])?.name) : null), h("p", {
+					className: "waycraft-skills-row-desc",
+					"data-note": note ? true : void 0,
+					title: note ? `${t("note")}: ${note}\n${copy.description}` : copy.description
+				}, note ?? copy.description), linked ? h("span", {
+					className: "waycraft-skills-linked",
+					"data-waycraft-linked": true
+				}, severityIcon("note", {
+					className: "waycraft-skills-icon",
+					"data-waycraft-skills-icon": "note"
+				}), t("linkedReadOnly")) : null), h("div", { className: "waycraft-skills-row-actions" }, h(MoreMenu, {
+					label: `${t("more")}: ${copy.name}`,
+					title: t("more"),
+					trigger: icon(ICONS.more)
+				}, h("button", {
+					type: "button",
+					onClick: () => void openDetail(copy)
+				}, t("details")), h("button", {
+					type: "button",
+					"aria-label": `${t("note")}: ${copy.name}`,
+					disabled: data.corrupt,
+					onClick: () => setNoteDialog({
+						source: copy.source,
+						name: copy.name
+					})
+				}, t("editNote")), organization.categories.length && movable ? h("select", {
+					"aria-label": `${t("assignTo")}: ${copy.name}`,
+					value: organization.members[copy.name] ?? "",
+					onChange: (e) => void organize({
+						action: "category-assign",
+						source: copy.source,
+						names: [copy.name],
+						category: e.target.value
+					})
+				}, h("option", { value: "" }, t("uncategorized")), ...organization.categories.map((c) => h("option", {
+					key: c.id,
+					value: c.id
+				}, c.name))) : null, canTrash ? h("button", {
+					className: "waycraft-skills-danger",
+					"aria-label": `${t("moveTrash")}: ${copy.name}`,
+					disabled: switching || data.corrupt,
+					onClick: () => void mutate({
+						action: "trash",
+						id: copy.path,
+						source: copy.source,
+						...selected
+					}, (value) => {
+						if (value.result?.warning) setNotice(`${t(`code.${value.result.warning}`)} ${value.result.path ?? ""}`);
+					})
+				}, t("moveTrash")) : null), switchControl({
+					checked: !!copy.eligible,
+					bare: true,
+					disabled: x.enabled === false || data.corrupt,
+					label: `${t("copyCopy")}: ${copy.name} — ${copy.path}`,
+					text: t("toggle"),
+					onToggle: () => toggle("copy", copy.path, !copy.eligible)
+				})));
+			};
+			const sourceProblems = (id) => (view?.diagnostics ?? []).filter((d) => d.params?.source === id && severityOf(d) !== "note" && !isAbsentDefault(d, view?.sources ?? [], view?.diagnostics ?? [])).length;
+			const regionOf = (id) => diagnosticsRegion(view?.diagnostics ?? [], view?.sources ?? [], id, {
+				open: !!orgOpen["diag:" + id],
+				onToggle: (open) => setOrgOpen((prev) => ({
+					...prev,
+					["diag:" + id]: open
+				}))
+			});
+			const revealProblems = (id) => {
+				setOrgOpen((prev) => ({
+					...prev,
+					["src:" + id]: true,
+					["diag:" + id]: true
+				}));
+				setTimeout(() => document.getElementById(`waycraft-diag-${id}`)?.scrollIntoView?.({ block: "nearest" }), 0);
+			};
+			const filtering = !!(query || source || status || activeCat);
+			const groupName = (sourceId, id) => orgOf(sourceId).categories.find((c) => c.id === id)?.name ?? id;
+			const catIconBtn = (label, pathD, onClick, extra = "", disabled = false) => h("button", {
+				type: "button",
+				className: `waycraft-skills-icon-btn${extra}`,
+				"aria-label": label,
+				title: label,
+				disabled,
+				onClick
+			}, icon(pathD));
+			const windowed = (key$1, rows, render) => {
+				if (rows.length <= ROW_CAP) return rows.map(render);
+				const all = !!rowsOpen[key$1];
+				return [...(all ? rows : rows.slice(0, ROW_CAP)).map(render), h("div", {
+					key: `more:${key$1}`,
+					className: "waycraft-skills-diag-foot"
+				}, h("button", {
+					type: "button",
+					className: "waycraft-skills-link",
+					"data-waycraft-rows-toggle": key$1,
+					onClick: () => setRowsOpen({
+						...rowsOpen,
+						[key$1]: !all
+					})
+				}, all ? t("showLess") : t("showMoreCount").replace("{count}", String(rows.length - ROW_CAP))))];
+			};
+			const sourceRows = (x) => {
+				const mine = mineBySource[x.id] ?? [];
+				const organization = orgOf(x.id);
+				if (!organization.categories.length || data.corrupt) return windowed(x.id, mine, (copy) => skillRow(x, copy));
+				return [...[...organization.categories, {
+					id: "",
+					name: t("uncategorized")
+				}].map((group) => {
+					const rows = mine.filter((c) => (organization.members[c.name] ?? "") === group.id);
+					const allRows = (view?.copies ?? []).filter((c) => c.source === x.id && (organization.members[c.name] ?? "") === group.id);
+					const usable = allRows.filter((c) => c.metadataValid !== false);
+					const on = usable.filter((c) => c.eligible).length;
+					const editKey = `${x.id}/${group.id}`;
+					return h("div", {
+						key: `cat:${group.id}`,
+						className: "waycraft-skills-catsec",
+						"data-waycraft-cat-section": editKey,
+						...catDrop(x.id, group.id)
+					}, h("div", { className: "waycraft-skills-cathead" }, h("span", {
+						className: "waycraft-skills-catico",
+						"aria-hidden": true
+					}, icon(ICONS.folder)), h("span", { className: "waycraft-skills-source-name" }, group.name), h("span", { className: "waycraft-skills-count" }, h("bdi", null, `${usable.length} · ${on} ${t("enabledCount")}`)), h("span", { className: "waycraft-skills-cathead-actions" }, group.id ? [
+						catIconBtn(`${t("addSkillsTo")}: ${group.name}`, ICONS.plus, () => {
+							setAddPick([]);
+							setAddQuery("");
+							setAddTo({
+								source: x.id,
+								id: group.id
+							});
+						}),
+						catIconBtn(`${t("renameCategory")}: ${group.name}`, ICONS.pencil, () => setCatEdit({
+							key: editKey,
+							id: group.id,
+							name: group.name
+						})),
+						catIconBtn(`${t("deleteCategory")}: ${group.name}`, ICONS.trash, () => setCatRemoving(editKey), " waycraft-skills-icon-btn--danger")
+					] : null, switchControl({
+						checked: usable.length > 0 && on === usable.length,
+						bare: true,
+						label: `${t("toggleCategory")}: ${group.name}`,
+						disabled: !usable.length || x.enabled === false,
+						onToggle: () => void organize({
+							action: "category-toggle",
+							source: x.id,
+							category: group.id,
+							enabled: !(usable.length > 0 && on === usable.length)
+						})
+					}))), !allRows.length ? h("p", { className: "waycraft-skills-helper waycraft-skills-catempty" }, t("catEmptyHere")) : h("details", {
+						className: "waycraft-skills-catbody",
+						open: filtering && rows.length > 0
+					}, h("summary", null, h("span", {
+						className: "waycraft-skills-chev",
+						"aria-hidden": true
+					}), h("bdi", null, `${allRows.length} ${t(allRows.length === 1 ? "statSkill" : "statSkills")}`)), windowed(editKey, rows, (copy) => skillRow(x, copy))));
+				}), h("p", {
+					key: "cat-help",
+					className: "waycraft-skills-footnote"
+				}, t("catHelp"))];
+			};
+			const categoryRowDialogs = () => {
+				const out = [];
+				const ed = catEdit;
+				if (ed) {
+					const [sid, cid] = [ed.key.slice(0, ed.key.lastIndexOf("/")), ed.id];
+					const orig = groupName(sid, cid);
+					out.push(h(CatalogDialog, {
+						key: "cat-rename",
+						label: `${t("renameCategory")}: ${orig}`,
+						size: "sm",
+						onClose: () => setCatEdit(null)
+					}, h("h3", null, t("renameCategory")), labeled(t("categoryName"), field(t("renameCategory"), ed.name, (v) => setCatEdit({
+						...ed,
+						name: v
+					}))), h("button", {
+						"aria-label": `${t("cancel")}: ${orig}`,
+						onClick: () => setCatEdit(null)
+					}, t("cancel")), h("button", {
+						className: "waycraft-skills-primary",
+						"aria-label": `${t("save")}: ${orig}`,
+						disabled: !ed.name.trim() || ed.name.trim() === orig,
+						onClick: () => void organize({
+							action: "category-rename",
+							source: sid,
+							category: cid,
+							name: ed.name
+						}, () => setCatEdit(null))
+					}, t("save"))));
+				}
+				if (catRemoving) {
+					const k = catRemoving;
+					const sid = k.slice(0, k.lastIndexOf("/"));
+					const cid = k.slice(k.lastIndexOf("/") + 1);
+					const nm = groupName(sid, cid);
+					out.push(h(CatalogDialog, {
+						key: "cat-delete",
+						label: `${t("deleteCategory")}: ${nm}`,
+						size: "sm",
+						onClose: () => setCatRemoving("")
+					}, h("h3", null, `${t("deleteCategory")}: ${nm}`), h("p", null, t("deleteCategoryNote")), h("button", {
+						"aria-label": `${t("cancel")}: ${nm}`,
+						onClick: () => setCatRemoving("")
+					}, t("cancel")), h("button", {
+						className: "waycraft-skills-danger",
+						"aria-label": `${t("confirmDeleteCategory")}: ${nm}`,
+						onClick: () => void organize({
+							action: "category-delete",
+							source: sid,
+							category: cid
+						}, () => setCatRemoving(""))
+					}, t("confirmDeleteCategory"))));
+				}
+				const at = addTo;
+				if (at) {
+					const nm = groupName(at.source, at.id);
+					const members = orgOf(at.source).members;
+					const q = addQuery.trim().toLowerCase();
+					const candidates$1 = skillNames(at.source).filter((n) => (members[n] ?? "") !== at.id && (!q || n.toLowerCase().includes(q)));
+					const close = () => setAddTo(null);
+					out.push(h(CatalogDialog, {
+						key: "cat-add",
+						label: `${t("addSkillsTo")}: ${nm}`,
+						size: "md",
+						onClose: close
+					}, h("h3", null, `${t("addSkillsTo")}: ${nm}`), field(t("search"), addQuery, setAddQuery), h("div", {
+						className: "waycraft-skills-picklist",
+						role: "group",
+						"aria-label": t("addSkillsTo")
+					}, candidates$1.length ? candidates$1.map((n) => h("label", {
+						key: n,
+						className: "waycraft-skills-member"
+					}, h("input", {
+						type: "checkbox",
+						"aria-label": `${t("selectSkill")}: ${n}`,
+						checked: addPick.includes(n),
+						onChange: (e) => setAddPick(e.target.checked ? [...addPick, n] : addPick.filter((y) => y !== n))
+					}), h("span", { className: "waycraft-skills-member-name" }, n))) : h("p", { className: "waycraft-skills-helper" }, t("addSkillsNone"))), h("button", { onClick: close }, t("cancel")), h("button", {
+						className: "waycraft-skills-primary",
+						disabled: !addPick.length,
+						onClick: () => void organize({
+							action: "category-assign",
+							source: at.source,
+							names: addPick,
+							category: at.id
+						}, close)
+					}, `${t("addSkillsCount")} (${addPick.length})`)));
+				}
+				return out;
+			};
+			const categoryDialogView = (sourceId) => {
+				const src = (view?.sources ?? data?.sources ?? []).find((y) => y.id === sourceId);
+				const label = src ? sourceLabel(src) : sourceId;
+				const name = catName[sourceId] ?? "";
+				const taken = orgOf(sourceId).categories.some((c) => c.name.toLowerCase() === name.trim().toLowerCase());
+				const close = () => {
+					setCatName({
+						...catName,
+						[sourceId]: ""
+					});
+					setCatDialog(null);
+				};
+				return h(CatalogDialog, {
+					label: `${t("newCategory")}: ${label}`,
+					size: "sm",
+					onClose: close
+				}, h("h3", null, t("newCategory")), h("p", { className: "waycraft-skills-notice" }, `${t("categoryHint")} ${label}`), labeled(t("categoryName"), h("input", {
+					"aria-label": `${t("categoryName")}: ${label}`,
+					placeholder: t("categoryName"),
+					value: name,
+					onChange: (e) => setCatName({
+						...catName,
+						[sourceId]: e.target.value
+					})
+				})), taken ? h("p", {
+					role: "alert",
+					className: "waycraft-skills-field-error"
+				}, t("categoryTaken")) : null, h("button", {
+					type: "button",
+					onClick: close
+				}, t("cancel")), h("button", {
+					type: "button",
+					className: "waycraft-skills-primary",
+					"aria-label": `${t("addCategory")}: ${label}`,
+					disabled: !name.trim() || taken,
+					onClick: () => void organize({
+						action: "category-create",
+						source: sourceId,
+						name
+					}, close)
+				}, t("addCategory")));
+			};
+			const noteDialogView = () => {
+				if (!noteDialog) return null;
+				const nd = noteDialog;
+				const key$1 = `${nd.source}/${nd.name}`;
+				const stored = orgOf(nd.source).notes[nd.name] ?? "";
+				const value = noteDrafts[key$1] ?? stored;
+				const close = () => {
+					const next = { ...noteDrafts };
+					delete next[key$1];
+					setNoteDrafts(next);
+					setNoteDialog(null);
+				};
+				return h(CatalogDialog, {
+					label: `${t("note")}: ${nd.name}`,
+					size: "sm",
+					onClose: close
+				}, h("h3", null, `${t("note")} — ${nd.name}`), labeled(t("note"), h("textarea", {
+					className: "waycraft-skills-textarea",
+					"aria-label": `${t("note")}: ${nd.name}`,
+					placeholder: t("noteHint"),
+					maxLength: 500,
+					title: t("noteLimit"),
+					value,
+					onChange: (e) => setNoteDrafts({
+						...noteDrafts,
+						[key$1]: e.target.value
+					})
+				})), h("p", { className: "waycraft-skills-helper" }, t("noteSavedHint")), h("button", {
+					type: "button",
+					onClick: close
+				}, t("cancel")), h("button", {
+					type: "button",
+					className: "waycraft-skills-primary",
+					"aria-label": `${t("saveNote")}: ${nd.name}`,
+					disabled: value === stored,
+					onClick: () => void organize({
+						action: "note",
+						source: nd.source,
+						name: nd.name,
+						note: value
+					}, close)
+				}, t("confirmNote")));
+			};
+			return h("section", {
+				"data-waycraft-skills": true,
+				className: "waycraft-skills",
+				dir: isArabic() ? "rtl" : void 0
+			}, h("style", null, SKILLS_STYLE), h("div", { className: "waycraft-skills-header" }, h("h2", { className: "waycraft-skills-title" }, t("title"))), h("div", { className: "waycraft-skills-toolbar" }, h("div", {
+				role: "group",
+				className: "waycraft-skills-seg",
+				"data-waycraft-scope-tabs": true
+			}, ...[
+				[
+					"global",
+					"scopeGlobal",
+					ICONS.global
+				],
+				[
+					"project",
+					"scopeProject",
+					ICONS.folder
+				],
+				[
+					"discover",
+					"scopeDiscover",
+					ICONS.search
+				],
+				[
+					"trash",
+					"trash",
+					ICONS.trash
+				]
+			].map(([value, label, path]) => h("button", {
+				key: value,
+				type: "button",
+				"aria-pressed": scope === value,
+				"data-scope": value,
+				onClick: () => changeScope(value)
+			}, icon(path), h("span", null, t(label)), value === "trash" && data?.trash?.length ? h("span", { className: "waycraft-skills-badge" }, h("bdi", null, String(data.trash.length))) : null))), h("select", {
+				"aria-label": t("scope"),
+				"aria-hidden": true,
+				tabIndex: -1,
+				className: "waycraft-skills-sr",
+				value: scope,
+				onChange: (e) => changeScope(e.target.value)
+			}, h("option", { value: "global" }, t("scopeGlobal")), h("option", { value: "project" }, t("scopeProject")), h("option", { value: "discover" }, t("scopeDiscover")), h("option", { value: "trash" }, t("trash"))), inProject ? h("select", {
+				"aria-label": t("project"),
+				value: project,
+				onChange: (e) => {
+					setProject(e.target.value);
+					setSource("");
+					setNotice("");
+				}
+			}, h("option", { value: "" }, projects.length ? t("projectNone") : t("projectEmpty")), ...projects.map(projectOption)) : null), scope === "global" || scope === "project" ? h("div", { className: "waycraft-skills-toolbar waycraft-skills-filters" }, h("input", {
+				"aria-label": t("search"),
+				placeholder: t("search"),
+				value: query,
+				onChange: (e) => setQuery(e.target.value)
+			}), h("select", {
+				"aria-label": t("source"),
+				value: source,
+				onChange: (e) => setSource(e.target.value)
+			}, h("option", { value: "" }, t("all")), ...visibleSources.map((x) => h("option", {
+				key: x.id,
+				value: x.id
+			}, `${sourceLabel(x)} (${(view?.copies ?? []).filter((c) => c.source === x.id).length})`))), h("select", {
+				"aria-label": t("any"),
+				value: status,
+				onChange: (e) => setStatus(e.target.value)
+			}, ...[
+				"",
+				"enabled",
+				"disabled",
+				"invalid",
+				"shadowed",
+				"blocked"
+			].map((x) => h("option", {
+				key: x,
+				value: x
+			}, t(x || "any")))), h("select", {
+				"aria-label": t("filterCategory"),
+				value: activeCat,
+				onChange: (e) => setCatFilter(e.target.value)
+			}, h("option", { value: "" }, t("allCategories")), h("option", { value: "__none" }, t("uncategorized")), ...filterCategories.map((c) => h("option", {
+				key: c.id,
+				value: c.id
+			}, c.name))), scope === "global" || scope === "project" ? h("div", {
+				className: "waycraft-skills-iconbar",
+				role: "group",
+				"aria-label": t("actionsAria")
+			}, h("button", {
+				type: "button",
+				className: "waycraft-skills-icon-btn",
+				"data-waycraft-skills-refresh": true,
+				"aria-label": t("refreshAria"),
+				title: t(refreshing ? "refreshing" : "refresh"),
+				"aria-busy": refreshing,
+				disabled: refreshing || switching || inProject && !project,
+				onClick: () => void refresh()
+			}, icon(ICONS.refresh)), h("button", {
+				type: "button",
+				className: "waycraft-skills-icon-btn",
+				"aria-label": t("create"),
+				title: t("create"),
+				"aria-expanded": creating,
+				disabled: switching || data?.corrupt || scope === "project" && !project,
+				onClick: () => setCreating(!creating)
+			}, icon(ICONS.plus)), h("button", {
+				type: "button",
+				className: "waycraft-skills-icon-btn",
+				"aria-label": t("importSkills"),
+				title: t("importSkills"),
+				"aria-expanded": importing,
+				disabled: switching || data?.corrupt || scope === "project" && !project,
+				onClick: () => setImporting(!importing)
+			}, icon(ICONS.importIcon)), inProject ? null : h("button", {
+				type: "button",
+				className: "waycraft-skills-icon-btn",
+				"aria-label": t("folders"),
+				title: t("folders"),
+				"aria-expanded": foldersOpen,
+				onClick: () => {
+					if (managing || rootEdit || editing) closeFolders();
+					else {
+						setManaging(true);
+						setAddOpen(true);
+						const first = (data?.sources ?? []).find((y) => y.custom || y.overridable);
+						if (first && !first.custom) setRootEdit({
+							id: first.id,
+							path: first.path
+						});
+						else if (first) setEditing({
+							id: first.id,
+							label: first.label ?? "",
+							group: first.group ?? "",
+							path: first.path
+						});
+					}
+				}
+			}, icon(ICONS.folder))) : null) : null, data?.trashError ? h("p", { role: "alert" }, t(`code.${data.trashError}`)) : null, scope === "trash" ? h("div", {
+				"data-waycraft-trash": true,
+				className: "waycraft-skills-panel"
+			}, h("h3", null, t("trash")), !data?.trashError && !data?.trash?.length ? h("p", null, t("trashEmpty")) : null, ...(data?.trash ?? []).map((item) => h("article", {
+				key: item.id,
+				className: "waycraft-skills-card"
+			}, h("strong", null, item.name), h("p", null, `${t("trashOrigin")}: ${item.origin}`), item.scope !== "global" ? h("p", null, `${t("project")}: ${projectName(item.scope)}`) : null, h("p", null, `${item.source} — ${item.deletedAt}`), h("button", {
+				"aria-label": `${t("restoreTrash")}: ${item.name}`,
+				onClick: () => void mutate({
+					action: "trash-restore",
+					id: item.id
+				}, (value) => {
+					if (value.result?.warning) setNotice(`${t(`code.${value.result.warning}`)} ${value.result.path ?? ""}`);
+				})
+			}, t("restoreTrash")), h("button", {
+				className: "waycraft-skills-danger",
+				"aria-label": `${t("deleteTrash")}: ${item.name}`,
+				onClick: () => setTrashDeleting(item.id)
+			}, t("deleteTrash")), trashDeleting === item.id ? h(CatalogDialog, {
+				label: `${t("deleteTrash")}: ${item.name}`,
+				size: "sm",
+				onClose: () => setTrashDeleting("")
+			}, h("p", null, item.scope !== "global" ? `${t("trashWarning")} (${projectName(item.scope)})` : t("trashWarning")), h("button", {
+				className: "waycraft-skills-danger",
+				onClick: () => void mutate({
+					action: "trash-delete",
+					id: item.id,
+					confirm: true
+				}, (value) => {
+					setTrashDeleting("");
+					if (value.result?.warning) setNotice(t(`code.${value.result.warning}`));
+				})
+			}, t("confirmTrash")), h("button", { onClick: () => setTrashDeleting("") }, t("cancel"))) : null))) : null, scope === "discover" ? h("div", {
+				role: "tablist",
+				"aria-label": t("scopeDiscover"),
+				"data-waycraft-discover-tabs": true,
+				className: "waycraft-skills-tabs"
+			}, ...[
+				["git", t("tabGit")],
+				["clawhub", t("catSourceClawhub")],
+				["skillsh", t("catSourceSkillsh")]
+			].map(([id, label], index, all) => h("button", {
+				key: id,
+				type: "button",
+				role: "tab",
+				id: `waycraft-discover-tab-${id}`,
+				...id === "git" ? { "aria-label": label } : {},
+				"aria-selected": tab === id,
+				...tab === id ? { "aria-controls": "waycraft-discover-panel" } : {},
+				tabIndex: tab === id ? 0 : -1,
+				onClick: () => setTab(id),
+				onKeyDown: (event) => {
+					const step = event.key === "ArrowRight" ? isArabic() ? -1 : 1 : event.key === "ArrowLeft" ? isArabic() ? 1 : -1 : 0;
+					const next = (event.key === "Home" ? 0 : event.key === "End" ? all.length - 1 : void 0) ?? (step ? (index + step + all.length) % all.length : void 0);
+					if (next === void 0) return;
+					event.preventDefault?.();
+					setTab(all[next][0]);
+					(document.getElementById?.(`waycraft-discover-tab-${all[next][0]}`))?.focus?.();
+				}
+			}, id === "git" ? `${label} (${(data?.repositories ?? []).length})` : label))) : null, scope === "discover" && tab === "git" ? h("div", {
+				id: "waycraft-discover-panel",
+				role: "tabpanel",
+				"aria-labelledby": "waycraft-discover-tab-git",
+				"data-waycraft-repositories": true,
+				className: "waycraft-skills-panel"
+			}, repoFormOpen ? h(CatalogDialog, {
+				label: t("repoAddTitle"),
+				size: "md",
+				onClose: () => setRepoFormOpen(false)
+			}, h("h3", null, t("repoAddTitle")), h("form", {
+				className: "waycraft-skills-form",
+				onSubmit: (event) => {
+					event.preventDefault();
+					repoAction("add", {
+						action: "repo-add",
+						repository: { ...repoForm }
+					}, () => {
+						setRepoForm({
+							url: "",
+							ref: "",
+							subdirectory: ""
+						});
+						setRepoFormOpen(false);
+					});
+				}
+			}, labeled(t("repoUrl"), field(t("repoUrl"), repoForm.url, (value) => setRepoForm({
+				...repoForm,
+				url: value
+			}))), h("div", { className: "waycraft-skills-grid" }, labeled(t("repoRef"), field(t("repoRef"), repoForm.ref, (value) => setRepoForm({
+				...repoForm,
+				ref: value
+			}))), labeled(t("repoSubdirectory"), field(t("repoSubdirectory"), repoForm.subdirectory, (value) => setRepoForm({
+				...repoForm,
+				subdirectory: value
+			})))), data?.repoError ? h("p", {
+				role: "alert",
+				className: "waycraft-skills-field-error"
+			}, t(`code.${data.repoError}`)) : null), h("button", {
+				type: "button",
+				onClick: () => setRepoFormOpen(false)
+			}, t("cancel")), h("button", {
+				type: "button",
+				className: "waycraft-skills-primary",
+				disabled: !repoForm.url.trim() || !!repoBusy || switching,
+				onClick: () => {
+					repoAction("add", {
+						action: "repo-add",
+						repository: { ...repoForm }
+					}, () => {
+						setRepoForm({
+							url: "",
+							ref: "",
+							subdirectory: ""
+						});
+						setRepoFormOpen(false);
+					});
+				}
+			}, t("repoAdd"))) : null, repoBusy ? h("p", { role: "status" }, t(repoBusy.startsWith("apply:") ? "repoApplying" : "repoRefreshing")) : null, repoSummary ? h("p", { role: "status" }, repoSummary) : null, data?.repoError && !repoFormOpen ? h("p", { role: "alert" }, t(`code.${data.repoError}`)) : null, h("div", { className: "waycraft-skills-filterrow" }, h("select", {
+				"aria-label": t("repoStatusFilter"),
+				value: repoStatusFilter,
+				onChange: (event) => setRepoStatusFilter(event.target.value)
+			}, h("option", {
+				key: "",
+				value: ""
+			}, t("repoAllStatuses")), ...[
+				"available",
+				"installed",
+				"update",
+				"conflict",
+				"invalid"
+			].map((id) => h("option", {
+				key: id,
+				value: id
+			}, t(`repoStatus.${id}`)))), h("select", {
+				className: "waycraft-skills-first",
+				"aria-label": t("repoRepoFilter"),
+				value: repoRepoFilter,
+				onChange: (event) => setRepoRepoFilter(event.target.value)
+			}, h("option", {
+				key: "",
+				value: ""
+			}, t("repoAllRepositories")), ...(data?.repositories ?? []).map((repo) => h("option", {
+				key: repo.id,
+				value: repo.id
+			}, repo.label))), field(t("repoFilter"), repoFilter, setRepoFilter), h("button", {
+				type: "button",
+				className: "waycraft-skills-icon-btn",
+				"aria-label": t("repoRefreshAll"),
+				title: t("repoRefreshAll"),
+				disabled: !data?.repositories?.length || !!repoBusy || switching,
+				onClick: () => void repoAction("all", { action: "repo-refresh-all" }, (value) => setRepoSummary(t("repoBulk").replace("{done}", String(value.result.refreshed.length)).replace("{total}", String(value.result.total)).replace("{failed}", String(value.result.failed.length))))
+			}, icon(ICONS.refresh)), h("button", {
+				type: "button",
+				className: "waycraft-skills-icon-btn",
+				"aria-label": t("repoAddTitle"),
+				title: t("repoAddTitle"),
+				"aria-haspopup": "dialog",
+				onClick: () => setRepoFormOpen(true)
+			}, icon(ICONS.plus))), !data?.repoError && !data?.repositories?.length ? h("p", { className: "waycraft-skills-emptystate" }, t("repoEmpty")) : null, h("p", { className: "waycraft-skills-caption" }, t("repoFootnote")), ...(data?.repositories ?? []).map((repo) => {
+				const needle = repoFilter.trim().toLowerCase();
+				if (repoRepoFilter && repo.id !== repoRepoFilter) return null;
+				const shown = repo.skills.filter((skill) => (!repoStatusFilter || skill.status === repoStatusFilter || repoStatusFilter === "update" && skill.updateAvailable) && (!needle || `${skill.name} ${skill.description} ${skill.path}`.toLowerCase().includes(needle)));
+				if ((needle || repoStatusFilter) && !shown.length) return null;
+				return h("article", {
+					key: repo.id,
+					"data-waycraft-repository": repo.id,
+					className: "waycraft-skills-card"
+				}, h("div", { className: "waycraft-skills-repohead" }, h("span", {
+					className: "waycraft-skills-catico",
+					"aria-hidden": true
+				}, icon(ICONS.folder)), h("strong", null, repo.label), h("span", { className: "waycraft-skills-badge" }, h("bdi", { dir: "ltr" }, repo.fingerprint.slice(0, 7))), h("span", { className: "waycraft-skills-cathead-actions" }, h("button", {
+					type: "button",
+					className: "waycraft-skills-icon-btn",
+					"aria-label": `${t("repoRefresh")}: ${repo.label}`,
+					title: t("repoRefresh"),
+					disabled: !!repoBusy || switching,
+					onClick: () => void repoAction(repo.id, {
+						action: "repo-refresh",
+						id: repo.id
+					})
+				}, icon(ICONS.refresh)), h("button", {
+					type: "button",
+					className: "waycraft-skills-icon-btn waycraft-skills-icon-btn--danger",
+					"aria-label": `${t("repoUnsubscribe")}: ${repo.label}`,
+					title: t("repoUnsubscribe"),
+					disabled: !!repoBusy || switching,
+					onClick: () => setRepoUnsubscribing(repo.id)
+				}, icon(ICONS.trash)))), h("p", null, h("bdi", { dir: "ltr" }, `${repo.kind}${repo.ref ? ` @ ${repo.ref}` : ""}${repo.subdirectory ? ` / ${repo.subdirectory}` : ""}`), ` · ${t(`repoKind.${repo.fingerprintKind}`)}`), repo.error ? h("p", { role: "alert" }, `${t("repoLastError")}: ${t(`code.${repo.error.code}`)}`) : null, repoUnsubscribing === repo.id ? h(CatalogDialog, {
+					label: `${t("repoUnsubscribe")}: ${repo.label}`,
+					size: "sm",
+					onClose: () => setRepoUnsubscribing("")
+				}, h("p", null, t("repoConfirmUnsubscribe")), h("button", {
+					className: "waycraft-skills-danger",
+					"aria-label": `${t("repoConfirmUnsubscribeYes")}: ${repo.label}`,
+					disabled: !!repoBusy || switching,
+					onClick: () => {
+						setRepoUnsubscribing("");
+						repoAction(repo.id, {
+							action: "repo-remove",
+							id: repo.id
+						});
+					}
+				}, t("repoConfirmUnsubscribeYes")), h("button", {
+					"aria-label": `${t("cancel")}: ${repo.label}`,
+					onClick: () => setRepoUnsubscribing("")
+				}, t("cancel"))) : null, repoBusy === repo.id ? h("p", { role: "status" }, t("repoRefreshing")) : null, !repo.skills.length ? h("p", null, t("repoNoSkills")) : null, h("ul", { className: "waycraft-skills-list waycraft-skills-repolist" }, ...shown.map((skill) => discoverRow({
+					key: skill.path,
+					attrs: { "data-waycraft-repo-skill": skill.path },
+					name: skill.name,
+					badges: [h("span", {
+						key: "status",
+						className: skill.status === "installed" || skill.status === "tracked" ? "waycraft-skills-badge" : "waycraft-skills-badge waycraft-skills-badge-quiet"
+					}, t(`repoStatus.${skill.status}`)), skill.code ? h("span", {
+						key: "code",
+						className: "waycraft-skills-badge waycraft-skills-badge-warn"
+					}, t(`code.${skill.code}`)) : null],
+					description: skill.description,
+					notes: skill.conflicts?.length ? [h("p", {
+						key: "conflict",
+						className: "waycraft-skills-meta"
+					}, `${t("repoConflictIn")}: ${skill.conflicts.map((id) => id === "user-dsh" ? "DSH" : "Shared Agents").join(", ")}`)] : [],
+					install: skill.valid !== false ? {
+						aria: `${t("repoInstall")}: ${skill.name}`,
+						label: t("repoInstall"),
+						title: t("repoInstall"),
+						haspopup: true,
+						disabled: !!repoBusy || switching,
+						onClick: () => setRepoInstalling(`${repo.id}/${skill.path}`)
+					} : void 0,
+					after: [repoInstalling === `${repo.id}/${skill.path}` ? h(CatalogDialog, {
+						label: `${t("repoInstall")}: ${skill.name}`,
+						size: "md",
+						onClose: () => setRepoInstalling("")
+					}, h("h3", null, `${t("repoInstall")}: ${skill.name}`), labeled(t("repoDestination"), h("select", {
+						"aria-label": t("repoDestination"),
+						value: repoTarget,
+						onChange: (event) => setRepoTarget(event.target.value)
+					}, ...destinationsOf(data).map((item) => destinationOption(item, item.id === "user-dsh" ? "DSH" : item.id === "user-agents" ? "Shared Agents" : item.label)))), ...destinationInfo(data, repoDestination), skill.installedIn?.includes(repoTarget) ? h("p", { className: "waycraft-skills-helper" }, t("repoStatus.installed")) : null, h("button", { onClick: () => setRepoInstalling("") }, t("cancel")), h("button", {
+						className: "waycraft-skills-primary",
+						disabled: !!repoBusy || switching || !repoDestination || !!skill.conflicts?.includes(repoTarget) || !!skill.installedIn?.includes(repoTarget),
+						onClick: () => {
+							setRepoInstalling("");
+							repoAction(repo.id, {
+								action: "repo-install",
+								id: repo.id,
+								path: skill.path,
+								snapshot: repo.fingerprint,
+								source: repoTarget,
+								...projectOfDest(repoTarget) ? { project: projectOfDest(repoTarget) } : {}
+							}, repoWarning);
+						}
+					}, t("catInstallConfirm"))) : null]
+				}))));
+			}), h("h4", null, t("repoTracked")), !(data?.repoInstalls ?? []).length ? h("p", null, t("repoNoInstalls")) : null, ...(data?.repoInstalls ?? []).map((record) => h("article", {
+				key: record.id,
+				"data-waycraft-repo-install": record.id,
+				className: "waycraft-skills-card"
+			}, h("strong", null, record.name), h("span", null, ` — ${t(`repoStatus.${record.status}`)}`), record.updateAvailable && record.status !== "update" ? h("span", null, ` — ${t("repoStatus.update")}`) : null, record.upstream ? h("p", null, `${t("repoUpstream")}: ${t(`code.${record.upstream}`)}`) : null, h("p", null, `${t("repoFromSource")}: ${record.origin.label}${record.origin.ref ? ` @ ${record.origin.ref}` : ""}${record.origin.subdirectory ? ` / ${record.origin.subdirectory}` : ""}`), h("p", null, `${t("repoSnapshot")}: ${record.fingerprint.slice(0, 12)} — ${t(`repoKind.${record.fingerprintKind}`)}`), h("p", null, `${t("repoInstalledAt")}: `, h("bdi", { dir: "ltr" }, placeName(data, record))), h("p", null, h("bdi", { dir: "ltr" }, record.path)), record.status === "installed" || record.status === "modified" ? h("button", {
+				className: "waycraft-skills-danger",
+				"aria-label": `${t("repoUninstall")}: ${record.name}`,
+				disabled: !!repoBusy || switching,
+				onClick: () => void repoAction(record.id, {
+					action: "repo-uninstall",
+					installId: record.id,
+					...record.project ? { project: record.project } : {}
+				}, repoWarning)
+			}, t("repoUninstall")) : null, (record.status === "installed" || record.status === "modified") && record.updateAvailable ? h("button", {
+				"aria-label": `${t("repoUpdatePreview")}: ${record.name}`,
+				disabled: !!repoBusy || switching,
+				onClick: () => repoPreview(record, "update")
+			}, t("repoUpdatePreview")) : null, record.canRollback && (record.status === "installed" || record.status === "modified") ? h("button", {
+				"aria-label": `${t("repoRollbackPreview")}: ${record.name}`,
+				disabled: !!repoBusy || switching,
+				onClick: () => repoPreview(record, "rollback")
+			}, t("repoRollbackPreview")) : null, repoPreviews[record.id] && (record.status === "installed" || record.status === "modified") ? h("div", {
+				role: "group",
+				"aria-labelledby": `waycraft-repo-preview-${record.id}`,
+				"data-waycraft-repo-preview": record.id
+			}, h("h5", { id: `waycraft-repo-preview-${record.id}` }, `${t("repoPreviewTitle")}: ${record.name}`), !repoPreviews[record.id].changes.length ? h("p", null, t("repoNoChanges")) : h("ul", null, ...repoPreviews[record.id].changes.map((change) => h("li", { key: change.path }, `${t(`repoChange.${change.kind}`)}: `, h("bdi", { dir: "ltr" }, change.path)))), h("p", null, t("repoTrackedHint")), repoPreviews[record.id].localModified ? h("div", { role: "alert" }, h("p", null, t("repoLocalModified")), h("label", null, h("input", {
+				type: "checkbox",
+				"aria-label": `${t("repoOverwrite")}: ${record.name}`,
+				checked: !!repoOverwrites[record.id],
+				onChange: (event) => setRepoOverwrites((all) => ({
+					...all,
+					[record.id]: !!event.target.checked
+				}))
+			}), t("repoOverwrite"))) : null, h("button", {
+				"aria-label": `${t(repoPreviews[record.id].kind === "update" ? "repoApplyUpdate" : "repoApplyRollback")}: ${record.name}`,
+				disabled: !!repoBusy || switching || repoPreviews[record.id].localModified && !repoOverwrites[record.id],
+				onClick: () => repoApply(record)
+			}, t(repoPreviews[record.id].kind === "update" ? "repoApplyUpdate" : "repoApplyRollback")), h("button", {
+				"aria-label": `${t("cancel")}: ${record.name}`,
+				onClick: () => setRepoPreviews(({ [record.id]: _gone,...rest }) => rest)
+			}, t("cancel"))) : null, record.status === "invalid-root" ? h("button", {
+				className: "waycraft-skills-danger",
+				"aria-label": `${t("repoForget")}: ${record.name}`,
+				disabled: !!repoBusy || switching,
+				onClick: () => setRepoForgetting(record.id)
+			}, t("repoForget")) : null, record.status === "invalid-root" && repoForgetting === record.id ? h(CatalogDialog, {
+				label: `${t("repoForget")}: ${record.name}`,
+				size: "sm",
+				onClose: () => setRepoForgetting("")
+			}, h("p", null, t("repoConfirmForget")), h("button", {
+				className: "waycraft-skills-danger",
+				"aria-label": `${t("repoConfirmForgetYes")}: ${record.name}`,
+				disabled: !!repoBusy || switching,
+				onClick: () => {
+					setRepoForgetting("");
+					repoAction(record.id, {
+						action: "repo-forget",
+						installId: record.id,
+						...record.project ? { project: record.project } : {}
+					});
+				}
+			}, t("repoConfirmForgetYes")), h("button", {
+				"aria-label": `${t("cancel")}: ${record.name}`,
+				onClick: () => setRepoForgetting("")
+			}, t("cancel"))) : null))) : null, scope === "discover" && tab !== "git" && data && data.corrupt ? h("div", {
+				id: "waycraft-discover-panel",
+				role: "tabpanel",
+				"aria-labelledby": `waycraft-discover-tab-${tab}`
+			}) : null, scope === "discover" && tab !== "git" && data && !data.corrupt ? h("div", {
+				id: "waycraft-discover-panel",
+				role: "tabpanel",
+				"aria-labelledby": `waycraft-discover-tab-${tab}`
+			}, h(CatalogPanel, {
+				key: tab,
+				kind: tab,
+				data,
+				setData,
+				setNotice
+			})) : null, importing ? h(CatalogDialog, {
+				label: t("importSkills"),
+				onClose: () => setImporting(false)
+			}, h("div", {
+				"data-waycraft-import": true,
+				className: "waycraft-skills-panel"
+			}, h("p", null, t("importHint")), h("ul", {
+				className: "waycraft-skills-reqs",
+				"aria-label": t("importReqTitle")
+			}, ...[
+				"importReq1",
+				"importReq2",
+				"importReq3"
+			].map((k) => h("li", { key: k }, t(k)))), ...destPick(), field(t("importPath"), importPath, (value) => {
+				setImportPath(value);
+				setImportFiles([]);
+				setImportResult(null);
+			}), h("div", {
+				className: "waycraft-skills-drop",
+				"data-drag": importDrag ? "over" : void 0,
+				role: "button",
+				tabIndex: 0,
+				"aria-label": `${t("importDropTitle")}. ${t("importDropHint")}`,
+				onClick: () => fileInput.current?.click?.(),
+				onKeyDown: (event) => {
+					if (event.key === "Enter" || event.key === " ") {
+						event.preventDefault?.();
+						fileInput.current?.click?.();
+					}
+				},
+				onDragEnter: (event) => {
+					event.preventDefault?.();
+					setImportDrag(true);
+				},
+				onDragOver: (event) => {
+					event.preventDefault?.();
+					setImportDrag(true);
+				},
+				onDragLeave: () => setImportDrag(false),
+				onDrop: (event) => {
+					event.preventDefault?.();
+					dropItems(event.dataTransfer);
+				}
+			}, h("strong", null, t("importDropTitle")), h("span", null, t("importDropHint"))), h("div", { className: "waycraft-skills-actions" }, h("button", {
+				type: "button",
+				className: "waycraft-skills-link",
+				onClick: () => dirInput.current?.click?.()
+			}, t("importChooseFolder")), h("button", {
+				type: "button",
+				className: "waycraft-skills-link",
+				onClick: () => fileInput.current?.click?.()
+			}, t("importChooseFile"))), h("input", {
+				type: "file",
+				ref: fileInput,
+				multiple: true,
+				accept: ".zip,.md",
+				className: "waycraft-skills-sr",
+				"aria-label": t("uploadFiles"),
+				onChange: (event) => {
+					setImportFiles(Array.from(event.target.files ?? []));
+					setImportMsg("");
+					setImportResult(null);
+				}
+			}), h("input", {
+				type: "file",
+				ref: dirInput,
+				multiple: true,
+				webkitdirectory: "",
+				className: "waycraft-skills-sr",
+				"aria-label": t("uploadFolder"),
+				onChange: (event) => {
+					setImportFiles(Array.from(event.target.files ?? []));
+					setImportMsg("");
+					setImportResult(null);
+				}
+			}), importMsg ? h("p", {
+				role: "status",
+				className: "waycraft-skills-helper"
+			}, importMsg) : null, importFiles.length ? h("p", {
+				role: "status",
+				className: "waycraft-skills-helper",
+				"data-waycraft-import-chosen": importFiles.length
+			}, t("importChosen").replace("{count}", String(importFiles.length)), " ", h("button", {
+				type: "button",
+				className: "waycraft-skills-link",
+				onClick: () => {
+					setImportFiles([]);
+					setImportMsg("");
+					if (fileInput.current) fileInput.current.value = "";
+					if (dirInput.current) dirInput.current.value = "";
+				}
+			}, t("importClear"))) : null, h("select", {
+				"aria-label": t("importConflict"),
+				value: importConflict,
+				onChange: (event) => setImportConflict(event.target.value)
+			}, h("option", { value: "" }, t("importConflict")), h("option", { value: "skip" }, t("skipImport")), h("option", { value: "overwrite" }, t("overwriteImport"))), h("div", { className: "waycraft-skills-dialog-footer" }, h("button", {
+				disabled: importBusy || !importPath || !importConflict,
+				"aria-busy": importBusy,
+				onClick: () => runImport(true)
+			}, t("previewImport")), h("button", {
+				className: "waycraft-skills-primary",
+				disabled: importBusy || !importConflict || !importPath && !importFiles.length,
+				"aria-busy": importBusy,
+				onClick: () => runImport(false)
+			}, t("importNow"))), importResult ? h("div", {
+				"aria-label": t("importResult"),
+				role: "status"
+			}, ...[
+				"pending",
+				"conflicts",
+				"imported",
+				"skipped",
+				"failed",
+				"warnings",
+				"inputs"
+			].map((kind) => h("div", { key: kind }, t(`${kind}Import`), ": ", (importResult[kind] ?? []).map((entry) => `${entry.name}${entry.code ? ` (${errorText(entry)})` : ""}${entry.recovery?.length ? `: ${entry.recovery.join(", ")}` : ""}${entry.names?.length ? `: ${entry.names.join(", ")}` : ""}`).join(", ")))) : null)) : null, creating ? h(CatalogDialog, {
+				label: t("create"),
+				onClose: () => setCreating(false)
+			}, h("form", {
+				className: "waycraft-skills-form",
+				onSubmit: (event) => {
+					event.preventDefault();
+					if (switching || data?.corrupt || scope === "project" && !project || !validDestination(data, createSource)) return;
+					destMutate({
+						action: "create",
+						...destRequest(),
+						name: createName,
+						description: createDescription,
+						body: createBody
+					}, () => {
+						setCreating(false);
+						setCreateName("");
+						setCreateDescription("");
+						setCreateBody("");
+						setNotice(t("created"));
+					});
+				}
+			}, ...destPick(), labeled(t("skillName"), field(t("skillName"), createName, setCreateName)), labeled(t("skillDescription"), field(t("skillDescription"), createDescription, setCreateDescription)), labeled(t("skillBody"), h("textarea", {
+				className: "waycraft-skills-textarea",
+				"aria-label": t("skillBody"),
+				value: createBody,
+				maxLength: 262144,
+				onChange: (event) => setCreateBody(event.target.value)
+			})), h("p", { className: "waycraft-skills-helper" }, t("createFootnote")), h("div", { className: "waycraft-skills-dialog-footer" }, h("button", {
+				type: "button",
+				onClick: () => setCreating(false)
+			}, t("cancel")), h("button", {
+				type: "submit",
+				className: "waycraft-skills-primary",
+				disabled: !createName.trim() || !createDescription.trim()
+			}, t("create"))))) : null, inProject ? h("p", { className: "waycraft-skills-notice" }, t("projectHint")) : null, notice && !foldersOpen ? h("p", {
+				role: "status",
+				className: "waycraft-skills-notice"
+			}, notice) : null, error ? h("div", {
+				role: "alert",
+				className: "waycraft-skills-alert"
+			}, t("error"), h("button", { onClick: () => call({ action: "reload" }).then((value) => {
+				setData(value);
+				setError(false);
+			}, load) }, t("retry"))) : !data || switching ? h("p", {
+				role: "status",
+				className: "waycraft-skills-loading"
+			}, t("loading")) : h(React.Fragment, null, scope === "global" || inProject && data.project?.available ? h("div", {
+				"data-waycraft-skills-stats": true,
+				className: "waycraft-skills-stats",
+				role: "group",
+				"aria-label": t("statsAria")
+			}, stat(totals.total, "statSkill", "statSkills"), stat(totals.enabled, "statEnabled", "statEnabled"), stat(totals.disabled, "statDisabled", "statDisabled"), stat(totals.invalid, "statDiagnostic", "statDiagnostics")) : null, regionOf(""), foldersOpen ? foldersDialog() : null, inProject && data.project && !data.project.available ? h("p", { role: "alert" }, `${data.project.name}: ${t(`code.${data.project.code}`)}`) : null, ...visibleSources.filter((x) => !source || x.id === source).map((x) => h("details", {
+				key: x.id,
+				open: filtering || inProject || !!orgOpen["src:" + x.id],
+				onToggle: (e) => {
+					const open = !!e.currentTarget?.open;
+					if (!!orgOpen["src:" + x.id] !== open) setOrgOpen({
+						...orgOpen,
+						["src:" + x.id]: open
+					});
+				},
+				className: "waycraft-skills-source",
+				"data-off": x.enabled === false ? true : void 0,
+				dir: isArabic() ? "rtl" : void 0
+			}, h("summary", null, h(SkillsNavIcon, {
+				size: 16,
+				className: "waycraft-skills-source-icon"
+			}), h("span", { className: "waycraft-skills-source-name" }, sourceLabel(x)), h("span", { className: "waycraft-skills-count" }, h("bdi", null, String(view.copies.filter((c) => c.source === x.id).length)), " ", t(view.copies.filter((c) => c.source === x.id).length === 1 ? "statSkill" : "statSkills")), sourceProblems(x.id) ? h("span", {
+				className: "waycraft-skills-badge waycraft-skills-badge-warn",
+				"data-waycraft-source-problems": true,
+				title: t("sourceProblems"),
+				onClick: (event) => {
+					event.preventDefault?.();
+					revealProblems(x.id);
+				}
+			}, severityIcon("error", {
+				className: "waycraft-skills-icon",
+				"data-waycraft-skills-icon": "error"
+			}), h("bdi", null, String(sourceProblems(x.id))), " ", t("sourceProblems")) : null, h("span", { className: "waycraft-skills-path waycraft-skills-source-path" }, h("bdi", { dir: "ltr" }, x.path)), x.custom ? h("span", { className: "waycraft-skills-badge" }, t("customTag")) : null, data.corrupt || inProject ? null : (() => {
+				const writable = !x.readonly && !!validDestination(data, x.id);
+				const blockedKey = writable ? null : x.custom ? "createBlockedCustom" : x.readonly ? "createHereBlocked" : "createBlockedTool";
+				const label = `${t("createHere")}: ${sourceLabel(x)}`;
+				return h("button", {
+					type: "button",
+					className: "waycraft-skills-icon-btn",
+					"aria-label": label,
+					title: blockedKey ? t(blockedKey) : t("createHere"),
+					disabled: !writable,
+					onClick: () => {
+						setCreateSource(x.id);
+						setCreating(true);
+					}
+				}, icon(ICONS.filePlus));
+			})(), data.corrupt ? null : h("button", {
+				type: "button",
+				className: "waycraft-skills-icon-btn",
+				"aria-label": `${t("addCategoryHere")}: ${sourceLabel(x)}`,
+				title: t("newCategory"),
+				onClick: () => setCatDialog(x.id)
+			}, icon(ICONS.folderPlus)), x.custom || x.overridable ? h("button", {
+				type: "button",
+				className: "waycraft-skills-icon-btn",
+				"aria-label": `${t("editFolder")}: ${sourceLabel(x)}`,
+				title: t("editFolder"),
+				disabled: data.corrupt,
+				onClick: () => {
+					setOrgOpen({
+						...orgOpen,
+						["src:" + x.id]: true
+					});
+					if (x.custom) setEditing({
+						id: x.id,
+						label: x.label ?? "",
+						group: x.group ?? "",
+						path: x.path
+					});
+					else setRootEdit({
+						id: x.id,
+						path: x.path
+					});
+				}
+			}, icon(ICONS.folder)) : null, x.readonly ? null : switchControl({
+				checked: x.enabled !== false,
+				label: `${t("toggleSource")} ${sourceLabel(x)}`,
+				title: `${t("toggleSource")} ${sourceLabel(x)}`,
+				onToggle: () => toggle("source", x.id, x.enabled === false)
+			}), h("span", {
+				className: "waycraft-skills-chev",
+				"aria-hidden": true
+			})), h("div", { className: "waycraft-skills-source-body" }, regionOf(x.id), h("div", { className: "waycraft-skills-source-meta" }, h("p", { className: "waycraft-skills-path" }, x.group ? `${x.group} · ` : null, h("bdi", { dir: "ltr" }, x.path)), x.readonly ? h("p", { className: "waycraft-skills-notice" }, t("readOnlySource")) : null), !inProject && !data.corrupt && !(!x.readonly && validDestination(data, x.id)) ? h("p", {
+				className: "waycraft-skills-notice",
+				"data-waycraft-create-blocked": x.id
+			}, t(x.custom ? "createBlockedCustom" : x.readonly ? "createHereBlocked" : "createBlockedTool")) : null, x.custom ? customControls(x) : rootControls(x), ...sourceRows(x)))), data.corrupt ? h("div", {
+				role: "alert",
+				className: "waycraft-skills-alert"
+			}, t("stateLocked"), h("button", { onClick: () => call({ action: "reload" }).then(setData, load) }, t("reloadState"))) : null, copies.length || scope !== "global" && scope !== "project" ? null : h("p", { className: "waycraft-skills-empty" }, t("empty"))), catDialog ? categoryDialogView(catDialog) : null, ...categoryRowDialogs(), noteDialogView(), detailError && !detail ? h("p", { role: "alert" }, t("error")) : null, detail ? h(CatalogDialog, {
+				label: t("details"),
+				wide: true,
+				onClose: () => setDetail(null)
+			}, h("h3", null, detail.name), h("p", null, h("bdi", { dir: "ltr" }, detail.path)), detailError ? h("p", {
+				role: "alert",
+				className: "waycraft-skills-field-error"
+			}, t("error")) : null, h("p", {
+				role: "status",
+				"aria-live": "polite",
+				className: "waycraft-skills-helper"
+			}, copiedDetail ? t("copied") : ""), h("button", { onClick: () => copyText(detail.content).then(() => {
+				setDetailError(false);
+				setCopiedDetail(true);
+				if (copiedTimer.current) clearTimeout(copiedTimer.current);
+				copiedTimer.current = setTimeout(() => setCopiedDetail(false), 2e3);
+			}, () => setDetailError(true)) }, t("copyText")), h("button", {
+				className: "waycraft-skills-primary waycraft-skills-dialog-close",
+				onClick: () => setDetail(null)
+			}, t("close")), h("p", null, `${t("modelInvocation")}: ${detail.author?.modelInvocable ? t("allowed") : t("denied")} · ${t("userInvocation")}: ${detail.author?.userInvocable ? t("allowed") : t("denied")}`), detail.shadowedBy ? h("p", null, `${t("shadowedBy")}: ${detail.shadowedBy}`) : null, detail.description ? h("p", { className: "waycraft-skills-row-desc-full" }, detail.description) : null, ...(detail.diagnostics ?? []).map((x, i) => h("p", {
+				key: `${x.code}:${i}`,
+				"data-waycraft-diag-level": severityOf(x)
+			}, severityOf(x) === "note" && x.code === "linked-outside-root" ? t("linkedReadOnly") : diagnosticText(x))), h("pre", null, detail.content)) : null);
+		}
+		let placement = "settings";
+		let changePlacement = async () => {};
+		const placementListeners = /* @__PURE__ */ new Set();
+		let layout;
+		const notifyPlacement = () => {
+			for (const listener of placementListeners) listener();
+		};
+		function PlacementControl() {
+			const [, rerender] = React.useState(0);
+			const [problem, setProblem] = React.useState("");
+			React.useEffect(() => {
+				const listener = () => rerender((n) => n + 1);
+				placementListeners.add(listener);
+				return () => void placementListeners.delete(listener);
+			}, []);
+			return h("div", {
+				"data-waycraft-skills-placement": true,
+				dir: isArabic() ? "rtl" : void 0
+			}, h("strong", null, t("placement")), h("p", null, t("placementHint")), ...[
+				"both",
+				"sidebar",
+				"settings"
+			].map((value) => h("button", {
+				key: value,
+				"aria-pressed": placement === value,
+				onClick: () => {
+					setProblem("");
+					changePlacement(value).catch((failure) => setProblem(errorText(failure)));
+				}
+			}, t(`placement${value[0].toUpperCase()}${value.slice(1)}`))), problem ? h("p", { role: "alert" }, problem) : null);
+		}
+		const SKILL_ICON_PATHS = ["M12.5113 15.4067C12.4395 15.6249 12.1308 15.6249 12.059 15.4067L11.643 14.1416C11.454 13.567 11.0033 13.1164 10.4288 12.9274L9.16369 12.5113C8.94544 12.4395 8.94544 12.1308 9.16369 12.059L10.4288 11.643C11.0033 11.454 11.454 11.0033 11.643 10.4288L12.059 9.16369C12.1308 8.94544 12.4395 8.94544 12.5113 9.16369L12.9274 10.4288C13.1164 11.0033 13.567 11.454 14.1416 11.643L15.4067 12.059C15.6249 12.1308 15.6249 12.4395 15.4067 12.5113L14.1416 12.9274C13.567 13.1164 13.1164 13.567 12.9274 14.1416L12.5113 15.4067Z", "M9.02246 0.546878C9.9822 0.546878 10.7564 0.545403 11.374 0.612307C12.0042 0.680586 12.5515 0.826244 13.0273 1.17188C13.3052 1.37376 13.5501 1.61868 13.752 1.89649C14.0975 2.37225 14.2432 2.91984 14.3115 3.54981C14.3784 4.16727 14.377 4.94206 14.377 5.90137V8.51367C13.9611 8.29533 13.5071 8.13985 13.0273 8.06055V5.90137C13.0273 4.9121 13.0259 4.22322 12.9688 3.69532C12.9129 3.18044 12.8098 2.89782 12.6592 2.69043C12.5406 2.52724 12.3966 2.38326 12.2334 2.26465C12.026 2.11404 11.7437 2.0109 11.2285 1.95508C10.7005 1.89789 10.0122 1.89649 9.02246 1.89649H6.55371C5.56395 1.89649 4.87569 1.89787 4.34766 1.95508C3.83242 2.01092 3.55022 2.11398 3.34278 2.26465C3.17953 2.38329 3.03564 2.52719 2.91699 2.69043C2.76642 2.89782 2.66325 3.18042 2.60742 3.69532C2.55027 4.22322 2.54883 4.9121 2.54883 5.90137V10.0986C2.54883 11.0878 2.55031 11.7768 2.60742 12.3047C2.66326 12.8196 2.76642 13.1032 2.91699 13.3105C3.03558 13.4736 3.17966 13.6178 3.34278 13.7363C3.5502 13.8869 3.83265 13.9901 4.34766 14.0459C4.87568 14.1031 5.56398 14.1035 6.55371 14.1035H8.08399C8.27443 14.6025 8.55077 15.0585 8.89551 15.4541H6.55371C5.59402 15.4541 4.81976 15.4546 4.20215 15.3877C3.57204 15.3194 3.02468 15.1738 2.54883 14.8281C2.27111 14.6263 2.02606 14.3813 1.82422 14.1035C1.47883 13.6278 1.33293 13.08 1.26465 12.4502C1.19783 11.8327 1.19922 11.0579 1.19922 10.0986V5.90137C1.19922 4.94206 1.1978 4.16727 1.26465 3.54981C1.33293 2.91984 1.47883 2.37225 1.82422 1.89649C2.02606 1.61868 2.27111 1.37376 2.54883 1.17188C3.02468 0.826244 3.57204 0.680586 4.20215 0.612307C4.81976 0.545403 5.59402 0.546878 6.55371 0.546878H9.02246Z"];
+		const SkillsNavIcon = (props) => h("svg", {
+			xmlns: "http://www.w3.org/2000/svg",
+			viewBox: "0 0 16 16",
+			width: props?.size ?? 16,
+			height: props?.size ?? 16,
+			fill: "currentColor",
+			"aria-hidden": true,
+			className: props?.className
+		}, ...SKILL_ICON_PATHS.map((d) => h("path", {
+			key: d.slice(0, 12),
+			d
+		})));
+		const sidebarIcon = () => h(SkillsNavIcon);
+		effect(() => {
+			let offConfig, offSettings, offSettingsIcon, offMain, offSidebar, disposed = false;
+			const controller = new AbortController();
+			const inSettings = () => placement === "both" || placement === "settings";
+			const inSidebar = () => placement === "both" || placement === "sidebar";
+			const reconcile = () => {
+				if (disposed) return;
+				if (inSettings() && !offSettings) offSettings = ctx.slots.inject("settings.section", () => ctx.slots.register({
+					name: "settings.section",
+					id: "waycraft-skills",
+					order: 91,
+					label: () => t("title")
+				}, Section));
+				else if (!inSettings() && offSettings) {
+					offSettings();
+					offSettings = void 0;
+				}
+				if (inSettings() && !offSettingsIcon) try {
+					if (typeof ctx.slots?.inject === "function") offSettingsIcon = ctx.slots.inject("settings.section.icon", () => ctx.slots.register({
+						name: "settings.section.icon",
+						id: "waycraft-skills",
+						locale: "waycraft.skills"
+					}, SkillsNavIcon));
+				} catch {}
+				else if (!inSettings() && offSettingsIcon) {
+					try {
+						offSettingsIcon();
+					} catch {}
+					offSettingsIcon = void 0;
+				}
+				if (inSidebar() && !offSidebar) {
+					offMain = ctx.slots.register({
+						name: "main",
+						key: "waycraft-skills",
+						locale: "waycraft.skills",
+						inject: () => ({})
+					}, () => h(Section));
+					offSidebar = ctx.slots.register({
+						name: "sidebar.panellist",
+						id: "waycraft-skills",
+						order: 92,
+						label: () => t("title"),
+						locale: "waycraft.skills"
+					}, sidebarIcon);
+					mapLegacyPanel();
+				} else if (!inSidebar() && offSidebar) {
+					try {
+						if (layout?.panelInfo?.getSnapshot?.().activePanelId === "waycraft-skills") layout.selectPanel?.(null);
+					} catch {}
+					offSidebar?.();
+					offMain?.();
+					offSidebar = offMain = void 0;
+				}
+			};
+			const apply = (next) => {
+				if (typeof next === "string" && [
+					"both",
+					"sidebar",
+					"settings"
+				].includes(next)) {
+					if (next !== placement) {
+						placement = next;
+						notifyPlacement();
+					}
+				}
+				reconcile();
+			};
+			changePlacement = async (value) => {
+				const previous = placement;
+				placement = value;
+				notifyPlacement();
+				reconcile();
+				try {
+					apply((await call({
+						action: "placement",
+						location: value
+					})).placement);
+				} catch (failure) {
+					placement = previous;
+					notifyPlacement();
+					reconcile();
+					throw failure;
+				}
+			};
+			const mapLegacyPanel = () => {
+				try {
+					const active = layout?.panelInfo?.getSnapshot?.().activePanelId;
+					const mapped = typeof active === "string" ? LEGACY_PANEL_IDS[active] : void 0;
+					if (mapped !== void 0) layout.selectPanel?.(mapped);
+				} catch {}
+			};
+			ctx.inject?.(["layout"], (injected) => {
+				layout = injected?.layout ?? injected;
+				mapLegacyPanel();
+			});
+			let delay = 3e3;
+			let timer;
+			const schedule = () => {
+				if (!disposed) timer = setTimeout(() => void probe(), delay);
+			};
+			const probe = () => call({
+				action: "ping",
+				include: "placement"
+			}, controller.signal).then((result) => {
+				delay = 3e3;
+				if (disposed) return;
+				if (!offConfig) offConfig = ctx.slots.inject("plugins.bundle.config", () => ctx.slots.register({
+					name: "plugins.bundle.config",
+					key: "waycraft-skills",
+					locale: "waycraft.skills"
+				}, (props) => props?.view === "summary" ? null : h(PlacementControl)));
+				apply(result?.placement);
+			}).catch(() => {
+				delay = Math.min(delay * 2, 6e4);
+			}).finally(schedule);
+			probe();
+			return () => {
+				disposed = true;
+				changePlacement = async () => {};
+				controller.abort();
+				clearTimeout(timer);
+				offConfig?.();
+				offSettings?.();
+				try {
+					offSettingsIcon?.();
+				} catch {}
+				offMain?.();
+				offSidebar?.();
+			};
+		}, "waycraft-skills presence");
+	}
+}
+
+//#endregion
 //#region src/ImageGallery.tsx
+const FONT_S_12$1 = "var(--dsw-font-s-12, 400 12px/18px var(--dsw-font-family))";
+const FONT_S_13$1 = "var(--dsw-font-s-13, 400 13px/20px var(--dsw-font-family))";
 /** Display box for a lone image (platform rule): long edge 240px with the
 * rendered aspect ratio clamped to [0.25, 4] — the overflow is cropped by
 * `object-fit: cover` — and never upscaled past the image's natural size. The
@@ -79,12 +4052,12 @@ const styles$6 = {
 		display: "block"
 	},
 	loading: {
-		font: "var(--dsw-font-s-12)",
+		font: FONT_S_12$1,
 		color: "var(--dsw-alias-label-tertiary)",
 		padding: "0 8px"
 	},
 	error: {
-		font: "var(--dsw-font-s-12)",
+		font: FONT_S_12$1,
 		color: "var(--dsw-alias-state-error-primary)",
 		cursor: "pointer",
 		border: "1px solid var(--dsw-alias-border-l2-darkmode-thin)",
@@ -120,7 +4093,7 @@ const styles$6 = {
 		cursor: "pointer",
 		background: "var(--dsw-alias-bg-layer-1)",
 		color: "var(--dsw-alias-label-primary)",
-		font: "var(--dsw-font-s-13)"
+		font: FONT_S_13$1
 	}
 };
 /**
@@ -266,7 +4239,7 @@ function ImageGallery({ images, load, labels }) {
 //#endregion
 //#region src/subscriptions-rpc.ts
 async function callSubscriptionsAuth$1(rpc, endpoint, payload) {
-	const result = await rpc.call("/api", `majed-subscriptions.${endpoint}`, payload);
+	const result = await rpc.call("/api", `waycraft-subscriptions.${endpoint}`, payload);
 	if (!result?.ok) throw new Error(result?.error?.message ?? "Subscriptions unavailable");
 	return result.value;
 }
@@ -544,6 +4517,8 @@ const en = subscriptions$1;
 
 //#endregion
 //#region src/ImageGenerateToolview.tsx
+const FONT_S_12 = "var(--dsw-font-s-12, 400 12px/18px var(--dsw-font-family))";
+const FONT_S_13 = "var(--dsw-font-s-13, 400 13px/20px var(--dsw-font-family))";
 /** DSH 0.1.7 renamed IconSparkle16; resolving it by name keeps older hosts working too. */
 const SparkleIcon$1 = (_props) => null;
 /** Title prompt truncation budget (characters). */
@@ -622,7 +4597,7 @@ const styles$5 = {
 		color: "var(--dsw-alias-label-tertiary)"
 	},
 	title: {
-		font: "var(--dsw-font-s-13)",
+		font: FONT_S_13,
 		color: "var(--dsw-alias-label-primary)",
 		overflow: "hidden",
 		textOverflow: "ellipsis",
@@ -630,19 +4605,19 @@ const styles$5 = {
 	},
 	subtle: {
 		margin: 0,
-		font: "var(--dsw-font-s-12)",
+		font: FONT_S_12,
 		color: "var(--dsw-alias-label-tertiary)"
 	},
 	output: {
 		margin: 0,
-		font: "var(--dsw-font-s-12)",
+		font: FONT_S_12,
 		color: "var(--dsw-alias-label-secondary)",
 		whiteSpace: "pre-wrap",
 		overflowWrap: "anywhere"
 	},
 	error: {
 		margin: 0,
-		font: "var(--dsw-font-s-12)",
+		font: FONT_S_12,
 		color: "var(--dsw-alias-state-error-primary)"
 	}
 };
@@ -711,6 +4686,11 @@ function ImageGenerateToolview(props) {
 }
 
 //#endregion
+//#region src/video-route.ts
+/** Exact GET route (below `/api`) serving a generated video as binary `video/mp4`; shared by host and browser halves. */
+const VIDEO_FILE_ROUTE = "waycraft-subscriptions.videoFile";
+
+//#endregion
 //#region src/VideoGenerateToolview.tsx
 /** DSH 0.1.7 renamed IconSparkle16; resolving it by name keeps older hosts working too. */
 const SparkleIcon = (_props) => null;
@@ -722,7 +4702,7 @@ const PROMPT_MAX_LENGTH = 60;
 * @returns loader resolving a bare file name to the decoded bytes.
 */
 function createVideoLoader(rpc) {
-	return (name) => callSubscriptionsAuth$1(rpc, "video", { name });
+	return async (name) => ({ url: `/api/${VIDEO_FILE_ROUTE}?name=${encodeURIComponent(name)}` });
 }
 /**
 * English-dictionary fallback for a missing locale seat (standalone renders);
@@ -832,7 +4812,7 @@ const styles$4 = {
 		maxWidth: 480,
 		width: "100%",
 		borderRadius: 8,
-		backgroundColor: "var(--dsw-alias-fill-tertiary)"
+		backgroundColor: "var(--dsw-alias-bg-layer-3)"
 	}
 };
 /**
@@ -854,6 +4834,13 @@ function VideoGenerateToolview(props) {
 		setLoad({ phase: "loading" });
 		loadVideo(fileName).then((video) => {
 			if (cancelled) return;
+			if ("url" in video) {
+				setLoad({
+					phase: "ready",
+					url: video.url
+				});
+				return;
+			}
 			objectUrl = URL.createObjectURL(new Blob([base64Bytes(video.dataBase64).slice()], { type: video.mediaType }));
 			setLoad({
 				phase: "ready",
@@ -1192,15 +5179,22 @@ var subscriptions = {
 //#region src/settings/subscriptions-rpc.ts
 /**
 * The node half mounts every endpoint as an exact POST route on the shared
-* `/api` channel (`/api/majed-subscriptions.<endpoint>`), so the browser
+* `/api` channel (`/api/waycraft-subscriptions.<endpoint>`), so the browser
 * reaches it through the `/api` channel with a prefixed endpoint name.
 * A dedicated channel is no longer used: since dsh 0.1.5 `rpc.handle`
 * cannot register one from a plugin (see `src/auth/rpc.ts`).
 */
 const SUBSCRIPTIONS_AUTH_CHANNEL = "/api";
-const SUBSCRIPTIONS_AUTH_PREFIX = "majed-subscriptions.";
+const SUBSCRIPTIONS_AUTH_PREFIX = "waycraft-subscriptions.";
 /** Business error returned by a `subscriptions-auth` endpoint (error branch message). */
-var SubscriptionsAuthError = class extends Error {};
+var SubscriptionsAuthError = class extends Error {
+	/** Stable error kind from the host; `internal` for older hosts that send none. */
+	kind;
+	constructor(message, kind = "internal") {
+		super(message);
+		this.kind = kind;
+	}
+};
 /**
 * Call one `subscriptions-auth` endpoint and unwrap the business result.
 * Shared by the settings section, the composer Speed toggle, the usage
@@ -1215,9 +5209,9 @@ async function callSubscriptionsAuth(rpc, endpoint, payload) {
 	try {
 		result = await rpc.call(SUBSCRIPTIONS_AUTH_CHANNEL, `${SUBSCRIPTIONS_AUTH_PREFIX}${endpoint}`, payload);
 	} catch (error) {
-		throw new SubscriptionsAuthError(error instanceof Error ? error.message : String(error));
+		throw new SubscriptionsAuthError(error instanceof Error ? error.message : String(error), "unavailable");
 	}
-	if (!result.ok) throw new SubscriptionsAuthError(result.error.message);
+	if (!result.ok) throw new SubscriptionsAuthError(result.error.message, result.error.kind);
 	return result.value;
 }
 
@@ -1247,7 +5241,7 @@ function accountModelRows(account, preferences) {
 *
 * `provider-empty` means the provider shows NO rows at all — the filter box cannot match
 * anything in that state, and printing `No model matches “”.` next to it reads like a broken
-* control rather than like an explanation (issue #147).
+* control rather than like an explanation.
 *
 * `filter-empty` keeps the existing message for a query that filtered everything out of a
 * provider that does have rows.
@@ -1272,7 +5266,7 @@ function savedModelIds(visibleModels, displayNames, subagentSpeeds = void 0) {
 * Why the provider has no models — read from the data the host already sends.
 *
 * `total === 0` alone cannot tell these apart, and guessing wrong re-creates the very
-* defect issue #147 is about: telling a user who IS logged in to go and log in. The
+* defect this guard exists to prevent: telling a user who IS logged in to go and log in. The
 * catalog payload carries one row per connected account with `unavailable: true` when that
 * account's discovery failed or timed out (src/index.ts).
 *
@@ -1441,7 +5435,7 @@ const ProviderModelEditor = (0, react.forwardRef)(function ProviderModelEditor$1
 			},
 			children: [
 				/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-					className: "majed-subscription-hint",
+					className: "waycraft-subscription-hint",
 					children: t("modelsHint")
 				}),
 				error && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
@@ -1452,7 +5446,7 @@ const ProviderModelEditor = (0, react.forwardRef)(function ProviderModelEditor$1
 					style: actions$1,
 					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
 						type: "button",
-						className: "majed-subscription-quiet",
+						className: "waycraft-subscription-quiet",
 						disabled: busy || disabled || dirty,
 						onClick: () => {
 							load(true);
@@ -1489,7 +5483,7 @@ const ProviderModelEditor = (0, react.forwardRef)(function ProviderModelEditor$1
 							t("modelsAutomatic")
 						] }),
 						editorState.listState === "provider-empty" ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-							className: "majed-subscription-hint",
+							className: "waycraft-subscription-hint",
 							children: t(editorState.noticeKey)
 						}) : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 							style: actions$1,
@@ -1719,7 +5713,7 @@ const ProviderModelEditor = (0, react.forwardRef)(function ProviderModelEditor$1
 //#endregion
 //#region src/settings/display-name-events.ts
 /** Notify mounted views after a successful save, without another quota request. */
-const DISPLAY_NAME_CHANGED = "majed-subscriptions-display-name-changed";
+const DISPLAY_NAME_CHANGED = "waycraft-subscriptions-display-name-changed";
 function notifyDisplayNameChange(provider, displayName) {
 	window.dispatchEvent(new CustomEvent(DISPLAY_NAME_CHANGED, { detail: {
 		provider,
@@ -1734,9 +5728,9 @@ function notifyDisplayNameChange(provider, displayName) {
 * with the dialog instead of relying on a separate CSS asset. Geometry and
 * theme tokens follow the host's settings-form and ui-primitives controls.
 */
-const formScope = ":is(.majed-subscription-manager, .majed-subscriptions-settings)";
+const formScope = ":is(.waycraft-subscription-manager, .waycraft-subscriptions-settings)";
 const providerSettingsCss = `
-.majed-subscription-manager {
+.waycraft-subscription-manager {
   box-sizing: border-box;
   padding: 0;
   border: 0;
@@ -1749,7 +5743,7 @@ const providerSettingsCss = `
   line-height: 1.5;
   color-scheme: light;
 }
-.majed-subscriptions-settings {
+.waycraft-subscriptions-settings {
   font-family: inherit;
   font-size: 13px;
   line-height: 1.5;
@@ -1758,7 +5752,7 @@ const providerSettingsCss = `
 body[data-ds-dark-theme] ${formScope} {
   color-scheme: dark;
 }
-.majed-subscription-manager::backdrop {
+.waycraft-subscription-manager::backdrop {
   background: var(--dsw-alias-bg-mask-1, #0006);
   backdrop-filter: var(--dsw-mask-blur, none);
 }
@@ -1773,7 +5767,7 @@ ${formScope} h3 {
   font-weight: 500;
 }
 ${formScope} strong,
-${formScope} .majed-subscription-label {
+${formScope} .waycraft-subscription-label {
   font-size: 13px;
   line-height: 1.5;
   font-weight: 500;
@@ -1784,7 +5778,7 @@ ${formScope} legend {
   font-weight: 500;
 }
 ${formScope} small,
-${formScope} .majed-subscription-hint,
+${formScope} .waycraft-subscription-hint,
 ${formScope} [role="status"] {
   margin: 0;
   font-size: 12px;
@@ -1880,24 +5874,24 @@ ${formScope} button:disabled {
   opacity: 0.4;
   cursor: default;
 }
-${formScope} button.majed-subscription-quiet {
+${formScope} button.waycraft-subscription-quiet {
   border-color: transparent;
   color: var(--dsw-alias-label-secondary, var(--dsw-alias-label-primary));
 }
-${formScope} :is(footer, .majed-subscription-dialog-actions) button {
+${formScope} :is(footer, .waycraft-subscription-dialog-actions) button {
   min-height: 34px;
   padding: 0 14px;
   border-radius: var(--dsw-radius-md, 8px);
   font-size: 13px;
   line-height: 1.5;
 }
-${formScope} button.majed-subscription-primary {
+${formScope} button.waycraft-subscription-primary {
   border-color: transparent;
   background: var(--dsw-alias-button-primary-fill, var(--dsw-alias-label-primary));
   color: var(--dsw-alias-label-primary-foreground, var(--dsw-alias-bg-layer-1));
   font-weight: 500;
 }
-${formScope} button.majed-subscription-primary:hover:not(:disabled) {
+${formScope} button.waycraft-subscription-primary:hover:not(:disabled) {
   background: var(--dsw-alias-button-primary-hover, var(--dsw-alias-label-secondary));
 }
 ${formScope} button:focus-visible,
@@ -1915,35 +5909,35 @@ ${formScope} summary:hover {
 `;
 /** Composer controls retain their own geometry, separate from settings forms. */
 const subscriptionChromeCss = `
-.majed-subscription-usage-pill { corner-shape: round; touch-action: manipulation; }
-.majed-subscription-usage-pill>svg { flex-shrink: 0; }
-.majed-subscription-usage-close {
+.waycraft-subscription-usage-pill { corner-shape: round; touch-action: manipulation; }
+.waycraft-subscription-usage-pill>svg { flex-shrink: 0; }
+.waycraft-subscription-usage-close {
   display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
   inline-size: 28px; block-size: 28px; padding: 0; border: 0; border-radius: var(--dsw-radius-sm, 8px);
   color: var(--dsw-alias-label-secondary); background: transparent; cursor: pointer;
 }
-.majed-subscription-usage-close:hover { background: var(--dsw-alias-interactive-bg-hover); }
-.majed-subscription-usage-close:focus-visible {
+.waycraft-subscription-usage-close:hover { background: var(--dsw-alias-interactive-bg-hover); }
+.waycraft-subscription-usage-close:focus-visible {
   outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px;
 }
 @media (max-width: 480px) {
-  .majed-subscription-usage-pill { max-inline-size: min(220px, calc(100vw - 24px)); }
-  .majed-subscription-usage-panel { padding: 12px !important; }
+  .waycraft-subscription-usage-pill { max-inline-size: min(220px, calc(100vw - 24px)); }
+  .waycraft-subscription-usage-panel { padding: 12px !important; }
 }
-.majed-subscription-usage-tooltip,
-.majed-subscription-usage-panel {
+.waycraft-subscription-usage-tooltip,
+.waycraft-subscription-usage-panel {
   --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
   backdrop-filter: var(--dsw-menu-backdrop-filter, none);
 }
-.majed-subscription-speed button:hover:not(:disabled) {
-  --majed-subscription-speed-hover: var(--dsw-alias-interactive-bg-hover);
+.waycraft-subscription-speed button:hover:not(:disabled) {
+  --waycraft-subscription-speed-hover: var(--dsw-alias-interactive-bg-hover);
 }
-.majed-subscription-speed button:active:not(:disabled) {
-  --majed-subscription-speed-hover: var(--dsw-alias-interactive-bg-active);
+.waycraft-subscription-speed button:active:not(:disabled) {
+  --waycraft-subscription-speed-hover: var(--dsw-alias-interactive-bg-active);
 }
-.majed-subscription-speed button:disabled { opacity: 0.4; cursor: default; }
-.majed-subscription-speed button:focus-visible,
-.majed-subscription-usage-pill:focus-visible {
+.waycraft-subscription-speed button:disabled { opacity: 0.4; cursor: default; }
+.waycraft-subscription-speed button:focus-visible,
+.waycraft-subscription-usage-pill:focus-visible {
   outline: var(--dsw-focus-ring-width, 2px) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: 2px;
 }
@@ -2081,7 +6075,7 @@ function ProviderAccountManager({ provider, name, rpc, t, onClose }) {
 		}
 	}
 	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("dialog", {
-		className: "majed-subscription-manager",
+		className: "waycraft-subscription-manager",
 		ref: dialog,
 		"aria-labelledby": title,
 		"aria-describedby": description,
@@ -2120,7 +6114,7 @@ function ProviderAccountManager({ provider, name, rpc, t, onClose }) {
 				}),
 				/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
 					id: description,
-					className: "majed-subscription-hint",
+					className: "waycraft-subscription-hint",
 					children: t("accountsHint")
 				}),
 				error && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
@@ -2129,7 +6123,7 @@ function ProviderAccountManager({ provider, name, rpc, t, onClose }) {
 				}),
 				loading && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
 					role: "status",
-					className: "majed-subscription-hint",
+					className: "waycraft-subscription-hint",
 					children: t("accountsLoading")
 				}),
 				!loading && !catalog && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
@@ -2172,7 +6166,7 @@ function ProviderAccountManager({ provider, name, rpc, t, onClose }) {
 									justifyContent: "space-between"
 								},
 								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", {
-									className: "majed-subscription-hint",
+									className: "waycraft-subscription-hint",
 									children: t("subscriptionDisplayNameHint")
 								}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
 									type: "button",
@@ -2213,13 +6207,13 @@ function ProviderAccountManager({ provider, name, rpc, t, onClose }) {
 									}, ttl))]
 								}),
 								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", {
-									className: "majed-subscription-hint",
+									className: "waycraft-subscription-hint",
 									children: t("claudePromptCacheTtlHint")
 								})
 							]
 						}),
 						catalog.accounts.length === 0 && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-							className: "majed-subscription-hint",
+							className: "waycraft-subscription-hint",
 							children: t("accountsEmpty")
 						}),
 						catalog.accounts.map((account) => {
@@ -2244,7 +6238,7 @@ function ProviderAccountManager({ provider, name, rpc, t, onClose }) {
 										children: account.label
 									}),
 									account.unavailable && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-										className: "majed-subscription-hint",
+										className: "waycraft-subscription-hint",
 										children: t("accountsCatalogUnavailable")
 									}),
 									/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
@@ -2253,7 +6247,7 @@ function ProviderAccountManager({ provider, name, rpc, t, onClose }) {
 											gap: 6
 										},
 										children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-											className: "majed-subscription-label",
+											className: "waycraft-subscription-label",
 											children: t("accountsAlias")
 										}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
 											value: preferences.alias ?? "",
@@ -2291,7 +6285,7 @@ function ProviderAccountManager({ provider, name, rpc, t, onClose }) {
 										t("accountsIndependent")
 									] }),
 									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-										className: "majed-subscription-hint",
+										className: "waycraft-subscription-hint",
 										children: t("accountsIndependentHint")
 									}),
 									/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("details", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("summary", {
@@ -2312,7 +6306,7 @@ function ProviderAccountManager({ provider, name, rpc, t, onClose }) {
 										},
 										children: [
 											/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-												className: "majed-subscription-hint",
+												className: "waycraft-subscription-hint",
 												children: t("accountsModelsHint")
 											}),
 											/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", { children: [
@@ -2375,7 +6369,7 @@ function ProviderAccountManager({ provider, name, rpc, t, onClose }) {
 														model.unavailable && ` (${t("modelsUnavailable")})`
 													]
 												}, model.id)), models.length === 0 && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-													className: "majed-subscription-hint",
+													className: "waycraft-subscription-hint",
 													children: t("accountsNoModels")
 												})]
 											})
@@ -2419,7 +6413,7 @@ function ProviderAccountManager({ provider, name, rpc, t, onClose }) {
 							children: t("cancel")
 						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
 							type: "button",
-							className: "majed-subscription-primary",
+							className: "waycraft-subscription-primary",
 							disabled: loading || saving || !Object.keys(changes).length && !modelsDirty && !nameDirty && !cacheTtlDirty,
 							onClick: () => {
 								save();
@@ -2634,7 +6628,7 @@ const styles$3 = {
 function providerIdentity(h, t, name, accounts, usage, clientVersion) {
 	const account = accounts.find((value) => value.isDefault) ?? accounts[0];
 	const plan = account?.plan ?? usage[account?.key]?.plan;
-	return h("div", { className: "majed-provider-identity" }, h("div", { className: "majed-provider-summary" }, h("span", { style: styles$3.name }, name), h("span", { style: styles$3.statusLine }, `${accounts.length} ${t("accountCount")}`), plan ? h("bdi", { style: styles$3.usagePlan }, plan) : null), clientVersion ? h("span", {
+	return h("div", { className: "waycraft-provider-identity" }, h("div", { className: "waycraft-provider-summary" }, h("span", { style: styles$3.name }, name), h("span", { style: styles$3.statusLine }, `${accounts.length} ${t("accountCount")}`), plan ? h("bdi", { style: styles$3.usagePlan }, plan) : null), clientVersion ? h("span", {
 		style: styles$3.clientVersion,
 		title: t("clientVersionHint")
 	}, "CLI ", h("bdi", { dir: "ltr" }, clientVersion.version), " · ", t(`source_${clientVersion.source}`)) : null);
@@ -2645,7 +6639,7 @@ function providerStatus(h, t, state, label) {
 		role: "img",
 		"aria-label": t(label),
 		title: t(label),
-		"data-majed-provider-status": state,
+		"data-waycraft-provider-status": state,
 		style: {
 			...styles$3.dot,
 			background: color
@@ -2655,7 +6649,7 @@ function providerStatus(h, t, state, label) {
 function providerDisclosure(h, t, name, expanded, toggle) {
 	return h("button", {
 		type: "button",
-		className: "majed-provider-disclosure",
+		className: "waycraft-provider-disclosure",
 		"aria-label": `${t("subscriptionDetails")}: ${name}`,
 		"aria-expanded": expanded,
 		onClick: toggle
@@ -2674,12 +6668,12 @@ function providerDisclosure(h, t, name, expanded, toggle) {
 		strokeLinejoin: "round"
 	})));
 }
-const controlCss = `.majed-subscriptions-settings button.majed-provider-disclosure{inline-size:28px;min-height:28px;padding:0;border:0;background:transparent}
-.majed-provider-identity{display:flex;flex-direction:column;flex:1 1 160px;min-inline-size:0}
-.majed-provider-summary{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
-[dir=rtl] .majed-provider-disclosure svg{scale:-1 1}
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) input:not([type="checkbox"]),
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) select {
+const controlCss = `.waycraft-subscriptions-settings button.waycraft-provider-disclosure{inline-size:28px;min-height:28px;padding:0;border:0;background:transparent}
+.waycraft-provider-identity{display:flex;flex-direction:column;flex:1 1 160px;min-inline-size:0}
+.waycraft-provider-summary{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+[dir=rtl] .waycraft-provider-disclosure svg{scale:-1 1}
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) input:not([type="checkbox"]),
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) select {
   box-sizing: border-box;
   min-width: 0;
   height: 34px;
@@ -2693,29 +6687,29 @@ const controlCss = `.majed-subscriptions-settings button.majed-provider-disclosu
   font-weight: 400;
   line-height: 1.5;
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) input::placeholder {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) input::placeholder {
   color: var(--dsw-alias-label-secondary);
   opacity: 1;
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) input:not([type="checkbox"]):focus-visible,
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) select:focus-visible {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) input:not([type="checkbox"]):focus-visible,
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) select:focus-visible {
   outline: 2px solid var(--dsw-alias-brand-primary);
   outline-offset: 2px;
   border-color: var(--dsw-alias-brand-primary);
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) input:not([type="checkbox"]):disabled,
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) select:disabled {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) input:not([type="checkbox"]):disabled,
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) select:disabled {
   color: var(--dsw-alias-label-secondary);
   cursor: default;
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) input[aria-invalid="true"] {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) input[aria-invalid="true"] {
   border-color: var(--dsw-alias-state-error-primary);
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) option {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) option {
   background: var(--dsw-alias-bg-layer-2, var(--dsw-alias-bg-layer-1));
   color: var(--dsw-alias-label-primary);
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) label:has(> input[type="checkbox"]) {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) label:has(> input[type="checkbox"]) {
   display: flex;
   align-items: flex-start;
   gap: 6px;
@@ -2723,7 +6717,7 @@ const controlCss = `.majed-subscriptions-settings button.majed-provider-disclosu
   line-height: 20px;
   cursor: pointer;
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) input[type="checkbox"] {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) input[type="checkbox"] {
   flex: 0 0 auto;
   width: 16px;
   height: 16px;
@@ -2731,11 +6725,11 @@ const controlCss = `.majed-subscriptions-settings button.majed-provider-disclosu
   accent-color: var(--dsw-alias-brand-primary);
   cursor: inherit;
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) label:has(> input[type="checkbox"]:disabled) {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) label:has(> input[type="checkbox"]:disabled) {
   cursor: default;
   opacity: 0.5;
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) button {
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;
@@ -2755,56 +6749,56 @@ const controlCss = `.majed-subscriptions-settings button.majed-provider-disclosu
   line-height: 18px;
   cursor: pointer;
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button:hover:not(:disabled) {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) button:hover:not(:disabled) {
   background: var(--dsw-alias-interactive-bg-hover, var(--dsw-alias-bg-layer-1));
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button:active:not(:disabled) {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) button:active:not(:disabled) {
   background: var(--dsw-alias-interactive-bg-active, var(--dsw-alias-bg-layer-1));
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button:disabled {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) button:disabled {
   opacity: 0.4;
   cursor: default;
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button.majed-subscription-quiet {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) button.waycraft-subscription-quiet {
   border-color: transparent;
   color: var(--dsw-alias-label-secondary, var(--dsw-alias-label-primary));
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) :is(footer, .majed-subscription-dialog-actions) button {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) :is(footer, .waycraft-subscription-dialog-actions) button {
   min-height: 34px;
   padding: 0 14px;
   border-radius: var(--dsw-radius-md, 8px);
   font-size: 13px;
   line-height: 1.5;
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button.majed-subscription-primary {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) button.waycraft-subscription-primary {
   border-color: transparent;
   background: var(--dsw-alias-button-primary-fill, var(--dsw-alias-label-primary));
   color: var(--dsw-alias-label-primary-foreground, var(--dsw-alias-bg-layer-1));
   font-weight: 500;
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button.majed-subscription-primary:hover:not(:disabled) {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) button.waycraft-subscription-primary:hover:not(:disabled) {
   background: var(--dsw-alias-button-primary-hover, var(--dsw-alias-label-secondary));
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button:focus-visible,
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) input[type="checkbox"]:focus-visible,
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) summary:focus-visible {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) button:focus-visible,
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) input[type="checkbox"]:focus-visible,
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) summary:focus-visible {
   outline: var(--dsw-focus-ring-width, 2px) solid var(--dsw-focus-ring-color, var(--dsw-alias-brand-primary));
   outline-offset: 2px;
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) summary {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) summary {
   border-radius: var(--dsw-radius-sm, 6px);
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) summary:hover {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) summary:hover {
   color: var(--dsw-alias-label-secondary, var(--dsw-alias-label-primary));
 }
 
-.majed-reset-credits > summary::-webkit-details-marker { display:none; }
-.majed-reset-credits[open] > summary > svg { transform:rotate(90deg); }
-[dir="rtl"] .majed-reset-credits > summary > svg { transform:scaleX(-1); }
-[dir="rtl"] .majed-reset-credits[open] > summary > svg { transform:rotate(90deg); }
-.majed-reset-dialog::backdrop { background:var(--dsw-alias-bg-mask-1); backdrop-filter:var(--dsw-mask-blur, none); }
-.majed-subscriptions-settings { font:var(--dsw-font-s-13); }
-.majed-subscriptions-settings a { color:var(--dsw-alias-state-business-primary); text-underline-offset: .15em; }
+.waycraft-reset-credits > summary::-webkit-details-marker { display:none; }
+.waycraft-reset-credits[open] > summary > svg { transform:rotate(90deg); }
+[dir="rtl"] .waycraft-reset-credits > summary > svg { transform:scaleX(-1); }
+[dir="rtl"] .waycraft-reset-credits[open] > summary > svg { transform:rotate(90deg); }
+.waycraft-reset-dialog::backdrop { background:var(--dsw-alias-bg-mask-1); backdrop-filter:var(--dsw-mask-blur, none); }
+.waycraft-subscriptions-settings { font:var(--dsw-font-s-13); }
+.waycraft-subscriptions-settings a { color:var(--dsw-alias-state-business-primary); text-underline-offset: .15em; }
 `;
 function createCodexCard(React, primitives$1, rpc, t) {
 	const h = React.createElement;
@@ -2826,7 +6820,7 @@ function createCodexCard(React, primitives$1, rpc, t) {
 		const usageRequests = React.useRef(/* @__PURE__ */ new Map());
 		const accountKeys = React.useRef(/* @__PURE__ */ new Set());
 		const call = async (endpoint, payload = {}) => {
-			const response = await rpc.call("/api", `majed-subscriptions.${endpoint}`, {
+			const response = await rpc.call("/api", `waycraft-subscriptions.${endpoint}`, {
 				provider: "codex",
 				...payload
 			});
@@ -2861,7 +6855,9 @@ function createCodexCard(React, primitives$1, rpc, t) {
 			};
 		}, []);
 		React.useEffect(() => {
-			if (revision !== void 0) refreshStatus().catch(() => {});
+			if (revision !== void 0) refreshStatus().catch((failure) => {
+				if (alive.current) setError(failure instanceof Error ? failure.message : String(failure));
+			});
 		}, [revision]);
 		React.useEffect(() => {
 			if (!status?.busy) return;
@@ -2925,7 +6921,7 @@ function createCodexCard(React, primitives$1, rpc, t) {
 		});
 		const part = (name, style, ...children) => h("div", {
 			style,
-			"data-majed-codex-part": name
+			"data-waycraft-codex-part": name
 		}, ...children);
 		const startLogin = () => {
 			action(async () => {
@@ -2971,8 +6967,8 @@ function createCodexCard(React, primitives$1, rpc, t) {
 				} : {},
 				textAlign: "start"
 			},
-			className: "majed-subscriptions-settings",
-			"data-majed-codex-card": true
+			className: "waycraft-subscriptions-settings",
+			"data-waycraft-codex-card": true
 		}, h("style", null, controlCss), manager ? h(ProviderAccountManager, {
 			provider: "codex",
 			name: status?.displayName || "Codex (ChatGPT)",
@@ -3000,7 +6996,7 @@ function createCodexCard(React, primitives$1, rpc, t) {
 			return h("div", {
 				key: account.key,
 				style: styles$3.accountRow,
-				"data-majed-codex-part": "account"
+				"data-waycraft-codex-part": "account"
 			}, part("account-header", styles$3.accountHeader, button(account.isDefault ? "★" : "☆", () => {
 				if (!account.isDefault) action(async () => {
 					await call("setDefault", { account: account.key });
@@ -3047,7 +7043,7 @@ function createCodexCard(React, primitives$1, rpc, t) {
 				style: styles$3.errorLine,
 				role: "alert"
 			}, t("creditsUnavailable"), " ", snapshot.resetCreditsError) : null, snapshot?.resetCredits ? h("details", {
-				className: "majed-reset-credits",
+				className: "waycraft-reset-credits",
 				style: styles$3.usageRow
 			}, h("summary", { style: {
 				...styles$3.usageMeta,
@@ -3132,7 +7128,7 @@ function createCodexCard(React, primitives$1, rpc, t) {
 			ref: (node) => {
 				if (node && !node.open) node.showModal();
 			},
-			className: "majed-reset-dialog",
+			className: "waycraft-reset-dialog",
 			role: "dialog",
 			"aria-modal": true,
 			"aria-label": t(confirmation.kind === "logout" ? "confirmLogout" : "confirmReset"),
@@ -3160,7 +7156,7 @@ function createCodexCard(React, primitives$1, rpc, t) {
 			checked: acknowledged,
 			onChange: (event) => setAcknowledged(event.target.checked)
 		}), t("resetAcknowledge")) : null, h("div", {
-			className: "majed-subscription-dialog-actions",
+			className: "waycraft-subscription-dialog-actions",
 			style: {
 				...styles$3.actions,
 				justifyContent: "flex-end",
@@ -3177,7 +7173,7 @@ function createCodexCard(React, primitives$1, rpc, t) {
 				await refreshStatus();
 				if (confirmation.kind === "reset") await refreshUsage(confirmation.account, true);
 			});
-		}, confirmation.kind === "reset" && (!acknowledged || Date.now() >= confirmation.expiresAt), { className: confirmation.kind === "reset" ? "majed-subscription-primary" : void 0 }))) : null);
+		}, confirmation.kind === "reset" && (!acknowledged || Date.now() >= confirmation.expiresAt), { className: confirmation.kind === "reset" ? "waycraft-subscription-primary" : void 0 }))) : null);
 	};
 }
 
@@ -3262,7 +7258,7 @@ function ProxySettings({ rpc, t }) {
 		}
 	};
 	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("section", {
-		className: "majed-proxy-settings",
+		className: "waycraft-proxy-settings",
 		children: [
 			/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("header", { children: [
 				/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", { children: t("proxyTitle") }),
@@ -3294,9 +7290,9 @@ function ProxySettings({ rpc, t }) {
 				children: error
 			}),
 			open && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("dialog", {
-				className: "majed-subscription-manager majed-proxy-dialog",
+				className: "waycraft-subscription-manager waycraft-proxy-dialog",
 				ref: dialog,
-				"aria-labelledby": "majed-proxy-title",
+				"aria-labelledby": "waycraft-proxy-title",
 				onCancel: close,
 				style: {
 					width: 620,
@@ -3320,7 +7316,7 @@ function ProxySettings({ rpc, t }) {
 							gap: 12
 						},
 						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("h2", {
-							id: "majed-proxy-title",
+							id: "waycraft-proxy-title",
 							style: { margin: 0 },
 							children: t("proxyDialogTitle")
 						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
@@ -3360,7 +7356,7 @@ function ProxySettings({ rpc, t }) {
 										onChange: (event) => field(key, event.target.value)
 									}),
 									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("small", {
-										className: "majed-subscription-hint",
+										className: "waycraft-subscription-hint",
 										children: t(`proxy${key[0].toUpperCase()}${key.slice(1)}Hint`)
 									})
 								]
@@ -3371,7 +7367,7 @@ function ProxySettings({ rpc, t }) {
 								onChange: (event) => field("clearPassword", event.target.checked)
 							}), t("proxyClearPassword")] }),
 							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
-								className: "majed-subscription-hint",
+								className: "waycraft-subscription-hint",
 								children: t("proxyNote")
 							}),
 							error && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("p", {
@@ -3726,7 +7722,7 @@ function createApiProviders(React, remote, t, primitives$1 = require("@deepseek-
 		}
 		const button = (key, onClick, disabled = false, cancellation = false) => h("button", {
 			type: "button",
-			className: key === "apiAdd" ? "majed-api-add-trigger" : void 0,
+			className: key === "apiAdd" ? "waycraft-api-add-trigger" : void 0,
 			style: {
 				...control,
 				...key === "apiAdd" ? {
@@ -3740,7 +7736,7 @@ function createApiProviders(React, remote, t, primitives$1 = require("@deepseek-
 			disabled: busy || !cancellation && !!authFlow?.busy || disabled,
 			...key === "apiAdd" ? { ref: addButton } : {}
 		}, t(key));
-		const field = (key, value, onChange, type = "text") => h("label", { className: "majed-api-field" }, t(key), h("input", {
+		const field = (key, value, onChange, type = "text") => h("label", { className: "waycraft-api-field" }, t(key), h("input", {
 			"aria-label": t(key),
 			type,
 			value,
@@ -3760,7 +7756,7 @@ function createApiProviders(React, remote, t, primitives$1 = require("@deepseek-
 			return ns !== void 0 && (entry.settingsPath.length === 0 || at(ns.value, entry.settingsPath) !== void 0);
 		};
 		const addable = snapshot?.rows.filter((entry) => nsOf(entry) && !configured(entry)) ?? [];
-		const select = (key, value, onChange, options) => h("label", { className: "majed-api-field" }, t(key), h("select", {
+		const select = (key, value, onChange, options) => h("label", { className: "waycraft-api-field" }, t(key), h("select", {
 			"aria-label": t(key),
 			value,
 			style: control,
@@ -3786,11 +7782,11 @@ function createApiProviders(React, remote, t, primitives$1 = require("@deepseek-
 		const editor = () => h("div", {
 			role: "group",
 			"aria-label": t("apiEditor"),
-			className: "majed-api-editor"
+			className: "waycraft-api-editor"
 		}, draft.custom ? field("apiRoute", draft.entry.provider, (v) => change("entry", {
 			...draft.entry,
 			provider: v
-		})) : h("bdi", { className: "majed-api-muted" }, draft.entry.provider), field("apiName", draft.profile.displayName ?? "", (v) => profileChange("displayName", v)), field("apiURL", draft.profile.baseURL ?? "", (v) => profileChange("baseURL", v)), draft.custom ? select("apiProtocol", draft.profile.api, (v) => profileChange("api", v), [
+		})) : h("bdi", { className: "waycraft-api-muted" }, draft.entry.provider), field("apiName", draft.profile.displayName ?? "", (v) => profileChange("displayName", v)), field("apiURL", draft.profile.baseURL ?? "", (v) => profileChange("baseURL", v)), draft.custom ? select("apiProtocol", draft.profile.api, (v) => profileChange("api", v), [
 			"openai-completions",
 			"openai-responses",
 			"anthropic-messages"
@@ -3804,12 +7800,12 @@ function createApiProviders(React, remote, t, primitives$1 = require("@deepseek-
 		].map((v) => h("option", {
 			key: v,
 			value: v
-		}, t(`apiKey_${v}`)))), draft.keyAction === "set" ? field("apiKey", draft.key, (v) => change("key", v), "password") : null, h("p", { className: "majed-api-muted" }, t("apiKeyLimit")), h("div", { className: "majed-api-head" }, h("strong", null, t("apiModels")), button("apiFetch", () => {
+		}, t(`apiKey_${v}`)))), draft.keyAction === "set" ? field("apiKey", draft.key, (v) => change("key", v), "password") : null, h("p", { className: "waycraft-api-muted" }, t("apiKeyLimit")), h("div", { className: "waycraft-api-head" }, h("strong", null, t("apiModels")), button("apiFetch", () => {
 			run(discover);
 		})), ...draft.models.map((model, index) => h("div", {
 			key: index,
-			className: "majed-api-model",
-			"data-majed-api-model": index
+			className: "waycraft-api-model",
+			"data-waycraft-api-model": index
 		}, field("apiModelID", model.id, (v) => change("models", draft.models.map((m, i) => i === index ? {
 			...m,
 			id: v
@@ -3819,7 +7815,7 @@ function createApiProviders(React, remote, t, primitives$1 = require("@deepseek-
 		} : m))), button("apiModelRemove", () => change("models", draft.models.filter((_, i) => i !== index))))), button("apiModelAdd", () => change("models", [...draft.models, {
 			id: "",
 			name: ""
-		}])), h("p", { className: "majed-api-muted" }, t("apiModelsHint")), h("div", { className: "majed-api-actions" }, button("apiSave", () => {
+		}])), h("p", { className: "waycraft-api-muted" }, t("apiModelsHint")), h("div", { className: "waycraft-api-actions" }, button("apiSave", () => {
 			run(save);
 		}), button("apiCancel", close, false, true)));
 		const openAdd = (group) => {
@@ -3830,11 +7826,11 @@ function createApiProviders(React, remote, t, primitives$1 = require("@deepseek-
 			setAddMode(group === "subscription" ? "subscription" : "catalog");
 			if (group === "api" && addable[0]) edit(addable[0]);
 		};
-		const addPanel = () => h("div", { className: `majed-api-add${addMode !== "subscription" ? " majed-api-add-open" : " majed-subscription-add-open"}` }, addOpen ? h(React.Fragment, null, addOrigin.current === "subscription" ? null : h(primitives$1.SegmentedControl, {
-			id: "majed-provider-add-mode",
+		const addPanel = () => h("div", { className: `waycraft-api-add${addMode !== "subscription" ? " waycraft-api-add-open" : " waycraft-subscription-add-open"}` }, addOpen ? h(React.Fragment, null, addOrigin.current === "subscription" ? null : h(primitives$1.SegmentedControl, {
+			id: "waycraft-provider-add-mode",
 			value: addMode,
 			label: t("apiAdd"),
-			className: "majed-api-tabs",
+			className: "waycraft-api-tabs",
 			disabled: busy || !!authFlow?.busy,
 			onChange: switchMode,
 			options: ["catalog", "custom"].map((mode) => ({
@@ -3844,9 +7840,9 @@ function createApiProviders(React, remote, t, primitives$1 = require("@deepseek-
 			}))
 		}), h("div", {
 			role: addOrigin.current === "subscription" ? "group" : "tabpanel",
-			id: `majed-provider-add-mode-${addMode}-panel`,
+			id: `waycraft-provider-add-mode-${addMode}-panel`,
 			"aria-label": addOrigin.current === "subscription" ? t("subscriptionAdd") : void 0,
-			"aria-labelledby": addOrigin.current === "subscription" ? void 0 : `majed-provider-add-mode-${addMode}`
+			"aria-labelledby": addOrigin.current === "subscription" ? void 0 : `waycraft-provider-add-mode-${addMode}`
 		}, addMode === "catalog" ? select("apiCatalog", draft?.entry.provider ?? "", (v) => {
 			const entry = addable.find((e) => e.provider === v);
 			if (entry) edit(entry);
@@ -3865,45 +7861,45 @@ function createApiProviders(React, remote, t, primitives$1 = require("@deepseek-
 		}, subscriptions$2.providers.map((p) => h("option", {
 			key: p.id,
 			value: p.id
-		}, p.name))), subscriptions$2.renderAuth(subscription || subscriptions$2.providers[0]?.id, close, setAuthFlow), h("div", { className: "majed-subscription-add-actions" }, button("cancel", () => run(async () => {
+		}, p.name))), subscriptions$2.renderAuth(subscription || subscriptions$2.providers[0]?.id, close, setAuthFlow), h("div", { className: "waycraft-subscription-add-actions" }, button("cancel", () => run(async () => {
 			if (!authFlow?.cancel || await authFlow.cancel()) close();
 		}), false, true))) : draft ? editor() : button("apiCancel", close, false, true))) : null);
 		return h("div", {
-			"data-majed-api-providers": true,
+			"data-waycraft-api-providers": true,
 			"aria-busy": busy,
-			className: "majed-api-section"
+			className: "waycraft-api-section"
 		}, h("style", null, `
-        .majed-provider-group{display:flex;flex-direction:column;gap:12px;min-inline-size:0}.majed-provider-group+.majed-provider-group{margin-block-start:12px}.majed-provider-title{margin:0;font-size:16px;line-height:24px;font-weight:500}
-        .majed-api-section{max-inline-size:720px;min-inline-size:0;display:flex;flex-direction:column;gap:12px;text-align:start;color:var(--dsw-alias-label-primary);font-size:14px;line-height:22px}
-        .majed-api-section *{box-sizing:border-box}.majed-api-section p{margin:0}
-        .majed-api-rows{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}.majed-api-rows>li{min-inline-size:0}
-        .majed-api-row{border:0.5px solid var(--dsw-alias-settings-card-stroke,var(--dsw-alias-border-l2));background:var(--dsw-alias-settings-card-fill,var(--dsw-alias-bg-layer-2));border-radius:var(--dsw-radius-xl,20px);padding:14px 16px;min-inline-size:0}
-        .majed-api-head,.majed-api-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-        .majed-api-identity{display:flex;flex-direction:column;align-items:flex-start;gap:4px;flex:1 1 180px;min-inline-size:0;overflow-wrap:anywhere}.majed-api-identity strong{font-weight:500}
-        .majed-api-actions{margin-inline-start:auto}.majed-api-muted{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px;overflow-wrap:anywhere}
-        .majed-api-editor{display:flex;flex-direction:column;gap:14px;padding-block:14px 4px;margin-block-start:12px;border-block-start:0.5px solid var(--dsw-alias-border-l2)}
-        .majed-api-field{display:flex;flex-direction:column;gap:6px;min-inline-size:0;font-size:12px;line-height:18px;font-weight:500}.majed-api-field input,.majed-api-field select{inline-size:100%;font-size:14px;line-height:22px;font-weight:400}
-        .majed-api-model{display:grid;grid-template-columns:repeat(2,minmax(0,1fr)) auto;gap:8px;align-items:end}
-        .majed-api-add{margin-block-start:4px;min-inline-size:0}.majed-api-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-block-end:14px}.majed-api-tabs [aria-selected=true]{font-weight:500;background:var(--dsw-alias-interactive-secondary-hover,var(--dsw-alias-bg-layer-1))}
-        .majed-api-section .majed-subscription-add-trigger{display:flex;align-items:center;justify-content:center;gap:6px;inline-size:100%;min-block-size:44px;padding:0 14px;border:1px dashed var(--dsw-alias-border-l3,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-lg,16px);background:transparent;color:inherit;font:inherit}
-        .majed-api-section .majed-subscription-add-trigger:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-1))}
-        .majed-subscription-add-open{padding:14px 16px;border-radius:var(--dsw-radius-lg,16px);background:var(--dsw-alias-bg-module-platform,var(--dsw-alias-bg-layer-1))}
-        .majed-subscription-add-actions{display:flex;justify-content:flex-end;gap:8px}
-        .majed-subscription-add-actions>button{flex:0 0 auto;inline-size:auto}
-        .majed-api-section .majed-subscriptions-settings :is([data-majed-codex-part=header],[data-majed-claude-part=header],[data-majed-grok-part=header],[data-majed-antigravity-part=header],[data-majed-copilot-part=header])>button:not(.majed-provider-disclosure){height:28px;block-size:28px;min-height:28px;padding:0 10px;border-radius:var(--dsw-radius-sm,8px);font-size:12px;line-height:18px}
-        .majed-subscription-add-open [data-majed-codex-part=card],.majed-subscription-add-open [data-majed-claude-part=card],.majed-subscription-add-open [data-majed-grok-part=card],.majed-subscription-add-open [data-majed-antigravity-part=card],.majed-subscription-add-open [data-majed-copilot-part=card]{border:0!important;background:transparent!important;padding:0!important}
-        .majed-api-add-open{padding:14px 16px;border:0.5px solid var(--dsw-alias-settings-card-stroke,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-xl,20px);background:var(--dsw-alias-settings-card-fill,var(--dsw-alias-bg-layer-2))}
-        .majed-api-add>:is([role=tabpanel],[role=group]){display:flex;flex-direction:column;gap:14px;min-inline-size:0}.majed-api-add>:is([role=tabpanel],[role=group])>.majed-api-editor{margin-block-start:0}
-        .majed-api-section button{cursor:pointer;max-inline-size:100%;white-space:normal;overflow-wrap:anywhere}.majed-api-section button:hover:not(:disabled){background:var(--dsw-alias-interactive-secondary-hover,var(--dsw-alias-bg-layer-1))}
-        .majed-api-section :is(button,input,select):focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}.majed-api-section :disabled{opacity:.5;cursor:not-allowed}
-        @media(max-width:520px){.majed-api-model{grid-template-columns:minmax(0,1fr)}.majed-api-model button{justify-self:start}.majed-api-actions{margin-inline-start:0}}
+        .waycraft-provider-group{display:flex;flex-direction:column;gap:12px;min-inline-size:0}.waycraft-provider-group+.waycraft-provider-group{margin-block-start:12px}.waycraft-provider-title{margin:0;font-size:16px;line-height:24px;font-weight:500}
+        .waycraft-api-section{max-inline-size:720px;min-inline-size:0;display:flex;flex-direction:column;gap:12px;text-align:start;color:var(--dsw-alias-label-primary);font-size:14px;line-height:22px}
+        .waycraft-api-section *{box-sizing:border-box}.waycraft-api-section p{margin:0}
+        .waycraft-api-rows{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}.waycraft-api-rows>li{min-inline-size:0}
+        .waycraft-api-row{border:0.5px solid var(--dsw-alias-settings-card-stroke,var(--dsw-alias-border-l2));background:var(--dsw-alias-settings-card-fill,var(--dsw-alias-bg-layer-2));border-radius:var(--dsw-radius-xl,20px);padding:14px 16px;min-inline-size:0}
+        .waycraft-api-head,.waycraft-api-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+        .waycraft-api-identity{display:flex;flex-direction:column;align-items:flex-start;gap:4px;flex:1 1 180px;min-inline-size:0;overflow-wrap:anywhere}.waycraft-api-identity strong{font-weight:500}
+        .waycraft-api-actions{margin-inline-start:auto}.waycraft-api-muted{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px;overflow-wrap:anywhere}
+        .waycraft-api-editor{display:flex;flex-direction:column;gap:14px;padding-block:14px 4px;margin-block-start:12px;border-block-start:0.5px solid var(--dsw-alias-border-l2)}
+        .waycraft-api-field{display:flex;flex-direction:column;gap:6px;min-inline-size:0;font-size:12px;line-height:18px;font-weight:500}.waycraft-api-field input,.waycraft-api-field select{inline-size:100%;font-size:14px;line-height:22px;font-weight:400}
+        .waycraft-api-model{display:grid;grid-template-columns:repeat(2,minmax(0,1fr)) auto;gap:8px;align-items:end}
+        .waycraft-api-add{margin-block-start:4px;min-inline-size:0}.waycraft-api-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-block-end:14px}.waycraft-api-tabs [aria-selected=true]{font-weight:500;background:var(--dsw-alias-bg-layer-1)}
+        .waycraft-api-section .waycraft-subscription-add-trigger{display:flex;align-items:center;justify-content:center;gap:6px;inline-size:100%;min-block-size:44px;padding:0 14px;border:1px dashed var(--dsw-alias-border-l3,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-lg,16px);background:transparent;color:inherit;font:inherit}
+        .waycraft-api-section .waycraft-subscription-add-trigger:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover,var(--dsw-alias-bg-layer-1))}
+        .waycraft-subscription-add-open{padding:14px 16px;border-radius:var(--dsw-radius-lg,16px);background:var(--dsw-alias-bg-module-platform,var(--dsw-alias-bg-layer-1))}
+        .waycraft-subscription-add-actions{display:flex;justify-content:flex-end;gap:8px}
+        .waycraft-subscription-add-actions>button{flex:0 0 auto;inline-size:auto}
+        .waycraft-api-section .waycraft-subscriptions-settings :is([data-waycraft-codex-part=header],[data-waycraft-claude-part=header],[data-waycraft-grok-part=header],[data-waycraft-antigravity-part=header],[data-waycraft-copilot-part=header])>button:not(.waycraft-provider-disclosure){height:28px;block-size:28px;min-height:28px;padding:0 10px;border-radius:var(--dsw-radius-sm,8px);font-size:12px;line-height:18px}
+        .waycraft-subscription-add-open [data-waycraft-codex-part=card],.waycraft-subscription-add-open [data-waycraft-claude-part=card],.waycraft-subscription-add-open [data-waycraft-grok-part=card],.waycraft-subscription-add-open [data-waycraft-antigravity-part=card],.waycraft-subscription-add-open [data-waycraft-copilot-part=card]{border:0!important;background:transparent!important;padding:0!important}
+        .waycraft-api-add-open{padding:14px 16px;border:0.5px solid var(--dsw-alias-settings-card-stroke,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-xl,20px);background:var(--dsw-alias-settings-card-fill,var(--dsw-alias-bg-layer-2))}
+        .waycraft-api-add>:is([role=tabpanel],[role=group]){display:flex;flex-direction:column;gap:14px;min-inline-size:0}.waycraft-api-add>:is([role=tabpanel],[role=group])>.waycraft-api-editor{margin-block-start:0}
+        .waycraft-api-section button{cursor:pointer;max-inline-size:100%;white-space:normal;overflow-wrap:anywhere}.waycraft-api-section button:hover:not(:disabled){background:var(--dsw-alias-bg-layer-1)}
+        .waycraft-api-section :is(button,input,select):focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}.waycraft-api-section :disabled{opacity:.5;cursor:not-allowed}
+        @media(max-width:520px){.waycraft-api-model{grid-template-columns:minmax(0,1fr)}.waycraft-api-model button{justify-self:start}.waycraft-api-actions{margin-inline-start:0}}
       `), message ? h("p", { role: message === "apiSaved" ? "status" : "alert" }, t(message)) : null, subscriptions$2 ? h("section", {
-			"data-majed-provider-group": "subscription",
-			className: "majed-provider-group",
+			"data-waycraft-provider-group": "subscription",
+			className: "waycraft-provider-group",
 			"aria-label": t("subscriptionProviders")
-		}, h("h3", { className: "majed-provider-title" }, t("subscriptionProviders")), h("ul", { className: "majed-api-rows" }, ...subscriptions$2.rows), addOpen && addOrigin.current === "subscription" ? addPanel() : !showSubscriptionAdd ? null : h("button", {
+		}, h("h3", { className: "waycraft-provider-title" }, t("subscriptionProviders")), h("ul", { className: "waycraft-api-rows" }, ...subscriptions$2.rows), addOpen && addOrigin.current === "subscription" ? addPanel() : !showSubscriptionAdd ? null : h("button", {
 			type: "button",
-			className: "majed-subscription-add-trigger",
+			className: "waycraft-subscription-add-trigger",
 			ref: subscriptionAddButton,
 			disabled: busy || addOpen,
 			onClick: () => openAdd("subscription")
@@ -3916,23 +7912,23 @@ function createApiProviders(React, remote, t, primitives$1 = require("@deepseek-
 			strokeWidth: 1.5,
 			"aria-hidden": true
 		}, h("path", { d: "M12 4v16M4 12h16" })), t("addAccount"))) : null, showAPI && h("section", {
-			"data-majed-provider-group": "api",
-			className: "majed-provider-group",
+			"data-waycraft-provider-group": "api",
+			className: "waycraft-provider-group",
 			"aria-label": t("apiProviders")
-		}, h("div", { className: "majed-api-head" }, h("h3", { className: "majed-provider-title" }, t("apiProviders")), h("div", { className: "majed-api-actions" }, button("apiRefresh", () => {
+		}, h("div", { className: "waycraft-api-head" }, h("h3", { className: "waycraft-provider-title" }, t("apiProviders")), h("div", { className: "waycraft-api-actions" }, button("apiRefresh", () => {
 			load();
-		}))), h(React.Fragment, null, !snapshot ? h("p", null, t(remote ? message ? "apiFailed" : "apiLoading" : "apiUnavailable")) : null, h("ul", { className: "majed-api-rows" }, ...(snapshot?.rows ?? []).filter(configured).map((entry) => {
+		}))), h(React.Fragment, null, !snapshot ? h("p", null, t(remote ? message ? "apiFailed" : "apiLoading" : "apiUnavailable")) : null, h("ul", { className: "waycraft-api-rows" }, ...(snapshot?.rows ?? []).filter(configured).map((entry) => {
 			const ns = nsOf(entry), profile = at(ns.value, entry.settingsPath);
 			const metadata = (profile?.apiKeyEnv ? [profile.apiKeyEnv] : [refOf(entry, profile), ...entry.nativeAuth?.env ?? []]).map((ref) => snapshot.credentials[ref]);
 			const credentialStatus = entry.provider === "deepseek-account" ? "account-unknown" : metadata.some((value) => value?.configured === true) ? "configured" : metadata.every((value) => value?.configured === false) ? "missing" : "unknown";
 			const statusLabel = credentialStatus === "configured" ? "apiKeySet" : credentialStatus === "missing" ? "apiKeyMissing" : credentialStatus === "account-unknown" ? "apiAccountUnknown" : "apiKeyUnknown";
 			return h("li", {
 				key: entry.provider,
-				"data-majed-api-provider": entry.provider,
-				className: "majed-api-row"
-			}, h("div", { className: "majed-api-head" }, h("span", { className: "majed-api-identity" }, h("strong", null, profile?.displayName ?? entry.displayName), h("span", {
-				className: "majed-api-muted",
-				"data-majed-credential-status": credentialStatus
+				"data-waycraft-api-provider": entry.provider,
+				className: "waycraft-api-row"
+			}, h("div", { className: "waycraft-api-head" }, h("span", { className: "waycraft-api-identity" }, h("strong", null, profile?.displayName ?? entry.displayName), h("span", {
+				className: "waycraft-api-muted",
+				"data-waycraft-credential-status": credentialStatus
 			}, h("span", {
 				"aria-hidden": true,
 				style: {
@@ -3943,7 +7939,7 @@ function createApiProviders(React, remote, t, primitives$1 = require("@deepseek-
 					marginInlineEnd: 6,
 					background: "currentColor"
 				}
-			}), t(statusLabel))), h("span", { className: "majed-api-actions" }, entry.provider === "deepseek-account" ? null : button("apiEdit", () => {
+			}), t(statusLabel))), h("span", { className: "waycraft-api-actions" }, entry.provider === "deepseek-account" ? null : button("apiEdit", () => {
 				setAddOpen(false);
 				edit(entry);
 			}, addOpen || !snapshot.writable), removable(entry, ns) ? button("apiDelete", () => {
@@ -3956,7 +7952,7 @@ function createApiProviders(React, remote, t, primitives$1 = require("@deepseek-
 //#endregion
 //#region src/copilot-card.ts
 /** GitHub Copilot Settings card, adapted from pinned reference SubscriptionsSection device login and shared
-* account presentation. Only sanitized status crosses RPC; see PROVENANCE.md (#134). */
+* account presentation. Only sanitized status crosses RPC; see PROVENANCE.md. */
 function createCopilotCard(React, primitives$1, rpc, t) {
 	const h = React.createElement;
 	const Button = primitives$1.Button ?? "button";
@@ -3977,7 +7973,7 @@ function createCopilotCard(React, primitives$1, rpc, t) {
 		const usageRequests = React.useRef(/* @__PURE__ */ new Map());
 		const accountKeys = React.useRef(/* @__PURE__ */ new Set());
 		const call = async (endpoint, payload = {}) => {
-			const response = await rpc.call("/api", `majed-subscriptions.${endpoint}`, {
+			const response = await rpc.call("/api", `waycraft-subscriptions.${endpoint}`, {
 				provider: "copilot",
 				...payload
 			});
@@ -4012,7 +8008,9 @@ function createCopilotCard(React, primitives$1, rpc, t) {
 			};
 		}, []);
 		React.useEffect(() => {
-			if (revision !== void 0) refreshStatus().catch(() => {});
+			if (revision !== void 0) refreshStatus().catch((failure) => {
+				if (alive.current) setError(failure instanceof Error ? failure.message : String(failure));
+			});
 		}, [revision]);
 		React.useEffect(() => {
 			if (!status?.busy) return;
@@ -4071,7 +8069,7 @@ function createCopilotCard(React, primitives$1, rpc, t) {
 		const date = (time) => new Date(time).toLocaleString();
 		const part = (name$1, style, ...children) => h("div", {
 			style,
-			"data-majed-copilot-part": name$1
+			"data-waycraft-copilot-part": name$1
 		}, ...children);
 		const startLogin = () => {
 			action(async () => {
@@ -4119,8 +8117,8 @@ function createCopilotCard(React, primitives$1, rpc, t) {
 				} : {},
 				textAlign: "start"
 			},
-			className: "majed-subscriptions-settings",
-			"data-majed-copilot-card": true
+			className: "waycraft-subscriptions-settings",
+			"data-waycraft-copilot-card": true
 		}, h("style", null, controlCss), manager ? h(ProviderAccountManager, {
 			provider: "copilot",
 			name,
@@ -4144,7 +8142,7 @@ function createCopilotCard(React, primitives$1, rpc, t) {
 			return h("div", {
 				key: account.key,
 				style: styles$3.accountRow,
-				"data-majed-copilot-part": "account"
+				"data-waycraft-copilot-part": "account"
 			}, part("account-header", styles$3.accountHeader, button(account.isDefault ? "★" : "☆", () => {
 				if (!account.isDefault) action(async () => {
 					await call("setDefault", { account: account.key });
@@ -4192,7 +8190,7 @@ function createCopilotCard(React, primitives$1, rpc, t) {
 			});
 		}) : button(t(hasAccounts ? "addAccount" : "login"), () => startLogin(), !!status?.registrationError)), busy && (status.pendingAuth ?? login) ? h("div", { style: styles$3.manual }, h("p", null, t("copilotDeviceHint")), h("bdi", {
 			dir: "ltr",
-			"data-majed-copilot-code": true
+			"data-waycraft-copilot-code": true
 		}, (status.pendingAuth ?? login).userCode), button(t("copyDeviceCode"), () => {
 			action(async () => {
 				await navigator.clipboard.writeText((status.pendingAuth ?? login).userCode);
@@ -4206,7 +8204,7 @@ function createCopilotCard(React, primitives$1, rpc, t) {
 			ref: (node) => {
 				if (node && !node.open) node.showModal();
 			},
-			className: "majed-reset-dialog",
+			className: "waycraft-reset-dialog",
 			role: "dialog",
 			"aria-modal": true,
 			"aria-label": t("confirmLogout"),
@@ -4224,7 +8222,7 @@ function createCopilotCard(React, primitives$1, rpc, t) {
 			...styles$3.statusLine,
 			overflowWrap: "anywhere"
 		} }, h("bdi", { dir: "ltr" }, confirmation.label ?? confirmation.account)), h("div", {
-			className: "majed-subscription-dialog-actions",
+			className: "waycraft-subscription-dialog-actions",
 			style: {
 				...styles$3.actions,
 				justifyContent: "flex-end",
@@ -4243,7 +8241,7 @@ function createCopilotCard(React, primitives$1, rpc, t) {
 //#endregion
 //#region src/claude-card.ts
 /**
-* Claude Settings card (ticket #132). Scoped presentation port of the Claude part of V1ki v0.9.12 b802311
+* Claude Settings card. Scoped presentation port of the Claude part of V1ki v0.9.12 b802311
 * SubscriptionsSection; see PROVENANCE.md. It only ever receives sanitized status from the owned RPC: account
 * labels, plan and expiry, never a token or credential-store path.
 */
@@ -4267,7 +8265,7 @@ function createClaudeCard(React, primitives$1, rpc, t) {
 		const usageRequests = React.useRef(/* @__PURE__ */ new Map());
 		const accountKeys = React.useRef(/* @__PURE__ */ new Set());
 		const call = async (endpoint, payload = {}) => {
-			const response = await rpc.call("/api", `majed-subscriptions.${endpoint}`, {
+			const response = await rpc.call("/api", `waycraft-subscriptions.${endpoint}`, {
 				provider: "claude",
 				...payload
 			});
@@ -4302,7 +8300,9 @@ function createClaudeCard(React, primitives$1, rpc, t) {
 			};
 		}, []);
 		React.useEffect(() => {
-			if (revision !== void 0) refreshStatus().catch(() => {});
+			if (revision !== void 0) refreshStatus().catch((failure) => {
+				if (alive.current) setError(failure instanceof Error ? failure.message : String(failure));
+			});
 		}, [revision]);
 		React.useEffect(() => {
 			if (!status?.busy) return;
@@ -4361,7 +8361,7 @@ function createClaudeCard(React, primitives$1, rpc, t) {
 		const date = (time) => new Date(time).toLocaleString();
 		const part = (name$1, style, ...children) => h("div", {
 			style,
-			"data-majed-claude-part": name$1
+			"data-waycraft-claude-part": name$1
 		}, ...children);
 		const startLogin = (method) => {
 			action(async () => {
@@ -4409,8 +8409,8 @@ function createClaudeCard(React, primitives$1, rpc, t) {
 				} : {},
 				textAlign: "start"
 			},
-			className: "majed-subscriptions-settings",
-			"data-majed-claude-card": true
+			className: "waycraft-subscriptions-settings",
+			"data-waycraft-claude-card": true
 		}, h("style", null, controlCss), manager ? h(ProviderAccountManager, {
 			provider: "claude",
 			name,
@@ -4434,7 +8434,7 @@ function createClaudeCard(React, primitives$1, rpc, t) {
 			return h("div", {
 				key: account.key,
 				style: styles$3.accountRow,
-				"data-majed-claude-part": "account"
+				"data-waycraft-claude-part": "account"
 			}, part("account-header", styles$3.accountHeader, button(account.isDefault ? "★" : "☆", () => {
 				if (!account.isDefault) action(async () => {
 					await call("setDefault", { account: account.key });
@@ -4502,7 +8502,7 @@ function createClaudeCard(React, primitives$1, rpc, t) {
 			ref: (node) => {
 				if (node && !node.open) node.showModal();
 			},
-			className: "majed-reset-dialog",
+			className: "waycraft-reset-dialog",
 			role: "dialog",
 			"aria-modal": true,
 			"aria-label": t("confirmLogout"),
@@ -4520,7 +8520,7 @@ function createClaudeCard(React, primitives$1, rpc, t) {
 			...styles$3.statusLine,
 			overflowWrap: "anywhere"
 		} }, h("bdi", { dir: "ltr" }, confirmation.label ?? confirmation.account)), h("div", {
-			className: "majed-subscription-dialog-actions",
+			className: "waycraft-subscription-dialog-actions",
 			style: {
 				...styles$3.actions,
 				justifyContent: "flex-end",
@@ -4549,7 +8549,7 @@ function visibleUsageWindows(provider, windows, visibleModels) {
 //#endregion
 //#region src/antigravity-card.ts
 /**
-* Antigravity Settings card (ticket #135). Scoped presentation port of the Antigravity part of V1ki v0.9.12 b802311
+* Antigravity Settings card. Scoped presentation port of the Antigravity part of V1ki v0.9.12 b802311
 * SubscriptionsSection; see PROVENANCE.md. It only ever receives sanitized status from the owned RPC: account
 * labels, plan and expiry, never a token or credential-store path.
 */
@@ -4573,7 +8573,7 @@ function createAntigravityCard(React, primitives$1, rpc, t) {
 		const usageRequests = React.useRef(/* @__PURE__ */ new Map());
 		const accountKeys = React.useRef(/* @__PURE__ */ new Set());
 		const call = async (endpoint, payload = {}) => {
-			const response = await rpc.call("/api", `majed-subscriptions.${endpoint}`, {
+			const response = await rpc.call("/api", `waycraft-subscriptions.${endpoint}`, {
 				provider: "antigravity",
 				...payload
 			});
@@ -4608,7 +8608,9 @@ function createAntigravityCard(React, primitives$1, rpc, t) {
 			};
 		}, []);
 		React.useEffect(() => {
-			if (revision !== void 0) refreshStatus().catch(() => {});
+			if (revision !== void 0) refreshStatus().catch((failure) => {
+				if (alive.current) setError(failure instanceof Error ? failure.message : String(failure));
+			});
 		}, [revision]);
 		React.useEffect(() => {
 			if (!status?.busy) return;
@@ -4668,7 +8670,7 @@ function createAntigravityCard(React, primitives$1, rpc, t) {
 		const date = (time) => new Date(time).toLocaleString();
 		const part = (name$1, style, ...children) => h("div", {
 			style,
-			"data-majed-antigravity-part": name$1
+			"data-waycraft-antigravity-part": name$1
 		}, ...children);
 		const startLogin = () => {
 			action(async () => {
@@ -4716,8 +8718,8 @@ function createAntigravityCard(React, primitives$1, rpc, t) {
 				} : {},
 				textAlign: "start"
 			},
-			className: "majed-subscriptions-settings",
-			"data-majed-antigravity-card": true
+			className: "waycraft-subscriptions-settings",
+			"data-waycraft-antigravity-card": true
 		}, h("style", null, controlCss), manager ? h(ProviderAccountManager, {
 			provider: "antigravity",
 			name,
@@ -4742,7 +8744,7 @@ function createAntigravityCard(React, primitives$1, rpc, t) {
 			return h("div", {
 				key: account.key,
 				style: styles$3.accountRow,
-				"data-majed-antigravity-part": "account"
+				"data-waycraft-antigravity-part": "account"
 			}, part("account-header", styles$3.accountHeader, button(account.isDefault ? "★" : "☆", () => {
 				if (!account.isDefault) action(async () => {
 					await call("setDefault", { account: account.key });
@@ -4810,7 +8812,7 @@ function createAntigravityCard(React, primitives$1, rpc, t) {
 			ref: (node) => {
 				if (node && !node.open) node.showModal();
 			},
-			className: "majed-reset-dialog",
+			className: "waycraft-reset-dialog",
 			role: "dialog",
 			"aria-modal": true,
 			"aria-label": t("confirmLogout"),
@@ -4828,7 +8830,7 @@ function createAntigravityCard(React, primitives$1, rpc, t) {
 			...styles$3.statusLine,
 			overflowWrap: "anywhere"
 		} }, h("bdi", { dir: "ltr" }, confirmation.label ?? confirmation.account)), h("div", {
-			className: "majed-subscription-dialog-actions",
+			className: "waycraft-subscription-dialog-actions",
 			style: {
 				...styles$3.actions,
 				justifyContent: "flex-end",
@@ -4901,9 +8903,9 @@ function createZenCard(React, primitives$1, rpc, t) {
 				width: "100%",
 				textAlign: "start"
 			},
-			className: "majed-subscriptions-settings",
-			"data-majed-zen-card": true
-		}, h("style", null, controlCss), h("div", { style: styles$3.card }, h("div", { style: styles$3.cardHeader }, providerStatus(h, t, state, !enabled ? "zenDisabled" : label), h("div", { className: "majed-provider-identity" }, h("span", { style: styles$3.name }, "OpenCode Zen")), h("button", {
+			className: "waycraft-subscriptions-settings",
+			"data-waycraft-zen-card": true
+		}, h("style", null, controlCss), h("div", { style: styles$3.card }, h("div", { style: styles$3.cardHeader }, providerStatus(h, t, state, !enabled ? "zenDisabled" : label), h("div", { className: "waycraft-provider-identity" }, h("span", { style: styles$3.name }, "OpenCode Zen")), h("button", {
 			type: "button",
 			role: "switch",
 			"aria-checked": enabled,
@@ -4953,7 +8955,7 @@ function createZenCard(React, primitives$1, rpc, t) {
 //#endregion
 //#region src/grok-card.ts
 /**
-* Grok Settings card (ticket #133). Scoped presentation port of the Grok part of V1ki v0.9.12 b802311
+* Grok Settings card. Scoped presentation port of the Grok part of V1ki v0.9.12 b802311
 * SubscriptionsSection; see PROVENANCE.md. It only ever receives sanitized status from the owned RPC: account
 * labels, plan and expiry, never a token or credential-store path.
 */
@@ -4977,7 +8979,7 @@ function createGrokCard(React, primitives$1, rpc, t) {
 		const usageRequests = React.useRef(/* @__PURE__ */ new Map());
 		const accountKeys = React.useRef(/* @__PURE__ */ new Set());
 		const call = async (endpoint, payload = {}) => {
-			const response = await rpc.call("/api", `majed-subscriptions.${endpoint}`, {
+			const response = await rpc.call("/api", `waycraft-subscriptions.${endpoint}`, {
 				provider: "grok",
 				...payload
 			});
@@ -5012,7 +9014,9 @@ function createGrokCard(React, primitives$1, rpc, t) {
 			};
 		}, []);
 		React.useEffect(() => {
-			if (revision !== void 0) refreshStatus().catch(() => {});
+			if (revision !== void 0) refreshStatus().catch((failure) => {
+				if (alive.current) setError(failure instanceof Error ? failure.message : String(failure));
+			});
 		}, [revision]);
 		React.useEffect(() => {
 			if (!status?.busy) return;
@@ -5071,7 +9075,7 @@ function createGrokCard(React, primitives$1, rpc, t) {
 		const date = (time) => new Date(time).toLocaleString();
 		const part = (name$1, style, ...children) => h("div", {
 			style,
-			"data-majed-grok-part": name$1
+			"data-waycraft-grok-part": name$1
 		}, ...children);
 		const startLogin = () => {
 			action(async () => {
@@ -5119,8 +9123,8 @@ function createGrokCard(React, primitives$1, rpc, t) {
 				} : {},
 				textAlign: "start"
 			},
-			className: "majed-subscriptions-settings",
-			"data-majed-grok-card": true
+			className: "waycraft-subscriptions-settings",
+			"data-waycraft-grok-card": true
 		}, h("style", null, controlCss), manager ? h(ProviderAccountManager, {
 			provider: "grok",
 			name,
@@ -5144,7 +9148,7 @@ function createGrokCard(React, primitives$1, rpc, t) {
 			return h("div", {
 				key: account.key,
 				style: styles$3.accountRow,
-				"data-majed-grok-part": "account"
+				"data-waycraft-grok-part": "account"
 			}, part("account-header", styles$3.accountHeader, button(account.isDefault ? "★" : "☆", () => {
 				if (!account.isDefault) action(async () => {
 					await call("setDefault", { account: account.key });
@@ -5212,7 +9216,7 @@ function createGrokCard(React, primitives$1, rpc, t) {
 			ref: (node) => {
 				if (node && !node.open) node.showModal();
 			},
-			className: "majed-reset-dialog",
+			className: "waycraft-reset-dialog",
 			role: "dialog",
 			"aria-modal": true,
 			"aria-label": t("confirmLogout"),
@@ -5230,7 +9234,7 @@ function createGrokCard(React, primitives$1, rpc, t) {
 			...styles$3.statusLine,
 			overflowWrap: "anywhere"
 		} }, h("bdi", { dir: "ltr" }, confirmation.label ?? confirmation.account)), h("div", {
-			className: "majed-subscription-dialog-actions",
+			className: "waycraft-subscription-dialog-actions",
 			style: {
 				...styles$3.actions,
 				justifyContent: "flex-end",
@@ -5372,7 +9376,7 @@ function SpeedSelect({ loadSpeed, setSpeed, t }) {
 	const triggerLabel = `${translate("speed")} · ${tierName(state.tier)}`;
 	return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 		ref: rootRef,
-		className: "majed-subscription-speed",
+		className: "waycraft-subscription-speed",
 		style: styles$2.root,
 		onKeyDown: (event) => {
 			if (event.key === "Escape" && open) {
@@ -5434,7 +9438,7 @@ const styles$2 = {
 	trigger: {
 		border: "0.5px solid var(--dsw-alias-border-l3)",
 		borderRadius: "var(--dsw-radius-sm, 8px)",
-		background: "var(--majed-subscription-speed-hover, transparent)",
+		background: "var(--waycraft-subscription-speed-hover, transparent)",
 		color: "var(--dsw-alias-label-secondary)",
 		font: "inherit",
 		fontSize: 12,
@@ -5466,7 +9470,7 @@ const styles$2 = {
 		width: "100%",
 		border: "none",
 		borderRadius: "var(--dsw-radius-sm, 8px)",
-		background: "var(--majed-subscription-speed-hover, transparent)",
+		background: "var(--waycraft-subscription-speed-hover, transparent)",
 		padding: "6px 8px",
 		cursor: "pointer",
 		font: "inherit",
@@ -5526,13 +9530,13 @@ function hostReactDom() {
 
 //#endregion
 //#region src/usage-badge/usage-badge-preferences.ts
-const MODE_KEY = "majed.subscriptions.usageBadgeMode";
-const MODE_EVENT = "majed:subscriptions:usage-badge-mode";
+const MODE_KEY = "waycraft.subscriptions.usageBadgeMode";
+const MODE_EVENT = "waycraft:subscriptions:usage-badge-mode";
 /** Read the browser preference; blocked storage retains the default display. */
 function readUsageBadgeMode() {
 	if (typeof window === "undefined") return "recent";
 	try {
-		return window.localStorage.getItem(MODE_KEY) === "hidden" ? "hidden" : "recent";
+		return (window.localStorage.getItem(MODE_KEY) ?? window.localStorage.getItem(LEGACY_USAGE_BADGE_KEY)) === "hidden" ? "hidden" : "recent";
 	} catch (error) {
 		if (!(error instanceof DOMException) || error.name !== "SecurityError") throw error;
 		return "recent";
@@ -5957,7 +9961,7 @@ function SubscriptionUsageBadge({ rpc, currentModel, t }) {
 			/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("button", {
 				ref: buttonRef,
 				type: "button",
-				className: "majed-subscription-usage-pill",
+				className: "waycraft-subscription-usage-pill",
 				style: {
 					...styles$1.pill,
 					...hover || open ? styles$1.pillActive : {}
@@ -5995,7 +9999,7 @@ function SubscriptionUsageBadge({ rpc, currentModel, t }) {
 				ref: tooltipRef,
 				id: tooltipId,
 				role: "tooltip",
-				className: "majed-subscription-usage-tooltip",
+				className: "waycraft-subscription-usage-tooltip",
 				style: {
 					...styles$1.tooltip,
 					...tooltipPos ?? MEASURE_STYLE
@@ -6043,7 +10047,7 @@ function SubscriptionUsageBadge({ rpc, currentModel, t }) {
 				id: panelId,
 				role: "dialog",
 				"aria-label": title,
-				className: "majed-subscription-usage-panel",
+				className: "waycraft-subscription-usage-panel",
 				style: {
 					...styles$1.panel,
 					...pos ?? MEASURE_STYLE
@@ -6056,7 +10060,7 @@ function SubscriptionUsageBadge({ rpc, currentModel, t }) {
 							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(UsageBadgeIcon, {}), title]
 						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
 							type: "button",
-							className: "majed-subscription-usage-close",
+							className: "waycraft-subscription-usage-close",
 							"aria-label": translate("usageBadgeClose"),
 							onClick: close,
 							children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("svg", {
@@ -6516,7 +10520,7 @@ function guarded(React, Component, label, report = (message, error) => console.e
 			return { failed: true };
 		}
 		componentDidCatch(error) {
-			report(`dsh-majed: ${label} failed to render`, error);
+			report(`dsh-waycraft: ${label} failed to render`, error);
 		}
 		render() {
 			return this.state.failed ? null : React.createElement(Component, this.props);
@@ -6530,7 +10534,7 @@ function guarded(React, Component, label, report = (message, error) => console.e
 //#endregion
 //#region src/browser.ts
 function applySubscriptions(root) {
-	const report = (error) => console.error("dsh-majed: Subscriptions setup failed", error);
+	const report = (error) => console.error("dsh-waycraft: Subscriptions setup failed", error);
 	function isolate(callback) {
 		try {
 			const result = callback();
@@ -6549,11 +10553,11 @@ function applySubscriptions(root) {
 		const React = require("react");
 		const h = React.createElement;
 		const primitives$1 = require("@deepseek-ai/dsh-client-ui-primitives");
-		const NS = "majed.subscriptions";
+		const NS = "waycraft.subscriptions";
 		isolate(() => ctx.effect(() => isolate(() => ctx.locale.register(NS, {
 			en: subscriptions$1,
 			ar: subscriptions
-		})), "dsh-majed: subscriptions dictionaries"));
+		})), "dsh-waycraft: subscriptions dictionaries"));
 		const t = ctx.locale.bind(NS);
 		const CodexCard = createCodexCard(React, primitives$1, connection.rpc, t);
 		const CopilotCard = guarded(React, createCopilotCard(React, primitives$1, connection.rpc, t), "Copilot card");
@@ -6595,7 +10599,7 @@ function applySubscriptions(root) {
 			const alive = React.useRef(true);
 			const refresh = async () => {
 				try {
-					const answer = await connection.rpc.call("/api", "majed-subscriptions.status", {});
+					const answer = await connection.rpc.call("/api", "waycraft-subscriptions.status", {});
 					if (!answer?.ok) throw new Error();
 					if (alive.current) {
 						setStatus(answer.value);
@@ -6625,7 +10629,7 @@ function applySubscriptions(root) {
 			}));
 			const rows = providers.filter(({ id }) => status?.providers?.[id]?.accounts?.length).map(({ id }, index) => h("li", {
 				key: id,
-				"data-majed-subscription-row": id
+				"data-waycraft-subscription-row": id
 			}, h(providerCards[id], {
 				presentation: "group",
 				initialExpanded: index === 0,
@@ -6649,11 +10653,11 @@ function applySubscriptions(root) {
 					}) : null
 				}
 			}), h("section", {
-				"data-majed-provider-group": "free",
-				className: "majed-provider-group",
+				"data-waycraft-provider-group": "free",
+				className: "waycraft-provider-group",
 				style: { marginBlockStart: 24 },
 				"aria-label": t("freeProviders")
-			}, h("h3", { className: "majed-provider-title" }, t("freeProviders")), h("ul", { className: "majed-api-rows" }, h("li", null, h(ZenCard)))));
+			}, h("h3", { className: "waycraft-provider-title" }, t("freeProviders")), h("ul", { className: "waycraft-api-rows" }, h("li", null, h(ZenCard)))));
 		}
 		let present = false;
 		let failing = false;
@@ -6667,7 +10671,7 @@ function applySubscriptions(root) {
 				return () => listeners.delete(fn);
 			}, () => `${failing}:${referenceEnabled}:${!!ApiProviders}`);
 			return h("div", {
-				className: "majed-subscriptions-page",
+				className: "waycraft-subscriptions-page",
 				style: {
 					display: "flex",
 					flexDirection: "column",
@@ -6680,13 +10684,13 @@ function applySubscriptions(root) {
 					lineHeight: "22px"
 				}
 			}, h("style", null, controlCss + `
-          .majed-subscriptions-page .majed-page-settings>h3{margin:0;font-size:16px;line-height:24px;font-weight:500}
-          .majed-subscriptions-page .majed-page-settings-content{display:flex;flex-direction:column;gap:12px;padding-block-start:12px}
-          .majed-subscriptions-page .majed-proxy-settings{padding:14px 16px;border:0.5px solid var(--dsw-alias-settings-card-stroke,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-xl,20px);background:var(--dsw-alias-settings-card-fill,var(--dsw-alias-bg-layer-2))}
-          .majed-subscriptions-page .majed-proxy-settings header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
-          .majed-subscriptions-page .majed-proxy-settings p{margin:8px 0 0;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px;overflow-wrap:anywhere}
+          .waycraft-subscriptions-page .waycraft-page-settings>h3{margin:0;font-size:16px;line-height:24px;font-weight:500}
+          .waycraft-subscriptions-page .waycraft-page-settings-content{display:flex;flex-direction:column;gap:12px;padding-block-start:12px}
+          .waycraft-subscriptions-page .waycraft-proxy-settings{padding:14px 16px;border:0.5px solid var(--dsw-alias-settings-card-stroke,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-xl,20px);background:var(--dsw-alias-settings-card-fill,var(--dsw-alias-bg-layer-2))}
+          .waycraft-subscriptions-page .waycraft-proxy-settings header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+          .waycraft-subscriptions-page .waycraft-proxy-settings p{margin:8px 0 0;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px;overflow-wrap:anywhere}
         `), h("header", {
-				className: "majed-providers-identity",
+				className: "waycraft-providers-identity",
 				style: {
 					display: "flex",
 					alignItems: "center",
@@ -6716,9 +10720,9 @@ function applySubscriptions(root) {
 				fontWeight: 500,
 				overflowWrap: "anywhere"
 			} }, t("title"))), referenceEnabled ? h("p", { role: "status" }, t("coexistence")) : null, failing ? h("p", { role: "alert" }, t("unreachable")) : null, h("section", {
-				"data-majed-settings": true,
-				className: "majed-page-settings"
-			}, h("h3", null, t("pageSettings")), h("div", { className: "majed-page-settings-content" }, h(GuardedProxy, {
+				"data-waycraft-settings": true,
+				className: "waycraft-page-settings"
+			}, h("h3", null, t("pageSettings")), h("div", { className: "waycraft-page-settings-content" }, h(GuardedProxy, {
 				rpc: connection.rpc,
 				t
 			}), h(GuardedSetting, { t }))), h("section", { style: {
@@ -6752,16 +10756,20 @@ function applySubscriptions(root) {
 					"video_generate",
 					VideoGenerateToolview,
 					() => ({ loadVideo: createVideoLoader(connection.rpc) })
-				]]) for (const key of [name, `dsh_majed_${name}`]) add(() => ctx.slots.inject("tool.call.toolview", () => ctx.slots.register({
+				]]) for (const key of [
+					name,
+					`dsh_waycraft_${name}`,
+					legacyToolviewKey(name)
+				]) add(() => ctx.slots.inject("tool.call.toolview", () => ctx.slots.register({
 					name: "tool.call.toolview",
-					id: `majed-toolview-${key}`,
+					id: `waycraft-toolview-${key}`,
 					key,
 					locale: NS,
 					inject
 				}, guarded(React, view, name))));
 				add(() => ctx.slots.inject("conversation.input.right", () => ctx.slots.register({
 					name: "conversation.input.right",
-					id: "majed-subscription-speed",
+					id: "waycraft-subscription-speed",
 					order: 0,
 					locale: NS,
 					inject: (sessionId) => ({
@@ -6771,7 +10779,7 @@ function applySubscriptions(root) {
 				}, GuardedSpeed)));
 				add(() => ctx.slots.inject("conversation.composer.dock", () => ctx.slots.register({
 					name: "conversation.composer.dock",
-					id: "majed-subscription-usage",
+					id: "waycraft-subscription-usage",
 					order: 10,
 					locale: NS,
 					inject: (sessionId) => ({
@@ -6814,13 +10822,13 @@ function applySubscriptions(root) {
 						await createSpeedSetter(connection, session.sessionId)(option.id);
 					}
 				}
-			}), "dsh-majed: /fast contribution");
+			}), "dsh-waycraft: /fast contribution");
 		})));
 		function update() {
 			isolate(syncSurfaces);
 			if (present && !withdraw) withdraw = ctx.slots.inject("settings.section", () => ctx.slots.register({
 				name: "settings.section",
-				id: "majed-subscriptions",
+				id: "waycraft-subscriptions",
 				order: 90,
 				label: () => t("title")
 			}, Section));
@@ -6834,13 +10842,13 @@ function applySubscriptions(root) {
 			const current = ++sequence;
 			probeReference(current);
 			try {
-				const result = await connection.rpc.call("/api", "majed-subscriptions.status", {});
+				const result = await connection.rpc.call("/api", "waycraft-subscriptions.status", {});
 				if (disposed || current !== sequence) return;
 				present = true;
 				failing = !(result?.ok && result.value?.component === "subscriptions");
 			} catch (error) {
 				if (disposed || current !== sequence) return;
-				if (error instanceof Error && error.message === "transport failure for /api/majed-subscriptions.status: HTTP 404") {
+				if (error instanceof Error && error.message === "transport failure for /api/waycraft-subscriptions.status: HTTP 404") {
 					present = false;
 					failing = false;
 				} else {
@@ -6876,10 +10884,11 @@ function applySubscriptions(root) {
 				withdraw?.();
 				listeners.clear();
 			};
-		}), "dsh-majed: subscriptions presence"));
+		}), "dsh-waycraft: subscriptions presence"));
 	})));
 }
 
 //#endregion
+exports.applySkills = applySkills;
 exports.applySubscriptions = applySubscriptions;
 return module.exports; };

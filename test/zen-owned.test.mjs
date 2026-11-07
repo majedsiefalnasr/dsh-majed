@@ -1,4 +1,4 @@
-// #137 approved assembled adapter/RPC seam; fake gateway only.
+// approved assembled adapter/RPC seam; fake gateway only.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp } from 'node:fs/promises';
@@ -45,7 +45,7 @@ function host(reference) {
   return {
     adapters,
     async status(endpoint = 'status', signal, payload = {}) {
-      const method = 'majed-subscriptions.' + endpoint;
+      const method = 'waycraft-subscriptions.' + endpoint;
       const response = await routes.get('/api/' + method).fetch(
         new Request('http://localhost/api/' + method, {
           method: 'POST',
@@ -67,7 +67,7 @@ function host(reference) {
   };
 }
 test('Zen offers only free gateway models, caches discovery and coexists with opencode2dsh', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed137-host-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft137-host-');
   const previous = globalThis.fetch,
     calls = [];
   globalThis.fetch = async (url, init) => {
@@ -123,7 +123,7 @@ test('Zen offers only free gateway models, caches discovery and coexists with op
 });
 
 test('Zen cancellation releases stalled stream bodies and disposal aborts catalog reads', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed137-cancel-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft137-cancel-');
   const previous = globalThis.fetch;
   let cancelled = false,
     body;
@@ -161,7 +161,7 @@ test('Zen cancellation releases stalled stream bodies and disposal aborts catalo
 });
 
 test('Zen disabling preserves a stream already admitted and blocks the next request', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-zen-inflight-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-zen-inflight-');
   const previous = globalThis.fetch;
   let controller;
   globalThis.fetch = async (url) =>
@@ -215,7 +215,7 @@ test('Zen disabling preserves a stream already admitted and blocks the next requ
 });
 
 test('Zen persistent switch hides models and rejects new inference without network', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-zen-switch-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-zen-switch-');
   const { ProviderSettingsStore } = await import(
     '../dist/provider-settings.js'
   );
@@ -252,7 +252,7 @@ const options = {
   messages: [{ role: 'user', content: [{ type: 'text', text: 'fixture' }] }],
 };
 test('Zen streams translated replies with canonical client identity and safe errors', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed137-stream-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft137-stream-');
   const previous = globalThis.fetch;
   let failure, posted;
   globalThis.fetch = async (url, init) => {
@@ -314,7 +314,7 @@ test('Zen streams translated replies with canonical client identity and safe err
   }
 });
 test('Zen uses static fallback when discovery fails without exposing transport details', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed137-fallback-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft137-fallback-');
   const previous = globalThis.fetch;
   globalThis.fetch = async () => {
     throw Error('private transport detail');
@@ -411,7 +411,7 @@ for (const locale of ['en', 'ar'])
 
 // Public reference catalog metadata uses lifecycle/status as well as deprecated.
 test('metadata paid and retired verdicts override free-looking names', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed137-metadata-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft137-metadata-');
   const saved = globalThis.fetch;
   globalThis.fetch = async (url) =>
     String(url).endsWith('/models')
@@ -458,7 +458,7 @@ test('metadata paid and retired verdicts override free-looking names', async () 
   }
 });
 test('known paid and deprecated verdicts survive a later metadata outage', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed137-verdicts-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft137-verdicts-');
   const saved = globalThis.fetch,
     now = Date.now;
   let clock = now(),
@@ -505,7 +505,7 @@ test('known paid and deprecated verdicts survive a later metadata outage', async
   }
 });
 test('registration and general status perform no discovery; dedicated status is bounded by caller cancellation', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed137-lazy-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft137-lazy-');
   const saved = globalThis.fetch;
   let calls = 0,
     cancelled = false,
@@ -542,7 +542,7 @@ test('registration and general status perform no discovery; dedicated status is 
   }
 });
 test('cancelled discovery does not suppress the next independent healthy discovery', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed137-retry-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft137-retry-');
   const saved = globalThis.fetch;
   let calls = 0,
     started;
@@ -578,7 +578,7 @@ test('cancelled discovery does not suppress the next independent healthy discove
   }
 });
 test('cached gateway roster survives failed refresh and later recovers', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed137-cache-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft137-cache-');
   const saved = globalThis.fetch,
     now = Date.now;
   let clock = now(),
@@ -613,7 +613,7 @@ test('cached gateway roster survives failed refresh and later recovers', async (
   }
 });
 test('Responses-only free model uses Responses wire and translated terminal event', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed137-responses-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft137-responses-');
   const saved = globalThis.fetch;
   let wire;
   globalThis.fetch = async (url, init) => {

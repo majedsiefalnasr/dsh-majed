@@ -8,7 +8,7 @@ import {
   styles,
 } from './codex-card.js';
 /**
- * Antigravity Settings card (ticket #135). Scoped presentation port of the Antigravity part of V1ki v0.9.12 b802311
+ * Antigravity Settings card. Scoped presentation port of the Antigravity part of V1ki v0.9.12 b802311
  * SubscriptionsSection; see PROVENANCE.md. It only ever receives sanitized status from the owned RPC: account
  * labels, plan and expiry, never a token or credential-store path.
  */
@@ -46,7 +46,7 @@ export function createAntigravityCard(
     const call = async (endpoint: string, payload: object = {}) => {
       const response = await rpc.call(
         '/api',
-        `majed-subscriptions.${endpoint}`,
+        `waycraft-subscriptions.${endpoint}`,
         { provider: 'antigravity', ...payload },
       );
       if (!response?.ok)
@@ -86,7 +86,14 @@ export function createAntigravityCard(
       };
     }, []);
     React.useEffect(() => {
-      if (revision !== undefined) void refreshStatus().catch(() => {});
+      // A failed re-read after an external change would leave stale data; show it like the first load does.
+      if (revision !== undefined)
+        void refreshStatus().catch((failure: unknown) => {
+          if (alive.current)
+            setError(
+              failure instanceof Error ? failure.message : String(failure),
+            );
+        });
     }, [revision]);
     React.useEffect(() => {
       if (!status?.busy) return;
@@ -176,7 +183,7 @@ export function createAntigravityCard(
       );
     const date = (time: number) => new Date(time).toLocaleString();
     const part = (name: string, style: any, ...children: any[]) =>
-      h('div', { style, 'data-majed-antigravity-part': name }, ...children);
+      h('div', { style, 'data-waycraft-antigravity-part': name }, ...children);
     const startLogin = () => {
       void action(async () => {
         const result = await call('login');
@@ -228,8 +235,8 @@ export function createAntigravityCard(
             : {}),
           textAlign: 'start',
         },
-        className: 'majed-subscriptions-settings',
-        'data-majed-antigravity-card': true,
+        className: 'waycraft-subscriptions-settings',
+        'data-waycraft-antigravity-card': true,
       },
       h('style', null, controlCss),
       manager
@@ -348,7 +355,7 @@ export function createAntigravityCard(
             {
               key: account.key,
               style: styles.accountRow,
-              'data-majed-antigravity-part': 'account',
+              'data-waycraft-antigravity-part': 'account',
             },
             part(
               'account-header',
@@ -572,7 +579,7 @@ export function createAntigravityCard(
               ref: (node: HTMLDialogElement | null) => {
                 if (node && !node.open) node.showModal();
               },
-              className: 'majed-reset-dialog',
+              className: 'waycraft-reset-dialog',
               role: 'dialog',
               'aria-modal': true,
               'aria-label': t('confirmLogout'),
@@ -601,7 +608,7 @@ export function createAntigravityCard(
             h(
               'div',
               {
-                className: 'majed-subscription-dialog-actions',
+                className: 'waycraft-subscription-dialog-actions',
                 style: {
                   ...styles.actions,
                   justifyContent: 'flex-end',

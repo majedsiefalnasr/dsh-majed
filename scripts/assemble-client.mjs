@@ -8,6 +8,6 @@ await writeFile(
       new URL('../dist/subscriptions-client.js', import.meta.url),
       'utf8',
     )) +
-      "\n    const subscriptions = majedSubscriptionsFactory(require);\n    const React = require('react');",
+      "\n    const subscriptions = waycraftSubscriptionsFactory(require);\n    const React = require('react');",
   ),
 );

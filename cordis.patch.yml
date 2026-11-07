@@ -1,6 +1,9 @@
 - insert:
-    - id: majed
+    - id: waycraft
       name: 'dsh-waycraft'
-    - id: majed-subscriptions
+    - id: waycraft-subscriptions
       name: 'dsh-waycraft/subscriptions'
+      disabled: true
+    - id: waycraft-skills
+      name: 'dsh-waycraft/skills'
       disabled: true

@@ -1,5 +1,7 @@
 # Antigravity OAuth configuration — restoration supersedes external-only mode
 
+> Historical names: this evidence predates the #159 rename; `majed*` identifiers below are the retired names of the current `waycraft*` ones (see `rename-waycraft.md`).
+
 ## Approved bounded restoration
 
 The Owner explicitly approved restoring the bundled identity and asserted redistribution permission. This is an Owner assertion, not independently verified documentary licensing or Google authorization. The exact constant module is restored from locally preserved reviewed candidate `0b8160bcc795bee99e8fac98194eb724af5a4c77`; generated output is rebuilt normally. No values or hashes of values belong in reports or diagnostics.

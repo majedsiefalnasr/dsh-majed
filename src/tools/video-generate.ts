@@ -173,7 +173,7 @@ export function parseVideoStatusResponse(payload: unknown): VideoStatus {
 
 /** Directory the downloaded MP4 files are written to. */
 export function videosDirectory(): string {
-  return dshHomePath('plugins', 'majed', 'subscriptions', 'videos');
+  return dshHomePath('plugins', 'waycraft', 'subscriptions', 'videos');
 }
 
 /** Timestamped, collision-safe file name for one generated video. */

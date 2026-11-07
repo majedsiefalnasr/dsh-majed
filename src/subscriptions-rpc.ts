@@ -5,7 +5,7 @@ export async function callSubscriptionsAuth<T>(
 ): Promise<T> {
   const result = await rpc.call(
     '/api',
-    `majed-subscriptions.${endpoint}`,
+    `waycraft-subscriptions.${endpoint}`,
     payload,
   );
   if (!result?.ok)

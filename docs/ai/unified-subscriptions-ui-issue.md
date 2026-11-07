@@ -1,5 +1,7 @@
 # Subscriptions (Majed): one native-style provider list and inline three-mode Add
 
+> Historical names: this evidence predates the #159 rename; `majed*` identifiers below are the retired names of the current `waycraft*` ones (see `rename-waycraft.md`).
+
 ## Final Owner-approved disposition — 2026-11-03
 
 The authoritative final scope is the approved #138 section at the top of ../specs/subscriptions.md. It supersedes both amendments below: AI Providers contains always-visible Settings, configured subscription groups with one bottom inline subscription Add, then separate Free providers/Zen with persisted enablement. Native Models remains the API surface; the existing API controller remains retained but is not rendered here. Composer hover rings/full-menu linear bars, responsive localized usage presentation, Proxy dialog alignment and the general modules icon are included. Owner authorized final review/publication and conditional merge/closure; acceptance evidence is still being reconciled, not waived.

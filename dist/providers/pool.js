@@ -374,7 +374,7 @@ export class PoolAdapter extends LlmAdapter {
         this.sticky.set(key, memberKey(member.provider, member.account, member.model));
     }
     /**
-     * The error for an exhausted pool. It says WHY (issue #139): the last
+     * The error for an exhausted pool. It says WHY: the last
      * member failure of this request when members were tried, or the cooling
      * record that kept every member out of the candidate set — and its `code`
      * is that failure's own code, never a synthetic `RATE_LIMIT` (a transport

@@ -187,10 +187,10 @@ export function providerIdentity(
   const plan = account?.plan ?? usage[account?.key]?.plan;
   return h(
     'div',
-    { className: 'majed-provider-identity' },
+    { className: 'waycraft-provider-identity' },
     h(
       'div',
-      { className: 'majed-provider-summary' },
+      { className: 'waycraft-provider-summary' },
       h('span', { style: styles.name }, name),
       h(
         'span',
@@ -229,7 +229,7 @@ export function providerStatus(
     role: 'img',
     'aria-label': t(label),
     title: t(label),
-    'data-majed-provider-status': state,
+    'data-waycraft-provider-status': state,
     style: { ...styles.dot, background: color },
   });
 }
@@ -244,7 +244,7 @@ export function providerDisclosure(
     'button',
     {
       type: 'button',
-      className: 'majed-provider-disclosure',
+      className: 'waycraft-provider-disclosure',
       'aria-label': `${t('subscriptionDetails')}: ${name}`,
       'aria-expanded': expanded,
       onClick: toggle,
@@ -269,12 +269,12 @@ export function providerDisclosure(
     ),
   );
 }
-export const controlCss = `.majed-subscriptions-settings button.majed-provider-disclosure{inline-size:28px;min-height:28px;padding:0;border:0;background:transparent}
-.majed-provider-identity{display:flex;flex-direction:column;flex:1 1 160px;min-inline-size:0}
-.majed-provider-summary{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
-[dir=rtl] .majed-provider-disclosure svg{scale:-1 1}
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) input:not([type="checkbox"]),
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) select {
+export const controlCss = `.waycraft-subscriptions-settings button.waycraft-provider-disclosure{inline-size:28px;min-height:28px;padding:0;border:0;background:transparent}
+.waycraft-provider-identity{display:flex;flex-direction:column;flex:1 1 160px;min-inline-size:0}
+.waycraft-provider-summary{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+[dir=rtl] .waycraft-provider-disclosure svg{scale:-1 1}
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) input:not([type="checkbox"]),
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) select {
   box-sizing: border-box;
   min-width: 0;
   height: 34px;
@@ -288,29 +288,29 @@ export const controlCss = `.majed-subscriptions-settings button.majed-provider-d
   font-weight: 400;
   line-height: 1.5;
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) input::placeholder {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) input::placeholder {
   color: var(--dsw-alias-label-secondary);
   opacity: 1;
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) input:not([type="checkbox"]):focus-visible,
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) select:focus-visible {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) input:not([type="checkbox"]):focus-visible,
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) select:focus-visible {
   outline: 2px solid var(--dsw-alias-brand-primary);
   outline-offset: 2px;
   border-color: var(--dsw-alias-brand-primary);
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) input:not([type="checkbox"]):disabled,
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) select:disabled {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) input:not([type="checkbox"]):disabled,
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) select:disabled {
   color: var(--dsw-alias-label-secondary);
   cursor: default;
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) input[aria-invalid="true"] {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) input[aria-invalid="true"] {
   border-color: var(--dsw-alias-state-error-primary);
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) option {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) option {
   background: var(--dsw-alias-bg-layer-2, var(--dsw-alias-bg-layer-1));
   color: var(--dsw-alias-label-primary);
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) label:has(> input[type="checkbox"]) {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) label:has(> input[type="checkbox"]) {
   display: flex;
   align-items: flex-start;
   gap: 6px;
@@ -318,7 +318,7 @@ export const controlCss = `.majed-subscriptions-settings button.majed-provider-d
   line-height: 20px;
   cursor: pointer;
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) input[type="checkbox"] {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) input[type="checkbox"] {
   flex: 0 0 auto;
   width: 16px;
   height: 16px;
@@ -326,11 +326,11 @@ export const controlCss = `.majed-subscriptions-settings button.majed-provider-d
   accent-color: var(--dsw-alias-brand-primary);
   cursor: inherit;
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) label:has(> input[type="checkbox"]:disabled) {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) label:has(> input[type="checkbox"]:disabled) {
   cursor: default;
   opacity: 0.5;
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) button {
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;
@@ -350,56 +350,56 @@ export const controlCss = `.majed-subscriptions-settings button.majed-provider-d
   line-height: 18px;
   cursor: pointer;
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button:hover:not(:disabled) {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) button:hover:not(:disabled) {
   background: var(--dsw-alias-interactive-bg-hover, var(--dsw-alias-bg-layer-1));
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button:active:not(:disabled) {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) button:active:not(:disabled) {
   background: var(--dsw-alias-interactive-bg-active, var(--dsw-alias-bg-layer-1));
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button:disabled {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) button:disabled {
   opacity: 0.4;
   cursor: default;
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button.majed-subscription-quiet {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) button.waycraft-subscription-quiet {
   border-color: transparent;
   color: var(--dsw-alias-label-secondary, var(--dsw-alias-label-primary));
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) :is(footer, .majed-subscription-dialog-actions) button {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) :is(footer, .waycraft-subscription-dialog-actions) button {
   min-height: 34px;
   padding: 0 14px;
   border-radius: var(--dsw-radius-md, 8px);
   font-size: 13px;
   line-height: 1.5;
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button.majed-subscription-primary {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) button.waycraft-subscription-primary {
   border-color: transparent;
   background: var(--dsw-alias-button-primary-fill, var(--dsw-alias-label-primary));
   color: var(--dsw-alias-label-primary-foreground, var(--dsw-alias-bg-layer-1));
   font-weight: 500;
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button.majed-subscription-primary:hover:not(:disabled) {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) button.waycraft-subscription-primary:hover:not(:disabled) {
   background: var(--dsw-alias-button-primary-hover, var(--dsw-alias-label-secondary));
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) button:focus-visible,
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) input[type="checkbox"]:focus-visible,
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) summary:focus-visible {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) button:focus-visible,
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) input[type="checkbox"]:focus-visible,
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) summary:focus-visible {
   outline: var(--dsw-focus-ring-width, 2px) solid var(--dsw-focus-ring-color, var(--dsw-alias-brand-primary));
   outline-offset: 2px;
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) summary {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) summary {
   border-radius: var(--dsw-radius-sm, 6px);
 }
-:is(.majed-subscriptions-page, .majed-subscriptions-settings, .majed-reset-dialog) summary:hover {
+:is(.waycraft-subscriptions-page, .waycraft-subscriptions-settings, .waycraft-reset-dialog) summary:hover {
   color: var(--dsw-alias-label-secondary, var(--dsw-alias-label-primary));
 }
 
-.majed-reset-credits > summary::-webkit-details-marker { display:none; }
-.majed-reset-credits[open] > summary > svg { transform:rotate(90deg); }
-[dir="rtl"] .majed-reset-credits > summary > svg { transform:scaleX(-1); }
-[dir="rtl"] .majed-reset-credits[open] > summary > svg { transform:rotate(90deg); }
-.majed-reset-dialog::backdrop { background:var(--dsw-alias-bg-mask-1); backdrop-filter:var(--dsw-mask-blur, none); }
-.majed-subscriptions-settings { font:var(--dsw-font-s-13); }
-.majed-subscriptions-settings a { color:var(--dsw-alias-state-business-primary); text-underline-offset: .15em; }
+.waycraft-reset-credits > summary::-webkit-details-marker { display:none; }
+.waycraft-reset-credits[open] > summary > svg { transform:rotate(90deg); }
+[dir="rtl"] .waycraft-reset-credits > summary > svg { transform:scaleX(-1); }
+[dir="rtl"] .waycraft-reset-credits[open] > summary > svg { transform:rotate(90deg); }
+.waycraft-reset-dialog::backdrop { background:var(--dsw-alias-bg-mask-1); backdrop-filter:var(--dsw-mask-blur, none); }
+.waycraft-subscriptions-settings { font:var(--dsw-font-s-13); }
+.waycraft-subscriptions-settings a { color:var(--dsw-alias-state-business-primary); text-underline-offset: .15em; }
 `;
 
 export function createCodexCard(
@@ -436,7 +436,7 @@ export function createCodexCard(
     const call = async (endpoint: string, payload: object = {}) => {
       const response = await rpc.call(
         '/api',
-        `majed-subscriptions.${endpoint}`,
+        `waycraft-subscriptions.${endpoint}`,
         { provider: 'codex', ...payload },
       );
       if (!response?.ok)
@@ -473,7 +473,14 @@ export function createCodexCard(
       };
     }, []);
     React.useEffect(() => {
-      if (revision !== undefined) void refreshStatus().catch(() => {});
+      // A failed re-read after an external change would leave stale data; show it like the first load does.
+      if (revision !== undefined)
+        void refreshStatus().catch((failure: unknown) => {
+          if (alive.current)
+            setError(
+              failure instanceof Error ? failure.message : String(failure),
+            );
+        });
     }, [revision]);
     React.useEffect(() => {
       if (!status?.busy) return;
@@ -567,7 +574,7 @@ export function createCodexCard(
         minute: '2-digit',
       });
     const part = (name: string, style: any, ...children: any[]) =>
-      h('div', { style, 'data-majed-codex-part': name }, ...children);
+      h('div', { style, 'data-waycraft-codex-part': name }, ...children);
     const startLogin = () => {
       void action(async () => {
         const result = await call('login');
@@ -616,8 +623,8 @@ export function createCodexCard(
             : {}),
           textAlign: 'start',
         },
-        className: 'majed-subscriptions-settings',
-        'data-majed-codex-card': true,
+        className: 'waycraft-subscriptions-settings',
+        'data-waycraft-codex-card': true,
       },
       h('style', null, controlCss),
       manager
@@ -760,7 +767,7 @@ export function createCodexCard(
             {
               key: account.key,
               style: styles.accountRow,
-              'data-majed-codex-part': 'account',
+              'data-waycraft-codex-part': 'account',
             },
             part(
               'account-header',
@@ -923,7 +930,7 @@ export function createCodexCard(
                     ? h(
                         'details',
                         {
-                          className: 'majed-reset-credits',
+                          className: 'waycraft-reset-credits',
                           style: styles.usageRow,
                         },
                         h(
@@ -1134,7 +1141,7 @@ export function createCodexCard(
               ref: (node: HTMLDialogElement | null) => {
                 if (node && !node.open) node.showModal();
               },
-              className: 'majed-reset-dialog',
+              className: 'waycraft-reset-dialog',
               role: 'dialog',
               'aria-modal': true,
               'aria-label': t(
@@ -1222,7 +1229,7 @@ export function createCodexCard(
             h(
               'div',
               {
-                className: 'majed-subscription-dialog-actions',
+                className: 'waycraft-subscription-dialog-actions',
                 style: {
                   ...styles.actions,
                   justifyContent: 'flex-end',
@@ -1254,7 +1261,7 @@ export function createCodexCard(
                 {
                   className:
                     confirmation.kind === 'reset'
-                      ? 'majed-subscription-primary'
+                      ? 'waycraft-subscription-primary'
                       : undefined,
                 },
               ),

@@ -1,4 +1,4 @@
-// Effective-settings proof (ticket #130 items 4 and 9): saved Manage settings change what the adapter
+// Effective-settings proof: saved Manage settings change what the adapter
 // advertises and sends. Fake HTTP only; the reference analogue is test/subagent-speed.spec.ts.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -21,7 +21,7 @@ const CATALOG = {
 };
 
 async function mount(pool = {}, sessions = {}) {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t130/effective-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t130/effective-');
   const { saveAccountSession } = await import('../dist/auth/store.js');
   for (const account of ['a', 'b'])
     await saveAccountSession('codex', account, {
@@ -91,7 +91,7 @@ async function mount(pool = {}, sessions = {}) {
   };
   apply(ctx, { codexClientVersion: '1.2.3', ...(pool.config ?? {}) });
   const call = async (endpoint, payload = {}) => {
-    const method = `majed-subscriptions.${endpoint}`;
+    const method = `waycraft-subscriptions.${endpoint}`;
     const response = await routes.get(`/api/${method}`).fetch(
       new Request(`http://localhost/api/${method}`, {
         method: 'POST',

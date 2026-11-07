@@ -1,5 +1,7 @@
 # Ticket #130 Owner acceptance kit
 
+> Historical names: this evidence predates the #159 rename; `majed*` identifiers below are the retired names of the current `waycraft*` ones (see `rename-waycraft.md`).
+
 ## Candidate
 
 - Package: `/tmp/majed-t130/dsh-majed-0.2.0.tgz`.

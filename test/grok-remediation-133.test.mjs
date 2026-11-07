@@ -77,7 +77,7 @@ function host(attachments) {
   apply(ctx, {});
   return {
     async call(endpoint, payload = {}, signal) {
-      const method = `majed-subscriptions.${endpoint}`;
+      const method = `waycraft-subscriptions.${endpoint}`;
       return (
         await (
           await routes.get(`/api/${method}`).fetch(
@@ -105,7 +105,7 @@ function host(attachments) {
   };
 }
 test('media RPC admission and cancellation reach actual storage boundaries', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t133-admission-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t133-admission-');
   let reads = 0,
     observedSignal;
   const component = host({
@@ -146,7 +146,7 @@ test('media RPC admission and cancellation reach actual storage boundaries', asy
     assert.equal(observedSignal.aborted, true);
     const directory = join(
       process.env.DSH_HOME,
-      'plugins/majed/subscriptions/videos',
+      'plugins/waycraft/subscriptions/videos',
     );
     await mkdir(directory, { recursive: true });
     await writeFile(
@@ -169,7 +169,7 @@ test('media RPC admission and cancellation reach actual storage boundaries', asy
 });
 
 test('image RPC in-flight cancellation settles storage rejection without returning late bytes', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t133-image-flight-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t133-image-flight-');
   let entered;
   const started = new Promise((resolve) => {
     entered = resolve;
@@ -200,8 +200,10 @@ test('image RPC in-flight cancellation settles storage rejection without returni
 });
 
 test('video RPC refuses an owned-name symlink instead of reading its target', async () => {
-  const home = (process.env.DSH_HOME = await mkdtemp('/tmp/majed-t133-video-'));
-  const directory = join(home, 'plugins/majed/subscriptions/videos');
+  const home = (process.env.DSH_HOME = await mkdtemp(
+    '/tmp/waycraft-t133-video-',
+  ));
+  const directory = join(home, 'plugins/waycraft/subscriptions/videos');
   await mkdir(directory, { recursive: true });
   const target = join(home, 'foreign.mp4');
   await writeFile(target, Buffer.from('fixture foreign bytes'));
@@ -218,9 +220,9 @@ test('video RPC refuses an owned-name symlink instead of reading its target', as
 });
 test('video RPC validates names, missing files, regular files and MP4 bytes while surviving remount', async () => {
   const home = (process.env.DSH_HOME = await mkdtemp(
-    '/tmp/majed-t133-video-matrix-',
+    '/tmp/waycraft-t133-video-matrix-',
   ));
-  const directory = join(home, 'plugins/majed/subscriptions/videos');
+  const directory = join(home, 'plugins/waycraft/subscriptions/videos');
   await mkdir(join(directory, 'video-directory.mp4'), { recursive: true });
   await writeFile(join(directory, 'video-invalid.mp4'), 'not an mp4');
   const bytes = Buffer.from([0, 0, 0, 8, 102, 116, 121, 112]);
@@ -256,9 +258,9 @@ test('video RPC validates names, missing files, regular files and MP4 bytes whil
 
 test('video RPC deterministically refuses concurrent growth after admitted-size read', async () => {
   const home = (process.env.DSH_HOME = await mkdtemp(
-    '/tmp/majed-t133-growth-',
+    '/tmp/waycraft-t133-growth-',
   ));
-  const directory = join(home, 'plugins/majed/subscriptions/videos');
+  const directory = join(home, 'plugins/waycraft/subscriptions/videos');
   await mkdir(directory, { recursive: true });
   const path = join(directory, 'video-growth.mp4');
   await writeFile(path, Buffer.from([0, 0, 0, 8, 102, 116, 121, 112]));
@@ -293,9 +295,9 @@ test('video RPC deterministically refuses concurrent growth after admitted-size 
 
 test('video RPC cancellation during actual handle read rejects and closes the handle', async () => {
   const home = (process.env.DSH_HOME = await mkdtemp(
-    '/tmp/majed-t133-video-flight-',
+    '/tmp/waycraft-t133-video-flight-',
   ));
-  const directory = join(home, 'plugins/majed/subscriptions/videos');
+  const directory = join(home, 'plugins/waycraft/subscriptions/videos');
   await mkdir(directory, { recursive: true });
   const path = join(directory, 'video-flight.mp4');
   await writeFile(path, Buffer.from([0, 0, 0, 8, 102, 116, 121, 112]));
@@ -342,9 +344,9 @@ test('video RPC cancellation during actual handle read rejects and closes the ha
 
 test('video RPC refuses a symlinked owned videos directory', async () => {
   const home = (process.env.DSH_HOME = await mkdtemp(
-    '/tmp/majed-t133-parent-link-',
+    '/tmp/waycraft-t133-parent-link-',
   ));
-  const directory = join(home, 'plugins/majed/subscriptions');
+  const directory = join(home, 'plugins/waycraft/subscriptions');
   const foreign = join(home, 'foreign-videos');
   await mkdir(directory, { recursive: true });
   await mkdir(foreign);
@@ -365,7 +367,7 @@ test('video RPC refuses a symlinked owned videos directory', async () => {
 });
 
 test('Grok saved alias reaches the rendered card through assembled status RPC', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t133-alias-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t133-alias-');
   const store = await import('../dist/auth/store.js');
   await store.saveAccountSession('grok', 'fixture', {
     accessToken: 'fake-access',
@@ -419,7 +421,7 @@ test('Grok saved alias reaches the rendered card through assembled status RPC', 
   }
 });
 test('Grok stalled discovery is busy, cancellation settles login and permits retry; late response cannot revive it', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t133-discovery-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t133-discovery-');
   const original = globalThis.fetch;
   let resolveDiscovery;
   globalThis.fetch = () =>
@@ -475,7 +477,7 @@ test('Grok stalled discovery is busy, cancellation settles login and permits ret
 });
 
 test('Grok cancel during stalled token body releases busy and rejects late credentials', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t133-exchange-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t133-exchange-');
   const original = globalThis.fetch;
   let finishBody,
     bodyStarted = false;

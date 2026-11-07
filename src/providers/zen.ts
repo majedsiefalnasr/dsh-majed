@@ -31,7 +31,7 @@ function headers(
 ): Record<string, string> {
   const seed = JSON.stringify(
     messages.find((message) => message.role === 'user')?.content ??
-      'majed-zen-catalog',
+      'waycraft-zen-catalog',
   );
   const digest = createHash('sha256')
     .update('ses\0' + seed)

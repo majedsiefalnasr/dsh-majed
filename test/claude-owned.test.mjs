@@ -1,4 +1,4 @@
-// Ticket #132: assembled Claude component (host RPC, login by import or browser, credential store sync, chat, security).
+// assembled Claude component (host RPC, login by import or browser, credential store sync, chat, security).
 // Adapted from the Claude cases of V1ki v0.9.12 test/login.spec.ts (MIT) for the owned ClaudeAuthController and RPC;
 // every credential, token and HTTP exchange below is a fixture. Nothing touches the real Keychain, ~/.claude or Anthropic.
 import { test, mock } from 'node:test';
@@ -122,7 +122,7 @@ function host({ io, config = {}, collideClaude = false } = {}) {
     adapters,
     routes,
     async call(endpoint, payload = {}) {
-      const method = `majed-subscriptions.${endpoint}`;
+      const method = `waycraft-subscriptions.${endpoint}`;
       const response = await routes.get(`/api/${method}`).fetch(
         new Request(`http://localhost/api/${method}`, {
           method: 'POST',
@@ -147,7 +147,7 @@ function host({ io, config = {}, collideClaude = false } = {}) {
 }
 const home = async (name) => {
   process.env.DSH_HOME = await mkdtemp(
-    join(tmpdir(), `majed-t129-claude-${name}-`),
+    join(tmpdir(), `waycraft-t129-claude-${name}-`),
   );
   return process.env.DSH_HOME;
 };
@@ -171,6 +171,22 @@ const noSecrets = (value, label) => {
     assert.equal(text.includes(secret), false, `${label} leaks ${secret}`);
 };
 const settle = () => new Promise((resolve) => setImmediate(resolve));
+
+// Absence checks ("nothing happens after disposal") need a quiet window; wait until the observed value has stopped
+// changing for `turns` consecutive polls instead of sleeping for a fixed time (bounded, so it cannot hang).
+const quiet = async (read, turns = 10) => {
+  let last = read();
+  let stable = 0;
+  for (let i = 0; i < 300 && stable < turns; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    const now = read();
+    if (now === last) stable++;
+    else {
+      stable = 0;
+      last = now;
+    }
+  }
+};
 
 test('Claude OAuth parameters match what Claude Code sends (literals on purpose)', () => {
   assert.equal(CLAUDE_AUTHORIZE_URL, 'https://claude.ai/oauth/authorize');
@@ -784,7 +800,7 @@ test('the prompt cache lifetime persists, follows config when cleared, and reach
     );
     const file = JSON.parse(
       await readFile(
-        join(dir, 'plugins/majed/subscriptions/provider-settings.json'),
+        join(dir, 'plugins/waycraft/subscriptions/provider-settings.json'),
         'utf8',
       ).catch(() => '{}'),
     );
@@ -917,7 +933,10 @@ test('browser OAuth through the RPC: state is verified, the token exchange is fa
     assert.equal(
       (
         await stat(
-          join(process.env.DSH_HOME, 'plugins/majed/subscriptions/auth.json'),
+          join(
+            process.env.DSH_HOME,
+            'plugins/waycraft/subscriptions/auth.json',
+          ),
         )
       ).mode & 0o777,
       0o600,
@@ -1021,11 +1040,11 @@ test('the background sync is one bounded timer: it reads only bound accounts, st
         [],
         'a fresher token in the store avoids any refresh call',
       );
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await quiet(() => state.reads);
       const reads = state.reads;
       component.dispose();
       mock.timers.tick(CLAUDE_KEYCHAIN_SYNC_MS * 3);
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await quiet(() => state.reads);
       assert.equal(state.reads, reads, 'no tick runs after disposal');
     } finally {
       fetchGuard.restore();

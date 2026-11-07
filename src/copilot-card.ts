@@ -7,7 +7,7 @@ import {
   styles,
 } from './codex-card.js';
 /** GitHub Copilot Settings card, adapted from pinned reference SubscriptionsSection device login and shared
- * account presentation. Only sanitized status crosses RPC; see PROVENANCE.md (#134). */
+ * account presentation. Only sanitized status crosses RPC; see PROVENANCE.md. */
 export function createCopilotCard(
   React: any,
   primitives: any,
@@ -42,7 +42,7 @@ export function createCopilotCard(
     const call = async (endpoint: string, payload: object = {}) => {
       const response = await rpc.call(
         '/api',
-        `majed-subscriptions.${endpoint}`,
+        `waycraft-subscriptions.${endpoint}`,
         { provider: 'copilot', ...payload },
       );
       if (!response?.ok)
@@ -82,7 +82,14 @@ export function createCopilotCard(
       };
     }, []);
     React.useEffect(() => {
-      if (revision !== undefined) void refreshStatus().catch(() => {});
+      // A failed re-read after an external change would leave stale data; show it like the first load does.
+      if (revision !== undefined)
+        void refreshStatus().catch((failure: unknown) => {
+          if (alive.current)
+            setError(
+              failure instanceof Error ? failure.message : String(failure),
+            );
+        });
     }, [revision]);
     React.useEffect(() => {
       if (!status?.busy) return;
@@ -171,7 +178,7 @@ export function createCopilotCard(
       );
     const date = (time: number) => new Date(time).toLocaleString();
     const part = (name: string, style: any, ...children: any[]) =>
-      h('div', { style, 'data-majed-copilot-part': name }, ...children);
+      h('div', { style, 'data-waycraft-copilot-part': name }, ...children);
     const startLogin = () => {
       void action(async () => {
         const result = await call('login');
@@ -222,8 +229,8 @@ export function createCopilotCard(
             : {}),
           textAlign: 'start',
         },
-        className: 'majed-subscriptions-settings',
-        'data-majed-copilot-card': true,
+        className: 'waycraft-subscriptions-settings',
+        'data-waycraft-copilot-card': true,
       },
       h('style', null, controlCss),
       manager
@@ -334,7 +341,7 @@ export function createCopilotCard(
             {
               key: account.key,
               style: styles.accountRow,
-              'data-majed-copilot-part': 'account',
+              'data-waycraft-copilot-part': 'account',
             },
             part(
               'account-header',
@@ -509,7 +516,7 @@ export function createCopilotCard(
               h('p', null, t('copilotDeviceHint')),
               h(
                 'bdi',
-                { dir: 'ltr', 'data-majed-copilot-code': true },
+                { dir: 'ltr', 'data-waycraft-copilot-code': true },
                 (status.pendingAuth ?? login).userCode,
               ),
               button(t('copyDeviceCode'), () => {
@@ -539,7 +546,7 @@ export function createCopilotCard(
               ref: (node: HTMLDialogElement | null) => {
                 if (node && !node.open) node.showModal();
               },
-              className: 'majed-reset-dialog',
+              className: 'waycraft-reset-dialog',
               role: 'dialog',
               'aria-modal': true,
               'aria-label': t('confirmLogout'),
@@ -568,7 +575,7 @@ export function createCopilotCard(
             h(
               'div',
               {
-                className: 'majed-subscription-dialog-actions',
+                className: 'waycraft-subscription-dialog-actions',
                 style: {
                   ...styles.actions,
                   justifyContent: 'flex-end',

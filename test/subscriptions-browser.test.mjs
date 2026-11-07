@@ -37,7 +37,7 @@ function browser(locale = 'en', initialAnswer, options = {}) {
     createElement: (tag, props, ...children) => ({ tag, props, children }),
     useSyncExternalStore: (_, read) => read(),
   };
-  vm.runInNewContext(code + '\nresult(majedSubscriptionsFactory);', {
+  vm.runInNewContext(code + '\nresult(waycraftSubscriptionsFactory);', {
     result: (factory) => {
       api = factory((id) =>
         id === 'react'
@@ -123,7 +123,7 @@ function browser(locale = 'en', initialAnswer, options = {}) {
           false,
           `no duplicate registration of ${options.id}`,
         );
-        if (options.id === 'majed-subscriptions') registrations++;
+        if (options.id === 'waycraft-subscriptions') registrations++;
         live.set(options.id, { options, component });
         return () => {
           live.delete(options.id);
@@ -184,12 +184,12 @@ function browser(locale = 'en', initialAnswer, options = {}) {
       await Promise.resolve();
     },
     get section() {
-      return live.get('majed-subscriptions');
+      return live.get('waycraft-subscriptions');
     },
     live,
     get surfaces() {
       return [...live.keys()]
-        .filter((id) => id !== 'majed-subscriptions')
+        .filter((id) => id !== 'waycraft-subscriptions')
         .sort();
     },
     cleanup() {
@@ -202,8 +202,8 @@ test('actual public and alias video outlets recover after reference withdrawal a
   const page = browser('en', undefined, { React: ActualReact });
   await page.settle();
   try {
-    for (const key of ['video_generate', 'dsh_majed_video_generate']) {
-      const entry = page.live.get(`majed-toolview-${key}`);
+    for (const key of ['video_generate', 'dsh_waycraft_video_generate']) {
+      const entry = page.live.get(`waycraft-toolview-${key}`);
       assert.equal(entry.options.key, key);
       let renderer;
       await act(async () => {
@@ -230,8 +230,8 @@ test('actual public and alias video outlets recover after reference withdrawal a
       assert.match(JSON.stringify(renderer.toJSON()), /videoLoadFailed/);
       await act(async () => renderer.unmount());
     }
-    for (const key of ['image_generate', 'dsh_majed_image_generate']) {
-      const entry = page.live.get(`majed-toolview-${key}`);
+    for (const key of ['image_generate', 'dsh_waycraft_image_generate']) {
+      const entry = page.live.get(`waycraft-toolview-${key}`);
       assert.equal(entry.options.key, key);
       let renderer;
       await act(async () => {
@@ -269,29 +269,29 @@ test('actual public and alias video outlets recover after reference withdrawal a
     page.setReferenceAnswer(() =>
       Promise.reject(
         new Error(
-          'transport failure for /api/majed-subscriptions.status: HTTP 404',
+          'transport failure for /api/waycraft-subscriptions.status: HTTP 404',
         ),
       ),
     );
     page.tick();
     await page.settle();
-    assert.ok(page.live.has('majed-toolview-dsh_majed_video_generate'));
+    assert.ok(page.live.has('waycraft-toolview-dsh_waycraft_video_generate'));
     page.setAnswer(() =>
       Promise.reject(
         new Error(
-          'transport failure for /api/majed-subscriptions.status: HTTP 404',
+          'transport failure for /api/waycraft-subscriptions.status: HTTP 404',
         ),
       ),
     );
     page.tick();
     await page.settle();
-    assert.ok(!page.live.has('majed-toolview-video_generate'));
+    assert.ok(!page.live.has('waycraft-toolview-video_generate'));
     page.setAnswer(() =>
       Promise.resolve({ ok: true, value: { component: 'subscriptions' } }),
     );
     page.tick();
     await page.settle();
-    assert.ok(page.live.has('majed-toolview-video_generate'));
+    assert.ok(page.live.has('waycraft-toolview-video_generate'));
   } finally {
     page.cleanup();
   }
@@ -304,13 +304,13 @@ function text(node) {
 test('present component registers accounts and native-remotes availability, then withdraws on absence', async () => {
   const page = browser();
   await page.settle();
-  assert.equal(page.section.options.id, 'majed-subscriptions');
+  assert.equal(page.section.options.id, 'waycraft-subscriptions');
   assert.equal(page.section.options.label(), 'AI Providers');
   assert.equal(
     page.section
       .component()
       .children.flat()
-      .some((node) => node?.props?.className === 'majed-providers-identity'),
+      .some((node) => node?.props?.className === 'waycraft-providers-identity'),
     true,
   );
   assert.match(
@@ -320,7 +320,7 @@ test('present component registers accounts and native-remotes availability, then
   page.setAnswer(() =>
     Promise.reject(
       new Error(
-        'transport failure for /api/majed-subscriptions.status: HTTP 404',
+        'transport failure for /api/waycraft-subscriptions.status: HTTP 404',
       ),
     ),
   );
@@ -357,7 +357,7 @@ for (const locale of ['en', 'ar'])
           Promise.resolve({
             ok: true,
             value:
-              method === 'majed-subscriptions.status'
+              method === 'waycraft-subscriptions.status'
                 ? { component: 'subscriptions', providers }
                 : {},
           }),
@@ -372,7 +372,8 @@ for (const locale of ['en', 'ar'])
         const group = (id) =>
           renderer.root.find(
             (n) =>
-              n.type === 'li' && n.props['data-majed-subscription-row'] === id,
+              n.type === 'li' &&
+              n.props['data-waycraft-subscription-row'] === id,
           );
         for (const [id, hint] of [
           ['codex', 'addAccountHint'],
@@ -388,7 +389,8 @@ for (const locale of ['en', 'ar'])
         assert.equal(
           renderer.root
             .findAll(
-              (n) => n.type === 'li' && n.props['data-majed-subscription-row'],
+              (n) =>
+                n.type === 'li' && n.props['data-waycraft-subscription-row'],
             )
             .flatMap((n) => n.findAllByType('button'))
             .filter((n) => n.children.includes(dict.addAccount)).length,
@@ -398,11 +400,11 @@ for (const locale of ['en', 'ar'])
         const add = renderer.root.find(
           (n) =>
             n.type === 'button' &&
-            n.props.className === 'majed-subscription-add-trigger',
+            n.props.className === 'waycraft-subscription-add-trigger',
         );
         await act(async () => add.props.onClick());
         const auth = renderer.root
-          .findAll((n) => n.props['data-majed-codex-card'] === true)
+          .findAll((n) => n.props['data-waycraft-codex-card'] === true)
           .at(-1);
         assert.ok(
           auth
@@ -411,7 +413,7 @@ for (const locale of ['en', 'ar'])
           'guidance remains available in the selected login flow',
         );
         assert.equal(
-          auth.findAll((n) => n.props['data-majed-codex-part'] === 'header')
+          auth.findAll((n) => n.props['data-waycraft-codex-part'] === 'header')
             .length,
           0,
           'selected provider summary is not repeated under its selector',
@@ -432,14 +434,14 @@ for (const locale of ['en', 'ar'])
         );
         assert.equal(
           renderer.root.findAll(
-            (n) => n.props['data-majed-provider-group'] === 'api',
+            (n) => n.props['data-waycraft-provider-group'] === 'api',
           ).length,
           0,
           'API group is not rendered',
         );
         assert.equal(
           renderer.root.findAll(
-            (n) => n.props.className === 'majed-subscription-add-trigger',
+            (n) => n.props.className === 'waycraft-subscription-add-trigger',
           ).length,
           0,
           'inline form replaces the bottom entry',
@@ -459,7 +461,7 @@ for (const locale of ['en', 'ar'])
           select().props.onChange({ target: { value: 'claude' } }),
         );
         const claudeAuth = renderer.root
-          .findAll((n) => n.props['data-majed-claude-card'] === true)
+          .findAll((n) => n.props['data-waycraft-claude-card'] === true)
           .at(-1);
         assert.ok(
           claudeAuth
@@ -477,7 +479,7 @@ for (const locale of ['en', 'ar'])
           .find((n) => n.children.includes(dict.cancel));
         assert.equal(
           cancel.parent.props.className,
-          'majed-subscription-add-actions',
+          'waycraft-subscription-add-actions',
           'Cancel sits in its trailing action row instead of stretching as a form field',
         );
         await act(async () => cancel.props.onClick());
@@ -485,7 +487,7 @@ for (const locale of ['en', 'ar'])
           renderer.root.findAll(
             (n) =>
               n.type === 'button' &&
-              n.props.className === 'majed-subscription-add-trigger',
+              n.props.className === 'waycraft-subscription-add-trigger',
           ).length,
           1,
           'cancel restores a single bottom entry',
@@ -556,7 +558,8 @@ for (const locale of ['en', 'ar'])
         for (const [index, id] of ids.entries()) {
           const group = renderer.root.find(
             (n) =>
-              n.type === 'li' && n.props['data-majed-subscription-row'] === id,
+              n.type === 'li' &&
+              n.props['data-waycraft-subscription-row'] === id,
           );
           const disclosure = () =>
             group.find(
@@ -588,7 +591,7 @@ for (const locale of ['en', 'ar'])
             'only the arrow is clickable, not the provider summary',
           );
           const header = group.find(
-            (n) => n.props[`data-majed-${id}-part`] === 'header',
+            (n) => n.props[`data-waycraft-${id}-part`] === 'header',
           );
           assert.equal(
             header.findAllByType('button').at(-1),
@@ -596,9 +599,8 @@ for (const locale of ['en', 'ar'])
             'arrow is the last control in the row',
           );
           assert.equal(
-            header.findByProps({ 'data-majed-provider-status': 'ready' }).props[
-              'aria-label'
-            ],
+            header.findByProps({ 'data-waycraft-provider-status': 'ready' })
+              .props['aria-label'],
             dict.providerConfigured,
             'configured status does not claim verified inference',
           );
@@ -616,7 +618,7 @@ for (const locale of ['en', 'ar'])
             'Add account belongs below the list, not in the header',
           );
           const identity = header.findByProps({
-            className: 'majed-provider-identity',
+            className: 'waycraft-provider-identity',
           });
           assert.ok(
             identity
@@ -635,14 +637,15 @@ for (const locale of ['en', 'ar'])
             'row does not toggle accounts',
           );
           assert.equal(
-            group.findAll((n) => n.props[`data-majed-${id}-part`] === 'actions')
-              .length,
+            group.findAll(
+              (n) => n.props[`data-waycraft-${id}-part`] === 'actions',
+            ).length,
             0,
             'no empty footer increases collapsed height',
           );
           if (index !== 0) await act(async () => disclosure().props.onClick());
           const account = group.find(
-            (n) => n.props[`data-majed-${id}-part`] === 'account',
+            (n) => n.props[`data-waycraft-${id}-part`] === 'account',
           );
           assert.ok(
             account
@@ -677,8 +680,9 @@ for (const locale of ['en', 'ar'])
           );
           await act(async () => disclosure().props.onClick());
           assert.equal(
-            group.findAll((n) => n.props[`data-majed-${id}-part`] === 'account')
-              .length,
+            group.findAll(
+              (n) => n.props[`data-waycraft-${id}-part`] === 'account',
+            ).length,
             0,
           );
           assert.equal(disclosure().props['aria-expanded'], false);
@@ -731,7 +735,7 @@ test('assembled section renders injected native provider directory with actual R
       Promise.resolve({
         ok: true,
         value:
-          method === 'majed-subscriptions.status'
+          method === 'waycraft-subscriptions.status'
             ? {
                 component: 'subscriptions',
                 providers: {
@@ -753,7 +757,7 @@ test('assembled section renders injected native provider directory with actual R
       renderer = create(ActualReact.createElement(page.section.component));
     });
     const settings = renderer.root.findAll(
-      (n) => n.type === 'section' && n.props['data-majed-settings'] === true,
+      (n) => n.type === 'section' && n.props['data-waycraft-settings'] === true,
     );
     assert.equal(
       settings.length,
@@ -763,37 +767,40 @@ test('assembled section renders injected native provider directory with actual R
     assert.equal(settings[0].findByType('h3').children.join(''), 'Settings');
     const free = renderer.root.find(
       (n) =>
-        n.type === 'section' && n.props['data-majed-provider-group'] === 'free',
+        n.type === 'section' &&
+        n.props['data-waycraft-provider-group'] === 'free',
     );
     assert.equal(free.findByType('h3').children.join(''), 'Free providers');
     assert.equal(
-      free.findAll((n) => n.props['data-majed-zen-card'] === true).length,
+      free.findAll((n) => n.props['data-waycraft-zen-card'] === true).length,
       1,
     );
     assert.equal(
       renderer.root
-        .findByProps({ 'data-majed-provider-group': 'subscription' })
-        .findAll((n) => n.props['data-majed-zen-card'] === true).length,
+        .findByProps({ 'data-waycraft-provider-group': 'subscription' })
+        .findAll((n) => n.props['data-waycraft-zen-card'] === true).length,
       0,
     );
     assert.equal(
-      settings[0].findAll((n) => n.props.className === 'majed-proxy-settings')
-        .length,
+      settings[0].findAll(
+        (n) => n.props.className === 'waycraft-proxy-settings',
+      ).length,
       1,
       'Proxy belongs to page Settings',
     );
     assert.equal(
-      renderer.root.findAll((n) => n.props.className === 'majed-proxy-settings')
-        .length,
+      renderer.root.findAll(
+        (n) => n.props.className === 'waycraft-proxy-settings',
+      ).length,
       1,
       'Proxy is mounted only once',
     );
     const subscriptionGroup = renderer.root.findByProps({
-      'data-majed-provider-group': 'subscription',
+      'data-waycraft-provider-group': 'subscription',
     });
     assert.equal(
       renderer.root.findAll(
-        (n) => n.props['data-majed-provider-group'] === 'api',
+        (n) => n.props['data-waycraft-provider-group'] === 'api',
       ).length,
       0,
       'API section is not rendered',
@@ -808,25 +815,28 @@ test('assembled section renders injected native provider directory with actual R
       'no standalone subscription entry',
     );
     assert.equal(
-      subscriptionGroup.findAll((n) => n.props['data-majed-api-provider'])
+      subscriptionGroup.findAll((n) => n.props['data-waycraft-api-provider'])
         .length,
       0,
     );
-    const list = subscriptionGroup.findByProps({ className: 'majed-api-rows' });
+    const list = subscriptionGroup.findByProps({
+      className: 'waycraft-api-rows',
+    });
     assert.equal(
       list.findAll(
         (n) =>
-          n.type === 'li' && n.props['data-majed-subscription-row'] === 'codex',
+          n.type === 'li' &&
+          n.props['data-waycraft-subscription-row'] === 'codex',
       ).length,
       1,
     );
     assert.equal(
-      renderer.root.findAll((n) => n.props['data-majed-claude-card']).length,
+      renderer.root.findAll((n) => n.props['data-waycraft-claude-card']).length,
       0,
       'unconfigured controllers are not mounted',
     );
     assert.equal(
-      list.findAll((n) => n.props['data-majed-codex-part'] === 'account')
+      list.findAll((n) => n.props['data-waycraft-codex-part'] === 'account')
         .length,
       1,
       'first configured provider exposes usage immediately',
@@ -838,13 +848,13 @@ test('assembled section renders injected native provider directory with actual R
     assert.equal(disclosure().props['aria-expanded'], true);
     await act(async () => disclosure().props.onClick());
     assert.equal(
-      list.findAll((n) => n.props['data-majed-codex-part'] === 'account')
+      list.findAll((n) => n.props['data-waycraft-codex-part'] === 'account')
         .length,
       0,
     );
     await act(async () => disclosure().props.onClick());
     assert.equal(
-      list.findAll((n) => n.props['data-majed-codex-part'] === 'account')
+      list.findAll((n) => n.props['data-waycraft-codex-part'] === 'account')
         .length,
       1,
     );
@@ -857,7 +867,7 @@ test('assembled section renders injected native provider directory with actual R
     const addAccount = subscriptionGroup.find(
       (n) =>
         n.type === 'button' &&
-        n.props.className === 'majed-subscription-add-trigger',
+        n.props.className === 'waycraft-subscription-add-trigger',
     );
     assert.ok(
       addAccount.findByType('svg'),
@@ -883,7 +893,7 @@ test('assembled section renders injected native provider directory with actual R
       /Native fixture directory/,
     );
     assert.equal(
-      renderer.root.findAll((n) => n.props['data-majed-credential-status'])
+      renderer.root.findAll((n) => n.props['data-waycraft-credential-status'])
         .length,
       0,
       'hidden API implementation does not mount credential rows',
@@ -913,7 +923,7 @@ for (const locale of ['en', 'ar'])
       const page = browser(
         locale,
         (_channel, method) =>
-          method === 'majed-subscriptions.zenStatus'
+          method === 'waycraft-subscriptions.zenStatus'
             ? new Promise((resolve, reject) =>
                 pending.push({ resolve, reject }),
               )
@@ -934,7 +944,7 @@ for (const locale of ['en', 'ar'])
           renderer = create(ActualReact.createElement(page.section.component));
         });
         const card = () =>
-          renderer.root.findByProps({ 'data-majed-zen-card': true });
+          renderer.root.findByProps({ 'data-waycraft-zen-card': true });
         const button = () =>
           card()
             .findAllByType('button')
@@ -953,7 +963,7 @@ for (const locale of ['en', 'ar'])
         await act(async () => arrow().props.onClick());
         assert.equal(arrow().props['aria-expanded'], true);
         assert.equal(
-          card().findByProps({ 'data-majed-provider-status': 'checking' })
+          card().findByProps({ 'data-waycraft-provider-status': 'checking' })
             .props['aria-label'],
           dictionary.checking,
         );
@@ -963,9 +973,8 @@ for (const locale of ['en', 'ar'])
         await act(async () => pending.shift().resolve(value));
         assert.equal(button().props.disabled, false);
         assert.equal(
-          card().findByProps({ 'data-majed-provider-status': 'ready' }).props[
-            'aria-label'
-          ],
+          card().findByProps({ 'data-waycraft-provider-status': 'ready' })
+            .props['aria-label'],
           dictionary.zenReachable,
         );
         await act(async () => arrow().props.onClick());
@@ -985,9 +994,8 @@ for (const locale of ['en', 'ar'])
         );
         assert.equal(button().props.disabled, false);
         assert.equal(
-          card().findByProps({ 'data-majed-provider-status': 'error' }).props[
-            'aria-label'
-          ],
+          card().findByProps({ 'data-waycraft-provider-status': 'error' })
+            .props['aria-label'],
           dictionary.zenUnavailable,
         );
         await act(async () => button().props.onClick());
@@ -1085,7 +1093,7 @@ test('real Cordis admits the remote root and namespaces before registered API di
     });
     assert.equal(
       renderer.root.findAll(
-        (n) => n.props['data-majed-provider-group'] === 'subscription',
+        (n) => n.props['data-waycraft-provider-group'] === 'subscription',
       ).length,
       1,
     );
@@ -1114,7 +1122,7 @@ test('real Cordis admits the remote root and namespaces before registered API di
     });
     assert.equal(
       renderer.root.findAll(
-        (n) => n.props['data-majed-provider-group'] === 'subscription',
+        (n) => n.props['data-waycraft-provider-group'] === 'subscription',
       ).length,
       1,
     );
@@ -1159,7 +1167,7 @@ test('404 on first probe leaves the section absent', async () => {
   const page = browser('en', () =>
     Promise.reject(
       new Error(
-        'transport failure for /api/majed-subscriptions.status: HTTP 404',
+        'transport failure for /api/waycraft-subscriptions.status: HTTP 404',
       ),
     ),
   );
@@ -1175,7 +1183,7 @@ for (const [failure, answer] of [
     () =>
       Promise.reject(
         new Error(
-          'transport failure for /api/majed-subscriptions.status: HTTP 503',
+          'transport failure for /api/waycraft-subscriptions.status: HTTP 503',
         ),
       ),
   ],
@@ -1195,7 +1203,7 @@ test('unreachable then 404 removes the section', async () => {
   page.setAnswer(() =>
     Promise.reject(
       new Error(
-        'transport failure for /api/majed-subscriptions.status: HTTP 404',
+        'transport failure for /api/waycraft-subscriptions.status: HTTP 404',
       ),
     ),
   );
@@ -1339,11 +1347,20 @@ test('assembled core entry completes registrations when Subscriptions setup thro
     await Promise.resolve();
     await Promise.resolve();
     assert.equal(registrations.length, 11, failure);
-    assert.ok(registrations.includes('majed-notifications'), failure);
-    assert.ok(registrations.includes('majed-ui-font-size'), failure);
-    assert.ok(effects.includes('dsh-majed: apply settings'), failure);
-    assert.equal(errors.length, 1, failure);
-    assert.match(errors[0][0], /^dsh-majed: Subscriptions/);
+    assert.ok(registrations.includes('waycraft-notifications'), failure);
+    assert.ok(registrations.includes('waycraft-ui-font-size'), failure);
+    assert.ok(effects.includes('dsh-waycraft: apply settings'), failure);
+    // The independent Skill manager component may log its own isolated setup failure; Subscriptions reports exactly one.
+    const subscriptionErrors = errors.filter(([message]) =>
+      /^dsh-waycraft: Subscriptions/.test(message),
+    );
+    assert.equal(subscriptionErrors.length, 1, failure);
+    assert.ok(
+      errors.every(([message]) =>
+        /^dsh-waycraft: (Subscriptions|Skill manager)/.test(message),
+      ),
+      failure,
+    );
   }
 });
 test('Arabic copy covers every new key and rendered content uses logical alignment', async () => {
@@ -1490,7 +1507,7 @@ test('reference responses after a newer probe or disposal are ignored', async ()
   await page.settle();
   assert.equal(page.section, undefined);
 });
-test('owned global registrations in src use the Majed namespace', async () => {
+test('owned global registrations in src use the Waycraft namespace', async () => {
   for (const file of ['browser.ts', 'subscriptions.ts']) {
     const source = await readFile(
       new URL(`../src/${file}`, import.meta.url),
@@ -1504,7 +1521,7 @@ test('owned global registrations in src use the Majed namespace', async () => {
     assert.ok(ids.length, file);
     // Deliberately shared provider-native model IDs and the reference's speed-tier option ids are not owned
     // global registrations (ADR-0002); the tier ids are values sent to the `setSpeed` endpoint.
-    // #132: Claude's provider-native model IDs (`claude-*`) are shared the same way, and `oauth`/`keychain` are the values of the
+    // Claude's provider-native model IDs (`claude-*`) are shared the same way, and `oauth`/`keychain` are the values of the
     // Claude login `method` enum sent to the `login` endpoint, not a registration.
     for (const id of ids.filter(
       (id) =>
@@ -1522,9 +1539,9 @@ test('owned global registrations in src use the Majed namespace', async () => {
           'keychain',
         ].includes(id) && !/^(claude|grok)-/.test(id),
     ))
-      assert.match(id, /^(?:\/api\/)?majed[.-]/, `${file}: ${id}`);
+      assert.match(id, /^(?:\/api\/)?waycraft[.-]/, `${file}: ${id}`);
     for (const [, label] of source.matchAll(/},?\)?\), ['"]([^'"]+)['"]\)/g))
-      assert.match(label, /^(?:dsh-)?majed:/, `${file}: ${label}`);
+      assert.match(label, /^(?:dsh-)?waycraft:/, `${file}: ${label}`);
   }
 });
 
@@ -1543,39 +1560,42 @@ function commandService() {
 }
 const MEDIA_SURFACES = [
   'image_generate',
-  'dsh_majed_image_generate',
+  'dsh_waycraft_image_generate',
   'video_generate',
+  'dsh_waycraft_video_generate',
+  // Deprecated toolview keys kept for one release so old transcripts still render.
+  'dsh_majed_image_generate',
   'dsh_majed_video_generate',
 ]
-  .map((key) => `majed-toolview-${key}`)
+  .map((key) => `waycraft-toolview-${key}`)
   .sort();
 const SURFACES = [
-  'majed-subscription-speed',
-  'majed-subscription-usage',
+  'waycraft-subscription-speed',
+  'waycraft-subscription-usage',
   ...MEDIA_SURFACES,
 ].sort();
-test('composer surfaces register with majed ids while present and withdraw when absent', async () => {
+test('composer surfaces register with waycraft ids while present and withdraw when absent', async () => {
   const page = browser('en', undefined, { commandService: commandService() });
   await page.settle();
   assert.deepEqual(page.surfaces, SURFACES);
   assert.equal(
-    page.live.get('majed-subscription-speed').options.name,
+    page.live.get('waycraft-subscription-speed').options.name,
     'conversation.input.right',
   );
   assert.equal(
-    page.live.get('majed-subscription-usage').options.name,
+    page.live.get('waycraft-subscription-usage').options.name,
     'conversation.composer.dock',
   );
-  assert.equal(page.live.get('majed-subscription-speed').options.order, 0);
-  assert.equal(page.live.get('majed-subscription-usage').options.order, 10);
+  assert.equal(page.live.get('waycraft-subscription-speed').options.order, 0);
+  assert.equal(page.live.get('waycraft-subscription-usage').options.order, 10);
   assert.equal(
-    page.live.get('majed-subscription-speed').options.locale,
-    'majed.subscriptions',
+    page.live.get('waycraft-subscription-speed').options.locale,
+    'waycraft.subscriptions',
   );
   page.setAnswer(() =>
     Promise.reject(
       new Error(
-        'transport failure for /api/majed-subscriptions.status: HTTP 404',
+        'transport failure for /api/waycraft-subscriptions.status: HTTP 404',
       ),
     ),
   );
@@ -1635,7 +1655,7 @@ test('a composer surface that fails to register does not affect the section or t
     assert.ok(page.section, 'Settings section registered');
     assert.deepEqual(
       page.surfaces,
-      ['majed-subscription-usage', ...MEDIA_SURFACES].sort(),
+      ['waycraft-subscription-usage', ...MEDIA_SURFACES].sort(),
     );
   } finally {
     console.error = originalError;
@@ -1648,12 +1668,12 @@ test('/fast registers as `fast`, is listed only while wanted, and offers Standar
     'en',
     (...args) => {
       calls.push(args);
-      if (args[1] === 'majed-subscriptions.speed')
+      if (args[1] === 'waycraft-subscriptions.speed')
         return Promise.resolve({
           ok: true,
           value: { tier: 'fast', fastModels: ['fast-model'] },
         });
-      if (args[1] === 'majed-subscriptions.setSpeed')
+      if (args[1] === 'waycraft-subscriptions.setSpeed')
         return Promise.resolve({ ok: true, value: { ok: true } });
       return Promise.resolve({
         ok: true,
@@ -1684,7 +1704,7 @@ test('/fast registers as `fast`, is listed only while wanted, and offers Standar
     JSON.parse(
       JSON.stringify(
         calls
-          .filter((c) => c[1] === 'majed-subscriptions.setSpeed')
+          .filter((c) => c[1] === 'waycraft-subscriptions.setSpeed')
           .map((c) => c[2]),
       ),
     ),
@@ -1693,7 +1713,7 @@ test('/fast registers as `fast`, is listed only while wanted, and offers Standar
   assert.ok(
     calls.some(
       (c) =>
-        c[1] === 'majed-subscriptions.speed' &&
+        c[1] === 'waycraft-subscriptions.speed' &&
         c[2].sessionId === 's1' &&
         c[2].model === 'fast-model',
     ),
@@ -1702,7 +1722,7 @@ test('/fast registers as `fast`, is listed only while wanted, and offers Standar
   page.setAnswer(() =>
     Promise.reject(
       new Error(
-        'transport failure for /api/majed-subscriptions.status: HTTP 404',
+        'transport failure for /api/waycraft-subscriptions.status: HTTP 404',
       ),
     ),
   );
@@ -1726,7 +1746,7 @@ test('/fast refuses a model without a fast tier and surfaces speed errors as a r
   const page = browser(
     'en',
     (...args) =>
-      args[1] === 'majed-subscriptions.speed'
+      args[1] === 'waycraft-subscriptions.speed'
         ? Promise.resolve({
             ok: true,
             value: { tier: 'standard', fastModels: ['other'] },
@@ -1742,7 +1762,7 @@ test('/fast refuses a model without a fast tier and surfaces speed errors as a r
   const failing = browser(
     'en',
     (...args) =>
-      args[1] === 'majed-subscriptions.speed'
+      args[1] === 'waycraft-subscriptions.speed'
         ? Promise.reject(new Error('boom'))
         : Promise.resolve({ ok: true, value: { component: 'subscriptions' } }),
     { commandService: service },
@@ -1834,9 +1854,10 @@ for (const provider of ['codex', 'claude', 'grok', 'antigravity', 'copilot'])
           (n) =>
             n.type === 'button' &&
             (key === 'subscriptionAdd'
-              ? n.props.className === 'majed-subscription-add-trigger'
+              ? n.props.className === 'waycraft-subscription-add-trigger'
               : key === 'cancel'
-                ? n.parent.props.className === 'majed-subscription-add-actions'
+                ? n.parent.props.className ===
+                  'waycraft-subscription-add-actions'
                 : n.children.join('') === dict[key]),
         );
       const click = async (key) => {
@@ -1856,7 +1877,7 @@ for (const provider of ['codex', 'claude', 'grok', 'antigravity', 'copilot'])
       };
       const start = async () => {
         const auth = renderer.root
-          .findAll((n) => n.props[`data-majed-${provider}-card`] === true)
+          .findAll((n) => n.props[`data-waycraft-${provider}-card`] === true)
           .at(-1);
         const login = auth
           .findAllByType('button')
@@ -1876,7 +1897,7 @@ for (const provider of ['codex', 'claude', 'grok', 'antigravity', 'copilot'])
           renderer.root.findAll(
             (n) =>
               n.type === 'li' &&
-              n.props['data-majed-subscription-row'] === provider,
+              n.props['data-waycraft-subscription-row'] === provider,
           ).length,
           1,
         );
@@ -1892,7 +1913,7 @@ for (const provider of ['codex', 'claude', 'grok', 'antigravity', 'copilot'])
           renderer.root.find(
             (n) =>
               n.type === 'li' &&
-              n.props['data-majed-subscription-row'] === provider,
+              n.props['data-waycraft-subscription-row'] === provider,
           );
         assert.equal(
           group().findAllByType('input').length,
@@ -1982,16 +2003,16 @@ for (const provider of ['codex', 'claude', 'grok', 'antigravity', 'copilot'])
         renderer.root.find(
           (n) =>
             n.type === 'li' &&
-            n.props['data-majed-subscription-row'] === provider,
+            n.props['data-waycraft-subscription-row'] === provider,
         );
       const status = () =>
         group().find(
-          (n) => n.props['data-majed-provider-status'] !== undefined,
+          (n) => n.props['data-waycraft-provider-status'] !== undefined,
         );
-      assert.equal(status().props['data-majed-provider-status'], 'warning');
+      assert.equal(status().props['data-waycraft-provider-status'], 'warning');
       busy = false;
       await act(async () => page.tickAuth());
-      assert.equal(status().props['data-majed-provider-status'], 'ready');
+      assert.equal(status().props['data-waycraft-provider-status'], 'ready');
       assert.equal(
         group().findAllByType('input').length,
         0,

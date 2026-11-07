@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 
-const HOME = mkdtempSync(join('/tmp/majed-t130', 'model-defaults-test-'))
+const HOME = mkdtempSync(join('/tmp/waycraft-t130', 'model-defaults-test-'))
 
 const {
   defaultEffortOf,

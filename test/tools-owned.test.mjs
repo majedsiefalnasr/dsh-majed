@@ -1,8 +1,12 @@
-// Assembled tool/session-creation policy proof (ticket #130, story 42). Fake DSH services only; no network.
+// Assembled tool/session-creation policy proof. Fake DSH services only; no network.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp } from 'node:fs/promises';
 import { apply } from '../dist/subscriptions.js';
+import { LEGACY_TOOL_ALIASES } from '../dist/legacy-names.js';
+
+// Deprecated alias of a canonical tool name (registered next to it for one release).
+const old = (name) => LEGACY_TOOL_ALIASES[name];
 
 // The fake models cordis fiber ownership: registrations made through an inject callback are disposed with the component.
 function host({ withTools = true, withWeb = true, tool = {}, web = {} } = {}) {
@@ -94,7 +98,7 @@ function host({ withTools = true, withWeb = true, tool = {}, web = {} } = {}) {
     providers,
     routes,
     async call(endpoint, payload = {}) {
-      const method = `majed-subscriptions.${endpoint}`;
+      const method = `waycraft-subscriptions.${endpoint}`;
       const response = await routes.get(`/api/${method}`).fetch(
         new Request(`http://localhost/api/${method}`, {
           method: 'POST',
@@ -121,7 +125,7 @@ function host({ withTools = true, withWeb = true, tool = {}, web = {} } = {}) {
 }
 
 test('image_generate and Codex web_search register publicly and obey creation-time switches', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t130/tools-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t130/tools-');
   const { saveAccountSession } = await import('../dist/auth/store.js');
   await saveAccountSession('codex', 'fixture', {
     accountId: 'fixture',
@@ -133,7 +137,14 @@ test('image_generate and Codex web_search register publicly and obey creation-ti
   try {
     assert.deepEqual(
       [...component.registered.keys()],
-      ['image_generate', 'video_generate', 'x_search'],
+      [
+        'image_generate',
+        old('image_generate'),
+        'video_generate',
+        old('video_generate'),
+        'x_search',
+        old('x_search'),
+      ],
     );
     assert.equal(component.providers.length, 1);
     assert.equal(component.providers[0].id, 'codex');
@@ -155,7 +166,10 @@ test('image_generate and Codex web_search register publicly and obey creation-ti
       settings: { tools: { image_generate: false } },
     });
     // New sessions lose image_generate; an already-created session keeps the tool; web search follows the live switch.
-    assert.deepEqual(await component.create(Date.now()), ['image_generate']);
+    assert.deepEqual(await component.create(Date.now()), [
+      'image_generate',
+      old('image_generate'),
+    ]);
     assert.deepEqual(await component.create(before), []);
     assert.equal(component.providers[0].available(), false);
     assert.equal(
@@ -180,13 +194,20 @@ test('image_generate and Codex web_search register publicly and obey creation-ti
   );
 });
 
-test('a colliding image_generate name falls back to the Majed alias and is the one restricted', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t130/tools-');
+test('a colliding image_generate name falls back to the Waycraft alias and is the one restricted', async () => {
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t130/tools-');
   const component = host({ tool: { occupied: ['image_generate'] } });
   try {
     assert.deepEqual(
       [...component.registered.keys()],
-      ['dsh_majed_image_generate', 'video_generate', 'x_search'],
+      [
+        'dsh_waycraft_image_generate',
+        old('image_generate'),
+        'video_generate',
+        old('video_generate'),
+        'x_search',
+        old('x_search'),
+      ],
     );
     await component.call('setProviderSettings', {
       provider: 'codex',
@@ -197,7 +218,8 @@ test('a colliding image_generate name falls back to the Majed alias and is the o
       settings: { tools: { image_generate: false } },
     });
     assert.deepEqual(await component.create(Date.now() + 1000), [
-      'dsh_majed_image_generate',
+      'dsh_waycraft_image_generate',
+      old('image_generate'),
     ]);
   } finally {
     component.dispose();
@@ -205,7 +227,7 @@ test('a colliding image_generate name falls back to the Majed alias and is the o
 });
 
 test('Grok video and X switches restrict new sessions under public and collision aliases without disabling Codex search', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t133-tools-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t133-tools-');
   const { saveAccountSession } = await import('../dist/auth/store.js');
   await saveAccountSession('codex', 'fixture', {
     accountId: 'fixture',
@@ -216,9 +238,11 @@ test('Grok video and X switches restrict new sessions under public and collision
   for (const occupied of [[], ['video_generate', 'x_search']]) {
     const component = host({ tool: { occupied } });
     try {
-      const names = occupied.length
-        ? ['dsh_majed_video_generate', 'dsh_majed_x_search']
-        : ['video_generate', 'x_search'];
+      const names = (
+        occupied.length
+          ? ['dsh_waycraft_video_generate', 'dsh_waycraft_x_search']
+          : ['video_generate', 'x_search']
+      ).flatMap((name) => [name, old(name.replace('dsh_waycraft_', ''))]);
       assert.ok(names.every((name) => component.registered.has(name)));
       const before = Date.now() - 1000;
       assert.equal(
@@ -255,12 +279,59 @@ test('Grok video and X switches restrict new sessions under public and collision
 });
 
 test('absent tools and web services leave the component functional', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t130/tools-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t130/tools-');
   const component = host({ withTools: false, withWeb: false });
   try {
     assert.equal(component.registered.size, 0);
     assert.equal(component.providers.length, 0);
     assert.equal((await component.call('status')).ok, true);
+  } finally {
+    component.dispose();
+  }
+});
+
+test('deprecated legacy-named aliases delegate to the same implementation, are deferred and marked deprecated', async () => {
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t130/tools-');
+  for (const occupied of [
+    [],
+    ['image_generate', 'video_generate', 'x_search'],
+  ]) {
+    const component = host({ tool: { occupied } });
+    try {
+      for (const name of Object.keys(LEGACY_TOOL_ALIASES)) {
+        const current = component.registered.get(
+          occupied.length ? `dsh_waycraft_${name}` : name,
+        );
+        const alias = component.registered.get(old(name));
+        assert.ok(current && alias, `${name} and its alias are registered`);
+        assert.equal(alias.execute, current.execute, 'same implementation');
+        assert.equal(alias.parameters, current.parameters, 'same schema');
+        assert.equal(alias.deferLoading, true, 'hidden from model tool lists');
+        assert.equal(
+          current.deferLoading,
+          undefined,
+          'canonical stays visible',
+        );
+        assert.match(alias.description, /^Deprecated alias of /);
+        assert.ok(alias.description.includes(current.name));
+      }
+    } finally {
+      component.dispose();
+    }
+    assert.equal(
+      component.registered.size,
+      0,
+      'aliases unregister with the component',
+    );
+  }
+});
+
+test('an occupied deprecated alias name never blocks the canonical registration', async () => {
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t130/tools-');
+  const component = host({ tool: { occupied: [old('x_search')] } });
+  try {
+    assert.ok(component.registered.has('x_search'));
+    assert.ok(!component.registered.has(old('x_search')));
   } finally {
     component.dispose();
   }

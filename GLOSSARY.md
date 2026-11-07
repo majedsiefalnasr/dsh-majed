@@ -13,7 +13,7 @@ One feature of Waycraft for DSH declared as its own DSH Loader row, listed on th
 _Avoid_: Module, sub-plugin, manager
 
 **Core component**:
-The `majed` row that carries the 0.2.0 preferences and the plugin's only browser half; it stays on while any other component is used.
+The Loader row (id `waycraft`; renamed from its retired id in #159, see `docs/ai/rename-waycraft.md` for the one-time manual step on an existing install) that carries the 0.2.0 preferences and the plugin's only browser half; it stays on while any other component is used.
 _Avoid_: Main plugin, base module
 
 **Reference plugin**:

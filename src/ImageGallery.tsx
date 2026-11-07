@@ -13,6 +13,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 
+// The installed host theme (0.2.2-rc.1) defines --dsw-font-s-14 but not -12/-13, so the shorthand carries a literal fallback
+// built from the defined font family; a host that adds the token wins.
+const FONT_S_12 = 'var(--dsw-font-s-12, 400 12px/18px var(--dsw-font-family))';
+const FONT_S_13 = 'var(--dsw-font-s-13, 400 13px/20px var(--dsw-font-family))';
+
 /**
  * Mirror of ImageAttachmentRef (packages/attachment/attachment/src/types.ts);
  * the brand on attachmentId is compile-time only, so string suffices here.
@@ -100,12 +105,12 @@ const styles: Record<string, CSSProperties> = {
   tile: { width: 64, height: 64 },
   img: { width: '100%', height: '100%', objectFit: 'cover', display: 'block' },
   loading: {
-    font: 'var(--dsw-font-s-12)',
+    font: FONT_S_12,
     color: 'var(--dsw-alias-label-tertiary)',
     padding: '0 8px',
   },
   error: {
-    font: 'var(--dsw-font-s-12)',
+    font: FONT_S_12,
     color: 'var(--dsw-alias-state-error-primary)',
     cursor: 'pointer',
     border: '1px solid var(--dsw-alias-border-l2-darkmode-thin)',
@@ -141,7 +146,7 @@ const styles: Record<string, CSSProperties> = {
     cursor: 'pointer',
     background: 'var(--dsw-alias-bg-layer-1)',
     color: 'var(--dsw-alias-label-primary)',
-    font: 'var(--dsw-font-s-13)',
+    font: FONT_S_13,
   },
 };
 

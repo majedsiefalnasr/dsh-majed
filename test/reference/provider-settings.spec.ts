@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { ProviderSettingsStore, validatePreferences } from '../../src/provider-settings.js'
 
 test('display names persist per provider, trim whitespace and clear back to defaults', async () => {
-  const dir = await mkdtemp(join('/tmp/majed-t130', 'display-names-'))
+  const dir = await mkdtemp(join('/tmp/waycraft-t130', 'display-names-'))
   try {
     const store = new ProviderSettingsStore(join(dir, 'settings.json'))
     await store.set('grok', { displayName: '  我的 Grok  ', modelDisplayNames: { shared: '主力模型', gone: '暂不可用' } })
@@ -28,7 +28,7 @@ test('display names persist per provider, trim whitespace and clear back to defa
 })
 
 test('the Claude prompt-cache TTL is a Claude-only preference that persists and clears', async () => {
-  const dir = await mkdtemp(join('/tmp/majed-t130', 'cache-ttl-'))
+  const dir = await mkdtemp(join('/tmp/waycraft-t130', 'cache-ttl-'))
   try {
     const store = new ProviderSettingsStore(join(dir, 'settings.json'))
     assert.equal(store.promptCacheTtl(), undefined, 'absent follows the plugin config')
@@ -45,7 +45,7 @@ test('the Claude prompt-cache TTL is a Claude-only preference that persists and 
 })
 
 test('provider selections survive refresh-independent reloads and concurrent provider saves', async () => {
-  const dir = await mkdtemp(join('/tmp/majed-t130', 'provider-settings-'))
+  const dir = await mkdtemp(join('/tmp/waycraft-t130', 'provider-settings-'))
   try {
     const path = join(dir, 'settings.json')
     const store = new ProviderSettingsStore(path)
@@ -66,7 +66,7 @@ test('provider selections survive refresh-independent reloads and concurrent pro
 })
 
 test('tool policies retain old-session settings across changes and restarts', async () => {
-  const dir = await mkdtemp(join('/tmp/majed-t130', 'provider-tools-'))
+  const dir = await mkdtemp(join('/tmp/waycraft-t130', 'provider-tools-'))
   try {
     const path = join(dir, 'settings.json')
     const store = new ProviderSettingsStore(path)
@@ -101,7 +101,7 @@ test('provider settings reject invalid contexts and unsupported tools; ids are s
 })
 
 test('failed persistence leaves live settings unchanged and permits a later retry', async () => {
-  const dir = await mkdtemp(join('/tmp/majed-t130', 'provider-failure-'))
+  const dir = await mkdtemp(join('/tmp/waycraft-t130', 'provider-failure-'))
   const { mkdir } = await import('node:fs/promises')
   const store = new ProviderSettingsStore(join(dir, 'settings.json'))
   // Put a directory at the target after construction to force atomic rename failure.
@@ -116,7 +116,7 @@ test('failed persistence leaves live settings unchanged and permits a later retr
 })
 
 test('Codex subagent speed defaults persist independently and validate model keys and tiers', async () => {
-  const dir = await mkdtemp(join('/tmp/majed-t130', 'subagent-speeds-'))
+  const dir = await mkdtemp(join('/tmp/waycraft-t130', 'subagent-speeds-'))
   const path = join(dir, 'settings.json')
   try {
     const store = new ProviderSettingsStore(path)

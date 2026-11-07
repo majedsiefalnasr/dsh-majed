@@ -101,7 +101,7 @@ Motion should explain state, not decorate a settings page. Theme defaults are 0.
 
 ### Selection and ownership
 
-The published rc.3 primitives declarations expose Button, Input, Switch, Checkbox, DisclosureRow, SegmentedControl, Modal, Menu, Tooltip, SettingsForm and rendering helpers. That inventory is design/API research, **not an external-plugin runtime allowlist**. Apply the reuse boundary in Overview before choosing any dependency. For an allowed direct primitive, pin and test its real contract. For an adaptation, own its implementation and accessibility under the retained `majed`-prefixed compatibility styles/IDs.
+The published rc.3 primitives declarations expose Button, Input, Switch, Checkbox, DisclosureRow, SegmentedControl, Modal, Menu, Tooltip, SettingsForm and rendering helpers. That inventory is design/API research, **not an external-plugin runtime allowlist**. Apply the reuse boundary in Overview before choosing any dependency. For an allowed direct primitive, pin and test its real contract. For an adaptation, own its implementation and accessibility under `waycraft-`-prefixed styles and IDs.
 
 Do not bind to native hashed CSS selectors, assume `apply` exports a React component, or mutate another plugin's registrations. Supported slots may permit composition without exposing their enclosing page's implementation. Verify each seam separately.
 

@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { mkdir, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths';
+import { readableStorePath } from './storage-migration.js';
 import { PROVIDER_IDS } from './auth/store.js';
 import { mergeIntent } from './preference-merge.js';
 export const PROVIDER_TOOLS = {
@@ -152,10 +153,10 @@ export class ProviderSettingsStore {
     current = { providers: {}, toolHistory: [] };
     writes = Promise.resolve();
     path;
-    constructor(path = dshHomePath('plugins', 'majed', 'subscriptions', 'provider-settings.json')) {
+    constructor(path = dshHomePath('plugins', 'waycraft', 'subscriptions', 'provider-settings.json')) {
         this.path = path;
         try {
-            const raw = JSON.parse(readFileSync(path, 'utf8'));
+            const raw = JSON.parse(readFileSync(readableStorePath(path), 'utf8'));
             if (!raw.providers || !Array.isArray(raw.toolHistory))
                 throw new Error('invalid settings document');
             if (raw.zenEnabled !== undefined && typeof raw.zenEnabled !== 'boolean')
@@ -206,6 +207,7 @@ export class ProviderSettingsStore {
             }
             this.current = next;
         });
+        // Safe: `writes` only orders the next write; the caller still receives `run` and its error.
         this.writes = run.catch(() => { });
         return run;
     }
@@ -287,6 +289,7 @@ export class ProviderSettingsStore {
             }
             this.current = next;
         });
+        // Safe: `writes` only orders the next write; the caller still receives `run` and its error.
         this.writes = run.catch(() => undefined);
         return run;
     }

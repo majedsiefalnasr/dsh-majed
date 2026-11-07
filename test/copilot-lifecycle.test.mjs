@@ -1,4 +1,4 @@
-// #134 missing lifecycle/error boundaries. Synthetic HTTP and temporary owned store only.
+// missing lifecycle/error boundaries. Synthetic HTTP and temporary owned store only.
 import { test, before, after } from 'node:test';
 let keepAlive;
 before(() => {
@@ -154,7 +154,7 @@ test('slow_down delays subsequent polling by five seconds, then denial settles s
 
 for (const phase of ['acquisition', 'poll'])
   test(`controller dispose during ${phase} cancels real engine and prevents restart`, async () => {
-    process.env.DSH_HOME = await mkdtemp('/tmp/majed-t134/dispose-');
+    process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t134/dispose-');
     const original = globalThis.fetch;
     let entered;
     const atBoundary = new Promise((resolve) => {
@@ -191,7 +191,7 @@ for (const phase of ['acquisition', 'poll'])
 
 for (const action of ['cancel', 'dispose'])
   test(`${action} during token completion prevents late account save and unhandled rejection`, async () => {
-    process.env.DSH_HOME = await mkdtemp('/tmp/majed-t134/late-');
+    process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t134/late-');
     const original = globalThis.fetch;
     let release, entered;
     const blocked = new Promise((resolve) => {

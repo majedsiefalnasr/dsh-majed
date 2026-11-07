@@ -9,7 +9,7 @@ export type ModelListState = 'provider-empty' | 'filter-empty' | 'rows';
  *
  * `provider-empty` means the provider shows NO rows at all — the filter box cannot match
  * anything in that state, and printing `No model matches “”.` next to it reads like a broken
- * control rather than like an explanation (issue #147).
+ * control rather than like an explanation.
  *
  * `filter-empty` keeps the existing message for a query that filtered everything out of a
  * provider that does have rows.
@@ -47,7 +47,7 @@ export type ModelEditorNotice = 'noAccount' | 'discoveryFailed' | 'noModels';
  * Why the provider has no models — read from the data the host already sends.
  *
  * `total === 0` alone cannot tell these apart, and guessing wrong re-creates the very
- * defect issue #147 is about: telling a user who IS logged in to go and log in. The
+ * defect this guard exists to prevent: telling a user who IS logged in to go and log in. The
  * catalog payload carries one row per connected account with `unavailable: true` when that
  * account's discovery failed or timed out (src/index.ts).
  *

@@ -1,10 +1,11 @@
-// Composer Speed host half (ticket #131): `speed` / `setSpeed` endpoints and the per-session tier that drives the
+// Composer Speed host half: `speed` / `setSpeed` endpoints and the per-session tier that drives the
 // Codex `service_tier`. Fake HTTP only. Reference analogues: src/auth/rpc.ts `speed`/`setSpeed`, src/index.ts
 // `speedBySession` / `selectedSpeed` / `speedFor` (v0.9.12) and test/subagent-speed.spec.ts.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp } from 'node:fs/promises';
 import { apply } from '../dist/subscriptions.js';
+import { LEGACY_RPC_PREFIX } from '../dist/legacy-names.js';
 
 const CATALOG = {
   models: [
@@ -19,7 +20,7 @@ const CATALOG = {
 };
 
 async function mount(sessions = {}, accounts = ['a']) {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t131-speed-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t131-speed-');
   const { saveAccountSession } = await import('../dist/auth/store.js');
   for (const account of accounts)
     await saveAccountSession('codex', account, {
@@ -85,7 +86,7 @@ async function mount(sessions = {}, accounts = ['a']) {
   };
   apply(ctx, { codexClientVersion: '1.2.3' });
   const call = async (endpoint, payload = {}) => {
-    const method = `majed-subscriptions.${endpoint}`;
+    const method = `waycraft-subscriptions.${endpoint}`;
     const response = await routes.get(`/api/${method}`).fetch(
       new Request(`http://localhost/api/${method}`, {
         method: 'POST',
@@ -125,13 +126,17 @@ async function mount(sessions = {}, accounts = ['a']) {
   };
 }
 
-test('speed and setSpeed are registered under the majed-subscriptions prefix only', async () => {
+test('speed and setSpeed are registered under the waycraft-subscriptions prefix (plus the deprecated legacy prefix)', async () => {
   const host = await mount();
   try {
-    assert.ok(host.routes.has('/api/majed-subscriptions.speed'));
-    assert.ok(host.routes.has('/api/majed-subscriptions.setSpeed'));
+    assert.ok(host.routes.has('/api/waycraft-subscriptions.speed'));
+    assert.ok(host.routes.has('/api/waycraft-subscriptions.setSpeed'));
     for (const path of host.routes.keys())
-      assert.ok(path.startsWith('/api/majed-subscriptions.'), path);
+      assert.ok(
+        path.startsWith('/api/waycraft-subscriptions.') ||
+          path.startsWith(`/api/${LEGACY_RPC_PREFIX}`),
+        path,
+      );
   } finally {
     host.dispose();
   }
@@ -337,6 +342,31 @@ test('no fast models are reported without a saved login', async () => {
 test('after disposal the speed endpoints are gone from the transport', async () => {
   const host = await mount({ s: {} });
   host.dispose();
-  assert.equal(host.routes.has('/api/majed-subscriptions.speed'), false);
-  assert.equal(host.routes.has('/api/majed-subscriptions.setSpeed'), false);
+  assert.equal(host.routes.has('/api/waycraft-subscriptions.speed'), false);
+  assert.equal(host.routes.has('/api/waycraft-subscriptions.setSpeed'), false);
+});
+
+test('the deprecated legacy RPC prefix still answers the same endpoints (ticket #159, removed next release)', async () => {
+  const host = await mount();
+  try {
+    const method = `${LEGACY_RPC_PREFIX}speed`;
+    const route = host.routes.get(`/api/${method}`);
+    assert.ok(route, 'legacy route registered');
+    const response = await route.fetch(
+      new Request(`http://localhost/api/${method}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          type: 'client-request',
+          rpcId: 'legacy',
+          method,
+          payload: {},
+        }),
+      }),
+    );
+    assert.equal(response.status, 200);
+    assert.deepEqual((await response.json()).result, await host.call('speed'));
+  } finally {
+    host.dispose();
+  }
 });

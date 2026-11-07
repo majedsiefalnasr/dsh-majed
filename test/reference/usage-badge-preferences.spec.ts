@@ -1,5 +1,5 @@
 // Adapted from V1ki/dsh-plugin-subscriptions v0.9.12 (b802311) test/usage-badge-preferences.spec.ts, MIT; see src/PROVENANCE.md.
-// Dispositions: the storage key carries the majed prefix (ADR-0002); the bilingual copy check uses the owned
+// Dispositions: the storage key carries the waycraft prefix (ADR-0002); the bilingual copy check uses the owned
 // English and Arabic dictionaries (the reference used English and Chinese).
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
@@ -11,7 +11,7 @@ import { UsageBadgeDisplaySetting } from '../../src/usage-badge/UsageBadgeDispla
 
 const en: Record<string, string> = JSON.parse(readFileSync('locale/en.json', 'utf8')).subscriptions
 const ar: Record<string, string> = JSON.parse(readFileSync('locale/ar.json', 'utf8')).subscriptions
-const key = 'majed.subscriptions.usageBadgeMode'
+const key = 'waycraft.subscriptions.usageBadgeMode'
 
 class Browser extends EventTarget {
   values = new Map<string, string>()

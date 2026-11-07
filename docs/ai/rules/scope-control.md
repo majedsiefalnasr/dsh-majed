@@ -44,7 +44,7 @@ Set the investigation budget in the work contract before starting. If the Owner 
 
 ## Reference sources
 
-External plugins are implementation references, never required runtime companions for Majed. Use DSH public extension points and existing Majed capabilities before duplicating host behavior. Ordinary approved libraries/SDKs are distinct from requiring another DSH plugin; dependency and licensing decisions must still be explicit.
+External plugins are implementation references, never required runtime companions for Waycraft. Use DSH public extension points and existing Waycraft capabilities before duplicating host behavior. Ordinary approved libraries/SDKs are distinct from requiring another DSH plugin; dependency and licensing decisions must still be explicit.
 
 For each feature's prior art, record the URL, pinned version/commit, relevant behavior or algorithm, what is adapted versus implemented independently, license/attribution obligations and why the source is relevant. A link alone is not a design decision. Research supports the approved outcome; it is not an invitation to copy every source feature or redesign unrelated systems. For independently designed behavior with no borrowed implementation, record that instead of fabricating a reference.
 

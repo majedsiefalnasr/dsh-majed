@@ -1,4 +1,4 @@
-// Ticket #132: the Claude Settings card renders in English and Arabic and drives the owned RPC with fake data only.
+// the Claude Settings card renders in English and Arabic and drives the owned RPC with fake data only.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import ts from 'typescript';
@@ -190,7 +190,7 @@ for (const locale of ['en', 'ar'])
     page.render();
     await page.settle();
     assert.equal(
-      page.nodes().some((n) => n.props['data-majed-claude-card']),
+      page.nodes().some((n) => n.props['data-waycraft-claude-card']),
       true,
     );
     assert.equal(
@@ -198,14 +198,14 @@ for (const locale of ['en', 'ar'])
         .nodes()
         .some(
           (n) =>
-            n.props['data-majed-codex-card'] ||
-            n.props['data-majed-codex-part'],
+            n.props['data-waycraft-codex-card'] ||
+            n.props['data-waycraft-codex-part'],
         ),
       false,
       'no Codex attributes leak into the Claude card',
     );
     const group = (name) =>
-      page.nodes().find((n) => n.props['data-majed-claude-part'] === name);
+      page.nodes().find((n) => n.props['data-waycraft-claude-part'] === name);
     assert.match(page.textOf(group('header')), /Claude.*2\.1\.0/);
     assert.equal(
       page.nodes(group('account-header')).filter((n) => n.tag === 'button')

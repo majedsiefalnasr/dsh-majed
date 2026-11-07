@@ -1,6 +1,6 @@
 # Releasing Waycraft for DSH
 
-The package name is `dsh-waycraft` (formerly `dsh-majed`). Repository URLs remain unchanged until a separately approved GitHub rename. Never install both names together: Loader row ids and durable compatibility namespaces intentionally remain `majed`-based. Replacement, restart, publication and data migration each retain their explicit approval boundaries. Recheck registry availability before publication; the source package version is not proof of a published release.
+The package name is `dsh-waycraft` (formerly `dsh-majed`). Repository URLs remain unchanged until a separately approved GitHub rename. Loader row ids are now `waycraft*`; the legacy `majed*` ids, RPC routes and storage names remain only as deprecated aliases for one release (`docs/ai/rename-waycraft.md`). Existing enable overrides under the old ids become orphaned, so re-enable the components after installing. Never install both names together. Replacement, restart, publication and data migration each retain their explicit approval boundaries. Recheck registry availability before publication; the source package version is not proof of a published release.
 
 Versioning follows Semantic Versioning. Use `-rc.N` for release candidates; a release leaves `-rc` only after
 live verification in the DSH desktop app (see checklist).
@@ -13,6 +13,10 @@ live verification in the DSH desktop app (see checklist).
 - Verify the exact allowlisted archive: exclude credentials, account stores, private homes, rollback packages, test fixtures and caches. Record artifact hash and compare installed/published bytes with that archive. Never print secrets.
 - Source commit/push, installation/restart, npm publication, GitHub release and real-account/paid operations have separate explicit approval boundaries. Never overwrite an existing registry version; tag only the exact public release commit after approved integration. User completes login/2FA personally; do not request credentials in chat.
 - Record release status and remaining gates in current work before handoff. Installation, registry readback, source integration and desktop acceptance are distinct claims. Link the release summary from the changelog; keep release/docs rules linked from AGENTS.
+
+## Optional real-browser checks
+
+`npm run test:browser` runs `test/browser/*.browser.mjs` in real Chromium (switch size, drag-assign EN/AR, dialog focus trap/Escape/focus return, diagnostics disclosure). It is not part of `npm test` and skips with a message when Playwright or Chromium is not resolvable. Playwright is not a dependency: run `npm run build`, then set `WAYCRAFT_PLAYWRIGHT` to the Playwright module directory (or have `playwright` resolvable) and optionally `WAYCRAFT_CHROMIUM` to a Chromium executable.
 
 ## Checklist
 1. Working tree contains only intended changes: `git status`.
@@ -41,7 +45,9 @@ The GitHub Actions workflow `.github/workflows/npm-publish.yml` runs when a non-
 
 One-time Owner setup: in npm package **dsh-waycraft → Settings → Trusted publishing**, add GitHub Actions with organization/user `majedsiefalnasr`, repository `dsh-waycraft` (GitHub now redirects the former dsh-majed repository), workflow filename `npm-publish.yml`, and no environment (this workflow declares none). Use GitHub-hosted runners and Node24's current npm with trusted publishing support. No npm token or OTP belongs in GitHub secrets or chat. Source: https://docs.npmjs.com/trusted-publishers/ . Workflow publication is not operationally verified until the first new approved release succeeds; configuring this file does not configure npm's trust. The separate `test.yml` workflow validates pull requests, main pushes and manual runs without npm publishing permissions, so CI repairs can be verified without creating a release or moving an immutable tag.
 
-Version0.2.1 was published manually before automation. Its GitHub Release must not republish it. Subsequent releases follow source integration → exact version tag → approved GitHub Release → automated validation/publication. Do not claim all historical desktop checks were repeated for the narrow0.2.1 identity fix; its boot acceptance is the Owner's explicit restart confirmation.
+Version 0.2.1 was published manually before automation. Its GitHub Release must not republish it. Subsequent releases follow source integration → exact version tag → approved GitHub Release → automated validation/publication. Do not claim all historical desktop checks were repeated for the narrow 0.2.1 identity fix; its boot acceptance is the Owner's explicit restart confirmation.
 
 ## Rollback
 Preserve the exact previous approved package archive and its hash before replacing the installed bundle (`dsh-majed` for legacy installations, `dsh-waycraft` after cutover). Use the plugin manager for an explicitly approved replacement or rollback, not manual profile edits. Keep account/configuration directories intact, restore the previous archive if necessary and fully restart DSH. An archive rollback does not undo any separately authorized data migration.
+
+Rolling back across the Loader row-id rename (`majed*` to `waycraft*`) orphans the enable overrides again; after such a rollback the user must re-enable the components.

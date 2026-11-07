@@ -1,5 +1,7 @@
 # Ticket 132 work contract and verification
 
+> Historical names: this evidence predates the #159 rename; `majed*` identifiers below are the retired names of the current `waycraft*` ones (see `rename-waycraft.md`).
+
 ## Contract
 
 - Ticket: #132, Subscriptions: Claude. Stories 43, 56 and the Claude-related stories of `docs/specs/subscriptions.md`. Baseline `be7c421` on `impl/132-claude`, worktree `dsh-majed-t132`.

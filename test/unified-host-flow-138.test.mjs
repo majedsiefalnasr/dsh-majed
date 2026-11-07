@@ -1,4 +1,4 @@
-// #138: registered UI -> actual host routes/controllers -> dummy HTTP/credential IO.
+// registered UI -> actual host routes/controllers -> dummy HTTP/credential IO.
 // No status revision is fabricated; the real controller must persist each admission.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -27,7 +27,7 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 async function fixture(provider) {
   const previousHome = process.env.DSH_HOME;
-  const fixtureHome = await mkdtemp(join(tmpdir(), 'majed-ui138-host-'));
+  const fixtureHome = await mkdtemp(join(tmpdir(), 'waycraft-ui138-host-'));
   process.env.DSH_HOME = fixtureHome;
   const pendingRpc = new Set();
   const routes = new Map(),
@@ -60,7 +60,7 @@ async function fixture(provider) {
       if (previousHome === undefined) delete process.env.DSH_HOME;
       else process.env.DSH_HOME = previousHome;
       assert.equal(
-        fixtureHome.startsWith(join(tmpdir(), 'majed-ui138-host-')),
+        fixtureHome.startsWith(join(tmpdir(), 'waycraft-ui138-host-')),
         true,
       );
       await rm(fixtureHome, { recursive: true, force: true });
@@ -218,8 +218,8 @@ async function fixture(provider) {
       calls.push({ method, payload });
       // Exercise cold-run IO latency instead of relying on a warm local filesystem.
       if (
-        method === 'majed-subscriptions.status' &&
-        !live.has('majed-subscriptions')
+        method === 'waycraft-subscriptions.status' &&
+        !live.has('waycraft-subscriptions')
       )
         await delay(100);
       const route = routes.get(`/api/${method}`);
@@ -260,7 +260,7 @@ async function fixture(provider) {
       state: { subscribe: () => () => {}, getSnapshot: () => 'connected' },
     };
     let api;
-    vm.runInNewContext(code + '\nresult(majedSubscriptionsFactory);', {
+    vm.runInNewContext(code + '\nresult(waycraftSubscriptionsFactory);', {
       result: (factory) => {
         api = factory((id) =>
           id === 'react'
@@ -336,7 +336,7 @@ async function fixture(provider) {
     };
     api.applySubscriptions(ctx);
     const status = async () =>
-      (await rpc('api', 'majed-subscriptions.status')).value.providers[
+      (await rpc('api', 'waycraft-subscriptions.status')).value.providers[
         provider
       ];
     async function until(predicate, label) {
@@ -350,26 +350,29 @@ async function fixture(provider) {
     // Wait for the observable registration, not unrelated/rejected reference probes.
     const registrationDeadline = performance.now() + 5000;
     while (
-      !live.has('majed-subscriptions') &&
+      !live.has('waycraft-subscriptions') &&
       performance.now() < registrationDeadline
     )
       await delay(5);
     assert.equal(
-      live.has('majed-subscriptions'),
+      live.has('waycraft-subscriptions'),
       true,
       'section registration within 5 seconds',
     );
     await act(async () => {
-      renderer = create(React.createElement(live.get('majed-subscriptions')), {
-        createNodeMock: (node) =>
-          node.type === 'button'
-            ? {
-                focus() {
-                  focused++;
-                },
-              }
-            : null,
-      });
+      renderer = create(
+        React.createElement(live.get('waycraft-subscriptions')),
+        {
+          createNodeMock: (node) =>
+            node.type === 'button'
+              ? {
+                  focus() {
+                    focused++;
+                  },
+                }
+              : null,
+        },
+      );
       await turn();
     });
     await settle();
@@ -378,7 +381,7 @@ async function fixture(provider) {
         (n) =>
           n.type === 'button' &&
           (key === 'subscriptionAdd'
-            ? n.props.className === 'majed-subscription-add-trigger'
+            ? n.props.className === 'waycraft-subscription-add-trigger'
             : n.children.join('') ===
               dict[key === 'apiCancel' ? 'cancel' : key]),
       );
@@ -402,7 +405,7 @@ async function fixture(provider) {
       renderer.root.findAll(
         (n) =>
           n.type === 'li' &&
-          n.props['data-majed-subscription-row'] === provider,
+          n.props['data-waycraft-subscription-row'] === provider,
       );
     return {
       calls,

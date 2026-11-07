@@ -5,12 +5,12 @@ import { mkdtemp, stat, mkdir, writeFile, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 test('owned Codex store isolates credentials and removes a logged-out account', async () => {
-  const home = await mkdtemp('/tmp/majed-t129/store-');
+  const home = await mkdtemp('/tmp/waycraft-t129/store-');
   process.env.DSH_HOME = home;
   const store = await import('../dist/auth/store.js');
   assert.equal(
     store.authFilePath(),
-    join(home, 'plugins/majed/subscriptions/auth.json'),
+    join(home, 'plugins/waycraft/subscriptions/auth.json'),
   );
   await store.saveAccountSession('codex', 'fixture', {
     accountId: 'fixture',
@@ -20,7 +20,7 @@ test('owned Codex store isolates credentials and removes a logged-out account', 
   });
   assert.equal((await stat(store.authFilePath())).mode & 0o777, 0o600);
   assert.equal(
-    (await stat(join(home, 'plugins/majed/subscriptions'))).mode & 0o777,
+    (await stat(join(home, 'plugins/waycraft/subscriptions'))).mode & 0o777,
     0o700,
   );
   await store.deleteAccountSession('codex', 'fixture');
@@ -70,7 +70,7 @@ function host({ collision = false } = {}) {
       return adapter;
     },
     async call(endpoint, payload = {}) {
-      const method = `majed-subscriptions.${endpoint}`;
+      const method = `waycraft-subscriptions.${endpoint}`;
       const response = await routes.get(`/api/${method}`).fetch(
         new Request(`http://localhost/api/${method}`, {
           method: 'POST',
@@ -93,7 +93,7 @@ function host({ collision = false } = {}) {
 }
 
 test('assembled never-logged-in provider has no models or network; disposal removes every route', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t129/empty-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t129/empty-');
   const savedFetch = globalThis.fetch;
   let calls = 0;
   globalThis.fetch = async () => {
@@ -119,7 +119,7 @@ test('assembled never-logged-in provider has no models or network; disposal remo
 });
 
 test('assembled login paste fallback persists identity, selects default, chats and logs out with fake HTTP only', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t129/flow-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t129/flow-');
   const originalFetch = globalThis.fetch;
   const requests = [];
   const jwt = (payload) =>
@@ -213,7 +213,7 @@ test('assembled login paste fallback persists identity, selects default, chats a
 });
 
 test('cancelling or disposing a pending authorization never exchanges or persists credentials', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t129/cancel-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t129/cancel-');
   const originalFetch = globalThis.fetch;
   let requests = 0;
   globalThis.fetch = async () => {
@@ -251,7 +251,7 @@ test('cancelling or disposing a pending authorization never exchanges or persist
 
 test('foreign current and router stores remain byte-identical across reads, collision, own login and logout', async () => {
   const home = (process.env.DSH_HOME = await mkdtemp(
-    '/tmp/majed-t129/foreign-',
+    '/tmp/waycraft-t129/foreign-',
   ));
   const foreign = ['subscriptions', 'router'].map((name) =>
     join(home, 'plugins', name, 'auth.json'),
@@ -268,7 +268,7 @@ test('foreign current and router stores remain byte-identical across reads, coll
     await mkdir(join(file, '..'), { recursive: true });
     await writeFile(file, bytes);
   }
-  const own = join(home, 'plugins/majed/subscriptions/auth.json');
+  const own = join(home, 'plugins/waycraft/subscriptions/auth.json');
   const originalFetch = globalThis.fetch;
   let requests = 0;
   globalThis.fetch = async () => {
@@ -311,7 +311,7 @@ test('foreign current and router stores remain byte-identical across reads, coll
 });
 
 test('reference collision is reported without replacing its provider or allowing login', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t129/collision-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t129/collision-');
   const component = host({ collision: true });
   try {
     assert.match(
@@ -330,7 +330,7 @@ test('reference collision is reported without replacing its provider or allowing
 
 // Codex adaptation of reference login.spec.ts finalizing/cancel and auth RPC cases.
 test('auth RPC rejects mismatched state, reports exchange failure, and cancels an exchange already finalizing', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t129/auth-errors-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t129/auth-errors-');
   const component = host();
   const saved = globalThis.fetch;
   let release, seen;
@@ -397,7 +397,7 @@ test('auth RPC rejects mismatched state, reports exchange failure, and cancels a
 });
 
 test('assembled Codex stream refreshes once after 401 and preserves 429 retry/reset metadata', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t129/refresh-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t129/refresh-');
   const store = await import('../dist/auth/store.js');
   await store.saveAccountSession('codex', 'a', {
     accountId: 'a',

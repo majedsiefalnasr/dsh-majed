@@ -1,5 +1,5 @@
 // Adapted from V1ki/dsh-plugin-subscriptions v0.9.12 (b802311) src/client/SubscriptionUsageBadge.tsx, MIT; see src/PROVENANCE.md.
-// Local changes: majed ids/classes, owned RPC helper and locale, lazy host modules, logical (RTL-safe) alignment,
+// Local changes: waycraft ids/classes, owned RPC helper and locale, lazy host modules, logical (RTL-safe) alignment,
 // explicit force:false on automatic usage reads, Codex-only wiring in browser.ts (the pure helpers keep the reference's
 // multi-provider behavior for later components).
 /**
@@ -674,7 +674,7 @@ export function SubscriptionUsageBadge({
       <button
         ref={buttonRef}
         type="button"
-        className="majed-subscription-usage-pill"
+        className="waycraft-subscription-usage-pill"
         style={{ ...styles.pill, ...(hover || open ? styles.pillActive : {}) }}
         aria-haspopup="dialog"
         aria-expanded={open}
@@ -710,7 +710,7 @@ export function SubscriptionUsageBadge({
             ref={tooltipRef}
             id={tooltipId}
             role="tooltip"
-            className="majed-subscription-usage-tooltip"
+            className="waycraft-subscription-usage-tooltip"
             style={{ ...styles.tooltip, ...(tooltipPos ?? MEASURE_STYLE) }}
             onMouseEnter={() => {
               setHover(true);
@@ -753,7 +753,7 @@ export function SubscriptionUsageBadge({
             id={panelId}
             role="dialog"
             aria-label={title}
-            className="majed-subscription-usage-panel"
+            className="waycraft-subscription-usage-panel"
             style={{ ...styles.panel, ...(pos ?? MEASURE_STYLE) }}
           >
             <div style={styles.title}>
@@ -763,7 +763,7 @@ export function SubscriptionUsageBadge({
               </span>
               <button
                 type="button"
-                className="majed-subscription-usage-close"
+                className="waycraft-subscription-usage-close"
                 aria-label={translate('usageBadgeClose')}
                 onClick={close}
               >

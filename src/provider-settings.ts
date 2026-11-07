@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { mkdir, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths';
+import { readableStorePath } from './storage-migration.js';
 import { PROVIDER_IDS, type ProviderId } from './auth/store.js';
 import { mergeIntent } from './preference-merge.js';
 
@@ -234,14 +235,16 @@ export class ProviderSettingsStore {
   constructor(
     path = dshHomePath(
       'plugins',
-      'majed',
+      'waycraft',
       'subscriptions',
       'provider-settings.json',
     ),
   ) {
     this.path = path;
     try {
-      const raw = JSON.parse(readFileSync(path, 'utf8')) as Document;
+      const raw = JSON.parse(
+        readFileSync(readableStorePath(path), 'utf8'),
+      ) as Document;
       if (!raw.providers || !Array.isArray(raw.toolHistory))
         throw new Error('invalid settings document');
       if (raw.zenEnabled !== undefined && typeof raw.zenEnabled !== 'boolean')
@@ -297,6 +300,7 @@ export class ProviderSettingsStore {
       }
       this.current = next;
     });
+    // Safe: `writes` only orders the next write; the caller still receives `run` and its error.
     this.writes = run.catch(() => {});
     return run;
   }
@@ -408,6 +412,7 @@ export class ProviderSettingsStore {
       }
       this.current = next;
     });
+    // Safe: `writes` only orders the next write; the caller still receives `run` and its error.
     this.writes = run.catch(() => undefined);
     return run;
   }

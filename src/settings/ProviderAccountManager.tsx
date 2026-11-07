@@ -189,7 +189,7 @@ export function ProviderAccountManager({
   }
   return (
     <dialog
-      className="majed-subscription-manager"
+      className="waycraft-subscription-manager"
       ref={dialog}
       aria-labelledby={title}
       aria-describedby={description}
@@ -214,12 +214,12 @@ export function ProviderAccountManager({
             {t('imageClose')}
           </button>
         </header>
-        <p id={description} className="majed-subscription-hint">
+        <p id={description} className="waycraft-subscription-hint">
           {t('accountsHint')}
         </p>
         {error && <p role="alert">{error}</p>}
         {loading && (
-          <p role="status" className="majed-subscription-hint">
+          <p role="status" className="waycraft-subscription-hint">
             {t('accountsLoading')}
           </p>
         )}
@@ -250,7 +250,7 @@ export function ProviderAccountManager({
                 />
               </label>
               <div style={{ ...actions, justifyContent: 'space-between' }}>
-                <small className="majed-subscription-hint">
+                <small className="waycraft-subscription-hint">
                   {t('subscriptionDisplayNameHint')}
                 </small>
                 <button
@@ -292,13 +292,13 @@ export function ProviderAccountManager({
                     </option>
                   ))}
                 </select>
-                <small className="majed-subscription-hint">
+                <small className="waycraft-subscription-hint">
                   {t('claudePromptCacheTtlHint')}
                 </small>
               </section>
             )}
             {catalog.accounts.length === 0 && (
-              <p className="majed-subscription-hint">{t('accountsEmpty')}</p>
+              <p className="waycraft-subscription-hint">{t('accountsEmpty')}</p>
             )}
             {catalog.accounts.map((account) => {
               const preferences =
@@ -331,12 +331,12 @@ export function ProviderAccountManager({
                     {account.label}
                   </legend>
                   {account.unavailable && (
-                    <p className="majed-subscription-hint">
+                    <p className="waycraft-subscription-hint">
                       {t('accountsCatalogUnavailable')}
                     </p>
                   )}
                   <label style={{ ...stack, gap: 6 }}>
-                    <span className="majed-subscription-label">
+                    <span className="waycraft-subscription-label">
                       {t('accountsAlias')}
                     </span>
                     <input
@@ -377,7 +377,7 @@ export function ProviderAccountManager({
                     />{' '}
                     {t('accountsIndependent')}
                   </label>
-                  <p className="majed-subscription-hint">
+                  <p className="waycraft-subscription-hint">
                     {t('accountsIndependentHint')}
                   </p>
                   <details>
@@ -390,7 +390,7 @@ export function ProviderAccountManager({
                           })}
                     </summary>
                     <div style={{ ...stack, marginBlockStart: 12 }}>
-                      <p className="majed-subscription-hint">
+                      <p className="waycraft-subscription-hint">
                         {t('accountsModelsHint')}
                       </p>
                       <label>
@@ -465,7 +465,7 @@ export function ProviderAccountManager({
                           </label>
                         ))}
                         {models.length === 0 && (
-                          <p className="majed-subscription-hint">
+                          <p className="waycraft-subscription-hint">
                             {t('accountsNoModels')}
                           </p>
                         )}
@@ -504,7 +504,7 @@ export function ProviderAccountManager({
             </button>
             <button
               type="button"
-              className="majed-subscription-primary"
+              className="waycraft-subscription-primary"
               disabled={
                 loading ||
                 saving ||

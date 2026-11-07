@@ -1,13 +1,14 @@
+import { readFileSync } from 'node:fs';
+import { RpcFailure, rpcErrorKind } from './rpc-errors.js';
+import { VIDEO_FILE_ROUTE, openVideoFile, readVideoFile, streamVideoFile, } from './video-file.js';
+import { fileURLToPath } from 'node:url';
+import { LEGACY_RPC_PREFIX } from './legacy-names.js';
 import { ZenAdapter } from './providers/zen.js';
 import { AntigravityAuthController } from './auth/antigravity-controller.js';
 import { AntigravityAdapter, ANTIGRAVITY_SETUP_REQUIRED, ANTIGRAVITY_PREEMPT_MS, refreshAntigravity, isAntigravityPermanentRefreshError, fetchAntigravityUsage, resolveAntigravityOAuthConfig, } from './providers/antigravity.js';
 import { DeviceFlowManager } from './auth/device-flow.js';
 import { CopilotAuthController } from './auth/copilot-controller.js';
 import { CopilotAdapter, COPILOT_PREEMPT_MS, refreshCopilot, isCopilotPermanentRefreshError, } from './providers/copilot.js';
-/** Owned Codex component composition. Reference v0.9.12: see PROVENANCE.md. */
-import { lstat, open } from 'node:fs/promises';
-import { constants } from 'node:fs';
-import { join } from 'node:path';
 import z from '@deepseek-ai/schemastery';
 import { OAuthFlowManager } from './auth/oauth-flow.js';
 import { CodexAuthController } from './auth/controller.js';
@@ -37,9 +38,19 @@ import { ClaudeCliVersionCache } from './providers/claude-cli-version.js';
 import { DEFAULT_PROMPT_CACHE_TTL, } from './translate/anthropic.js';
 import { GrokAuthController } from './auth/grok-controller.js';
 import { GrokAdapter, GROK_PREEMPT_MS, refreshGrok, isGrokPermanentRefreshError, fetchGrokUsage, } from './providers/grok.js';
-import { createVideoGenerateTool, videosDirectory, } from './tools/video-generate.js';
+import { createVideoGenerateTool } from './tools/video-generate.js';
 import { createXSearchTool } from './tools/x-search.js';
 import { presentedVersion } from './providers/npm-cli-version.js';
+/** Plugin version from the shipped package.json (the status RPC reports it); `unknown` if unreadable. */
+const PLUGIN_VERSION = (() => {
+    try {
+        const parsed = JSON.parse(readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8'));
+        return parsed.version ?? 'unknown';
+    }
+    catch {
+        return 'unknown';
+    }
+})();
 export const name = 'dsh-waycraft/subscriptions';
 export const inject = ['llm'];
 /** Bound on one account's catalog read while assembling pools: a hung account sits out instead of failing the pool. */
@@ -218,19 +229,19 @@ export function apply(ctx, config = {}, options = {}) {
     catch {
         zenRegistrationError = true;
     }
-    ctx.effect(() => () => zen.dispose(), 'dsh-majed: zen disposal');
+    ctx.effect(() => () => zen.dispose(), 'dsh-waycraft: zen disposal');
     const claudeCredsIo = options.claudeCredsIo ?? SYSTEM_CLAUDE_CREDS_IO;
     const claudeIdentity = {
         profile: options.claudeProfile ?? fetchClaudeProfile,
     };
-    void loadModelDefaults().catch(() => ctx.logger.warn('dsh-majed: model defaults unavailable'));
+    void loadModelDefaults().catch(() => ctx.logger.warn('dsh-waycraft: model defaults unavailable'));
     const flows = new OAuthFlowManager();
     const version = new CodexClientVersionCache();
     const health = new PoolHealthRegistry();
     const imagePool = new ImageAccountPool({
         enabled: config.pool?.enabled !== false &&
             (config.pool?.autoAccounts ?? config.pool?.autoFamilies ?? true),
-        onWarn: (message) => ctx.logger.warn(`dsh-majed: ${message}`),
+        onWarn: (message) => ctx.logger.warn(`dsh-waycraft: ${message}`),
     });
     let handle;
     // The raw registration error stays server-side; the browser gets `collisionText()`, built after the stored proxy
@@ -256,10 +267,32 @@ export function apply(ctx, config = {}, options = {}) {
                 : provider === 'claude'
                     ? claudeHandle
                     : handle;
-    // Composer Speed (ticket #131; reference src/index.ts speedBySession/selectedSpeed). Explicit choices are
+    /** Providers whose settings read lists their own models next to the pool tiers (one implementation, data-driven). */
+    const OWN_CATALOG_PROVIDERS = {
+        antigravity: {
+            get adapter() {
+                return antigravityAdapter;
+            },
+            get tokens() {
+                return antigravityTokens;
+            },
+            handle: () => antigravityHandle,
+        },
+        copilot: {
+            get adapter() {
+                return copilotAdapter;
+            },
+            get tokens() {
+                return copilotTokens;
+            },
+            handle: () => copilotHandle,
+        },
+    };
+    // Composer Speed (reference src/index.ts speedBySession/selectedSpeed). Explicit choices are
     // per session and reset on restart. A subagent without an explicit choice uses its saved model default, and
     // every request still gates Fast on the model's discovered capability.
     const speedBySession = new Map();
+    const SPEED_SESSIONS_MAX = 256;
     const selectedSpeed = (sessionId, model) => {
         const explicit = speedBySession.get(sessionId);
         if (explicit !== undefined)
@@ -387,7 +420,7 @@ export function apply(ctx, config = {}, options = {}) {
                 grokHandle?.replace(['grok']);
             }
         },
-        onWarn: (message) => ctx.logger.warn(`dsh-majed: ${message}`),
+        onWarn: (message) => ctx.logger.warn(`dsh-waycraft: ${message}`),
     });
     const antigravityLifecycle = new AbortController();
     const antigravityOAuth = resolveAntigravityOAuthConfig(config.antigravity);
@@ -446,7 +479,7 @@ export function apply(ctx, config = {}, options = {}) {
                 antigravityHandle?.replace(['antigravity']);
             }
         },
-        onWarn: (message) => ctx.logger.warn(`dsh-majed: ${message}`),
+        onWarn: (message) => ctx.logger.warn(`dsh-waycraft: ${message}`),
     });
     const usage = new PoolUsageTracker((provider, account) => provider === 'codex'
         ? () => readUsage(account, AbortSignal.timeout(20_000))
@@ -491,7 +524,7 @@ export function apply(ctx, config = {}, options = {}) {
         },
         resolveAttachments: () => ctx.get('attachments'),
         pool: () => pool,
-        onWarn: (message) => ctx.logger.warn(`dsh-majed: ${message}`),
+        onWarn: (message) => ctx.logger.warn(`dsh-waycraft: ${message}`),
     });
     // Claude adapter (reference v0.9.12 `case 'claude'`). Registered under the shared provider id `claude` (ADR-0002);
     // a reference Claude registration already present makes this one fail, and the component reports it.
@@ -547,7 +580,7 @@ export function apply(ctx, config = {}, options = {}) {
         pool: () => pool,
         promptCacheTtl: config.claudePromptCacheTtl ?? DEFAULT_PROMPT_CACHE_TTL,
         promptCacheTtlOverride: () => preferences.promptCacheTtl(),
-        onWarn: (message) => ctx.logger.warn(`dsh-majed: ${message}`),
+        onWarn: (message) => ctx.logger.warn(`dsh-waycraft: ${message}`),
     });
     let copilotHandle;
     let copilotCollision = false;
@@ -601,7 +634,7 @@ export function apply(ctx, config = {}, options = {}) {
                 copilotHandle?.replace(['copilot']);
             }
         },
-        onWarn: (message) => ctx.logger.warn(`dsh-majed: ${message}`),
+        onWarn: (message) => ctx.logger.warn(`dsh-waycraft: ${message}`),
     });
     const presentedCopilot = new AccountPreferencesAdapter({
         provider: 'copilot',
@@ -733,13 +766,13 @@ export function apply(ctx, config = {}, options = {}) {
                     continue;
                 const kept = members.filter((member) => member.provider === owner);
                 if (kept.length < members.length)
-                    ctx.logger.warn(`dsh-majed: pool "${id}": cross-provider members are ignored; only ${owner} accounts are pooled`);
+                    ctx.logger.warn(`dsh-waycraft: pool "${id}": cross-provider members are ignored; only ${owner} accounts are pooled`);
                 families.set(poolKey(owner, id), { members: kept });
             }
             return families;
         },
         tiers: config.pool?.enabled === false ? {} : (config.pool?.tiers ?? {}),
-        onWarn: (message) => ctx.logger.warn(`dsh-majed: ${message}`),
+        onWarn: (message) => ctx.logger.warn(`dsh-waycraft: ${message}`),
     });
     try {
         handle = ctx.llm.registerAdapter(['codex'], presented);
@@ -758,23 +791,28 @@ export function apply(ctx, config = {}, options = {}) {
     try {
         grokHandle = ctx.llm.registerAdapter(['grok'], presentedGrok);
     }
-    catch {
+    catch (error) {
+        ctx.logger.warn(`dsh-waycraft: grok registration failed (${error?.code ?? error?.name ?? 'unknown'})`);
         grokCollision = 'Grok registration is unavailable';
     }
     try {
         copilotHandle = ctx.llm.registerAdapter(['copilot'], presentedCopilot);
     }
-    catch {
+    catch (error) {
+        ctx.logger.warn(`dsh-waycraft: copilot registration failed (${error?.code ?? error?.name ?? 'unknown'})`);
         copilotCollision = true;
     }
     try {
         antigravityHandle = ctx.llm.registerAdapter(['antigravity'], presentedAntigravity);
     }
-    catch {
+    catch (error) {
+        ctx.logger.warn(`dsh-waycraft: antigravity registration failed (${error?.code ?? error?.name ?? 'unknown'})`);
         antigravityCollision = true;
     }
     ctx.effect(() => () => {
         disposed = true;
+        stopWebSearch?.();
+        stopWebSearch = undefined;
         antigravityAuth.dispose();
         antigravityLifecycle.abort();
         grokAuth.dispose();
@@ -783,8 +821,9 @@ export function apply(ctx, config = {}, options = {}) {
         claudeLifecycle.abort();
         auth.dispose();
         claudeAuth.dispose();
-        void disposeProxyTransport();
-    }, 'dsh-majed: subscriptions auth disposal');
+        // Transport teardown is async; a failure must be logged, not become an unhandled rejection.
+        return disposeProxyTransport().catch((error) => ctx.logger.warn(`dsh-waycraft: proxy transport disposal failed (${error?.code ?? error?.name ?? 'unknown'})`));
+    }, 'dsh-waycraft: subscriptions auth disposal');
     // Keep keychain-bound Claude accounts synced with Claude Code's own store (reference `claude background sync timer`).
     // One interval, bounded: each tick reads the account list and refreshes only bound sessions, errors are swallowed
     // (TokenManager already reports permanent failures), and dispose clears the timer.
@@ -810,36 +849,38 @@ export function apply(ctx, config = {}, options = {}) {
         return () => {
             clearInterval(syncTimer);
         };
-    }, 'dsh-majed: claude background sync timer');
+    }, 'dsh-waycraft: claude background sync timer');
     if (handle)
         ctx.effect(() => startCatalogRefresh(async (signal) => {
             if ((await tokens.list()).length && !signal.aborted)
                 await adapter.listOwnModels('codex', undefined, signal);
-        }, () => ctx.logger.warn('dsh-majed: Codex catalog refresh failed')), 'dsh-majed: subscriptions catalog refresh');
+        }, () => ctx.logger.warn('dsh-waycraft: Codex catalog refresh failed')), 'dsh-waycraft: subscriptions catalog refresh');
     if (copilotHandle)
         ctx.effect(() => startCatalogRefresh(async (signal) => {
             if ((await copilotTokens.list()).length && !signal.aborted)
                 await copilotAdapter.listOwnModels('copilot', undefined, signal);
-        }, () => ctx.logger.warn('dsh-majed: Copilot catalog refresh failed')), 'dsh-majed: copilot catalog refresh');
+        }, () => ctx.logger.warn('dsh-waycraft: Copilot catalog refresh failed')), 'dsh-waycraft: copilot catalog refresh');
     if (claudeHandle)
         ctx.effect(() => startCatalogRefresh(async (signal) => {
             if ((await claudeTokens.list()).length && !signal.aborted)
                 await claudeAdapter.listOwnModels('claude', undefined, signal);
-        }, () => ctx.logger.warn('dsh-majed: Claude catalog refresh failed')), 'dsh-majed: claude catalog refresh');
+        }, () => ctx.logger.warn('dsh-waycraft: Claude catalog refresh failed')), 'dsh-waycraft: claude catalog refresh');
     if (antigravityHandle && antigravityOAuth)
         ctx.effect(() => startCatalogRefresh(async (signal) => {
             if ((await antigravityTokens.list()).length && !signal.aborted)
                 await antigravityAdapter.listOwnModels('antigravity', undefined, signal);
-        }, () => ctx.logger.warn('dsh-majed: Antigravity catalog refresh failed')), 'dsh-majed: antigravity catalog refresh');
+        }, () => ctx.logger.warn('dsh-waycraft: Antigravity catalog refresh failed')), 'dsh-waycraft: antigravity catalog refresh');
     if (grokHandle)
         ctx.effect(() => startCatalogRefresh(async (signal) => {
             if ((await grokTokens.list()).length && !signal.aborted)
                 await grokAdapter.listOwnModels('grok', undefined, signal);
-        }, () => ctx.logger.warn('dsh-majed: Grok catalog refresh failed')), 'dsh-majed: grok catalog refresh');
+        }, () => ctx.logger.warn('dsh-waycraft: Grok catalog refresh failed')), 'dsh-waycraft: grok catalog refresh');
     // `web` is optional on headless/minimal compositions. The Codex switch gates this provider's
     // `available()` rather than the host's web_search tool, so other providers keep working.
+    let stopWebSearch;
     ctx.inject(['web'], (webCtx) => {
-        webCtx.web.registerSearchProvider(new CodexWebSearchProvider({
+        stopWebSearch?.();
+        stopWebSearch = webCtx.web.registerSearchProvider(new CodexWebSearchProvider({
             tokens,
             enabled: () => preferences.toolEnabled('codex', 'web_search'),
             fetchFn: proxiedFetch,
@@ -858,14 +899,14 @@ export function apply(ctx, config = {}, options = {}) {
             providerEnabled: (provider, createdAt) => preferences.toolEnabled(provider, 'image_generate', createdAt),
         }), (message) => ctx.logger.warn(message));
         if (result !== undefined)
-            registeredNames.set('image_generate', result.name);
+            registeredNames.set('image_generate', result.names);
         for (const tool of [
             createVideoGenerateTool({ tokens: grokTokens }),
             createXSearchTool({ tokens: grokTokens }),
         ]) {
             const entry = registerWithAlias(toolsCtx.tools, tool, (message) => ctx.logger.warn(message));
             if (entry)
-                registeredNames.set(tool.name, entry.name);
+                registeredNames.set(tool.name, entry.names);
         }
         toolsCtx.on('agent/created', ({ agent }) => {
             const at = agent.session.header.createdAt;
@@ -874,11 +915,11 @@ export function apply(ctx, config = {}, options = {}) {
             if (registered !== undefined &&
                 !preferences.toolEnabled('codex', 'image_generate', at) &&
                 !preferences.toolEnabled('grok', 'image_generate', at))
-                deny.push(registered);
+                deny.push(...registered);
             for (const name of ['video_generate', 'x_search']) {
                 const actual = registeredNames.get(name);
                 if (actual && !preferences.toolEnabled('grok', name, at))
-                    deny.push(actual);
+                    deny.push(...actual);
             }
             if (deny.length)
                 agent.ctx.tools.restrict({ deny });
@@ -946,8 +987,8 @@ export function apply(ctx, config = {}, options = {}) {
             'speed',
             'setSpeed',
         ];
-        for (const endpoint of endpoints) {
-            const NS = 'majed-subscriptions.';
+        // The new prefix plus the deprecated legacy prefix (one release) for stale browser clients.
+        for (const [endpoint, NS] of endpoints.flatMap((e) => ['waycraft-subscriptions.', LEGACY_RPC_PREFIX].map((p) => [e, p]))) {
             const method = `${NS}${endpoint}`;
             ctx.effect(() => connection.fetch.register({
                 path: `/api/${method}`,
@@ -977,14 +1018,14 @@ export function apply(ctx, config = {}, options = {}) {
                     const string = (key) => {
                         const value = payload[key];
                         if (typeof value !== 'string' || !value)
-                            throw new Error(`payload.${key} must be a non-empty string`);
+                            throw new RpcFailure('invalid-request', `payload.${key} must be a non-empty string`);
                         return value;
                     };
                     let result;
                     const releases = [];
                     try {
                         if (disposed)
-                            throw new Error('Subscriptions component is disabled');
+                            throw new RpcFailure('unavailable', 'Subscriptions component is disabled');
                         // Claude is served by the endpoints in CLAUDE_ENDPOINTS; every other provider stays unavailable.
                         const provider = endpoint === 'status'
                             ? 'codex'
@@ -1025,45 +1066,12 @@ export function apply(ctx, config = {}, options = {}) {
                                 break;
                             }
                             case 'video': {
-                                const file = string('name');
-                                if (!/^video-[a-zA-Z0-9_-]+\.mp4$/.test(file))
-                                    throw new Error('Invalid video name');
-                                const directory = videosDirectory();
-                                const directoryStat = await lstat(directory);
-                                if (!directoryStat.isDirectory() ||
-                                    (process.getuid && directoryStat.uid !== process.getuid()))
-                                    throw new Error('Invalid video directory');
-                                const handle = await open(join(directory, file), constants.O_RDONLY | constants.O_NOFOLLOW);
-                                try {
-                                    const stat = await handle.stat();
-                                    if (!stat.isFile() ||
-                                        (process.getuid && stat.uid !== process.getuid()) ||
-                                        stat.size > 100 * 1024 * 1024)
-                                        throw new Error('Invalid video file');
-                                    // Read only the admitted size: a concurrently growing file cannot cause an unbounded allocation.
-                                    const data = Buffer.alloc(stat.size);
-                                    let offset = 0;
-                                    while (offset < data.length) {
-                                        request.signal.throwIfAborted();
-                                        const { bytesRead } = await handle.read(data, offset, data.length - offset, offset);
-                                        if (!bytesRead)
-                                            throw new Error('Video file changed during read');
-                                        offset += bytesRead;
-                                    }
-                                    request.signal.throwIfAborted();
-                                    if ((await handle.stat()).size !== stat.size)
-                                        throw new Error('Video file changed during read');
-                                    if (data.length < 8 ||
-                                        data.toString('ascii', 4, 8) !== 'ftyp')
-                                        throw new Error('Invalid MP4 file');
-                                    value = {
-                                        mediaType: 'video/mp4',
-                                        dataBase64: data.toString('base64'),
-                                    };
-                                }
-                                finally {
-                                    await handle.close();
-                                }
+                                // Deprecated: base64 inside JSON. The binary GET `video-file` route replaces it.
+                                const data = await readVideoFile(string('name'), request.signal);
+                                value = {
+                                    mediaType: 'video/mp4',
+                                    dataBase64: data.toString('base64'),
+                                };
                                 break;
                             }
                             case 'status': {
@@ -1082,10 +1090,12 @@ export function apply(ctx, config = {}, options = {}) {
                                     .list()
                                     .catch(() => []);
                                 const grokState = await grokAuth.status();
+                                const antigravityState = await antigravityAuth.status();
+                                const copilotState = await copilotAuth.status();
                                 value = {
                                     ok: true,
                                     component: 'subscriptions',
-                                    version: '0.2.0',
+                                    version: PLUGIN_VERSION,
                                     registrationError: collision === undefined
                                         ? undefined
                                         : await collisionText(),
@@ -1099,10 +1109,10 @@ export function apply(ctx, config = {}, options = {}) {
                                             registrationError: zenRegistrationError,
                                         },
                                         antigravity: {
-                                            ...(await antigravityAuth.status()),
+                                            ...antigravityState,
                                             visibleModels: preferences.get('antigravity').visibleModels,
                                             displayName: preferences.get('antigravity').displayName,
-                                            accounts: (await antigravityAuth.status()).accounts.map((account) => ({
+                                            accounts: antigravityState.accounts.map((account) => ({
                                                 ...account,
                                                 alias: ownAlias('antigravity', account.key),
                                             })),
@@ -1116,8 +1126,8 @@ export function apply(ctx, config = {}, options = {}) {
                                             })),
                                         },
                                         copilot: {
-                                            ...(await copilotAuth.status()),
-                                            accounts: (await copilotAuth.status()).accounts.map((account) => ({
+                                            ...copilotState,
+                                            accounts: copilotState.accounts.map((account) => ({
                                                 ...account,
                                                 alias: ownAlias('copilot', account.key),
                                             })),
@@ -1219,69 +1229,39 @@ export function apply(ctx, config = {}, options = {}) {
                                 releases.push(budget.release);
                                 const deadline = budget.signal;
                                 await loadModelDefaults();
-                                if (provider === 'antigravity') {
+                                const own = provider === 'antigravity' || provider === 'copilot'
+                                    ? OWN_CATALOG_PROVIDERS[provider]
+                                    : undefined;
+                                if (own) {
                                     if (force) {
-                                        antigravityAdapter.clearAccountCatalog();
+                                        own.adapter.clearAccountCatalog();
                                         pool.invalidate();
-                                        antigravityHandle?.replace(['antigravity']);
+                                        own.handle()?.replace([provider]);
                                     }
-                                    const accounts = await readAccountCatalogsFor(antigravityAdapter, antigravityTokens, !force, deadline, 'antigravity');
-                                    const listed = await withTimeout((signal) => antigravityAdapter.listOwnModels('antigravity', undefined, signal, !force), DISCOVERY_TIMEOUT_MS, deadline);
-                                    const tiers = await withTimeout(() => pool.modelsForProvider('antigravity'), DISCOVERY_TIMEOUT_MS, deadline);
+                                    const accounts = await readAccountCatalogsFor(own.adapter, own.tokens, !force, deadline, provider);
+                                    const listed = await withTimeout((signal) => own.adapter.listOwnModels(provider, undefined, signal, !force), DISCOVERY_TIMEOUT_MS, deadline);
+                                    const tiers = await withTimeout(() => pool.modelsForProvider(provider), DISCOVERY_TIMEOUT_MS, deadline);
                                     const tierIds = new Set((tiers ?? []).map((tier) => tier.id));
                                     const models = await Promise.all([
                                         ...(listed ?? []),
                                         ...(tiers ?? []).filter((tier) => !(listed ?? []).some((model) => model.id === tier.id)),
                                     ].map(async (model) => {
-                                        const info = await withTimeout((signal) => antigravityAdapter.resolveModel('antigravity', model.id, signal), DISCOVERY_TIMEOUT_MS, deadline);
+                                        const info = await withTimeout((signal) => own.adapter.resolveModel(provider, model.id, signal), DISCOVERY_TIMEOUT_MS, deadline);
                                         return {
                                             ...model,
                                             contextWindow: info?.context?.contextWindow,
                                             efforts: tierIds.has(model.id)
                                                 ? []
                                                 : (info?.reasoning?.efforts ?? []),
-                                            configured: defaultEffortOf('antigravity', model.id),
+                                            configured: defaultEffortOf(provider, model.id),
                                         };
                                     }));
                                     value = {
-                                        provider: 'antigravity',
-                                        settings: preferences.get('antigravity'),
+                                        provider,
+                                        settings: preferences.get(provider),
                                         accounts,
                                         models,
-                                        tools: PROVIDER_TOOLS.antigravity,
-                                    };
-                                    break;
-                                }
-                                if (provider === 'copilot') {
-                                    if (force) {
-                                        copilotAdapter.clearAccountCatalog();
-                                        pool.invalidate();
-                                        copilotHandle?.replace(['copilot']);
-                                    }
-                                    const accounts = await readAccountCatalogsFor(copilotAdapter, copilotTokens, !force, deadline, 'copilot');
-                                    const listed = await withTimeout((signal) => copilotAdapter.listOwnModels('copilot', undefined, signal, !force), DISCOVERY_TIMEOUT_MS, deadline);
-                                    const tiers = await withTimeout(() => pool.modelsForProvider('copilot'), DISCOVERY_TIMEOUT_MS, deadline);
-                                    const tierIds = new Set((tiers ?? []).map((tier) => tier.id));
-                                    const models = await Promise.all([
-                                        ...(listed ?? []),
-                                        ...(tiers ?? []).filter((tier) => !(listed ?? []).some((model) => model.id === tier.id)),
-                                    ].map(async (model) => {
-                                        const info = await withTimeout((signal) => copilotAdapter.resolveModel('copilot', model.id, signal), DISCOVERY_TIMEOUT_MS, deadline);
-                                        return {
-                                            ...model,
-                                            contextWindow: info?.context?.contextWindow,
-                                            efforts: tierIds.has(model.id)
-                                                ? []
-                                                : (info?.reasoning?.efforts ?? []),
-                                            configured: defaultEffortOf('copilot', model.id),
-                                        };
-                                    }));
-                                    value = {
-                                        provider: 'copilot',
-                                        settings: preferences.get('copilot'),
-                                        accounts,
-                                        models,
-                                        tools: PROVIDER_TOOLS.copilot,
+                                        tools: PROVIDER_TOOLS[provider],
                                     };
                                     break;
                                 }
@@ -1631,7 +1611,15 @@ export function apply(ctx, config = {}, options = {}) {
                             }
                             case 'setSpeed': {
                                 // An explicit Standard is kept as well, so a child can override a saved Fast default.
+                                // Re-insert so the Map keeps recency order, then drop the oldest beyond the cap.
+                                speedBySession.delete(string('sessionId'));
                                 speedBySession.set(string('sessionId'), readSpeedTier(payload));
+                                while (speedBySession.size > SPEED_SESSIONS_MAX) {
+                                    const oldest = speedBySession.keys().next().value;
+                                    if (oldest === undefined)
+                                        break;
+                                    speedBySession.delete(oldest);
+                                }
                                 break;
                             }
                             case 'prepareReset':
@@ -1653,7 +1641,9 @@ export function apply(ctx, config = {}, options = {}) {
                         result = {
                             ok: false,
                             error: {
+                                // `code` is the legacy constant clients may read; `kind` is the stable classification.
                                 code: 'subscriptions/error',
+                                kind: rpcErrorKind(error),
                                 message: error instanceof OAuthEndpointError
                                     ? browserSafeError(error, 'upstream')
                                     : safeDiagnostic(error, [
@@ -1677,7 +1667,27 @@ export function apply(ctx, config = {}, options = {}) {
                         result,
                     });
                 },
-            }), `dsh-majed: ${method} route`);
+            }), `dsh-waycraft: ${method} route`);
         }
+        // Binary video: same owner-only gate as the JSON routes (the host answers 403 to
+        // anyone else), same name/ownership/size checks, streamed instead of base64-in-JSON.
+        ctx.effect(() => connection.fetch.register({
+            path: `/api/${VIDEO_FILE_ROUTE}`,
+            methods: ['GET'],
+            requestBody: 'buffered',
+            async fetch(request) {
+                const name = new URL(request.url).searchParams.get('name') ?? '';
+                try {
+                    const { handle, size } = await openVideoFile(name);
+                    return streamVideoFile(handle, size, request.signal);
+                }
+                catch (error) {
+                    const missing = error?.code === 'ENOENT';
+                    return new Response(missing ? 'not found' : 'invalid video', {
+                        status: missing ? 404 : 400,
+                    });
+                }
+            },
+        }), `dsh-waycraft: ${VIDEO_FILE_ROUTE} route`);
     });
 }

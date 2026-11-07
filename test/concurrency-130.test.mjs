@@ -1,4 +1,4 @@
-// Ticket #130 P2 concurrency proof: stale or concurrent writers must not erase each other's changes.
+// P2 concurrency proof: stale or concurrent writers must not erase each other's changes.
 // Real stores on a temp DSH_HOME, no network. Two "clients" load the same baseline and save concurrently.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -13,7 +13,7 @@ import {
 import { apply } from '../dist/subscriptions.js';
 
 async function store() {
-  const dir = await mkdtemp('/tmp/majed-t130/concurrency-');
+  const dir = await mkdtemp('/tmp/waycraft-t130/concurrency-');
   return new ProviderSettingsStore(`${dir}/provider-settings.json`);
 }
 const BASE = {
@@ -131,7 +131,7 @@ test('proxySet: concurrent password-only and bypass-only saves never lose the cr
   for (const order of ['password-first', 'bypass-first']) {
     await resetProxyForTests();
     process.env.DSH_HOME = await mkdtemp(
-      `/tmp/majed-t130/proxy-writes-${order}-`,
+      `/tmp/waycraft-t130/proxy-writes-${order}-`,
     );
     await proxySetConfig({
       enabled: true,
@@ -172,7 +172,7 @@ test('proxySet: concurrent password-only and bypass-only saves never lose the cr
 
 test('proxySet: a rejected write does not poison the queue and a clear is not resurrected by a later omitted-password save', async () => {
   await resetProxyForTests();
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t130/proxy-queue-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t130/proxy-queue-');
   await proxySetConfig({
     enabled: true,
     url: 'http://127.0.0.1:9',
@@ -205,7 +205,7 @@ test('proxySet: a rejected write does not poison the queue and a clear is not re
 });
 
 test('setProviderSettings RPC with `original` patches atomically; without it the whole document is replaced', async () => {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-t130/rpc-patch-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-t130/rpc-patch-');
   const routes = new Map(),
     cleanups = [];
   const ctx = {
@@ -235,7 +235,7 @@ test('setProviderSettings RPC with `original` patches atomically; without it the
     models: { codex: [{ id: 'm1', name: 'M1' }] },
   });
   const call = async (endpoint, payload) => {
-    const method = `majed-subscriptions.${endpoint}`;
+    const method = `waycraft-subscriptions.${endpoint}`;
     return (
       await (
         await routes.get(`/api/${method}`).fetch(

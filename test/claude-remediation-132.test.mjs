@@ -1,4 +1,4 @@
-// Ticket #132 remediation: registered-adapter presentation and pooling, binding survival, account-switch safety, disposal.
+// remediation: registered-adapter presentation and pooling, binding survival, account-switch safety, disposal.
 // Every credential, token and HTTP exchange below is a fixture. Nothing touches the real Keychain, ~/.claude or Anthropic.
 import { test, mock } from 'node:test';
 import assert from 'node:assert/strict';
@@ -31,8 +31,24 @@ const until = async (condition, label) => {
   }
   assert.fail(`timed out waiting for ${label}`);
 };
+// Absence checks need a quiet window: wait until the observed value stops changing for `turns` polls (bounded).
+const quiet = async (read, turns = 15) => {
+  let last = read();
+  let stable = 0;
+  for (let i = 0; i < 300 && stable < turns; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    const now = read();
+    if (now === last) stable++;
+    else {
+      stable = 0;
+      last = now;
+    }
+  }
+};
 const home = async (name) => {
-  process.env.DSH_HOME = await mkdtemp(join(tmpdir(), `majed-t132-${name}-`));
+  process.env.DSH_HOME = await mkdtemp(
+    join(tmpdir(), `waycraft-t132-${name}-`),
+  );
   return process.env.DSH_HOME;
 };
 
@@ -108,7 +124,7 @@ function host({ io, config = {} }) {
   return {
     adapters,
     async call(endpoint, payload = {}) {
-      const method = `majed-subscriptions.${endpoint}`;
+      const method = `waycraft-subscriptions.${endpoint}`;
       const response = await routes.get(`/api/${method}`).fetch(
         new Request(`http://localhost/api/${method}`, {
           method: 'POST',
@@ -502,7 +518,7 @@ test('P2-4: disposing while the account list is pending does no credential read,
   try {
     mock.timers.tick(CLAUDE_KEYCHAIN_SYNC_MS);
     component.dispose(); // the list read from disk is still in flight
-    await new Promise((resolve) => setTimeout(resolve, 150));
+    await quiet(() => `${state.reads}|${state.writes.length}|${urls.length}`);
     await settle();
     assert.equal(
       state.reads,
@@ -556,7 +572,7 @@ test('P2-4: disposing during an in-flight refresh aborts the request and neither
       'the refresh request carries the lifecycle signal, now aborted',
     );
     release();
-    await new Promise((resolve) => setTimeout(resolve, 150));
+    await quiet(() => `${state.writes.length}|${calls.length}`);
     await settle();
     assert.deepEqual(state.writes, [], 'no write-back after disposal');
     assert.equal(
@@ -582,7 +598,7 @@ test('writeFileRaw refuses to write through a symlink at the credentials path an
   const { symlink, writeFile, readFile, stat } = await import(
     'node:fs/promises'
   );
-  const dir = await mkdtemp(join(tmpdir(), 'majed-t132-symlink-'));
+  const dir = await mkdtemp(join(tmpdir(), 'waycraft-t132-symlink-'));
   const saved = process.env.CLAUDE_CONFIG_DIR;
   process.env.CLAUDE_CONFIG_DIR = dir;
   try {

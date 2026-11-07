@@ -1,5 +1,5 @@
 /**
- * Host half of dsh-majed. Serves the bundled, OFL-licensed UI fonts (fonts/*.woff2) to the browser through
+ * Host half of dsh-waycraft. Serves the bundled, OFL-licensed UI fonts (fonts/*.woff2) to the browser through
  * the host web server, so the font picker works offline, on the desktop app and on paired phones alike.
  * Everything else lives in the Client module (client.js).
  */
@@ -7,7 +7,9 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 
-const FONT_ROUTE = '/plugins/dsh-majed/fonts';
+const FONT_ROUTE = '/plugins/dsh-waycraft/fonts';
+/** Deprecated route (one release): pages cached before the rename. */
+const LEGACY_FONT_ROUTE = '/plugins/dsh-majed/fonts';
 /** Flat file names only: no slashes or traversal, woff2 + the manifest. */
 const FILE_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*\.woff2$/;
 
@@ -25,12 +27,15 @@ async function serveFont(req, res) {
     res.end();
     return;
   }
-  if (!pathname.startsWith(`${FONT_ROUTE}/`)) {
+  const route = [FONT_ROUTE, LEGACY_FONT_ROUTE].find((prefix) =>
+    pathname.startsWith(`${prefix}/`),
+  );
+  if (route === undefined) {
     res.writeHead(404);
     res.end();
     return;
   }
-  const file = pathname.slice(FONT_ROUTE.length + 1);
+  const file = pathname.slice(route.length + 1);
   if (!FILE_RE.test(file)) {
     res.writeHead(404);
     res.end();
@@ -54,14 +59,13 @@ async function serveFont(req, res) {
 export function apply(ctx) {
   ctx.inject(['webServer'], (webCtx) => {
     const webServer = webCtx.reflect.get('webServer');
-    webCtx.effect(
-      () =>
-        webServer.register({
-          kind: 'prefix',
-          path: FONT_ROUTE,
-          handler: serveFont,
-        }),
-      'dsh-majed: font route',
-    );
+    webCtx.effect(() => {
+      const offs = [FONT_ROUTE, LEGACY_FONT_ROUTE].map((path) =>
+        webServer.register({ kind: 'prefix', path, handler: serveFont }),
+      );
+      return () => {
+        for (const off of offs) off?.();
+      };
+    }, 'dsh-waycraft: font route');
   });
 }

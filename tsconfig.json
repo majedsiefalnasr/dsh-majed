@@ -12,6 +12,7 @@
   },
   "include": [
     "src/subscriptions.ts",
+    "src/skills.ts",
     "src/auth/**/*.ts",
     "src/providers/**/*.ts",
     "src/translate/**/*.ts",

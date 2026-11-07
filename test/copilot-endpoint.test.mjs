@@ -1,4 +1,4 @@
-// #134 account-specific HTTP differential; no provider traffic.
+// account-specific HTTP differential; no provider traffic.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { CopilotAdapter } from '../dist/providers/copilot.js';

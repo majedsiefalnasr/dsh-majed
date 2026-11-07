@@ -1,4 +1,4 @@
-// #138: registered UI -> actual host routes/controllers -> dummy HTTP/credential IO.
+// registered UI -> actual host routes/controllers -> dummy HTTP/credential IO.
 // No status revision is fabricated; the real controller must persist each admission.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -22,7 +22,7 @@ const jwt = (claims) =>
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 async function fixture(provider) {
-  process.env.DSH_HOME = await mkdtemp('/tmp/majed-ui-host-138-');
+  process.env.DSH_HOME = await mkdtemp('/tmp/waycraft-ui-host-138-');
   const routes = new Map(),
     cleanups = [],
     calls = [],
@@ -185,7 +185,7 @@ async function fixture(provider) {
     state: { subscribe: () => () => {}, getSnapshot: () => 'connected' },
   };
   let api;
-  vm.runInNewContext(code + '\nresult(majedSubscriptionsFactory);', {
+  vm.runInNewContext(code + '\nresult(waycraftSubscriptionsFactory);', {
     result: (factory) => {
       api = factory((id) =>
         id === 'react'
@@ -261,7 +261,9 @@ async function fixture(provider) {
   };
   api.applySubscriptions(ctx);
   const status = async () =>
-    (await rpc('api', 'majed-subscriptions.status')).value.providers[provider];
+    (await rpc('api', 'waycraft-subscriptions.status')).value.providers[
+      provider
+    ];
   async function until(predicate, label) {
     for (let i = 0; i < 150; i++) {
       if (await predicate()) return;
@@ -269,9 +271,9 @@ async function fixture(provider) {
     }
     assert.fail(label);
   }
-  await until(() => live.has('majed-subscriptions'), 'section registration');
+  await until(() => live.has('waycraft-subscriptions'), 'section registration');
   await act(async () => {
-    renderer = create(React.createElement(live.get('majed-subscriptions')), {
+    renderer = create(React.createElement(live.get('waycraft-subscriptions')), {
       createNodeMock: (node) =>
         node.type === 'button'
           ? {
@@ -305,7 +307,8 @@ async function fixture(provider) {
   const group = () =>
     renderer.root.findAll(
       (n) =>
-        n.type === 'li' && n.props['data-majed-subscription-row'] === provider,
+        n.type === 'li' &&
+        n.props['data-waycraft-subscription-row'] === provider,
     );
   return {
     calls,

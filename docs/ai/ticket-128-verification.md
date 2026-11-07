@@ -1,5 +1,7 @@
 # Ticket #128 verification
 
+> Historical names: this evidence predates the #159 rename; `majed*` identifiers below are the retired names of the current `waycraft*` ones (see `rename-waycraft.md`).
+
 Date: 2026-10-29. Agent evidence is controlled fixture/static only; no real DSH execution, installation, switch, restart or account access performed by the agent. Owner live findings are attributed separately below.
 
 ## Work contract

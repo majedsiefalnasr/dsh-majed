@@ -1,4 +1,4 @@
-// Owned render-error containment for the composer surfaces (ticket #131 hardening). A render failure inside the
+// Owned render-error containment for the composer surfaces. A render failure inside the
 // usage badge, Speed control or display setting (for example a host primitive that changed or vanished) removes only
 // that surface instead of relying on the host slot boundary. Fresh code; not ported from the reference.
 type ReactLike = { Component: any; createElement: (...args: any[]) => any };
@@ -16,7 +16,7 @@ export function guarded<P>(
       return { failed: true };
     }
     componentDidCatch(error: unknown) {
-      report(`dsh-majed: ${label} failed to render`, error);
+      report(`dsh-waycraft: ${label} failed to render`, error);
     }
     render() {
       return (this.state as { failed: boolean }).failed

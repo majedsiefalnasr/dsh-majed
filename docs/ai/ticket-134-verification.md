@@ -1,5 +1,7 @@
 # Ticket #134 verification — GitHub Copilot
 
+> Historical names: this evidence predates the #159 rename; `majed*` identifiers below are the retired names of the current `waycraft*` ones (see `rename-waycraft.md`).
+
 ## Final P2 lifecycle remediation from 33f6b78
 
 Contract: directly approved bounded surgical-patch/TDD at existing provider/controller seams. Exact checkout `/Users/majedsiefalnasr/Documents/Work/DeepSeek Harness/dsh-majed-t134`, clean `33f6b78` verified. Direct execution, no nested agents, installed state, secrets, Keychain, real provider calls, sibling writes, merge or push. Stop at local candidate; independent Lead review remains required.

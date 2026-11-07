@@ -1,4 +1,4 @@
-// Ticket #131 hardening: a render failure is contained by the owned boundary instead of relying on the host.
+// hardening: a render failure is contained by the owned boundary instead of relying on the host.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import ts from 'typescript';
@@ -59,7 +59,7 @@ test('a throwing component renders nothing, is reported once with its label, and
       true,
     );
     assert.deepEqual(reports, [
-      ['dsh-majed: usage badge failed to render', 'primitive vanished'],
+      ['dsh-waycraft: usage badge failed to render', 'primitive vanished'],
     ]);
     act(() => renderer.unmount());
   } finally {

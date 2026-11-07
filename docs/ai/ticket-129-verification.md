@@ -1,5 +1,7 @@
 # Ticket #129 verification
 
+> Historical names: this evidence predates the #159 rename; `majed*` identifiers below are the retired names of the current `waycraft*` ones (see `rename-waycraft.md`).
+
 ## Login-navigation correction (2026-10-30)
 
 Baseline `eeb7657689ff31451affaf0ef7c3d58a32a4d085`, branch `impl/129-codex`. Direct Owner request is the bounded specification: fix only automatic login navigation, not OAuth/backend behavior or later tickets. The Owner reports successful real login with failed automatic page opening; that observation is supplied evidence, not a live test performed here.
