@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { LEGACY_RPC_PREFIX } from './legacy-names.js';
 import { legacyMediaDirectory } from './storage-migration.js';
 import { ZenAdapter } from './providers/zen.js';
@@ -42,6 +44,16 @@ import { GrokAdapter, GROK_PREEMPT_MS, refreshGrok, isGrokPermanentRefreshError,
 import { createVideoGenerateTool, videosDirectory, } from './tools/video-generate.js';
 import { createXSearchTool } from './tools/x-search.js';
 import { presentedVersion } from './providers/npm-cli-version.js';
+/** Plugin version from the shipped package.json (the status RPC reports it); `unknown` if unreadable. */
+const PLUGIN_VERSION = (() => {
+    try {
+        const parsed = JSON.parse(readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8'));
+        return parsed.version ?? 'unknown';
+    }
+    catch {
+        return 'unknown';
+    }
+})();
 export const name = 'dsh-waycraft/subscriptions';
 export const inject = ['llm'];
 /** Bound on one account's catalog read while assembling pools: a hung account sits out instead of failing the pool. */
@@ -258,10 +270,11 @@ export function apply(ctx, config = {}, options = {}) {
                 : provider === 'claude'
                     ? claudeHandle
                     : handle;
-    // Composer Speed (ticket #131; reference src/index.ts speedBySession/selectedSpeed). Explicit choices are
+    // Composer Speed (reference src/index.ts speedBySession/selectedSpeed). Explicit choices are
     // per session and reset on restart. A subagent without an explicit choice uses its saved model default, and
     // every request still gates Fast on the model's discovered capability.
     const speedBySession = new Map();
+    const SPEED_SESSIONS_MAX = 256;
     const selectedSpeed = (sessionId, model) => {
         const explicit = speedBySession.get(sessionId);
         if (explicit !== undefined)
@@ -760,23 +773,28 @@ export function apply(ctx, config = {}, options = {}) {
     try {
         grokHandle = ctx.llm.registerAdapter(['grok'], presentedGrok);
     }
-    catch {
+    catch (error) {
+        ctx.logger.warn(`dsh-waycraft: grok registration failed (${error?.code ?? error?.name ?? 'unknown'})`);
         grokCollision = 'Grok registration is unavailable';
     }
     try {
         copilotHandle = ctx.llm.registerAdapter(['copilot'], presentedCopilot);
     }
-    catch {
+    catch (error) {
+        ctx.logger.warn(`dsh-waycraft: copilot registration failed (${error?.code ?? error?.name ?? 'unknown'})`);
         copilotCollision = true;
     }
     try {
         antigravityHandle = ctx.llm.registerAdapter(['antigravity'], presentedAntigravity);
     }
-    catch {
+    catch (error) {
+        ctx.logger.warn(`dsh-waycraft: antigravity registration failed (${error?.code ?? error?.name ?? 'unknown'})`);
         antigravityCollision = true;
     }
     ctx.effect(() => () => {
         disposed = true;
+        stopWebSearch?.();
+        stopWebSearch = undefined;
         antigravityAuth.dispose();
         antigravityLifecycle.abort();
         grokAuth.dispose();
@@ -785,7 +803,8 @@ export function apply(ctx, config = {}, options = {}) {
         claudeLifecycle.abort();
         auth.dispose();
         claudeAuth.dispose();
-        void disposeProxyTransport();
+        // Transport teardown is async; a failure must be logged, not become an unhandled rejection.
+        return disposeProxyTransport().catch((error) => ctx.logger.warn(`dsh-waycraft: proxy transport disposal failed (${error?.code ?? error?.name ?? 'unknown'})`));
     }, 'dsh-waycraft: subscriptions auth disposal');
     // Keep keychain-bound Claude accounts synced with Claude Code's own store (reference `claude background sync timer`).
     // One interval, bounded: each tick reads the account list and refreshes only bound sessions, errors are swallowed
@@ -840,8 +859,10 @@ export function apply(ctx, config = {}, options = {}) {
         }, () => ctx.logger.warn('dsh-waycraft: Grok catalog refresh failed')), 'dsh-waycraft: grok catalog refresh');
     // `web` is optional on headless/minimal compositions. The Codex switch gates this provider's
     // `available()` rather than the host's web_search tool, so other providers keep working.
+    let stopWebSearch;
     ctx.inject(['web'], (webCtx) => {
-        webCtx.web.registerSearchProvider(new CodexWebSearchProvider({
+        stopWebSearch?.();
+        stopWebSearch = webCtx.web.registerSearchProvider(new CodexWebSearchProvider({
             tokens,
             enabled: () => preferences.toolEnabled('codex', 'web_search'),
             fetchFn: proxiedFetch,
@@ -1090,10 +1111,12 @@ export function apply(ctx, config = {}, options = {}) {
                                     .list()
                                     .catch(() => []);
                                 const grokState = await grokAuth.status();
+                                const antigravityState = await antigravityAuth.status();
+                                const copilotState = await copilotAuth.status();
                                 value = {
                                     ok: true,
                                     component: 'subscriptions',
-                                    version: '0.2.0',
+                                    version: PLUGIN_VERSION,
                                     registrationError: collision === undefined
                                         ? undefined
                                         : await collisionText(),
@@ -1107,10 +1130,10 @@ export function apply(ctx, config = {}, options = {}) {
                                             registrationError: zenRegistrationError,
                                         },
                                         antigravity: {
-                                            ...(await antigravityAuth.status()),
+                                            ...antigravityState,
                                             visibleModels: preferences.get('antigravity').visibleModels,
                                             displayName: preferences.get('antigravity').displayName,
-                                            accounts: (await antigravityAuth.status()).accounts.map((account) => ({
+                                            accounts: antigravityState.accounts.map((account) => ({
                                                 ...account,
                                                 alias: ownAlias('antigravity', account.key),
                                             })),
@@ -1124,8 +1147,8 @@ export function apply(ctx, config = {}, options = {}) {
                                             })),
                                         },
                                         copilot: {
-                                            ...(await copilotAuth.status()),
-                                            accounts: (await copilotAuth.status()).accounts.map((account) => ({
+                                            ...copilotState,
+                                            accounts: copilotState.accounts.map((account) => ({
                                                 ...account,
                                                 alias: ownAlias('copilot', account.key),
                                             })),
@@ -1639,7 +1662,15 @@ export function apply(ctx, config = {}, options = {}) {
                             }
                             case 'setSpeed': {
                                 // An explicit Standard is kept as well, so a child can override a saved Fast default.
+                                // Re-insert so the Map keeps recency order, then drop the oldest beyond the cap.
+                                speedBySession.delete(string('sessionId'));
                                 speedBySession.set(string('sessionId'), readSpeedTier(payload));
+                                while (speedBySession.size > SPEED_SESSIONS_MAX) {
+                                    const oldest = speedBySession.keys().next().value;
+                                    if (oldest === undefined)
+                                        break;
+                                    speedBySession.delete(oldest);
+                                }
                                 break;
                             }
                             case 'prepareReset':

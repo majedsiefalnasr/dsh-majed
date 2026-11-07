@@ -126,7 +126,7 @@ interface InstallRecord {
   files: Tracked[];
   installedAt: string;
   trashId?: string;
-  /** The single retained previous version (#154): its bytes live under `repository-backups/<key>`. */
+  /** The single retained previous version: its bytes live under `repository-backups/<key>`. */
   backup?: {
     key: string;
     /** Tree digest of the backed-up bytes, which may include local edits. */

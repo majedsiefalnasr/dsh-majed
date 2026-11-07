@@ -8,7 +8,7 @@ import { ToolRuntime } from '@deepseek-ai/dsh-tools';
 import { apply } from '../dist/skills.js';
 
 // Public runtime setup follows lifecycle-owned.test.mjs, not a simulated gate.
-test('create_skill uses the real public tools.execute approval pipeline', async (t) => {
+test('dsh_waycraft_create_skill uses the real public tools.execute approval pipeline', async (t) => {
   const root = await realpath(
     await mkdtemp(join(tmpdir(), 'waycraft-permission-')),
   );
@@ -40,13 +40,13 @@ test('create_skill uses the real public tools.execute approval pipeline', async 
   await new Promise((resolve) => setImmediate(resolve));
   t.after(() => fiber.dispose());
   assert.ok(
-    ctx.tools.get('create_skill'),
+    ctx.tools.get('dsh_waycraft_create_skill'),
     'plugin fiber registers optional tool',
   );
   const call = (name, signal = new AbortController().signal) =>
     ctx.tools.execute({
       callId: name,
-      name: 'create_skill',
+      name: 'dsh_waycraft_create_skill',
       arguments: {
         name,
         description: 'Use for permission work',
@@ -72,6 +72,12 @@ test('create_skill uses the real public tools.execute approval pipeline', async 
   const approved = await call('Approved');
   assert.equal(approved.isError, false, JSON.stringify(approved));
   assert.equal(requests, 3);
+  // A failed creation (duplicate name) is a tool error carrying the code, not a successful result.
+  const duplicate = await call('Approved');
+  assert.equal(duplicate.isError, true, JSON.stringify(duplicate));
+  assert.match(JSON.stringify(duplicate), /create-conflict/);
+  // The retired unscoped name is not registered.
+  assert.equal(ctx.tools.get('create_skill'), undefined);
   const abort = new AbortController();
   abort.abort();
   assert.equal((await call('Aborted', abort.signal)).isError, true);

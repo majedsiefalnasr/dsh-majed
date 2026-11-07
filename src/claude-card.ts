@@ -85,7 +85,14 @@ export function createClaudeCard(
       };
     }, []);
     React.useEffect(() => {
-      if (revision !== undefined) void refreshStatus().catch(() => {});
+      // A failed re-read after an external change would leave stale data; show it like the first load does.
+      if (revision !== undefined)
+        void refreshStatus().catch((failure: unknown) => {
+          if (alive.current)
+            setError(
+              failure instanceof Error ? failure.message : String(failure),
+            );
+        });
     }, [revision]);
     React.useEffect(() => {
       if (!status?.busy) return;

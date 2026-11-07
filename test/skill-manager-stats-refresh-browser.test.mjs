@@ -135,8 +135,8 @@ async function mount(t, language, { failList = false } = {}) {
     },
     slots: {
       inject: (_name, start) => start(),
-      register(_entry, component) {
-        Section = component;
+      register(entry, component) {
+        if (entry.name === 'settings.section') Section = component;
         return () => {};
       },
     },
@@ -331,7 +331,7 @@ for (const language of ['en', 'ar'])
     const { d } = ui;
     const button = ui.refreshButton();
     assert.ok(button, 'Refresh is in the toolbar');
-    assert.equal(button.children.join(''), d.refresh);
+    assert.equal(button.props.title, d.refresh);
     assert.equal(button.props['aria-label'], d.refreshAria);
     assert.equal(button.props['aria-busy'], false);
     assert.equal(button.props.disabled, false);
@@ -353,7 +353,7 @@ for (const language of ['en', 'ar'])
     assert.equal(ui.refreshButton().props.disabled, true);
     assert.equal(ui.refreshButton().props['aria-busy'], true);
     assert.equal(ui.refreshButton().props['aria-label'], d.refreshAria);
-    assert.equal(ui.refreshButton().children.join(''), d.refreshing);
+    assert.equal(ui.refreshButton().props.title, d.refreshing);
     // A second click while busy sends no second request.
     await act(async () => ui.refreshButton().props.onClick());
     release();
@@ -368,7 +368,7 @@ for (const language of ['en', 'ar'])
     assert.equal(ui.refreshButton().props.disabled, false);
     assert.equal(ui.refreshButton().props['aria-busy'], false);
     assert.equal(ui.refreshButton().props['aria-label'], d.refreshAria);
-    assert.equal(ui.refreshButton().children.join(''), d.refresh);
+    assert.equal(ui.refreshButton().props.title, d.refresh);
     // A failed reload keeps the list and reports through the existing notice.
     ui.gate.fail = true;
     await act(async () => ui.refreshButton().props.onClick());

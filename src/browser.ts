@@ -379,7 +379,7 @@ export function applySubscriptions(root: Context): void {
             ),
           );
         }
-        // Composer surfaces (ticket #131): the usage badge, the Speed control and /fast exist only while the component
+        // Composer surfaces: the usage badge, the Speed control and /fast exist only while the component
         // answers and the reference plugin is not serving the same provider ids. Each registration is isolated so a
         // failure in one surface cannot affect core dsh-waycraft, the Settings section or the other surfaces.
         const models = (): ModelDirectoriesLike | undefined =>

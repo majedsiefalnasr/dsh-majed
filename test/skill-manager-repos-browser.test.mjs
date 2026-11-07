@@ -212,6 +212,18 @@ async function mount(t, language) {
   };
 }
 
+// The original installs through a destination dialog: open it from the row, optionally pick a destination, confirm.
+async function installVia(ui, u, d, name = 'alpha', destination) {
+  await ui.act2(() => u.button(`${d.repoInstall}: ${name}`).props.onClick());
+  if (destination !== undefined)
+    await ui.act2(() =>
+      u
+        .field(d.repoDestination)
+        .props.onChange({ target: { value: destination } }),
+    );
+  await ui.act2(() => u.button(d.catInstallConfirm).props.onClick());
+}
+
 for (const language of ['en', 'ar']) {
   test(`registered ${language} repository UI subscribes, filters, installs, refreshes, uninstalls to Trash, restores and unsubscribes`, async (t) => {
     const ui = await mount(t, language);
@@ -240,6 +252,9 @@ for (const language of ['en', 'ar']) {
       u.field(d.scope).props.onChange({ target: { value: 'discover' } }),
     );
     assert.ok(u.text().includes(d.repoEmpty));
+    // The subscribe form is a modal opened by the '+' icon (as in the original).
+    assert.ok(!u.field(d.repoUrl), 'no subscribe field until opened');
+    await ui.act2(() => u.button(d.repoAddTitle).props.onClick());
     // Validation errors come from the host and are localized.
     await ui.act2(() =>
       u
@@ -314,7 +329,7 @@ for (const language of ['en', 'ar']) {
           }
         : body;
     // Install tracked copy.
-    await ui.act2(() => u.button(`${d.repoInstall}: alpha`).props.onClick());
+    await installVia(ui, u, d);
     assert.deepEqual(
       [...(await readFile(join(ui.root, 'skills', 'alpha', 'data.bin')))],
       [1, 2, 3],
@@ -418,6 +433,7 @@ for (const language of ['en', 'ar']) {
     await ui.act2(() =>
       u.field(d.scope).props.onChange({ target: { value: 'discover' } }),
     );
+    await ui.act2(() => u.button(d.repoAddTitle).props.onClick());
     await ui.act2(() =>
       u.field(d.repoUrl).props.onChange({ target: { value: source } }),
     );
@@ -430,7 +446,7 @@ for (const language of ['en', 'ar']) {
         .props.onChange({ target: { value: 'skills' } }),
     );
     await ui.act2(() => u.form().props.onSubmit({ preventDefault() {} }));
-    await ui.act2(() => u.button(`${d.repoInstall}: alpha`).props.onClick());
+    await installVia(ui, u, d);
     assert.ok(u.text().includes(d['repoStatus.installed']));
     assert.equal(u.button(`${d.repoForget}: alpha`), undefined);
     // The configured destination moves: the record now points at a different root.
@@ -490,6 +506,7 @@ for (const language of ['en', 'ar']) {
         u.field(d.scope).props.onChange({ target: { value: target } }),
       );
     await change('discover');
+    await ui.act2(() => u.button(d.repoAddTitle).props.onClick());
     for (const [field, value] of [
       [d.repoUrl, source],
       [d.repoRef, 'main'],
@@ -497,7 +514,7 @@ for (const language of ['en', 'ar']) {
     ])
       await ui.act2(() => u.field(field).props.onChange({ target: { value } }));
     await ui.act2(() => u.form().props.onSubmit({ preventDefault() {} }));
-    await ui.act2(() => u.button(`${d.repoInstall}: alpha`).props.onClick());
+    await installVia(ui, u, d);
     assert.ok(!u.button(`${d.repoUpdatePreview}: alpha`));
     await gitCommit(source, {
       'skills/alpha/notes.md': 'v2',
@@ -621,6 +638,7 @@ for (const language of ['en', 'ar']) {
     await ui.act2(() =>
       u.field(d.scope).props.onChange({ target: { value: 'discover' } }),
     );
+    await ui.act2(() => u.button(d.repoAddTitle).props.onClick());
     for (const [field, value] of [
       [d.repoUrl, source],
       [d.repoRef, 'main'],
@@ -628,7 +646,7 @@ for (const language of ['en', 'ar']) {
     ])
       await ui.act2(() => u.field(field).props.onChange({ target: { value } }));
     await ui.act2(() => u.form().props.onSubmit({ preventDefault() {} }));
-    await ui.act2(() => u.button(`${d.repoInstall}: alpha`).props.onClick());
+    await installVia(ui, u, d);
     const target = join(ui.root, 'skills', 'alpha');
     // Locally edited AND an update is available: both are visible and the filter still finds it.
     await writeFile(join(target, 'notes.md'), 'local edit');
@@ -657,7 +675,7 @@ for (const language of ['en', 'ar']) {
     );
     const skillRows = () =>
       view.root.findAll(
-        (x) => x.type === 'div' && x.props['data-waycraft-repo-skill'],
+        (x) => x.type === 'li' && x.props['data-waycraft-repo-skill'],
       );
     assert.equal(
       skillRows().length,
@@ -671,7 +689,9 @@ for (const language of ['en', 'ar']) {
     await ui.act2(() =>
       u.button(`${d.repoUpdatePreview}: alpha`).props.onClick(),
     );
-    const group = view.root.findAll((x) => x.props?.role === 'group')[0];
+    const group = view.root.findAll(
+      (x) => x.props?.role === 'group' && x.props['aria-labelledby'],
+    )[0];
     const labelledBy = group.props['aria-labelledby'];
     assert.ok(labelledBy);
     assert.ok(
@@ -716,6 +736,7 @@ for (const language of ['en', 'ar']) {
     await ui.act2(() =>
       u.field(d.scope).props.onChange({ target: { value: 'discover' } }),
     );
+    await ui.act2(() => u.button(d.repoAddTitle).props.onClick());
     for (const [field, value] of [
       [d.repoUrl, source],
       [d.repoRef, 'main'],
@@ -723,7 +744,7 @@ for (const language of ['en', 'ar']) {
     ])
       await ui.act2(() => u.field(field).props.onChange({ target: { value } }));
     await ui.act2(() => u.form().props.onSubmit({ preventDefault() {} }));
-    await ui.act2(() => u.button(`${d.repoInstall}: alpha`).props.onClick());
+    await installVia(ui, u, d);
     await gitCommit(source, { 'skills/alpha/notes.md': 'v2' });
     await ui.act2(() =>
       u.button(`${d.repoRefresh}: ${source}`).props.onClick(),

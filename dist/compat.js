@@ -1,5 +1,5 @@
 /**
- * Single-build compatibility with both published dsh lines (issue #53).
+ * Single-build compatibility with both published dsh lines.
  *
  * dsh 0.1.2-alpha renamed `CallId` to `ToolCallId` in `@deepseek-ai/dsh-llm`.
  * A named import of either symbol is an ESM link-time failure on the other

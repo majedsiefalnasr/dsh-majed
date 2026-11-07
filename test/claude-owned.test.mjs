@@ -172,6 +172,22 @@ const noSecrets = (value, label) => {
 };
 const settle = () => new Promise((resolve) => setImmediate(resolve));
 
+// Absence checks ("nothing happens after disposal") need a quiet window; wait until the observed value has stopped
+// changing for `turns` consecutive polls instead of sleeping for a fixed time (bounded, so it cannot hang).
+const quiet = async (read, turns = 10) => {
+  let last = read();
+  let stable = 0;
+  for (let i = 0; i < 300 && stable < turns; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    const now = read();
+    if (now === last) stable++;
+    else {
+      stable = 0;
+      last = now;
+    }
+  }
+};
+
 test('Claude OAuth parameters match what Claude Code sends (literals on purpose)', () => {
   assert.equal(CLAUDE_AUTHORIZE_URL, 'https://claude.ai/oauth/authorize');
   assert.equal(CLAUDE_CLIENT_ID, '9d1c250a-e61b-44d9-88ed-5944d1962f5e');
@@ -1024,11 +1040,11 @@ test('the background sync is one bounded timer: it reads only bound accounts, st
         [],
         'a fresher token in the store avoids any refresh call',
       );
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await quiet(() => state.reads);
       const reads = state.reads;
       component.dispose();
       mock.timers.tick(CLAUDE_KEYCHAIN_SYNC_MS * 3);
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await quiet(() => state.reads);
       assert.equal(state.reads, reads, 'no tick runs after disposal');
     } finally {
       fetchGuard.restore();

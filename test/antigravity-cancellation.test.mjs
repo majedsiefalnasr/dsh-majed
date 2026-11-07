@@ -154,6 +154,7 @@ test('Antigravity controller ignores late token response after cancel', async ()
   const { AntigravityAuthController } = await import(
     '../dist/auth/antigravity-controller.js'
   );
+  const originalHome = process.env.DSH_HOME;
   process.env.DSH_HOME = await mkdtemp('/tmp/waycraft135-late-');
   let completeFetch, started;
   const entered = new Promise((resolve) => {
@@ -199,5 +200,8 @@ test('Antigravity controller ignores late token response after cancel', async ()
   } finally {
     controller.dispose();
     globalThis.fetch = original;
+    // Restore the exact prior state (absent vs present) so later tests do not inherit this temp home.
+    if (originalHome === undefined) delete process.env.DSH_HOME;
+    else process.env.DSH_HOME = originalHome;
   }
 });

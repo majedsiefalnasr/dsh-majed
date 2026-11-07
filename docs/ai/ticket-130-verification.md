@@ -1,5 +1,7 @@
 # Ticket 130 work contract and verification
 
+> Historical names: this evidence predates the #159 rename; `majed*` identifiers below are the retired names of the current `waycraft*` ones (see `rename-waycraft.md`).
+
 ## Approved contract
 
 - Ticket: #130, Subscriptions: Manage dialog, model list, account pool and proxy. Stories 33–42 and 44–48 of `docs/specs/subscriptions.md`; #129 accepted CLOSED, no #131+ implementation.

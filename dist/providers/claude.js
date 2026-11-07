@@ -422,7 +422,7 @@ export async function fetchClaudeModels(session, fetchFn = proxiedFetch, signal,
         const thinkingType = claudeThinkingType(m.capabilities);
         const reasoning = claudeReasoning(m.capabilities);
         // The endpoint advertises each model's limits; carrying them through keeps
-        // the route current for models newer than the bundled catalog (#101).
+        // the route current for models newer than the bundled catalog.
         const contextWindow = positiveTokenCount(m.max_input_tokens);
         const maxOutputTokens = positiveTokenCount(m.max_tokens);
         return {
@@ -453,7 +453,7 @@ function claudeMaxTokens(configured, disc) {
 /**
  * Anthropic rejects any image edge over 2000px once a request carries many
  * images, and every later turn resends the history, so one oversized
- * screenshot would fail the session for good (#110). Images are sent within
+ * screenshot would fail the session for good. Images are sent within
  * this cap; 3.75MB encoded stays under the 5MB base64 per-image limit.
  */
 const CLAUDE_IMAGE_LIMIT = { maxEdge: 2000, maxBytes: 3_750_000 };

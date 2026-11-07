@@ -207,6 +207,7 @@ export class ProviderSettingsStore {
             }
             this.current = next;
         });
+        // Safe: `writes` only orders the next write; the caller still receives `run` and its error.
         this.writes = run.catch(() => { });
         return run;
     }
@@ -288,6 +289,7 @@ export class ProviderSettingsStore {
             }
             this.current = next;
         });
+        // Safe: `writes` only orders the next write; the caller still receives `run` and its error.
         this.writes = run.catch(() => undefined);
         return run;
     }

@@ -137,8 +137,8 @@ async function mount(t, language) {
     },
     slots: {
       inject: (_name, start) => start(),
-      register(_entry, component) {
-        Section = component;
+      register(entry, component) {
+        if (entry.name === 'settings.section') Section = component;
         return () => {};
       },
     },
@@ -186,7 +186,9 @@ async function mount(t, language) {
   const button = (label) =>
     view.root
       .findAllByType('button')
-      .find((x) => x.children.join('') === label);
+      .find(
+        (x) => x.children.join('') === label || x.props['aria-label'] === label,
+      );
   const field = (label) =>
     view.root.findAll(
       (x) =>
@@ -207,7 +209,7 @@ async function mount(t, language) {
   const switchLabels = () =>
     view.root
       .findAllByType('button')
-      .map((x) => x.children.join(''))
+      .map((x) => x.props['aria-label'] ?? '')
       .filter((x) => x.startsWith(d.toggleSource));
   return {
     root,
@@ -221,6 +223,24 @@ async function mount(t, language) {
     type,
     text,
     switchLabels,
+    sourceBadge: (name) =>
+      view.root
+        .findAllByType('summary')
+        .find(
+          (x) =>
+            x.findAll(
+              (n) =>
+                n.props.className === 'waycraft-skills-source-name' &&
+                n.children.join('') === name,
+            ).length,
+        )
+        ?.findAll((n) => n.props.className === 'waycraft-skills-count')[0]
+        ?.findByType('bdi')
+        .children.join(''),
+    switchButton: (label) =>
+      view.root
+        .findAllByType('button')
+        .find((x) => x.props['aria-label'] === label),
     settle,
     hold,
   };
@@ -271,12 +291,13 @@ for (const language of ['en', 'ar'])
     // Previewing registered nothing.
     assert.doesNotMatch(ui.text(), new RegExp(`${ui.d.customBadge}`));
     await ui.click(ui.d.addSource);
-    assert.match(ui.text(), /acme \(1\)/);
+    // The count is a badge next to the source name (intentional #158 structure change).
+    assert.equal(ui.sourceBadge('acme'), '1');
     assert.match(ui.text(), /acme-skill/);
     await ui.click(ui.d.edit);
     await ui.type(ui.d.label, 'Renamed');
     await ui.click(ui.d.save);
-    assert.match(ui.text(), /Renamed \(1\)/);
+    assert.equal(ui.sourceBadge('Renamed'), '1');
     // Overlapping folders are refused by the host and surfaced with a translated message.
     await ui.type(ui.d.folderPath, ui.product);
     await ui.click(ui.d.addFolder);
@@ -344,7 +365,7 @@ for (const language of ['en', 'ar'])
     // Start a toggle whose response is held, then switch to a project before it returns.
     const release = ui.hold();
     // Not awaited: the held toggle must stay pending while the selection changes.
-    void ui.button(label).props.onClick();
+    void ui.switchButton(label).props.onClick();
     await ui.type(d.scope, 'project');
     const ok = ui
       .field(d.project)

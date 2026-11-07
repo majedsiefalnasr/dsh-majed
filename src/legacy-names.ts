@@ -1,5 +1,5 @@
 /**
- * Deprecated names kept for ONE release after the rename to `waycraft` (ticket #159).
+ * Deprecated names kept for ONE release after the rename to `waycraft`
  *
  * This is the single source of the retired product name in `src/`: every alias, read-fallback and
  * migration source elsewhere imports from here. Removal plan: delete this module, its consumers'
@@ -28,8 +28,8 @@ export const LEGACY_PANEL_IDS: Readonly<Record<string, string>> = {
   'majed-subscriptions': 'waycraft-subscriptions',
 };
 /**
- * Retired tool names, registered as deprecated aliases of the same implementation for one release
- * (ticket #159). Keys are the canonical tool names.
+ * Retired tool names, registered as deprecated aliases of the same implementation for one release.
+ * Keys are the canonical tool names.
  */
 export const LEGACY_TOOL_ALIASES = {
   x_search: 'dsh_majed_x_search',

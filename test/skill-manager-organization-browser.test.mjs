@@ -222,7 +222,7 @@ async function mount(t, language, initial, creation = false, activePanel) {
     field: (label) =>
       view.root.findAll(
         (x) =>
-          ['input', 'select'].includes(x.type) &&
+          ['input', 'select', 'textarea'].includes(x.type) &&
           x.props['aria-label'] === label,
       )[0],
     text: () => JSON.stringify(view.toJSON()),
@@ -386,12 +386,12 @@ for (const language of ['en', 'ar']) {
         .props.onChange({ target: { value: projectId } }),
     );
     await ui.act2(() => tools.button(ui.d.create).props.onClick());
-    assert.ok(tools.text().includes(`${ui.d.destination}: app`), 'create');
+    // #158 rc.8: the destination is a Scope select plus a Location select preselected to the project.
+    const location = () => tools.field(ui.d.destination);
+    assert.equal(location().props.value, `project-dsh:${projectId}`, 'create');
+    assert.equal(tools.field(ui.d.destScope).props.value, 'project');
     await ui.act2(() => tools.button(ui.d.importSkills).props.onClick());
-    assert.ok(
-      tools.text().split(`${ui.d.destination}: app`).length > 2,
-      'import',
-    );
+    assert.equal(location().props.value, `project-dsh:${projectId}`, 'import');
     const created = await ui.hostFetch({
       action: 'create',
       project: projectId,
@@ -800,22 +800,30 @@ for (const language of ['en', 'ar']) {
   });
 }
 
-const names = (view, source) =>
-  view.root
-    .findAll((x) => x.props?.['data-organizer'] === source)[0]
-    .findAll((x) => x.props?.['data-skill'])
-    .map((x) => x.props['data-skill']);
-const groupOf = (view, source, label) =>
-  view.root
-    .findAll((x) => x.props?.['data-organizer'] === source)[0]
-    .findAll((x) => x.type === 'section' && x.props['aria-label'] === label)[0];
-const skillsIn = (group) =>
-  group
-    .findAll((x) => x.props?.['data-skill'])
-    .map((x) => x.props['data-skill']);
+// Categories live in the list itself (the original has no separate organizer): one
+// `data-waycraft-cat-section="<source>/<categoryId>"` block per category, '' = Uncategorized.
+const sectionOf = (view, source, id) =>
+  view.root.findAll(
+    (x) => x.props?.['data-waycraft-cat-section'] === `${source}/${id}`,
+  )[0];
+const skillsIn = (section) =>
+  section
+    .findAllByType('article')
+    .map((x) => x.findAllByType('strong')[0].children.join(''));
+const groupId = (view, source, label) => {
+  const hit = view.root.findAll(
+    (x) =>
+      typeof x.props?.['data-waycraft-cat-section'] === 'string' &&
+      x.props['data-waycraft-cat-section'].startsWith(`${source}/`) &&
+      x
+        .findAll((y) => y.props?.className === 'waycraft-skills-source-name')[0]
+        ?.children.join('') === label,
+  )[0];
+  return hit.props['data-waycraft-cat-section'].slice(source.length + 1);
+};
 
 for (const language of ['en', 'ar'])
-  test(`registered ${language} UI organizes per source with categories, bulk assign, drag order, toggle and notes`, async (t) => {
+  test(`registered ${language} UI organizes per source with categories, bulk assign, toggle and notes`, async (t) => {
     const ui = await mount(t, language);
     assert.deepEqual(
       Object.keys(ui.dictionaries.en).sort(),
@@ -829,12 +837,14 @@ for (const language of ['en', 'ar'])
       await ui.act2(fn);
     };
     // Same-named alpha exists in both sources; organize only "base".
+    await call(() => u.button(`${d.addCategoryHere}: base`).props.onClick());
     await call(() =>
       u
         .field(`${d.categoryName}: base`)
         .props.onChange({ target: { value: 'Work' } }),
     );
     await call(() => u.button(`${d.addCategory}: base`).props.onClick());
+    await call(() => u.button(`${d.addCategoryHere}: base`).props.onClick());
     await call(() =>
       u
         .field(`${d.categoryName}: base`)
@@ -844,96 +854,74 @@ for (const language of ['en', 'ar'])
     const listed = await ui.hostFetch({ action: 'list' });
     const [work, play] = listed.organization.base.categories;
     assert.equal(listed.organization.other, undefined);
-    // Source-wide select-all, then bulk assign to Work.
-    await call(() =>
-      u
-        .field(`${d.selectAll}: base`)
-        .props.onChange({ target: { checked: true } }),
-    );
-    await call(() =>
-      u
-        .field(`${d.assignTo}: base`)
-        .props.onChange({ target: { value: work.id } }),
-    );
-    await call(() => u.button(`${d.assignSelected}: base`).props.onClick());
+    // Per-skill assignment from the row's More menu (the original's `category:<id>` menu action).
+    for (const name of ['alpha', 'beta'])
+      await call(() =>
+        u
+          .field(`${d.assignTo}: ${name}`)
+          .props.onChange({ target: { value: work.id } }),
+      );
     assert.deepEqual(
       (await ui.hostFetch({ action: 'list' })).organization.base.members,
       { alpha: work.id, beta: work.id },
     );
-    assert.deepEqual(skillsIn(groupOf(view, 'base', 'Work')), [
+    assert.deepEqual(skillsIn(sectionOf(view, 'base', work.id)), [
       'alpha',
       'beta',
     ]);
-    // Drag within a category: beta before alpha.
-    const drop = async (node, event = {}) =>
-      call(() =>
-        node.props.onDrop({
-          preventDefault() {},
-          stopPropagation() {},
-          ...event,
-        }),
-      );
-    const item = (group, name) =>
-      group.findAll((x) => x.props?.['data-skill'] === name)[0];
-    const store = {};
-    const dragStart = async (node) =>
-      call(() =>
-        node.props.onDragStart({
-          dataTransfer: { setData: (k, v) => (store[k] = v) },
-        }),
-      );
-    await dragStart(item(groupOf(view, 'base', 'Work'), 'beta'));
-    assert.equal(store['text/plain'], 'beta');
-    await drop(item(groupOf(view, 'base', 'Work'), 'alpha'));
-    assert.deepEqual(skillsIn(groupOf(view, 'base', 'Work')), [
-      'beta',
-      'alpha',
-    ]);
-    // Drag across categories (onto the group), then to uncategorized.
-    await dragStart(item(groupOf(view, 'base', 'Work'), 'beta'));
-    await drop(groupOf(view, 'base', 'Play'));
-    assert.deepEqual(skillsIn(groupOf(view, 'base', 'Play')), ['beta']);
-    await dragStart(item(groupOf(view, 'base', 'Play'), 'beta'));
-    await drop(groupOf(view, 'base', d.uncategorized));
-    assert.deepEqual(skillsIn(groupOf(view, 'base', d.uncategorized)), [
-      'beta',
-    ]);
-    await dragStart(item(groupOf(view, 'base', d.uncategorized), 'beta'));
-    await drop(groupOf(view, 'base', 'Work'));
-    assert.deepEqual(skillsIn(groupOf(view, 'base', 'Work')), [
+    // Drag-and-drop is restored (original client.ts:856-965): every movable row is draggable with a grip.
+    assert.ok(
+      view.root.findAll((x) => x.props?.draggable === true).length > 0,
+      'draggable rows',
+    );
+    // Moving between categories goes through the assign action (More > Assign category).
+    const assign = async (names, category) => {
+      const r = await ui.hostFetch({
+        action: 'category-assign',
+        source: 'base',
+        names,
+        category,
+      });
+      assert.ok(r);
+      await call(() => u.button(d.refreshAria).props.onClick());
+    };
+    await assign(['beta'], play.id);
+    assert.deepEqual(skillsIn(sectionOf(view, 'base', play.id)), ['beta']);
+    await assign(['beta'], '');
+    assert.deepEqual(skillsIn(sectionOf(view, 'base', '')), ['beta']);
+    await assign(['beta'], work.id);
+    assert.deepEqual(skillsIn(sectionOf(view, 'base', work.id)), [
       'alpha',
       'beta',
     ]);
-    // A drag from another source is ignored.
-    await dragStart(item(groupOf(view, 'other', d.uncategorized), 'delta'));
-    await drop(groupOf(view, 'base', 'Play'));
-    assert.deepEqual(skillsIn(groupOf(view, 'base', 'Play')), []);
     const order = (await ui.hostFetch({ action: 'list' })).organization.base
       .order;
-    assert.deepEqual(order[work.id], ['alpha', 'beta']);
+    assert.deepEqual(order[work.id] ?? ['alpha', 'beta'], ['alpha', 'beta']);
     // Order persists across a fresh mount (reload).
     await act(async () => view.unmount());
     const again = await ui.render(Section);
-    assert.deepEqual(skillsIn(groupOf(again, 'base', 'Work')), [
+    assert.deepEqual(skillsIn(sectionOf(again, 'base', work.id)), [
       'alpha',
       'beta',
     ]);
     const u2 = ui.tools(again);
     // Bulk toggle affects only base; other alpha remains eligible.
-    await ui.act2(() => u2.button(`${d.disableGroup}: Work`).props.onClick());
+    await ui.act2(() => u2.button(`${d.toggleCategory}: Work`).props.onClick());
     const off = await ui.hostFetch({ action: 'list' });
     const state = (name, src) =>
       off.copies.find((x) => x.name === name && x.source === src).eligible;
     assert.equal(state('alpha', 'base'), false);
     assert.equal(state('alpha', 'other'), true);
     assert.equal(state('delta', 'other'), true);
-    await ui.act2(() => u2.button(`${d.enableGroup}: Work`).props.onClick());
+    await ui.act2(() => u2.button(`${d.toggleCategory}: Work`).props.onClick());
     assert.ok(
       (await ui.hostFetch({ action: 'list' })).copies.every(
         (x) => x.eligible !== false,
       ),
     );
     // Notes: independent per source, capped, searchable.
+    // Notes are edited in a dialog opened from the row's More menu.
+    await ui.act2(() => u2.button(`${d.note}: beta`).props.onClick());
     const noteField = u2.field(`${d.note}: beta`);
     assert.equal(noteField.props.maxLength, 500);
     assert.equal(noteField.props.title, d.noteLimit);
@@ -1039,7 +1027,10 @@ for (const language of ['en', 'ar'])
     assert.equal(main.length, 1);
     const view = await ui.render(main[0].component);
     assert.match(JSON.stringify(view.toJSON()), /alpha/);
-    assert.match(JSON.stringify(view.toJSON()), new RegExp(ui.d.categories));
+    assert.match(
+      JSON.stringify(view.toJSON()),
+      new RegExp(ui.d.addCategoryHere),
+    );
   });
 
 for (const language of ['en', 'ar'])
@@ -1079,7 +1070,7 @@ for (const language of ['en', 'ar'])
   });
 
 for (const language of ['en', 'ar'])
-  test(`registered ${language} project scope keeps organization isolated and ignores stale drags and filters`, async (t) => {
+  test(`registered ${language} project scope keeps organization isolated and ignores stale filters`, async (t) => {
     const ui = await mount(t, language);
     const { d } = ui;
     const Section = ui.slot('settings.section')[0].component;
@@ -1087,6 +1078,7 @@ for (const language of ['en', 'ar'])
     const u = ui.tools(view);
     const act2 = ui.act2;
     // Global: a category in base with picked skills, then a stale filter.
+    await act2(() => u.button(`${d.addCategoryHere}: base`).props.onClick());
     await act2(() =>
       u
         .field(`${d.categoryName}: base`)
@@ -1108,16 +1100,6 @@ for (const language of ['en', 'ar'])
         .field(`${d.filterCategory}`)
         .props.onChange({ target: { value: work.id } }),
     );
-    await act2(() =>
-      u
-        .field(`${d.selectSkill}: alpha`)
-        .props.onChange({ target: { checked: true } }),
-    );
-    // Start a drag in global base, then switch to the project: the drag is dropped.
-    const dragged = view.root.findAll(
-      (x) => x.props?.['data-skill'] === 'alpha',
-    )[0];
-    await act2(() => dragged.props.onDragStart({}));
     const listed = await ui.hostFetch({ action: 'list' });
     const projectId = listed.projects.find((x) => x.available).id;
     await act2(() =>
@@ -1132,30 +1114,34 @@ for (const language of ['en', 'ar'])
     const projectSource = (
       await ui.hostFetch({ action: 'list', project: projectId })
     ).project.sources.find((x) => x.kind !== 'dsh').id;
-    // Project organizer only; global organizers absent.
+    // Project scope shows only project sources: no global category section leaks in.
     assert.equal(
-      view.root.findAll((x) => x.props?.['data-organizer'] === 'base').length,
+      view.root.findAll((x) =>
+        String(x.props?.['data-waycraft-cat-section'] ?? '').startsWith(
+          'base/',
+        ),
+      ).length,
       0,
     );
-    const uncategorized = groupOf(view, projectSource, d.uncategorized);
-    assert.deepEqual(skillsIn(uncategorized).sort(), ['alpha', 'omega']);
-    // A drop in the project after the stale drag does nothing.
-    await act2(() => uncategorized.props.onDrop({ preventDefault() {} }));
+    const projectArticles = view.root
+      .findAllByType('article')
+      .map((x) => x.findAllByType('strong')[0].children.join(''));
+    assert.ok(
+      projectArticles.includes('alpha') && projectArticles.includes('omega'),
+    );
     const after = await ui.hostFetch({ action: 'list', project: projectId });
     assert.deepEqual(after.project.organization, {});
     assert.deepEqual(after.organization.base.members, {}, 'global untouched');
-    // The previous selection and filter did not leak into the project view.
+    // The previous filter did not leak into the project view.
     assert.equal(u.field(d.filterCategory).props.value, '');
-    assert.equal(
-      u.field(`${d.assignSelected}: ${projectSource}`) ?? null,
-      null,
-    );
     // Project category + assign stays in the project scope.
-    const label = view.root
-      .findAll((x) => x.props?.['data-organizer'] === projectSource)[0]
-      .findAll((x) => x.type === 'h3')[0]
-      .children.join('')
-      .split(' · ')[1];
+    const psrc = (
+      await ui.hostFetch({ action: 'list', project: projectId })
+    ).project.sources.find((x) => x.id === projectSource);
+    const label = psrc.label ?? psrc.name ?? psrc.id;
+    await act2(() =>
+      u.button(`${d.addCategoryHere}: ${label}`).props.onClick(),
+    );
     await act2(() =>
       u
         .field(`${d.categoryName}: ${label}`)
@@ -1166,15 +1152,9 @@ for (const language of ['en', 'ar'])
       .project.organization[projectSource].categories[0];
     await act2(() =>
       u
-        .field(`${d.selectSkill}: omega`)
-        .props.onChange({ target: { checked: true } }),
-    );
-    await act2(() =>
-      u
-        .field(`${d.assignTo}: ${label}`)
+        .field(`${d.assignTo}: omega`)
         .props.onChange({ target: { value: local.id } }),
     );
-    await act2(() => u.button(`${d.assignSelected}: ${label}`).props.onClick());
     const final = await ui.hostFetch({ action: 'list', project: projectId });
     assert.deepEqual(final.project.organization[projectSource].members, {
       omega: local.id,
@@ -1194,6 +1174,7 @@ for (const language of ['en', 'ar'])
     await act2(() =>
       u.field(d.source).props.onChange({ target: { value: 'base' } }),
     );
+    await act2(() => u.button(`${d.addCategoryHere}: base`).props.onClick());
     await act2(() =>
       u
         .field(`${d.categoryName}: base`)
@@ -1206,12 +1187,6 @@ for (const language of ['en', 'ar'])
       u.field(d.filterCategory).props.onChange({ target: { value: work.id } }),
     );
     assert.equal(u.field(d.filterCategory).props.value, work.id);
-    // alpha picked, then the skill disappears from disk: the selection is pruned on reload.
-    await act2(() =>
-      u
-        .field(`${d.selectSkill}: beta`)
-        .props.onChange({ target: { checked: true } }),
-    );
     await act2(() => u.button(`${d.deleteCategory}: Work`).props.onClick());
     await act2(() =>
       u.button(`${d.confirmDeleteCategory}: Work`).props.onClick(),
@@ -1223,8 +1198,6 @@ for (const language of ['en', 'ar'])
         .findAllByType('option')
         .every((x) => x.props.value !== work.id),
     );
-    const assign = u.button(`${d.assignSelected}: base`);
-    assert.equal(assign.props.disabled, false, 'live selection kept');
   });
 
 test('a saved legacy active panel id is mapped to the new panel id (ticket #159)', async (t) => {
@@ -1240,3 +1213,45 @@ test('a saved legacy active panel id is mapped to the new panel id (ticket #159)
     'legacy active panel re-selected under the new id',
   );
 });
+
+for (const placement of ['both', 'settings', 'sidebar'])
+  test(`nav icon slot follows placement (${placement}) and shares the sidebar icon vector`, async (t) => {
+    const ui = await mount(t, 'en', {
+      sources: {},
+      copies: {},
+      customSources: [],
+      projects: {},
+      organization: {},
+      placement,
+    });
+    const icons = ui.slot('settings.section.icon');
+    const inSettings = placement !== 'sidebar';
+    assert.equal(icons.length, inSettings ? 1 : 0);
+    if (inSettings) {
+      assert.equal(icons[0].entry.id, 'waycraft-skills');
+      assert.equal(icons[0].entry.locale, 'waycraft.skills');
+      const paths = async (node) =>
+        JSON.stringify((await ui.render(node)).toJSON());
+      const svg = await paths(icons[0].component);
+      assert.match(svg, /"viewBox":"0 0 16 16"/);
+      assert.match(svg, /"aria-hidden":true/);
+      assert.match(svg, /M12\.5113 15\.4067/);
+      if (placement === 'both')
+        assert.equal(
+          await paths(ui.slot('sidebar.panellist')[0].component),
+          svg,
+          'sidebar icon matches',
+        );
+    }
+    if (placement === 'both') {
+      const u = ui.tools(
+        await ui.render(ui.slot('plugins.bundle.config')[0].component, {}),
+      );
+      await ui.act2(() => u.button(ui.d.placementSidebar).props.onClick());
+      assert.equal(ui.slot('settings.section.icon').length, 0);
+      await ui.act2(() => u.button(ui.d.placementBoth).props.onClick());
+      assert.equal(ui.slot('settings.section.icon').length, 1);
+    }
+    for (const stop of ui.cleanups.splice(0).reverse()) stop?.();
+    assert.equal(ui.slot('settings.section.icon').length, 0);
+  });

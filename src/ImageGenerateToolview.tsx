@@ -26,6 +26,11 @@ import { callSubscriptionsAuth } from './subscriptions-rpc.js';
 import { en } from './locales.js';
 import type { SubscriptionsKey } from './locales.js';
 
+// The installed host theme (0.2.2-rc.1) defines --dsw-font-s-14 but not -12/-13, so the shorthand carries a literal fallback
+// built from the defined font family; a host that adds the token wins.
+const FONT_S_12 = 'var(--dsw-font-s-12, 400 12px/18px var(--dsw-font-family))';
+const FONT_S_13 = 'var(--dsw-font-s-13, 400 13px/20px var(--dsw-font-family))';
+
 /** DSH 0.1.7 renamed IconSparkle16; resolving it by name keeps older hosts working too. */
 const SparkleIcon = (_props: { size: number }) => null;
 
@@ -176,7 +181,7 @@ const styles: Record<string, CSSProperties> = {
     color: 'var(--dsw-alias-label-tertiary)',
   },
   title: {
-    font: 'var(--dsw-font-s-13)',
+    font: FONT_S_13,
     color: 'var(--dsw-alias-label-primary)',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -184,19 +189,19 @@ const styles: Record<string, CSSProperties> = {
   },
   subtle: {
     margin: 0,
-    font: 'var(--dsw-font-s-12)',
+    font: FONT_S_12,
     color: 'var(--dsw-alias-label-tertiary)',
   },
   output: {
     margin: 0,
-    font: 'var(--dsw-font-s-12)',
+    font: FONT_S_12,
     color: 'var(--dsw-alias-label-secondary)',
     whiteSpace: 'pre-wrap',
     overflowWrap: 'anywhere',
   },
   error: {
     margin: 0,
-    font: 'var(--dsw-font-s-12)',
+    font: FONT_S_12,
     color: 'var(--dsw-alias-state-error-primary)',
   },
 };

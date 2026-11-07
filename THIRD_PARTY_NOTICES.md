@@ -1,5 +1,18 @@
 # Third-party notices
 
+## Components at a glance
+
+| Component | Version / pin | License | Used for |
+|---|---|---|---|
+| V1ki/dsh-plugin-subscriptions | v0.9.12 (commit b802311) | MIT | Subscriptions (Codex, Antigravity, accounts, usage, Speed) |
+| MichengAI dsh-skills-manager | v1.2.29 (commit 49037a9) | Apache-2.0 | Skill manager behavior (full license in `skills/LICENSE-APACHE-2.0`) |
+| FishBottle7/opencode2dsh | v0.3.14 (commit 1aa2120) | MIT | OpenCode Zen identification and catalog |
+| DeepSeek Harness | 0.2.1-rc.3 / 0.2.1-rc.5 | MIT | Native API-provider UI structure and the add icon |
+| yaml | 2.8.1 | ISC | Skill frontmatter parsing (external runtime dependency) |
+| fflate | 0.8.3 | MIT | ZIP handling (embedded in generated output) |
+
+Per-ticket detail follows.
+
 #151 Trash workflows (`src/skills-trash.ts`, host actions and EN/AR controls) adapt the same pinned dsh-skills-manager v1.2.29 under Apache-2.0; checked source ranges and local transaction differences are recorded in `src/PROVENANCE.md`. The full Apache license remains in `skills/LICENSE-APACHE-2.0`.
 
 #150 local import/upload behavior (`src/skills-import.ts`, host routes and client controls) adapts the same pinned dsh-skills-manager v1.2.29 under Apache-2.0; checked ranges/local differences are in `src/PROVENANCE.md`. The existing complete Apache license is retained. `fflate` 0.8.3 (Copyright (c) 2026 Arjun Barrett, MIT) is a pinned external runtime dependency; no fflate source is embedded in generated output.
@@ -72,3 +85,5 @@ Ported source added by later components is listed here with its version, commit 
 #154 additionally adapts the repository content update and previous-version rollback workflow (preview of added/removed/modified files, local-modification consent, staged replacement with a retained backup, failure recovery, update/rollback availability) from `src/repository-updates.ts` and `src/repositories.ts` (lines 490-497) of MichengAI/dsh-skills-manager v1.2.29 (commit 49037a919b87b000de9003a49930425ae9742632, Apache-2.0; license in `skills/LICENSE-APACHE-2.0`). Provenance record: `src/PROVENANCE.md` (#154). No reference runtime, state or updater is required.
 
 #155 additionally adapts the ClawHub and skills.sh catalog browsing, search, detail and install workflow (`clawhub-catalog.ts`, `skills-sh-catalog.ts`, `catalog-skill.ts`, catalog routes, catalog install records and catalog UI) of MichengAI/dsh-skills-manager v1.2.29 (commit 49037a919b87b000de9003a49930425ae9742632) under Apache License 2.0; the complete license remains in `skills/LICENSE-APACHE-2.0` and source ranges and local differences are recorded in `src/PROVENANCE.md`. No new third-party dependency is added.
+
+#158's Skill manager navigation icon vector and `settings.section.icon` registration pattern adapt dsh-skills-manager v1.2.29 (commit 49037a919b87b000de9003a49930425ae9742632) under Apache License 2.0; the complete license remains in `skills/LICENSE-APACHE-2.0` and the record is in `src/PROVENANCE.md`.

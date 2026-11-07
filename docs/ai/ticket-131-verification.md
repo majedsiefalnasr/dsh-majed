@@ -1,5 +1,7 @@
 # Ticket 131 work contract and verification
 
+> Historical names: this evidence predates the #159 rename; `majed*` identifiers below are the retired names of the current `waycraft*` ones (see `rename-waycraft.md`).
+
 ## Contract
 
 - Ticket: #131, Subscriptions: composer usage badge, Speed control and `/fast`. Stories 4 and 49–54 of `docs/specs/subscriptions.md`. Baseline `3f576ed` on `impl/131-badge-speed`, worktree `dsh-majed-t131`.

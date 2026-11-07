@@ -1,5 +1,7 @@
 # #135 — Google Antigravity verification
 
+> Historical names: this evidence predates the #159 rename; `majed*` identifiers below are the retired names of the current `waycraft*` ones (see `rename-waycraft.md`).
+
 ## Contract and revision
 
 Candidate on `impl/135-antigravity` in the exact `dsh-majed-t135` checkout, based on `9cb0b18a23081075d7bec77e17ba7ee401dbe57f`. Only #135; no #136+, installed state, credentials, real provider operations, installation, package, merge, push or closure. Independent final review belongs to Lead separately. The unavailable historical implement skill was not invented; Owner-authorized lean-build/TDD/Karpathy fallback used.

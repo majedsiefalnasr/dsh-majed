@@ -51,7 +51,9 @@ import {
   isSameOrDescendant,
   MAX_CUSTOM_SOURCES,
   MAX_LABEL,
+  MAX_PATH,
   overlapsResolved,
+  pathIdentity,
   PROJECT_SOURCES,
   type Project,
   prepareRoots,
@@ -59,6 +61,11 @@ import {
   scanCandidates,
   validateRootPath,
 } from './skills-sources.js';
+
+/** Built-in provider roots a user may redirect; bounded so state stays small. */
+const MAX_ROOT_OVERRIDES = 32;
+/** Suffix of the protected-root entry that keeps an overridden provider's default folder reserved. */
+const DEFAULT_SUFFIX = '#default';
 
 export const name = 'dsh-waycraft/skills';
 export const inject = ['skills'];
@@ -101,6 +108,7 @@ interface Agent {
   ctx: HostContext;
 }
 interface HostContext {
+  logger?: { warn(message: string): void };
   skills: {
     registerProvider(create: (control: Control) => Provider): () => void;
   };
@@ -139,6 +147,11 @@ interface Source {
   custom?: boolean;
   /** Listed writable destination that does not exist yet; never scan it. */
   absent?: boolean;
+  /** Built-in root redirected by the user: the original default folder. */
+  defaultPath?: string;
+  overridden?: boolean;
+  /** Built-in provider root the user may redirect with root-set. */
+  overridable?: boolean;
   /** Project id for project-scoped sources. */
   project?: string;
   /** Project source kind (dsh, agents, ...). */
@@ -153,6 +166,12 @@ interface Config {
   catalogs?: CatalogConfig;
 }
 
+const dominantReason = (details: { reason: string }[]): string => {
+  const counts = new Map<string, number>();
+  for (const x of details)
+    counts.set(x.reason, (counts.get(x.reason) ?? 0) + 1);
+  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'unknown';
+};
 const diag = (
   code: string,
   params: Record<string, string>,
@@ -234,7 +253,16 @@ async function scan(
     diagnostics.push(
       diag(
         'unreadable-entries',
-        { source: sourceId, count: String(discovered.errors.length) },
+        {
+          source: sourceId,
+          count: String(discovered.errors.length),
+          // Up to five affected paths (newline separated) and the most common reason class.
+          paths: discovered.errorDetails
+            .slice(0, 5)
+            .map((x) => x.path)
+            .join('\n'),
+          reason: dominantReason(discovered.errorDetails),
+        },
         `${sourceId}: ${discovered.errors.length} entries could not be read`,
       ),
     );
@@ -528,6 +556,8 @@ export function apply(ctx: HostContext, config: Config = {}) {
     sources: Record<string, boolean>;
     copies: Record<string, boolean>;
     customSources: CustomRecord[];
+    /** Canonical folder overrides for built-in (non-DSH) provider roots, keyed by source id. */
+    rootOverrides: Record<string, string>;
     /** Per-project policy keyed by project id; never consulted for global copies. */
     projects: Record<string, ProjectState>;
     /** Categories and notes per scope key, then per source id: same-named skills stay independent. */
@@ -539,6 +569,7 @@ export function apply(ctx: HostContext, config: Config = {}) {
     sources: Object.create(null),
     copies: Object.create(null),
     customSources: [],
+    rootOverrides: Object.create(null),
     projects: Object.create(null),
     organization: Object.create(null),
     placement: 'settings',
@@ -576,6 +607,26 @@ export function apply(ctx: HostContext, config: Config = {}) {
       )
         throw invalid();
       seen.add(item.id);
+    }
+    const rawOverrides = value.rootOverrides ?? {};
+    if (
+      !rawOverrides ||
+      typeof rawOverrides !== 'object' ||
+      Array.isArray(rawOverrides) ||
+      Object.keys(rawOverrides).length > MAX_ROOT_OVERRIDES
+    )
+      throw invalid();
+    const rootOverrides: Record<string, string> = Object.create(null);
+    for (const [id, path] of Object.entries(rawOverrides)) {
+      if (
+        !/^[a-z0-9-]{1,32}$/.test(id) ||
+        typeof path !== 'string' ||
+        !isAbsolute(path) ||
+        path.length > MAX_PATH ||
+        path.includes('\0')
+      )
+        throw invalid();
+      rootOverrides[id] = path;
     }
     const projects = value.projects ?? {};
     if (!projects || typeof projects !== 'object' || Array.isArray(projects))
@@ -690,6 +741,7 @@ export function apply(ctx: HostContext, config: Config = {}) {
       placement,
       sources: Object.assign(Object.create(null), value.sources),
       copies: Object.assign(Object.create(null), value.copies),
+      rootOverrides,
       customSources: (custom as CustomRecord[]).map((item) => ({
         id: item.id,
         label: item.label,
@@ -705,6 +757,7 @@ export function apply(ctx: HostContext, config: Config = {}) {
         if (oversized) throw new Error('Invalid skill state');
         state = parseState(JSON.parse(text));
         corrupt = false;
+        return revalidateOverrides();
       })
       .catch((error: NodeJS.ErrnoException) => {
         corrupt = error.code !== 'ENOENT';
@@ -714,6 +767,44 @@ export function apply(ctx: HostContext, config: Config = {}) {
             `dsh-waycraft: skills state root ${basename(dirname(statePath))} is not a directory; skills state stays unavailable`,
           );
       });
+  /** Override ids ignored on load (overlap or reserved folder): reported, never scanned. */
+  let droppedOverrides: string[] = [];
+  const revalidateOverrides = async () => {
+    droppedOverrides = [];
+    const entries = Object.entries(state.rootOverrides);
+    if (!entries.length) return;
+    const reserved = await Promise.all(
+      [
+        dirname(statePath),
+        dshHome,
+        ...['.ssh', '.gnupg', '.aws', '.kube'].map((x) => join(homedir(), x)),
+      ].map((path) => comparisonPath(path)),
+    );
+    const home = await comparisonPath(homedir());
+    const fixed = await Promise.all(
+      [
+        ...baseSources.filter((x) => !overridableIds.has(x.id)),
+        ...baseSources.filter(
+          (x) => overridableIds.has(x.id) && state.rootOverrides[x.id],
+        ),
+        ...state.customSources,
+      ].map(async ({ id, path }) => ({ id, path: await comparisonPath(path) })),
+    );
+    const kept: Array<{ id: string; path: string }> = [];
+    for (const [id, path] of entries) {
+      const real = await comparisonPath(path);
+      const bad =
+        !overridableIds.has(id) ||
+        isSameOrDescendant(real, home) ||
+        reserved.some((x) => overlapsResolved(real, x)) ||
+        fixed.some((x) => x.id !== id && overlapsResolved(real, x.path)) ||
+        kept.some((x) => overlapsResolved(real, x.path));
+      if (bad) {
+        droppedOverrides.push(id);
+        delete state.rootOverrides[id];
+      } else kept.push({ id, path: real });
+    }
+  };
   let ready = loadState();
   const controls = new Set<Control>();
   let revision = 0;
@@ -729,8 +820,28 @@ export function apply(ctx: HostContext, config: Config = {}) {
     custom: true,
     rank: CUSTOM_RANK_BASE + index * CUSTOM_RANK_STEP,
   });
+  /** Built-in provider roots whose folder the user may redirect; DSH and shared Agents roots never are. */
+  const overridableIds = new Set(
+    builtins
+      .map(([id]) => id)
+      .filter((id) => baseSources.some((x) => x.id === id)),
+  );
+  const effectiveBase = (): Source[] =>
+    baseSources.map((source) => {
+      if (!overridableIds.has(source.id)) return source;
+      const override = corrupt ? undefined : state.rootOverrides[source.id];
+      return override
+        ? {
+            ...source,
+            path: override,
+            defaultPath: source.path,
+            overridden: true,
+            overridable: true,
+          }
+        : { ...source, overridable: true };
+    });
   const globalSources = (): Source[] => [
-    ...baseSources,
+    ...effectiveBase(),
     ...(corrupt ? [] : state.customSources).map(customSource),
   ];
   const reservedFolders = () => [dirname(statePath)];
@@ -1133,6 +1244,7 @@ export function apply(ctx: HostContext, config: Config = {}) {
       sources: flags(state.sources),
       copies: flags(state.copies),
       customSources: state.customSources.map((item) => ({ ...item })),
+      rootOverrides: Object.assign(Object.create(null), state.rootOverrides),
       projects,
       organization,
       placement: state.placement,
@@ -1308,7 +1420,13 @@ export function apply(ctx: HostContext, config: Config = {}) {
       corrupt,
       placement: state.placement,
       organization: orgView('global'),
-      diagnostics: [...diagnostics, ...registryDiagnostics()],
+      diagnostics: [
+        ...diagnostics,
+        ...registryDiagnostics(),
+        ...droppedOverrides.map((source) =>
+          diag('root-override-ignored', { source }, 'Folder override ignored'),
+        ),
+      ],
       projects: expose ? projects.map(summarize) : [],
       ...(project ? { project: await projectView(project) } : {}),
     };
@@ -1316,6 +1434,13 @@ export function apply(ctx: HostContext, config: Config = {}) {
   /** Every folder a new custom source must not overlap: global roots and available project roots. */
   const protectedRoots = async (projects: Project[]) => {
     const others = globalSources().map(({ id, path }) => ({ id, path }));
+    // An overridden provider keeps its default folder protected, so no other source can claim it.
+    for (const source of globalSources())
+      if (source.defaultPath)
+        others.push({
+          id: `${source.id}${DEFAULT_SUFFIX}`,
+          path: source.defaultPath,
+        });
     const resolved = await globalResolved();
     for (const project of projects)
       for (const item of (await projectSources(project, resolved)).sources)
@@ -1449,6 +1574,78 @@ export function apply(ctx: HostContext, config: Config = {}) {
     await writeState(next);
     return undefined;
   };
+  /** Sensitive folders a provider root may not be, contain or lie inside. */
+  const sensitiveFolders = () => [
+    dshHome,
+    ...['.ssh', '.gnupg', '.aws', '.kube'].map((x) => join(homedir(), x)),
+  ];
+  /**
+   * Redirects (or resets, with an empty path) a built-in provider root. Only the read location
+   * changes: no folder is created, moved or deleted. Policy keyed by the old location is purged.
+   */
+  const rootSet = async (
+    body: Record<string, unknown>,
+    projects: Project[],
+  ) => {
+    const id = typeof body.id === 'string' ? body.id : '';
+    const base = baseSources.find((x) => x.id === id);
+    if (!base || !overridableIds.has(id)) return fail(404, 'root-unsupported');
+    const next = cloneState();
+    const previous = next.rootOverrides[id] ?? base.path;
+    const reset =
+      body.path === null ||
+      body.path === undefined ||
+      (typeof body.path === 'string' && !body.path.trim());
+    if (!reset && typeof body.path !== 'string')
+      return fail(409, 'root-not-absolute');
+    const requested = reset ? '' : (body.path as string).trim();
+    const toDefault =
+      reset || pathIdentity(requested) === pathIdentity(base.path);
+    // Every other source, the other overridden providers' defaults, custom sources and projects.
+    const prepared = await prepareRoots(
+      [
+        ...(await protectedRoots(projects)).filter(
+          (x) => x.id !== id && x.id !== `${id}${DEFAULT_SUFFIX}`,
+        ),
+        ...next.customSources.map(({ id: other, path }) => ({
+          id: other,
+          path,
+        })),
+      ],
+      [...reservedFolders(), ...sensitiveFolders()],
+    );
+    let target = base.path;
+    if (toDefault) {
+      // Reset is validated too: another source may have claimed the default folder meanwhile.
+      const canonical = await comparisonPath(base.path);
+      const clash = prepared.others.find((x) =>
+        overlapsResolved(canonical, x.path),
+      );
+      if (clash)
+        return fail(409, 'root-overlap', {
+          path: base.path,
+          other: clash.id.replace(DEFAULT_SUFFIX, ''),
+        });
+    } else {
+      const checked = await validateRootPath(requested, prepared, id);
+      if (!checked.ok) return fail(409, checked.code, checked.params);
+      // Home itself and its ancestors (including `/`) can never be a skills root.
+      if (isSameOrDescendant(checked.path, await comparisonPath(homedir())))
+        return fail(409, 'root-reserved', { path: requested });
+      target = checked.path;
+    }
+    if (pathIdentity(target) === pathIdentity(base.path))
+      delete next.rootOverrides[id];
+    else next.rootOverrides[id] = target;
+    if (pathIdentity(previous) !== pathIdentity(target)) {
+      delete next.sources[id];
+      delete next.organization.global?.[id];
+      for (const path of Object.keys(next.copies))
+        if (isSameOrDescendant(previous, path)) delete next.copies[path];
+    }
+    await writeState(next);
+    return undefined;
+  };
   const customRemove = async (id: string) => {
     const next = cloneState();
     const index = next.customSources.findIndex((x) => x.id === id);
@@ -1564,11 +1761,13 @@ export function apply(ctx: HostContext, config: Config = {}) {
       if (stageCreated) await rm(stage, { recursive: true, force: true });
     }
   };
+  /** Model-facing create tool name (plugin-scoped; `create_skill` was never released under a retired namespace). */
+  const CREATE_TOOL = 'dsh_waycraft_create_skill';
   ctx.effect(() => {
     const tools = ctx.get?.('tools');
-    if (!tools || tools.get('create_skill')) return () => {};
+    if (!tools || tools.get(CREATE_TOOL)) return () => {};
     const stopGate = ctx.on?.('tools/pre-execute', async (exec, next) =>
-      exec.name === 'create_skill'
+      exec.name === CREATE_TOOL
         ? {
             kind: 'ask',
             reason: 'Create a reusable skill only with explicit user approval.',
@@ -1582,9 +1781,9 @@ export function apply(ctx: HostContext, config: Config = {}) {
     // Without the approval hook the model-facing mutation is not exposed.
     if (!stopGate) return () => {};
     const stopTool = tools.register({
-      name: 'create_skill',
+      name: CREATE_TOOL,
       description:
-        'Create a new local DSH skill. Use only when the user explicitly asks to create or save a reusable skill.',
+        'Create one reusable DSH skill (a SKILL.md folder) in the user DSH skills directory. Use only when the user explicitly asks to create or save a skill; the user is asked to approve every call. Do not use it to edit, rename or delete an existing skill, to install from a repository, or to write project skills. Returns {name, path, source} with the normalized kebab-case name and the SKILL.md path. Fails with an error naming a code: create-invalid (empty or unsafe name, empty description or body), create-too-large (description over 500 characters or body over 262144), create-conflict (a skill with that name already exists), create-failed (the folder could not be written).',
       parameters: {
         type: 'object',
         properties: {
@@ -1610,13 +1809,21 @@ export function apply(ctx: HostContext, config: Config = {}) {
           { type: 'text', text: JSON.stringify(value) },
         ],
       },
-      async execute(args) {
+      async execute(args, exec) {
         const operation = operations.then(async () => {
+          exec?.signal?.throwIfAborted();
           const result = await createSkill({
             ...(args as Record<string, unknown>),
             source: 'user-dsh',
           });
-          return result instanceof Response ? result.json() : result;
+          if (!(result instanceof Response)) return result;
+          const payload = (await result.json()) as { code?: string };
+          // A failed creation must reach the model as a tool error, not as a successful result.
+          if (!result.ok)
+            throw new Error(
+              `${CREATE_TOOL}: ${payload.code ?? 'create-failed'}`,
+            );
+          return payload;
         });
         operations = operation.catch(() => undefined);
         return operation;
@@ -1981,6 +2188,7 @@ export function apply(ctx: HostContext, config: Config = {}) {
               'custom-add',
               'custom-update',
               'custom-remove',
+              'root-set',
               ...ORG_ACTIONS,
             ];
             if (
@@ -2517,6 +2725,35 @@ export function apply(ctx: HostContext, config: Config = {}) {
               if (!found.ok) return fail(409, found.code, found.params);
               return Response.json(found);
             }
+            if (body.action === 'root-set') {
+              if (!marked)
+                return new Response('Mutation marker required', {
+                  status: 403,
+                });
+              if (typeof body.id !== 'string')
+                return new Response('Invalid root request', { status: 400 });
+              // Provider roots are global; a project scope never redirects them.
+              if (body.project !== undefined)
+                return fail(409, 'project-scope-unsupported');
+              const mutation = operations.then(async () => {
+                if (closing)
+                  return new Response('Skill manager is stopping', {
+                    status: 503,
+                  });
+                if (corrupt)
+                  return new Response('Skill state is invalid', {
+                    status: 409,
+                  });
+                return rootSet(
+                  body as Record<string, unknown>,
+                  await projects(),
+                );
+              });
+              operations = mutation.catch(() => undefined);
+              const error = await mutation;
+              if (error) return error;
+              return Response.json(await payload(project, await projects()));
+            }
             if (body.action?.startsWith('custom-')) {
               if (!marked)
                 return new Response('Mutation marker required', {
@@ -2659,7 +2896,11 @@ export function apply(ctx: HostContext, config: Config = {}) {
             return Response.json(
               await payload(project, await projects(), marked),
             );
-          } catch {
+          } catch (error) {
+            // Name and code only: messages can carry file paths.
+            ctx.logger?.warn?.(
+              `dsh-waycraft: skill operation failed (${(error as { code?: string }).code ?? (error as Error)?.name ?? 'unknown'})`,
+            );
             return new Response('Skill operation failed', { status: 400 });
           }
         },

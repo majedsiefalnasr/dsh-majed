@@ -14,7 +14,7 @@ export interface ToolRegistry {
 
 /**
  * Register a tool under its canonical name, then a plugin-scoped alias on collision, plus the retired
- * pre-rename name (`LEGACY_TOOL_ALIASES`) as a deprecated alias of the same implementation (ticket #159). The deprecated alias is
+ * pre-rename name (`LEGACY_TOOL_ALIASES`) as a deprecated alias of the same implementation. The deprecated alias is
  * marked `deferLoading` so it does not bloat model tool lists, and failure to register it is never an error.
  * `names` lists every registered name (canonical first) so callers can restrict all of them together.
  */

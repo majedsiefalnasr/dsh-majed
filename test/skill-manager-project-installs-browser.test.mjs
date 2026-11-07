@@ -290,6 +290,18 @@ const stub = () =>
     res.end('{}');
   });
 
+// The original installs through a destination dialog: open it from the row, optionally pick a destination, confirm.
+async function installVia(ui, u, d, name = 'alpha', destination) {
+  await ui.act2(() => u.button(`${d.repoInstall}: ${name}`).props.onClick());
+  if (destination !== undefined)
+    await ui.act2(() =>
+      u
+        .field(d.repoDestination)
+        .props.onChange({ target: { value: destination } }),
+    );
+  await ui.act2(() => u.button(d.catInstallConfirm).props.onClick());
+}
+
 for (const language of ['en', 'ar']) {
   test(`registered ${language} catalog UI installs into project DSH scopes through the destination picker and manages each copy`, async (t) => {
     const server = await stub();
@@ -438,6 +450,7 @@ for (const language of ['en', 'ar']) {
     await ui.act2(() =>
       u.field(d.scope).props.onChange({ target: { value: 'discover' } }),
     );
+    await ui.act2(() => u.button(d.repoAddTitle).props.onClick());
     await ui.act2(() =>
       u.field(d.repoUrl).props.onChange({ target: { value: source } }),
     );
@@ -447,30 +460,30 @@ for (const language of ['en', 'ar']) {
         .props.onChange({ target: { value: 'skills' } }),
     );
     await ui.act2(() => u.form().props.onSubmit({ preventDefault() {} }));
+    await ui.act2(() => u.button(`${d.repoInstall}: alpha`).props.onClick());
     const picker = u.field(d.repoDestination);
     const values = picker.findAllByType('option').map((x) => x.props.value);
     assert.equal(values.length, 4);
     const [pa, pb] = values.slice(2);
     await ui.act2(() => picker.props.onChange({ target: { value: pa } }));
-    await ui.act2(() => u.button(`${d.repoInstall}: alpha`).props.onClick());
+    await ui.act2(() => u.button(d.catInstallConfirm).props.onClick());
     assert.equal(
       await exists(join(ui.projects.a, '.dsh', 'skills', 'alpha', 'SKILL.md')),
       true,
     );
     assert.equal(await exists(join(ui.root, 'skills', 'alpha')), false);
-    // Installed there: the same destination offers no second install, other destinations still do.
-    assert.equal(u.button(`${d.repoInstall}: alpha`), undefined);
+    // Installed there: the dialog keeps Confirm disabled for the same destination; other destinations still install.
+    await ui.act2(() => u.button(`${d.repoInstall}: alpha`).props.onClick());
+    await ui.act2(() =>
+      u.field(d.repoDestination).props.onChange({ target: { value: pa } }),
+    );
+    assert.equal(u.button(d.catInstallConfirm).props.disabled, true);
     await ui.act2(() =>
       u.field(d.repoDestination).props.onChange({ target: { value: pb } }),
     );
-    assert.ok(u.button(`${d.repoInstall}: alpha`));
-    await ui.act2(() => u.button(`${d.repoInstall}: alpha`).props.onClick());
-    await ui.act2(() =>
-      u
-        .field(d.repoDestination)
-        .props.onChange({ target: { value: 'user-dsh' } }),
-    );
-    await ui.act2(() => u.button(`${d.repoInstall}: alpha`).props.onClick());
+    assert.equal(u.button(d.catInstallConfirm).props.disabled, false);
+    await ui.act2(() => u.button(d.catInstallConfirm).props.onClick());
+    await installVia(ui, u, d, 'alpha', 'user-dsh');
     const rows = view.root.findAll(
       (x) => x.props?.['data-waycraft-repo-install'],
     );
@@ -526,6 +539,7 @@ for (const language of ['en', 'ar']) {
       u.field(d.scope).props.onChange({ target: { value: 'discover' } }),
     );
     assert.ok(text().includes(d['repoStatus.invalid-root']));
+    await ui.act2(() => u.button(`${d.repoInstall}: alpha`).props.onClick());
     assert.equal(
       u
         .field(d.repoDestination)
@@ -533,6 +547,7 @@ for (const language of ['en', 'ar']) {
         .some((x) => x.props.value === pb),
       false,
     );
+    await ui.act2(() => u.button(d.cancel).props.onClick());
     await act(pb.slice(12), d.repoForget);
     await ui.act2(() =>
       u.button(`${d.repoConfirmForgetYes}: alpha`).props.onClick(),
@@ -665,6 +680,7 @@ for (const language of ['en', 'ar']) {
     await ui.act2(() =>
       u.field(d.scope).props.onChange({ target: { value: 'discover' } }),
     );
+    await ui.act2(() => u.button(d.repoAddTitle).props.onClick());
     await ui.act2(() =>
       u.field(d.repoUrl).props.onChange({ target: { value: source } }),
     );
@@ -675,9 +691,11 @@ for (const language of ['en', 'ar']) {
     );
     await ui.act2(() => u.form().props.onSubmit({ preventDefault() {} }));
     const picker = () => u.field(d.repoDestination);
-    // The default destination is the user DSH folder; Install is enabled there.
+    const confirm = () => u.button(d.catInstallConfirm);
+    // The Install row opens the destination dialog; the default is the user DSH folder and Confirm is enabled there.
+    await ui.act2(() => u.button(`${d.repoInstall}: alpha`).props.onClick());
     assert.equal(picker().props.value, 'user-dsh');
-    assert.equal(u.button(`${d.repoInstall}: alpha`).props.disabled, false);
+    assert.equal(confirm().props.disabled, false);
     assert.ok(!text().includes(d.destProjectNote));
     // The unavailable registered project is listed greyed out with its reason.
     const values = picker()
@@ -692,20 +710,19 @@ for (const language of ['en', 'ar']) {
       disabled[0].children.join('').includes(d['code.project-missing']),
     );
     assert.ok(disabled[0].children.join('').includes('gone'));
-    // Forcing the greyed value (no real browser would allow it) leaves Install disabled and explains why.
+    // Forcing the greyed value (no real browser would allow it) leaves Confirm disabled and explains why.
     await ui.act2(() =>
       picker().props.onChange({ target: { value: disabled[0].props.value } }),
     );
-    assert.equal(u.button(`${d.repoInstall}: alpha`).props.disabled, true);
+    assert.equal(confirm().props.disabled, true);
     assert.ok(text().includes(d.destInvalid));
-    await ui.act2(() => u.button(`${d.repoInstall}: alpha`).props.onClick());
     assert.equal(await exists(join(ui.root, 'skills', 'alpha')), false);
-    // A real project shows its folder, the note, and an enabled Install.
+    // A real project shows its folder, the note, and an enabled Confirm.
     const pa = projectValues(picker()).find(
       (value) => !option(picker(), value).props.disabled,
     );
     await ui.act2(() => picker().props.onChange({ target: { value: pa } }));
-    assert.equal(u.button(`${d.repoInstall}: alpha`).props.disabled, false);
+    assert.equal(confirm().props.disabled, false);
     assert.ok(text().includes(join(ui.projects.a, '.dsh', 'skills')));
     assert.ok(text().includes(d.destProjectNote));
     // The selected project leaves the registry: the picker value resets to the default.
@@ -716,8 +733,9 @@ for (const language of ['en', 'ar']) {
     await ui.act2(() =>
       u.field(d.scope).props.onChange({ target: { value: 'discover' } }),
     );
+    await ui.act2(() => u.button(`${d.repoInstall}: alpha`).props.onClick());
     assert.equal(picker().props.value, 'user-dsh');
-    assert.equal(u.button(`${d.repoInstall}: alpha`).props.disabled, false);
+    assert.equal(confirm().props.disabled, false);
   });
 
   test(`registered ${language} UI shows an empty-projects hint and only user destinations when no project is registered`, async (t) => {
@@ -733,6 +751,7 @@ for (const language of ['en', 'ar']) {
     await ui.act2(() =>
       u.field(d.scope).props.onChange({ target: { value: 'discover' } }),
     );
+    await ui.act2(() => u.button(d.repoAddTitle).props.onClick());
     await ui.act2(() =>
       u.field(d.repoUrl).props.onChange({ target: { value: source } }),
     );
@@ -742,6 +761,7 @@ for (const language of ['en', 'ar']) {
         .props.onChange({ target: { value: 'skills' } }),
     );
     await ui.act2(() => u.form().props.onSubmit({ preventDefault() {} }));
+    await ui.act2(() => u.button(`${d.repoInstall}: alpha`).props.onClick());
     assert.deepEqual(
       u
         .field(d.repoDestination)
@@ -750,7 +770,7 @@ for (const language of ['en', 'ar']) {
       ['user-dsh', 'user-agents'],
     );
     assert.ok(u.text().includes(d.destNoProjects));
-    assert.equal(u.button(`${d.repoInstall}: alpha`).props.disabled, false);
+    assert.equal(u.button(d.catInstallConfirm).props.disabled, false);
   });
 
   test(`registered ${language} repository UI updates and rolls back one project copy through the UI`, async (t) => {
@@ -768,6 +788,7 @@ for (const language of ['en', 'ar']) {
     await ui.act2(() =>
       u.field(d.scope).props.onChange({ target: { value: 'discover' } }),
     );
+    await ui.act2(() => u.button(d.repoAddTitle).props.onClick());
     await ui.act2(() =>
       u.field(d.repoUrl).props.onChange({ target: { value: source } }),
     );
@@ -777,17 +798,11 @@ for (const language of ['en', 'ar']) {
         .props.onChange({ target: { value: 'skills' } }),
     );
     await ui.act2(() => u.form().props.onSubmit({ preventDefault() {} }));
+    await ui.act2(() => u.button(`${d.repoInstall}: alpha`).props.onClick());
     const [pa] = projectValues(u.field(d.repoDestination));
-    await ui.act2(() =>
-      u.field(d.repoDestination).props.onChange({ target: { value: pa } }),
-    );
-    await ui.act2(() => u.button(`${d.repoInstall}: alpha`).props.onClick());
-    await ui.act2(() =>
-      u
-        .field(d.repoDestination)
-        .props.onChange({ target: { value: 'user-dsh' } }),
-    );
-    await ui.act2(() => u.button(`${d.repoInstall}: alpha`).props.onClick());
+    await ui.act2(() => u.button(d.cancel).props.onClick());
+    await installVia(ui, u, d, 'alpha', pa);
+    await installVia(ui, u, d, 'alpha', 'user-dsh');
     const inProject = join(ui.projects.a, '.dsh', 'skills', 'alpha');
     const global = join(ui.root, 'skills', 'alpha');
     await gitCommit(source, { 'skills/alpha/notes.md': 'v2' });

@@ -201,7 +201,10 @@ test('media thumbnail uses DSH typography tokens and failure retry remains usabl
       );
     });
     const retry = renderer.root.findByType('button');
-    assert.equal(retry.props.style.font, 'var(--dsw-font-s-12)');
+    assert.match(
+      retry.props.style.font,
+      /^var\(--dsw-font-s-12, .*--dsw-font-family\)\)$/,
+    );
     await act(async () => retry.props.onClick());
     assert.equal(calls, 2);
   } finally {

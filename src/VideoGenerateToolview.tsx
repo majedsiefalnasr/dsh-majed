@@ -202,7 +202,8 @@ const styles: Record<string, CSSProperties> = {
     maxWidth: 480,
     width: '100%',
     borderRadius: 8,
-    backgroundColor: 'var(--dsw-alias-fill-tertiary)',
+    // --dsw-alias-fill-tertiary is not defined by the installed host theme (0.2.2-rc.1); bg-layer-3 is the defined neutral fill.
+    backgroundColor: 'var(--dsw-alias-bg-layer-3)',
   },
 };
 

@@ -205,7 +205,7 @@ async function readCatalogFile(path) {
  * Windows refuses to replace a file another handle holds open without
  * `FILE_SHARE_DELETE` (an indexer, antivirus scan, or a second dsh profile
  * reading the cache), surfacing as a transient `EPERM`/`EBUSY`/`EACCES` on
- * `rename` (issue #129). Retry briefly before giving the write up.
+ * `rename`. Retry briefly before giving the write up.
  */
 const RENAME_RETRY_CODES = new Set([
     'EPERM',

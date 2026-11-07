@@ -1,6 +1,6 @@
 /**
  * One-release migration of the on-disk state from the retired `majed` directories to `waycraft`
- * (ticket #159). Copy, never move: legacy files are NEVER deleted or modified. Credential contents
+ *. Copy, never move: legacy files are NEVER deleted or modified. Credential contents
  * are never logged. A copy is staged beside its target, validated, then published with `link()`
  * (which fails if the target exists), so an existing new file is never overwritten.
  */

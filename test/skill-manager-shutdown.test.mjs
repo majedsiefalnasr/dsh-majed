@@ -104,11 +104,13 @@ test('shutdown drains a fully staged creation and fresh reentry preserves it', a
   );
   assert.deepEqual(await fs.readdir(source), ['staged']);
   assert.equal(
-    (await first.tool.execute({ ...args, name: 'After stop' })).code,
+    await first.tool
+      .execute({ ...args, name: 'After stop' })
+      .catch((error) => /stopping/.test(error.message) && 'stopping'),
     'stopping',
   );
   const second = mount();
-  assert.equal((await second.tool.execute(args)).code, 'create-conflict');
+  await assert.rejects(second.tool.execute(args), /create-conflict/);
   const next = await second.tool.execute({ ...args, name: 'Fresh' });
   assert.equal(next.name, 'fresh');
   await second.stop();

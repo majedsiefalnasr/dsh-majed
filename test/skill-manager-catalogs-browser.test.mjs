@@ -317,6 +317,48 @@ for (const language of ['en', 'ar']) {
     );
     assert.ok(text().includes('acme/alpha'));
     assert.ok(text().includes(`95 ${d.catDownloads}`));
+    // Redesign: one bordered list, icon-only Details/Install (never the destructive style), filters in one row.
+    const install = u.button(`${d.catInstall}: Skill alpha`);
+    assert.ok(!/waycraft-skills-danger/.test(install.props.className ?? ''));
+    // One shared Discover row: a ghost Install action with the download icon and a visible Install label.
+    assert.match(install.props.className, /\bwaycraft-skills-install\b/);
+    assert.ok(
+      !/waycraft-skills-primary/.test(install.props.className),
+      'Install is a ghost row action, not a filled pill',
+    );
+    assert.equal(install.props.title, d.catInstall);
+    assert.deepEqual(
+      install.children.map((x) => x.type),
+      ['svg', 'span'],
+      'icon + visible label',
+    );
+    assert.equal(install.children[1].children.join(''), d.repoInstall);
+    assert.ok(
+      u
+        .button(`${d.catDetails}: Skill alpha`)
+        .props.className.includes('waycraft-skills-icon-btn'),
+      'Details stays a ghost icon button',
+    );
+    assert.ok(
+      view.root.findAll(
+        (x) => x.props?.className === 'waycraft-skills-stat-pill',
+      ).length >= 1,
+      'downloads/installs/stars are compact pills',
+    );
+    assert.equal(
+      view.root.findAll(
+        (x) =>
+          x.type === 'ul' &&
+          /waycraft-skills-list\b/.test(x.props.className ?? ''),
+      ).length,
+      1,
+    );
+    assert.equal(
+      view.root.findAll((x) =>
+        /waycraft-skills-filterrow/.test(x.props.className ?? ''),
+      ).length,
+      1,
+    );
     assert.ok(
       view.root.findAllByType('bdi').some((x) => x.props.dir === 'ltr'),
     );
@@ -496,7 +538,7 @@ test('Discover Skills scope: options, tablist roles, keyboard navigation (EN/AR)
     const tabs = roles(c.view, 'tab');
     assert.deepEqual(
       tabs.map((x) => x.children.join('')),
-      [c.d.tabGit, c.d.catSourceClawhub, c.d.catSourceSkillsh],
+      [`${c.d.tabGit} (0)`, c.d.catSourceClawhub, c.d.catSourceSkillsh],
     );
     assert.deepEqual(
       tabs.map((x) => x.props.tabIndex),

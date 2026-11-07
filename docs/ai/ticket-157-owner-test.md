@@ -11,7 +11,7 @@
 
 Work on a throwaway DSH profile or at least on test skills only. Back up the following before starting and record their paths; never paste secrets, tokens or account data into the report:
 
-- State directory `stateDir` = `<DSH_HOME>/majed-skills/` (default `~/.dsh/majed-skills/`): `state.json` (toggles, sources, categories, notes), `repositories.json`, `catalogs.json`, `repository-snapshots/`, `repository-backups/`, `trash/`.
+- State directory `stateDir` = `<DSH_HOME>/waycraft-skills/` (default `~/.dsh/waycraft-skills/`): `state.json` (toggles, sources, categories, notes), `repositories.json`, `catalogs.json`, `repository-snapshots/`, `repository-backups/`, `trash/`.
 - User skill folders that the manager writes: `<DSH_HOME>/skills` (DSH skills) and the Shared Agents folder `~/.agents/skills`; project scope writes only `<project>/.dsh/skills`.
 - Trash lives in `<stateDir>/trash/<id>/` for global and project copies alike (each id holds `metadata.json` plus the original bundle); a project copy's metadata names the project id.
 - Keep the previous plugin package so that rollback is possible (see Rollback).
@@ -36,7 +36,7 @@ For every case record PASS / FAIL / NOT TESTED, what you saw and, if useful, a s
 
 1. **Open and layout (EN):** Settings → Skill manager. Expect the header controls, a scope selector (Global skills / Project skills / Discover Skills / Trash), search, source/status/category filters, source groups with a toggle per source, and **no** GitHub, Issues or Check-for-updates button anywhere (every scope, details dialog, panels). Record what is present.
 2. **Arabic and RTL:** switch DSH to Arabic. Expect the whole manager to mirror (`dir=rtl`), labels in Arabic, paths and project names kept left-to-right inside their bidi islands, dialogs readable, no clipped or overlapping controls, keyboard focus visible and Escape closing dialogs. Real browser focus and RTL layout are NOT proven by automated tests, so this case is mandatory.
-3. **Known gaps (do not mark as failures, record the decision):** there is no drag-and-drop upload zone, no "Open folder" action, no built-in-root override and no native folder picker ("Browse…") for source folders (the reference uses the DSH `uiWorkspace.pickDirectory` client service; Waycraft takes a typed absolute path with a candidate preview), and no "Bundle" badge. The stats strip and the global Refresh button are implemented: see cases 26 and 27. See the parity matrix GAP-1..GAP-17 for the recommended disposition.
+3. **Known gaps (do not mark as failures, record the decision):** there is no drag-and-drop upload zone, no "Open folder" action, and no "Bundle" badge. The stats strip and the global Refresh button are implemented: see cases 26 and 27. See the parity matrix GAP-1..GAP-17 for the recommended disposition.
 
 ### B. Discovery, toggles and policy (#146, #147)
 
@@ -80,13 +80,14 @@ For every case record PASS / FAIL / NOT TESTED, what you saw and, if useful, a s
 
 ### I. Rollback
 
-23. **Disable without removing:** switch off the Skill manager component (Loader row `majed-skills`); Waycraft continues to work (AI Providers and the rest are independent).
+23. **Disable without removing:** switch off the Skill manager component (Loader row `waycraft-skills`); Waycraft continues to work (AI Providers and the rest are independent).
 24. **Restore the previous plugin package** through the plugin manager and fully restart (needs the restart approval). State stays on disk in `stateDir`; remove it only if you intend to forget all manager data: delete `<stateDir>/state.json`, `repositories.json`, `catalogs.json`, `repository-snapshots/`, `repository-backups/`; keep `trash/` if you may still want deleted skills back.
 25. **What remains after rollback:** installed skill folders (user and project), Trash content under `<stateDir>/trash`, backups under `<stateDir>/repository-backups`, and project `.dsh/skills` copies that may be committed in your project. Nothing is removed automatically.
 
 ### J. Stats strip, Refresh and slash menu (#157)
 
 26. **Stats strip and Refresh:** in Global skills expect a strip "N skills / N enabled / N disabled / N diagnostics" above the list (also in Project skills once a project is selected). Disable one skill and expect enabled −1 / disabled +1; break a `SKILL.md` on disk (remove its front matter) and press **Refresh**: the diagnostics count increases without a page reload and the strip is not changed by search or filters. In Arabic the numbers stay readable inside the RTL strip. Refresh is disabled with a busy label ("Refreshing…" / "جارٍ إعادة التحميل…") while it runs, is absent in Discover and Trash, and a forced failure (e.g. stop the host) shows the error in the notice line. Arabic labels: button "إعادة تحميل" (reload; not "تحديث"/update), accessible name "إعادة تحميل المهارات" unchanged while busy, strip group name "إحصاءات المهارات"; with a screen reader or the browser accessibility inspector check that the Refresh name stays the same while busy and the strip is announced as a labelled group. If the first load failed (host stopped at open), start the host and press **Refresh** or **Retry**: the "Unable to load skills" alert must disappear. NOT proven: real RTL layout and real screen-reader output.
+27a. **Built-in folder override and Browse (rc.4, UNPROVEN on a real host):** open a provider source (e.g. Codex) and press Change folder; pick a folder with Browse (hidden if DSH has no folder picker) or type one; Save. Expect the source to list that folder, an overridden badge with the default path, and Reset to restore the default. Refusals: your home folder, `/`, `~/.ssh`, the DSH state folder, folders overlapping another source. Notes and categories of that source are cleared on change; no skill files are ever deleted.
 27. **Slash menu after writes (UNPROVEN, parity matrix F37 / GAP-17):** the reference also emits `commands/change` after every write; Waycraft only invalidates its provider. After **install**, **toggle** and **delete** open a fresh `/` menu in a chat **without reloading the page** and record whether the new/removed skill is reflected immediately. If not, record it as a gap; no code emits the event today because the declared host context has no public `emit`.
 
 ## Not proven by automated tests (acceptance must cover or the Owner must accept the gap)

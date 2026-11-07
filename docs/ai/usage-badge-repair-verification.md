@@ -1,5 +1,7 @@
 # Account-bearing usage roster repair
 
+> Historical names: this evidence predates the #159 rename; `majed*` identifiers below are the retired names of the current `waycraft*` ones (see `rename-waycraft.md`).
+
 ## Approved bounded contract
 
 Owner confirmed missing badge with reference Subscriptions off, current/most-recent preference, Codex selected and Speed visible. Latest explicit repair authorization supersedes the earlier diagnosis-only freeze. Baseline `0c8bab1`; isolated branch `fix/usage-badge-account-roster`, worktree `../dsh-majed-badge-repair`. Surgical patch / Karpathy / TDD route: known mechanism and Owner-approved actual rendered badge seam make a larger design/ticket cycle unnecessary. No new dependency, cosmetic redesign, fake Zen accounts, host/provider/auth changes or external reference retrieval.

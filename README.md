@@ -57,6 +57,19 @@ All text in this plugin's own UI (settings rows, dropdowns, toast, Approvals con
 
 Settings are stored per-browser/desktop profile in `localStorage` (`dsh-waycraft:settings:v1`).
 
+## Components
+
+Waycraft is one plugin made of separate Loader rows; each can be switched off without disabling the plugin. The Subscriptions and Skill manager rows are disabled by default.
+
+- **Subscriptions** (Loader row `waycraft-subscriptions`): Codex, Claude, Grok, Copilot, Antigravity and OpenCode Zen account sign-in, model routing, usage badge and speed control, plus the Codex image, video and X search tools.
+- **Skill manager** (Loader row `waycraft-skills`): one place to see, enable and organise the skills DSH can read.
+  - Sources and categories: every skill folder is a source you can switch on or off; skills can be grouped into categories (stored by Waycraft, files are never moved), reordered by drag and drop or Move up/down, and given display notes.
+  - Create and import: create a skill in your DSH folder, Shared Agents or a registered project, or import a folder or archive.
+  - Trash: removed skills go to a Trash you can restore from.
+  - Repositories: subscribe to Git repositories and install tracked copies, with update and rollback.
+  - Catalogs: browse ClawHub and skills.sh and install into a chosen destination.
+  - Model tool: `dsh_waycraft_create_skill` (asks for approval before it creates a skill).
+
 ## Identity and upgrade compatibility
 
 The product is **Waycraft for DSH**, with package name `dsh-waycraft`. The source repository remains `majedsiefalnasr/dsh-waycraft`; a repository rename is a separate operation. All owned identifiers use the `waycraft` prefix. For one release the plugin still answers the earlier RPC routes, header, font route and browser global, reads the earlier browser settings keys, and copies (never moves) earlier account/credential/media/skills storage to the new location on first start. The earlier files are never deleted or modified, so rolling back is a reinstall of the earlier archive. See `docs/ai/rename-waycraft.md` for the full table, migration behavior, removal plan and open items (Loader row ids).
@@ -80,4 +93,4 @@ Waycraft's scope includes interface and workflow improvements, provider integrat
 Chat direction CSS/logic adapted from [dsh-persian-rtl](https://github.com/ireza7/dsh-persian-rtl) (MIT).
 
 ## License
-MIT
+MIT. The Skill manager parts are adapted from dsh-skills-manager (Apache-2.0); see `THIRD_PARTY_NOTICES.md`.

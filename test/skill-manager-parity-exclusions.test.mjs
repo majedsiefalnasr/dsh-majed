@@ -127,8 +127,8 @@ for (const language of ['en', 'ar'])
         inject(_name, start) {
           return start();
         },
-        register(_entry, component) {
-          Section = component;
+        register(entry, component) {
+          if (entry.name === 'settings.section') Section = component;
           return () => {
             Section = undefined;
           };

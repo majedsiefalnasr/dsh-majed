@@ -40,6 +40,22 @@ export function validDiscoveryName(name: unknown): name is string {
   );
 }
 
+/** Coarse, path-free reason class for an unreadable entry (shown to the user, never the raw message). */
+function reasonOf(error: unknown): string {
+  switch ((error as { code?: string })?.code) {
+    case 'EACCES':
+    case 'EPERM':
+      return 'permission';
+    case 'ENOTDIR':
+      return 'not-directory';
+    case 'ENOENT':
+    case 'ELOOP':
+      return 'broken-link';
+    default:
+      return 'unknown';
+  }
+}
+
 export async function discoverReadonlyEntries(
   root: string,
   signal?: AbortSignal,
@@ -52,6 +68,11 @@ export async function discoverReadonlyEntries(
   let exists = false;
   let truncated = false;
   const errors: string[] = [];
+  const errorDetails: { path: string; reason: string }[] = [];
+  const fail = (path: string, error: unknown) => {
+    errors.push(path);
+    errorDetails.push({ path, reason: reasonOf(error) });
+  };
   for (let cursor = 0; cursor < queue.length; cursor++) {
     if (signal?.aborted) break;
     if (directories >= MAX_DIRECTORIES || entries >= MAX_ENTRIES) {
@@ -104,9 +125,9 @@ export async function discoverReadonlyEntries(
         entries++;
         items.push(item);
       }
-    } catch {
+    } catch (error) {
       // A broken link or unreadable directory must not block other sources.
-      errors.push(current.path);
+      fail(current.path, error);
       continue;
     }
     items.sort((a, b) => a.name.localeCompare(b.name));
@@ -158,8 +179,8 @@ export async function discoverReadonlyEntries(
           realEntryPath,
           linked: identity(resolve(entryPath)) !== identity(realEntryPath),
         });
-      } catch {
-        errors.push(path);
+      } catch (error) {
+        fail(path, error);
       }
     }
   }
@@ -168,5 +189,6 @@ export async function discoverReadonlyEntries(
     entries: [...byName.values()].sort((a, b) => a.name.localeCompare(b.name)),
     truncated,
     errors,
+    errorDetails,
   };
 }

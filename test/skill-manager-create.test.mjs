@@ -57,7 +57,7 @@ for (const duplicate of [false, true])
       const gate = listeners.get('tools/pre-execute');
       assert.equal(
         (
-          await gate({ name: 'create_skill' }, () =>
+          await gate({ name: 'dsh_waycraft_create_skill' }, () =>
             Promise.resolve({ kind: 'allow' }),
           )
         ).kind,
@@ -81,15 +81,16 @@ for (const duplicate of [false, true])
       assert.match(await readFile(result.path, 'utf8'), /Tool instructions/);
       const pending = definition.execute({ ...args, name: 'During shutdown' });
       for (const stop of [...stops].reverse()) await stop?.();
-      const outcome = await pending;
+      const outcome = await pending.catch((error) => error);
       assert.ok(
-        outcome.name === 'during-shutdown' || outcome.code === 'stopping',
+        outcome.name === 'during-shutdown' ||
+          /stopping/.test(String(outcome.message)),
       );
       assert.equal(removed, 1);
       assert.equal(listeners.has('tools/pre-execute'), false);
-      assert.equal(
-        (await definition.execute({ ...args, name: 'After shutdown' })).code,
-        'stopping',
+      await assert.rejects(
+        definition.execute({ ...args, name: 'After shutdown' }),
+        /stopping/,
       );
       assert.match(await readFile(result.path, 'utf8'), /Tool instructions/);
       return;

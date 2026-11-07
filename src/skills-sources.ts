@@ -1,4 +1,4 @@
-// Registered-project resolution and custom-source path validation for the Skill manager (#147).
+// Registered-project resolution and custom-source path validation for the Skill manager.
 // Behaviour adapts dsh-skills-manager v1.2.29 src/core.ts (project roots, validateSourceRootPath,
 // scanCustomSourceCandidates); see src/PROVENANCE.md. Every check here runs on the host: paths and
 // project identities supplied by the browser are never trusted without re-resolution.

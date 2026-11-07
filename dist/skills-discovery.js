@@ -17,6 +17,21 @@ export function validDiscoveryName(name) {
                     !/[. ]$/.test(part) &&
                     !/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/i.test(part)))));
 }
+/** Coarse, path-free reason class for an unreadable entry (shown to the user, never the raw message). */
+function reasonOf(error) {
+    switch (error?.code) {
+        case 'EACCES':
+        case 'EPERM':
+            return 'permission';
+        case 'ENOTDIR':
+            return 'not-directory';
+        case 'ENOENT':
+        case 'ELOOP':
+            return 'broken-link';
+        default:
+            return 'unknown';
+    }
+}
 export async function discoverReadonlyEntries(root, signal) {
     const rootPath = resolve(root);
     const queue = [{ path: rootPath, depth: 0, ancestors: new Set() }];
@@ -26,6 +41,11 @@ export async function discoverReadonlyEntries(root, signal) {
     let exists = false;
     let truncated = false;
     const errors = [];
+    const errorDetails = [];
+    const fail = (path, error) => {
+        errors.push(path);
+        errorDetails.push({ path, reason: reasonOf(error) });
+    };
     for (let cursor = 0; cursor < queue.length; cursor++) {
         if (signal?.aborted)
             break;
@@ -83,9 +103,9 @@ export async function discoverReadonlyEntries(root, signal) {
                 items.push(item);
             }
         }
-        catch {
+        catch (error) {
             // A broken link or unreadable directory must not block other sources.
-            errors.push(current.path);
+            fail(current.path, error);
             continue;
         }
         items.sort((a, b) => a.name.localeCompare(b.name));
@@ -141,8 +161,8 @@ export async function discoverReadonlyEntries(root, signal) {
                     linked: identity(resolve(entryPath)) !== identity(realEntryPath),
                 });
             }
-            catch {
-                errors.push(path);
+            catch (error) {
+                fail(path, error);
             }
         }
     }
@@ -151,5 +171,6 @@ export async function discoverReadonlyEntries(root, signal) {
         entries: [...byName.values()].sort((a, b) => a.name.localeCompare(b.name)),
         truncated,
         errors,
+        errorDetails,
     };
 }

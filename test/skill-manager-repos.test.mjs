@@ -330,7 +330,17 @@ test('Git processing is time-bounded and a hung git process is killed', async (t
     if (!pidText) await new Promise((resolve) => setTimeout(resolve, 50));
   }
   const pid = Number(pidText.trim());
-  await new Promise((resolve) => setTimeout(resolve, 200));
+  // The timed-out Git child is killed asynchronously: wait for the process to be gone (bounded) rather than sleeping.
+  let gone = false;
+  for (let i = 0; i < 100 && !gone; i++) {
+    try {
+      process.kill(pid, 0);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    } catch (error) {
+      gone = error.code === 'ESRCH';
+      if (!gone) throw error;
+    }
+  }
   assert.throws(() => process.kill(pid, 0), { code: 'ESRCH' });
 });
 
