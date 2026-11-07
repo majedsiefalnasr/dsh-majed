@@ -1,4 +1,4 @@
-// Shared controlled fixtures for the repository subscription tests (#153).
+// Shared controlled fixtures for the repository subscription tests.
 // Everything is local: temp directories, local git repositories and 127.0.0.1 servers.
 // No test here ever contacts the public internet.
 import { execFileSync, spawn } from 'node:child_process';

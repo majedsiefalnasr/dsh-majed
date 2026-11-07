@@ -537,8 +537,6 @@ function setupSkills(ctx, fail) {
 				"code.category-unknown": "This category no longer exists",
 				"code.category-limit": "The limit of {limit} categories is reached",
 				"code.skill-unknown": "This skill is not available in this view",
-				"code.order-position": "The ordering position is invalid",
-				"code.order-target": "The ordering target is in another category",
 				"code.note-too-long": "The note is longer than {limit} characters",
 				"code.placement-invalid": "The entry placement is invalid"
 			},
@@ -1014,8 +1012,6 @@ function setupSkills(ctx, fail) {
 				"code.category-unknown": "لم يعد هذا التصنيف موجوداً",
 				"code.category-limit": "بلغت الحد الأقصى وهو {limit} تصنيفاً",
 				"code.skill-unknown": "هذه المهارة غير متاحة في هذا العرض",
-				"code.order-position": "موضع الترتيب غير صالح",
-				"code.order-target": "هدف الترتيب في تصنيف آخر",
 				"code.note-too-long": "الملاحظة أطول من {limit} حرفاً",
 				"code.placement-invalid": "موضع الدخول غير صالح"
 			}
@@ -1086,8 +1082,9 @@ function setupSkills(ctx, fail) {
 			return found ? sourceLabel(found) : entry.source;
 		};
 		const placeNode = (data, entry) => h("bdi", { dir: "ltr" }, placeName(data, entry));
+		const responsive = (condition, rules) => `@container (${condition}){${rules}}\n@supports not (container-type:inline-size){@media (${condition}){${rules}}}`;
 		const SKILLS_STYLE = `
-.waycraft-skills{max-inline-size:720px;min-inline-size:0;display:flex;flex-direction:column;gap:12px;color:var(--dsw-alias-label-primary);font-size:14px;line-height:22px}
+.waycraft-skills{container-type:inline-size;inline-size:100%;max-inline-size:720px;min-inline-size:0;display:flex;flex-direction:column;gap:12px;color:var(--dsw-alias-label-primary);font-size:14px;line-height:22px}
 .waycraft-skills *{box-sizing:border-box;min-inline-size:0}
 .waycraft-skills bdi{unicode-bidi:isolate}
 .waycraft-skills-path{direction:ltr;unicode-bidi:isolate;overflow-wrap:anywhere;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}
@@ -1136,8 +1133,8 @@ function setupSkills(ctx, fail) {
 .waycraft-skills-source-icon{inline-size:16px;block-size:16px;flex:none;color:var(--dsw-alias-label-secondary)}
 .waycraft-skills-source-path{flex:1 1 0;min-inline-size:0;margin-inline-start:auto;text-align:end;font-weight:400;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .waycraft-skills-count{flex:none;color:var(--dsw-alias-label-secondary);font-size:12px;font-weight:400;white-space:nowrap}
-@media (min-width:521px){.waycraft-skills-source-meta .waycraft-skills-path{display:none}}
-@media (max-width:520px){.waycraft-skills-source-path{display:none}}
+${responsive("min-width:521px", `.waycraft-skills-source-meta .waycraft-skills-path{display:none}`)}
+${responsive("max-width:520px", `.waycraft-skills-source-path{display:none}`)}
 .waycraft-skills-badge{white-space:nowrap;display:inline-flex;align-items:center;gap:4px;padding-inline:8px;border:0.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-xs,4px);color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px;font-weight:400}
 .waycraft-skills-status{display:inline-flex;align-items:center;gap:8px;color:var(--dsw-alias-label-secondary);font-size:12px;font-weight:400}
 .waycraft-skills-source-body{display:flex;flex-direction:column;gap:12px;padding:12px 16px}
@@ -1201,8 +1198,8 @@ function setupSkills(ctx, fail) {
 .waycraft-skills-meta{margin:0;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;overflow-wrap:anywhere}
 .waycraft-skills .waycraft-skills-listrow .waycraft-skills-row-actions{flex-wrap:nowrap;gap:4px}
 .waycraft-skills .waycraft-skills-tabs button{min-block-size:32px;padding:0 16px;border-radius:999px}
-@media(max-width:640px){.waycraft-skills-filterrow>select{flex:1 1 100%}}
-@media(max-width:420px){.waycraft-skills-panel{padding:8px}.waycraft-skills-listrow{padding:12px 8px;column-gap:8px}}
+${responsive("max-width:640px", `.waycraft-skills-filterrow>select{flex:1 1 100%}`)}
+${responsive("max-width:420px", `.waycraft-skills-panel{padding:8px}.waycraft-skills-listrow{padding:12px 8px;column-gap:8px}`)}
 .waycraft-skills-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;align-items:start;padding:8px 0;border-block-start:0.5px solid var(--dsw-alias-border-l2)}
 .waycraft-skills-row-main{display:flex;flex-direction:column;gap:4px}
 .waycraft-skills-row-title{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
@@ -1311,7 +1308,7 @@ function setupSkills(ctx, fail) {
 .waycraft-skills button.waycraft-skills-danger:hover:not(:disabled){border-color:var(--dsw-alias-state-error-primary)}
 .waycraft-skills-form button,.waycraft-skills-panel>button,.waycraft-skills-header button{min-block-size:36px;border-radius:var(--dsw-radius-md,12px)}
 @media (min-width:561px){.waycraft-skills-dialog-head,.waycraft-skills-dialog-footer{padding-inline:24px}.waycraft-skills-dialog-body{padding:24px 24px}.waycraft-skills-dialog-body .waycraft-skills-dialog-footer{margin:12px -24px -24px}}
-@media (max-width:520px){.waycraft-skills .waycraft-skills-row,.waycraft-skills .waycraft-skills-row[draggable=true]{grid-template-columns:minmax(0,1fr) auto}.waycraft-skills .waycraft-skills-row[draggable=true]{grid-template-columns:16px minmax(0,1fr) auto}.waycraft-skills-toolbar select,.waycraft-skills-toolbar input{flex:1 1 100%}}
+${responsive("max-width:520px", `.waycraft-skills .waycraft-skills-row,.waycraft-skills .waycraft-skills-row[draggable=true]{grid-template-columns:minmax(0,1fr) auto}.waycraft-skills .waycraft-skills-row[draggable=true]{grid-template-columns:16px minmax(0,1fr) auto}.waycraft-skills-toolbar select,.waycraft-skills-toolbar input{flex:1 1 100%}`)}
 @media (prefers-reduced-motion:reduce){.waycraft-skills *,.waycraft-skills *::before{transition:none!important;animation:none!important}}
 .waycraft-skills input[type=file]::file-selector-button{min-block-size:28px;margin-inline-end:8px;padding-inline:12px;border:0.5px solid var(--dsw-alias-border-l3,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-sm,8px);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:inherit;cursor:pointer}
 .waycraft-skills-row-actions button{min-block-size:28px}
@@ -1334,7 +1331,7 @@ function setupSkills(ctx, fail) {
 .waycraft-skills .waycraft-skills-iconbar button.waycraft-skills-icon-btn:focus-visible{outline-offset:-2px}
 .waycraft-skills-toolbar .waycraft-skills-iconbar{margin-inline-start:auto}
 .waycraft-skills-source>summary .waycraft-skills-icon-btn,.waycraft-skills-source>summary .waycraft-skills-switch{flex:none}
-@media (max-width:520px){.waycraft-skills-source>summary{flex-wrap:wrap}.waycraft-skills-source-name{flex:1 1 auto;min-inline-size:4ch}.waycraft-skills-source>summary .waycraft-skills-switch{font-size:0}.waycraft-skills-source>summary .waycraft-skills-status{display:none}.waycraft-skills-source>summary>:first-child+*{white-space:nowrap}}
+${responsive("max-width:520px", `.waycraft-skills-source>summary{flex-wrap:wrap}.waycraft-skills-source-name{flex:1 1 auto;min-inline-size:4ch}.waycraft-skills-source>summary .waycraft-skills-switch{font-size:0}.waycraft-skills-source>summary .waycraft-skills-status{display:none}.waycraft-skills-source>summary>:first-child+*{white-space:nowrap}`)}
 .waycraft-skills-pop{position:fixed;inset:auto;z-index:1000;inline-size:auto;max-inline-size:calc(100vw - 16px);display:block}
 .waycraft-skills-overlay{position:fixed;inset:0;z-index:1000;inline-size:auto;max-inline-size:none;display:flex;align-items:center;justify-content:center;padding:16px;background:var(--dsw-alias-bg-base);background:color-mix(in srgb,var(--dsw-alias-bg-base) 60%,transparent);overflow:auto}
 .waycraft-skills-overlay .waycraft-skills-dialog{inline-size:min(var(--waycraft-skills-w,600px),100%);min-inline-size:0;max-block-size:calc(100vh - 32px);max-block-size:calc(100dvh - 32px);overflow:hidden;overflow-wrap:anywhere}
@@ -1343,8 +1340,8 @@ function setupSkills(ctx, fail) {
 .waycraft-skills-diag,.waycraft-skills-catsec{overflow:hidden}
 .waycraft-skills-diag>summary,.waycraft-skills-catsec>summary{border-radius:inherit}
 .waycraft-skills button.waycraft-skills-link.waycraft-skills-danger,.waycraft-skills button.waycraft-skills-link.waycraft-skills-danger:hover:not(:disabled){color:var(--dsw-alias-state-error-primary)}
-@media (max-width:520px){.waycraft-skills-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (max-width:520px){.waycraft-skills .waycraft-skills-row.waycraft-skills-discover-row{grid-template-columns:minmax(0,1fr);align-items:start}.waycraft-skills .waycraft-skills-discover-row .waycraft-skills-row-actions{justify-content:flex-end}}
+${responsive("max-width:520px", `.waycraft-skills-stats{grid-template-columns:repeat(2,minmax(0,1fr))}`)}
+${responsive("max-width:520px", `.waycraft-skills .waycraft-skills-row.waycraft-skills-discover-row{grid-template-columns:minmax(0,1fr);align-items:start}.waycraft-skills .waycraft-skills-discover-row .waycraft-skills-row-actions{justify-content:flex-end}`)}
 .waycraft-skills-catempty{margin:0;padding-inline:32px 8px;padding-block-end:8px}
 .waycraft-skills-pathrow>button{white-space:nowrap;flex:none}
 .waycraft-skills-cathead{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;min-block-size:40px;padding-inline:8px;font-weight:600;font-size:13px}
@@ -1362,7 +1359,7 @@ function setupSkills(ctx, fail) {
 .waycraft-skills-catsec>summary{display:flex;align-items:center;gap:8px;min-block-size:32px;cursor:pointer;font-weight:600;font-size:13px}
 .waycraft-skills-catsec>summary .waycraft-skills-source-name{flex:1 1 auto}
 .waycraft-skills-catsec>summary:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}
-@media (max-width:520px){.waycraft-skills-seg span:not(.waycraft-skills-badge){display:none}.waycraft-skills-toolbar .waycraft-skills-iconbar{margin-inline-start:0}}
+${responsive("max-width:520px", `.waycraft-skills-seg span:not(.waycraft-skills-badge){display:none}.waycraft-skills-toolbar .waycraft-skills-iconbar{margin-inline-start:0}`)}
 
 `;
 		const diagnosticText = (item) => {
@@ -1392,6 +1389,7 @@ function setupSkills(ctx, fail) {
 		];
 		const severityOf = (item) => item.severity === "error" || item.severity === "warning" || item.severity === "note" ? item.severity : NOTE_CODES.includes(item.code) ? "note" : WARNING_CODES.includes(item.code) ? "warning" : "error";
 		const DIAG_CAP = 8;
+		const ROW_CAP = 100;
 		const SEVERITY_PATHS = {
 			error: "M8 2a6 6 0 1 0 0 12A6 6 0 0 0 8 2zM8 5v3.5M8 10.5v.01",
 			warning: "M8 2.5l6 10.5H2zM8 6.5v3M8 11.5v.01",
@@ -2079,7 +2077,7 @@ function setupSkills(ctx, fail) {
 			}, confirming.action === "uninstall" ? t("catConfirmUninstall") : t("catConfirmForget")), h("button", { onClick: () => setConfirming(null) }, t("cancel"))) : null);
 		}
 		function Section() {
-			const [data, setData] = React.useState(null), [error, setError] = React.useState(false), [query, setQuery] = React.useState(""), [source, setSource] = React.useState(""), [status, setStatus] = React.useState(""), [detail, setDetail] = React.useState(null), [detailError, setDetailError] = React.useState(false), [copiedDetail, setCopiedDetail] = React.useState(false), [scope, setScope] = React.useState("global"), [tab, setTab] = React.useState("git"), [project, setProject] = React.useState(""), [folderPath, setFolderPath] = React.useState(""), [candidates, setCandidates] = React.useState(null), [editing, setEditing] = React.useState(null), [removing, setRemoving] = React.useState(""), [rootEdit, setRootEdit] = React.useState(null), [pendingScan, setPendingScan] = React.useState(false), [loaded, setLoaded] = React.useState(""), [notice, setNotice] = React.useState(""), [managing, setManaging] = React.useState(false), [addOpen, setAddOpen] = React.useState(false), [catDialog, setCatDialog] = React.useState(null), [addTo, setAddTo] = React.useState(null), [addPick, setAddPick] = React.useState([]), [addQuery, setAddQuery] = React.useState(""), [catName, setCatName] = React.useState({}), [catEdit, setCatEdit] = React.useState(null), [catRemoving, setCatRemoving] = React.useState(""), [catFilter, setCatFilter] = React.useState(""), [noteDrafts, setNoteDrafts] = React.useState({}), [noteDialog, setNoteDialog] = React.useState(null), [orgOpen, setOrgOpen] = React.useState({}), [importing, setImporting] = React.useState(false), [importPath, setImportPath] = React.useState(""), [importFiles, setImportFiles] = React.useState([]), [importConflict, setImportConflict] = React.useState(""), [importResult, setImportResult] = React.useState(null), [importBusy, setImportBusy] = React.useState(false), [importDrag, setImportDrag] = React.useState(false), [importMsg, setImportMsg] = React.useState(""), [trashDeleting, setTrashDeleting] = React.useState(""), [repoFormOpen, setRepoFormOpen] = React.useState(false), dragRef = React.useRef(null), copiedTimer = React.useRef(null), [repoInstalling, setRepoInstalling] = React.useState(""), [repoForm, setRepoForm] = React.useState({
+			const [data, setData] = React.useState(null), [error, setError] = React.useState(false), [query, setQuery] = React.useState(""), [source, setSource] = React.useState(""), [status, setStatus] = React.useState(""), [detail, setDetail] = React.useState(null), [detailError, setDetailError] = React.useState(false), [copiedDetail, setCopiedDetail] = React.useState(false), [scope, setScope] = React.useState("global"), [tab, setTab] = React.useState("git"), [project, setProject] = React.useState(""), [folderPath, setFolderPath] = React.useState(""), [candidates, setCandidates] = React.useState(null), [editing, setEditing] = React.useState(null), [removing, setRemoving] = React.useState(""), [rootEdit, setRootEdit] = React.useState(null), [pendingScan, setPendingScan] = React.useState(false), [loaded, setLoaded] = React.useState(""), [notice, setNotice] = React.useState(""), [managing, setManaging] = React.useState(false), [addOpen, setAddOpen] = React.useState(false), [catDialog, setCatDialog] = React.useState(null), [addTo, setAddTo] = React.useState(null), [addPick, setAddPick] = React.useState([]), [addQuery, setAddQuery] = React.useState(""), [catName, setCatName] = React.useState({}), [catEdit, setCatEdit] = React.useState(null), [catRemoving, setCatRemoving] = React.useState(""), [catFilter, setCatFilter] = React.useState(""), [noteDrafts, setNoteDrafts] = React.useState({}), [noteDialog, setNoteDialog] = React.useState(null), [orgOpen, setOrgOpen] = React.useState({}), [rowsOpen, setRowsOpen] = React.useState({}), [importing, setImporting] = React.useState(false), [importPath, setImportPath] = React.useState(""), [importFiles, setImportFiles] = React.useState([]), [importConflict, setImportConflict] = React.useState(""), [importResult, setImportResult] = React.useState(null), [importBusy, setImportBusy] = React.useState(false), [importDrag, setImportDrag] = React.useState(false), [importMsg, setImportMsg] = React.useState(""), [trashDeleting, setTrashDeleting] = React.useState(""), [repoFormOpen, setRepoFormOpen] = React.useState(false), dragRef = React.useRef(null), copiedTimer = React.useRef(null), [repoInstalling, setRepoInstalling] = React.useState(""), [repoForm, setRepoForm] = React.useState({
 				url: "",
 				ref: "",
 				subdirectory: ""
@@ -2389,16 +2387,27 @@ function setupSkills(ctx, fail) {
 			const orgOf = (sourceId) => ({
 				categories: [],
 				members: {},
-				order: {},
 				notes: {},
 				...view?.organization?.[sourceId] ?? {}
 			});
 			const filterCategories = source ? orgOf(source).categories : [];
 			const activeCat = catFilter === "__none" || filterCategories.some((c) => c.id === catFilter) ? catFilter : "";
-			const copies = (view?.copies ?? []).filter((copy) => {
+			const copies = React.useMemo(() => (view?.copies ?? []).filter((copy) => {
 				const organization = orgOf(copy.source);
 				return (!source || copy.source === source) && (!query || `${copy.name} ${copy.description} ${copy.path} ${organization.notes[copy.name] ?? ""} ${t(copyStatus(copy))} ${sourceLabel((view?.sources ?? []).find((x) => x.id === copy.source) ?? { id: copy.source })}`.toLowerCase().includes(query.toLowerCase())) && (!status || copyStatus(copy) === status) && (!activeCat || (activeCat === "__none" ? !organization.members[copy.name] : organization.members[copy.name] === activeCat));
-			});
+			}), [
+				view,
+				query,
+				source,
+				status,
+				activeCat,
+				t
+			]);
+			const mineBySource = React.useMemo(() => {
+				const map = Object.create(null);
+				for (const copy of copies) (map[copy.source] ??= []).push(copy);
+				return map;
+			}, [copies]);
 			const projects = data?.projects ?? [];
 			const projectName = (id) => projects.find((x) => x.id === id)?.name ?? id;
 			const destRequest = () => {
@@ -2820,10 +2829,26 @@ function setupSkills(ctx, fail) {
 				disabled,
 				onClick
 			}, icon(pathD));
+			const windowed = (key$1, rows, render) => {
+				if (rows.length <= ROW_CAP) return rows.map(render);
+				const all = !!rowsOpen[key$1];
+				return [...(all ? rows : rows.slice(0, ROW_CAP)).map(render), h("div", {
+					key: `more:${key$1}`,
+					className: "waycraft-skills-diag-foot"
+				}, h("button", {
+					type: "button",
+					className: "waycraft-skills-link",
+					"data-waycraft-rows-toggle": key$1,
+					onClick: () => setRowsOpen({
+						...rowsOpen,
+						[key$1]: !all
+					})
+				}, all ? t("showLess") : t("showMoreCount").replace("{count}", String(rows.length - ROW_CAP))))];
+			};
 			const sourceRows = (x) => {
-				const mine = copies.filter((c) => c.source === x.id);
+				const mine = mineBySource[x.id] ?? [];
 				const organization = orgOf(x.id);
-				if (!organization.categories.length || data.corrupt) return mine.map((copy) => skillRow(x, copy));
+				if (!organization.categories.length || data.corrupt) return windowed(x.id, mine, (copy) => skillRow(x, copy));
 				return [...[...organization.categories, {
 					id: "",
 					name: t("uncategorized")
@@ -2873,7 +2898,7 @@ function setupSkills(ctx, fail) {
 					}, h("summary", null, h("span", {
 						className: "waycraft-skills-chev",
 						"aria-hidden": true
-					}), h("bdi", null, `${allRows.length} ${t(allRows.length === 1 ? "statSkill" : "statSkills")}`)), rows.map((copy) => skillRow(x, copy))));
+					}), h("bdi", null, `${allRows.length} ${t(allRows.length === 1 ? "statSkill" : "statSkills")}`)), windowed(editKey, rows, (copy) => skillRow(x, copy))));
 				}), h("p", {
 					key: "cat-help",
 					className: "waycraft-skills-footnote"
@@ -4661,6 +4686,11 @@ function ImageGenerateToolview(props) {
 }
 
 //#endregion
+//#region src/video-route.ts
+/** Exact GET route (below `/api`) serving a generated video as binary `video/mp4`; shared by host and browser halves. */
+const VIDEO_FILE_ROUTE = "waycraft-subscriptions.videoFile";
+
+//#endregion
 //#region src/VideoGenerateToolview.tsx
 /** DSH 0.1.7 renamed IconSparkle16; resolving it by name keeps older hosts working too. */
 const SparkleIcon = (_props) => null;
@@ -4672,7 +4702,7 @@ const PROMPT_MAX_LENGTH = 60;
 * @returns loader resolving a bare file name to the decoded bytes.
 */
 function createVideoLoader(rpc) {
-	return (name) => callSubscriptionsAuth$1(rpc, "video", { name });
+	return async (name) => ({ url: `/api/${VIDEO_FILE_ROUTE}?name=${encodeURIComponent(name)}` });
 }
 /**
 * English-dictionary fallback for a missing locale seat (standalone renders);
@@ -4804,6 +4834,13 @@ function VideoGenerateToolview(props) {
 		setLoad({ phase: "loading" });
 		loadVideo(fileName).then((video) => {
 			if (cancelled) return;
+			if ("url" in video) {
+				setLoad({
+					phase: "ready",
+					url: video.url
+				});
+				return;
+			}
 			objectUrl = URL.createObjectURL(new Blob([base64Bytes(video.dataBase64).slice()], { type: video.mediaType }));
 			setLoad({
 				phase: "ready",
@@ -5150,7 +5187,14 @@ var subscriptions = {
 const SUBSCRIPTIONS_AUTH_CHANNEL = "/api";
 const SUBSCRIPTIONS_AUTH_PREFIX = "waycraft-subscriptions.";
 /** Business error returned by a `subscriptions-auth` endpoint (error branch message). */
-var SubscriptionsAuthError = class extends Error {};
+var SubscriptionsAuthError = class extends Error {
+	/** Stable error kind from the host; `internal` for older hosts that send none. */
+	kind;
+	constructor(message, kind = "internal") {
+		super(message);
+		this.kind = kind;
+	}
+};
 /**
 * Call one `subscriptions-auth` endpoint and unwrap the business result.
 * Shared by the settings section, the composer Speed toggle, the usage
@@ -5165,9 +5209,9 @@ async function callSubscriptionsAuth(rpc, endpoint, payload) {
 	try {
 		result = await rpc.call(SUBSCRIPTIONS_AUTH_CHANNEL, `${SUBSCRIPTIONS_AUTH_PREFIX}${endpoint}`, payload);
 	} catch (error) {
-		throw new SubscriptionsAuthError(error instanceof Error ? error.message : String(error));
+		throw new SubscriptionsAuthError(error instanceof Error ? error.message : String(error), "unavailable");
 	}
-	if (!result.ok) throw new SubscriptionsAuthError(result.error.message);
+	if (!result.ok) throw new SubscriptionsAuthError(result.error.message, result.error.kind);
 	return result.value;
 }
 
@@ -5222,7 +5266,7 @@ function savedModelIds(visibleModels, displayNames, subagentSpeeds = void 0) {
 * Why the provider has no models — read from the data the host already sends.
 *
 * `total === 0` alone cannot tell these apart, and guessing wrong re-creates the very
-* defect issue #147 is about: telling a user who IS logged in to go and log in. The
+* defect this guard exists to prevent: telling a user who IS logged in to go and log in. The
 * catalog payload carries one row per connected account with `unavailable: true` when that
 * account's discovery failed or timed out (src/index.ts).
 *
@@ -7908,7 +7952,7 @@ function createApiProviders(React, remote, t, primitives$1 = require("@deepseek-
 //#endregion
 //#region src/copilot-card.ts
 /** GitHub Copilot Settings card, adapted from pinned reference SubscriptionsSection device login and shared
-* account presentation. Only sanitized status crosses RPC; see PROVENANCE.md (#134). */
+* account presentation. Only sanitized status crosses RPC; see PROVENANCE.md. */
 function createCopilotCard(React, primitives$1, rpc, t) {
 	const h = React.createElement;
 	const Button = primitives$1.Button ?? "button";
@@ -8197,7 +8241,7 @@ function createCopilotCard(React, primitives$1, rpc, t) {
 //#endregion
 //#region src/claude-card.ts
 /**
-* Claude Settings card (ticket #132). Scoped presentation port of the Claude part of V1ki v0.9.12 b802311
+* Claude Settings card. Scoped presentation port of the Claude part of V1ki v0.9.12 b802311
 * SubscriptionsSection; see PROVENANCE.md. It only ever receives sanitized status from the owned RPC: account
 * labels, plan and expiry, never a token or credential-store path.
 */
@@ -8505,7 +8549,7 @@ function visibleUsageWindows(provider, windows, visibleModels) {
 //#endregion
 //#region src/antigravity-card.ts
 /**
-* Antigravity Settings card (ticket #135). Scoped presentation port of the Antigravity part of V1ki v0.9.12 b802311
+* Antigravity Settings card. Scoped presentation port of the Antigravity part of V1ki v0.9.12 b802311
 * SubscriptionsSection; see PROVENANCE.md. It only ever receives sanitized status from the owned RPC: account
 * labels, plan and expiry, never a token or credential-store path.
 */
@@ -8911,7 +8955,7 @@ function createZenCard(React, primitives$1, rpc, t) {
 //#endregion
 //#region src/grok-card.ts
 /**
-* Grok Settings card (ticket #133). Scoped presentation port of the Grok part of V1ki v0.9.12 b802311
+* Grok Settings card. Scoped presentation port of the Grok part of V1ki v0.9.12 b802311
 * SubscriptionsSection; see PROVENANCE.md. It only ever receives sanitized status from the owned RPC: account
 * labels, plan and expiry, never a token or credential-store path.
 */

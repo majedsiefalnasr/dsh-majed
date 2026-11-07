@@ -1,6 +1,6 @@
 {
   "name": "dsh-waycraft",
-  "version": "0.3.0-rc.19",
+  "version": "0.3.0-rc.20",
   "description": "Waycraft for DSH: interface and workflow enhancements, bidirectional text, subscription providers and account usage controls for DeepSeek Harness.",
   "keywords": [
     "deepseek-harness",
@@ -68,6 +68,7 @@
   },
   "scripts": {
     "build": "tsc && tsdown && node scripts/assemble-client.mjs",
+    "test:browser": "node --test test/browser/*.browser.mjs",
     "test": "node scripts/prepare-test-dirs.mjs && node scripts/classifier-test-adapter.mjs && node test/classify.test.cjs && tsc -p tsconfig.reference.json && node --test lib-test/test/reference/*.spec.js test/*.test.mjs",
     "check:build": "node scripts/check-build.mjs",
     "format": "node scripts/quality.mjs format",

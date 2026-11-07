@@ -1,4 +1,4 @@
-// Failed skills-root migration (ticket #159): the manager must keep ONE consistent store (the legacy root),
+// Failed skills-root migration: the manager must keep ONE consistent store (the legacy root),
 // never fork state into a new root that holds only state.json.
 import assert from 'node:assert/strict';
 import {

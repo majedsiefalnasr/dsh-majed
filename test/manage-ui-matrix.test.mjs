@@ -1,4 +1,4 @@
-// Rendered Manage/Proxy UI matrices (ticket #130 items 2, 5, 6, 7): real components under react-test-renderer
+// Rendered Manage/Proxy UI matrices: real components under react-test-renderer
 // with a controllable fake RPC. Reference analogues: account-manager-ui.spec.ts and SubscriptionsSection proxy dialog.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

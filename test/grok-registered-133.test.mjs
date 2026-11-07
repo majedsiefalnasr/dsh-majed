@@ -1,4 +1,4 @@
-// Ticket #133: saved preferences exercised through the actual registered Grok adapter.
+// saved preferences exercised through the actual registered Grok adapter.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp } from 'node:fs/promises';

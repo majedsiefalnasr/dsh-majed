@@ -84,7 +84,7 @@ test('style layer is token-only, scoped and has fallbacks', async (t) => {
   assert.match(css, /outline:\s*2px solid/);
   assert.match(css, /0\.5px solid/);
   // Every top-level selector is scoped under .waycraft-skills (no global reset).
-  const flatCss = css.replace(/@media[^{]*\{/g, '');
+  const flatCss = css.replace(/@(?:media|container|supports)[^{]*\{/g, '');
   for (const rule of flatCss.split('}')) {
     const sel = rule.split('{')[0].trim();
     if (!sel) continue;

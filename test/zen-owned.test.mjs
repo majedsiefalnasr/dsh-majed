@@ -1,4 +1,4 @@
-// #137 approved assembled adapter/RPC seam; fake gateway only.
+// approved assembled adapter/RPC seam; fake gateway only.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp } from 'node:fs/promises';

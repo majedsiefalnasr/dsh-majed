@@ -1,4 +1,4 @@
-// Composer Speed host half (ticket #131): `speed` / `setSpeed` endpoints and the per-session tier that drives the
+// Composer Speed host half: `speed` / `setSpeed` endpoints and the per-session tier that drives the
 // Codex `service_tier`. Fake HTTP only. Reference analogues: src/auth/rpc.ts `speed`/`setSpeed`, src/index.ts
 // `speedBySession` / `selectedSpeed` / `speedFor` (v0.9.12) and test/subagent-speed.spec.ts.
 import { test } from 'node:test';

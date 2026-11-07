@@ -7,7 +7,7 @@ import {
   styles,
 } from './codex-card.js';
 /** GitHub Copilot Settings card, adapted from pinned reference SubscriptionsSection device login and shared
- * account presentation. Only sanitized status crosses RPC; see PROVENANCE.md (#134). */
+ * account presentation. Only sanitized status crosses RPC; see PROVENANCE.md. */
 export function createCopilotCard(
   React: any,
   primitives: any,

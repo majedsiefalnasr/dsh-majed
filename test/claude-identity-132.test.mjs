@@ -1,4 +1,4 @@
-// Ticket #132 second remediation: a rotated Claude Code login is adopted by ACCOUNT IDENTITY (normalized email, resolved
+// second remediation: a rotated Claude Code login is adopted by ACCOUNT IDENTITY (normalized email, resolved
 // through the profile lookup when a blob carries none), not by refresh-token continuity. Real blobs usually have no email
 // and Anthropic issues a new refresh token on every refresh. Every credential, token and HTTP exchange is a fixture.
 import { test, mock } from 'node:test';

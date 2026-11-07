@@ -1,4 +1,4 @@
-// #156 assembled registered EN/AR UI: repository and catalog installs into registered project DSH scopes.
+// assembled registered EN/AR UI: repository and catalog installs into registered project DSH scopes.
 import assert from 'node:assert/strict';
 import {
   mkdtemp,

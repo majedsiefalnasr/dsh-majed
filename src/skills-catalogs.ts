@@ -855,7 +855,11 @@ export function createCatalogs(options: CatalogOptions) {
           next.installs.push(entry);
           await persist(next);
           options.changed();
-          return { reassociated: true, warnings: [] };
+          return {
+            reassociated: true,
+            warnings: [],
+            installed: { name: pkg.name, root, project: dest.project },
+          };
         }
         const result = await publishImports(
           [{ name: pkg.name, source: ident.id, files: pkg.files }],
@@ -878,7 +882,10 @@ export function createCatalogs(options: CatalogOptions) {
           throw error;
         }
         options.changed();
-        return { warnings: result.warnings };
+        return {
+          warnings: result.warnings,
+          installed: { name: pkg.name, root, project: dest.project },
+        };
       });
     },
     /** Moves a catalog copy to the shared Trash; provenance follows the Trash entry. */

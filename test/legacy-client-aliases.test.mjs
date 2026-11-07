@@ -1,4 +1,4 @@
-// Deprecated browser aliases (ticket #159). The monolithic client entry needs a live DSH page to exercise, so
+// Deprecated browser aliases. The monolithic client entry needs a live DSH page to exercise, so
 // these assert the shipped source: new keys are written/read first, the retired ones are read-only fallbacks,
 // and the old public hook is an alias of the new object.
 import { test } from 'node:test';

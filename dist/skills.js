@@ -2,6 +2,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { lstat, mkdir, open, realpath, rename, rm, writeFile, } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
+import { defineTool } from '@deepseek-ai/dsh-tools';
 import { parseDocument } from 'yaml';
 import { discoverReadonlyEntries } from './skills-discovery.js';
 import { LEGACY_SKILLS_HEADER, LEGACY_SKILLS_ROUTE } from './legacy-names.js';
@@ -291,15 +292,12 @@ export function apply(ctx, config = {}) {
     const emptyOrg = () => ({
         categories: [],
         members: Object.create(null),
-        order: Object.create(null),
         notes: Object.create(null),
     });
     const cloneOrg = (org) => {
         const copy = emptyOrg();
         copy.categories = org.categories.map((item) => ({ ...item }));
         Object.assign(copy.members, org.members);
-        for (const [id, names] of Object.entries(org.order))
-            copy.order[id] = [...names];
         Object.assign(copy.notes, org.notes);
         return copy;
     };
@@ -405,7 +403,7 @@ export function apply(ctx, config = {}) {
                 names.add(item.name);
                 org.categories.push({ id: item.id, name: item.name });
             }
-            if (!isMap(entry.members) || !isMap(entry.order) || !isMap(entry.notes))
+            if (!isMap(entry.members) || !isMap(entry.notes))
                 throw invalid();
             if (Object.keys(entry.members).length > MEMBER_MAX ||
                 Object.keys(entry.notes).length > NOTE_COUNT_MAX)
@@ -418,14 +416,7 @@ export function apply(ctx, config = {}) {
                     throw invalid();
                 org.members[skill] = id;
             }
-            for (const [id, list] of Object.entries(entry.order)) {
-                if ((id && !ids.has(id)) ||
-                    !Array.isArray(list) ||
-                    list.length > MEMBER_MAX ||
-                    list.some((x) => typeof x !== 'string' || x.length > NAME_MAX))
-                    throw invalid();
-                org.order[id] = [...new Set(list)];
-            }
+            // `entry.order` (saved before reordering was removed) is accepted and discarded.
             for (const [skill, note] of Object.entries(entry.notes)) {
                 if (skill === '__proto__' ||
                     skill.length > NAME_MAX ||
@@ -914,6 +905,30 @@ export function apply(ctx, config = {}) {
         const found = (await projectSources(current)).sources.find((item) => item.id === id);
         return found ? { id: found.id, root: found.path, project } : undefined;
     };
+    /**
+     * A freshly installed or created skill starts enabled. Policy is keyed by document path, so a
+     * leftover `false` flag from an earlier copy at the same path (disabled, then trashed) must not
+     * silently disable the new one. Only that stale per-copy flag is cleared; source policy is unchanged.
+     */
+    const clearStaleDisabled = async (root, names, project) => {
+        const flags = project ? state.projects[project]?.copies : state.copies;
+        const stale = names.flatMap((name) => [join(root, name, 'SKILL.md'), join(root, name)].filter((path) => flags?.[path] === false));
+        if (!stale.length)
+            return;
+        const next = cloneState();
+        const target = project ? next.projects[project]?.copies : next.copies;
+        for (const path of stale)
+            if (target)
+                delete target[path];
+        await writeState(next);
+    };
+    /** Same, for installs that finished outside the serialized mutation chain (repository and catalog installs). */
+    const enableInstalled = (result) => {
+        const done = result?.installed;
+        return done
+            ? exclusive(() => clearStaleDisabled(done.root, [done.name], done.project))
+            : undefined;
+    };
     const repos = createRepositories({
         config: config.repositories,
         stateDir: dirname(statePath),
@@ -1296,6 +1311,7 @@ export function apply(ctx, config = {}) {
                 return fail(409, 'create-conflict');
             await rename(stage, target);
             stageCreated = false;
+            await clearStaleDisabled(root, [name], project?.id);
             revision++;
             for (const control of controls)
                 control.invalidate();
@@ -1330,30 +1346,36 @@ export function apply(ctx, config = {}) {
         // Without the approval hook the model-facing mutation is not exposed.
         if (!stopGate)
             return () => { };
-        const stopTool = tools.register({
+        const stopTool = tools.register(defineTool({
             name: CREATE_TOOL,
             description: 'Create one reusable DSH skill (a SKILL.md folder) in the user DSH skills directory. Use only when the user explicitly asks to create or save a skill; the user is asked to approve every call. Do not use it to edit, rename or delete an existing skill, to install from a repository, or to write project skills. Returns {name, path, source} with the normalized kebab-case name and the SKILL.md path. Fails with an error naming a code: create-invalid (empty or unsafe name, empty description or body), create-too-large (description over 500 characters or body over 262144), create-conflict (a skill with that name already exists), create-failed (the folder could not be written).',
             parameters: {
-                type: 'object',
-                properties: {
-                    name: {
-                        type: 'string',
-                        description: 'Skill name, normalized to kebab-case.',
-                    },
-                    description: {
-                        type: 'string',
-                        description: 'Routing description (up to 500 characters).',
-                    },
-                    body: {
-                        type: 'string',
-                        description: 'Markdown instructions (up to 262144 characters).',
-                    },
+                name: {
+                    type: 'string',
+                    required: true,
+                    description: 'Skill name, normalized to kebab-case.',
                 },
-                required: ['name', 'description', 'body'],
-                additionalProperties: false,
+                description: {
+                    type: 'string',
+                    required: true,
+                    description: 'Routing description (up to 500 characters).',
+                },
+                body: {
+                    type: 'string',
+                    required: true,
+                    description: 'Markdown instructions (up to 262144 characters).',
+                },
             },
             output: {
-                schema: { type: 'object' },
+                schema: {
+                    type: 'object',
+                    properties: {
+                        name: { type: 'string', required: true },
+                        path: { type: 'string', required: true },
+                        source: { type: 'string', required: true },
+                    },
+                    additionalProperties: false,
+                },
                 render: (_args, value) => [
                     { type: 'text', text: JSON.stringify(value) },
                 ],
@@ -1369,9 +1391,7 @@ export function apply(ctx, config = {}) {
                         return result;
                     const payload = (await result.json());
                     // A failed creation must reach the model as a tool error, not as a successful result.
-                    if (!result.ok)
-                        throw new Error(`${CREATE_TOOL}: ${payload.code ?? 'create-failed'}`);
-                    return payload;
+                    throw new Error(`${CREATE_TOOL}: ${payload.code ?? 'create-failed'}`);
                 });
                 operations = operation.catch(() => undefined);
                 return operation;
@@ -1381,7 +1401,7 @@ export function apply(ctx, config = {}) {
                 title: 'Create DSH skill',
                 kind: 'edit',
             }),
-        });
+        }));
         return () => {
             stopTool();
             stopGate();
@@ -1392,7 +1412,6 @@ export function apply(ctx, config = {}) {
         'category-rename',
         'category-delete',
         'category-assign',
-        'category-move',
         'category-toggle',
         'note',
         'placement',
@@ -1463,10 +1482,6 @@ export function apply(ctx, config = {}) {
             for (const skill of Object.keys(org.notes))
                 if (!known.has(skill))
                     delete org.notes[skill];
-            for (const id of Object.keys(org.order))
-                org.order[id] = org.order[id].filter((x) => known.has(x) &&
-                    (org.members[x] ?? '') === id &&
-                    (!id || org.categories.some((c) => c.id === id)));
         }
         const label = (value) => {
             const label = typeof value === 'string' ? value.trim() : '';
@@ -1475,24 +1490,11 @@ export function apply(ctx, config = {}) {
         const categoryId = (value) => typeof value === 'string' && org.categories.some((x) => x.id === value)
             ? value
             : undefined;
-        /** Saved order first, then any remaining members alphabetically: deterministic. */
-        const ordered = (group) => {
-            const available = [...known]
-                .filter((x) => (org.members[x] ?? '') === group)
-                .sort((a, b) => a.localeCompare(b));
-            const saved = (org.order[group] ?? []).filter((x) => available.includes(x));
-            return [...saved, ...available.filter((x) => !saved.includes(x))];
-        };
         const place = (skill, id) => {
-            const previous = org.members[skill] ?? '';
-            if (previous === id)
-                return;
-            org.order[previous] = ordered(previous).filter((x) => x !== skill);
             if (id)
                 org.members[skill] = id;
             else
                 delete org.members[skill];
-            org.order[id] = [...ordered(id).filter((x) => x !== skill), skill];
         };
         const action = body.action;
         if (action === 'category-create' || action === 'category-rename') {
@@ -1511,7 +1513,6 @@ export function apply(ctx, config = {}) {
                     return fail(409, 'category-limit', { limit: String(CATEGORY_LIMIT) });
                 const id = randomBytes(8).toString('hex');
                 org.categories.push({ id, name });
-                org.order[id] = [];
             }
             else
                 org.categories.find((x) => x.id === target).name =
@@ -1523,15 +1524,11 @@ export function apply(ctx, config = {}) {
             const id = categoryId(body.category);
             if (!id)
                 return fail(404, 'category-unknown');
-            // Members fall back to uncategorized, appended after the existing order; no skill file is involved.
-            const former = ordered(id);
-            const existing = ordered('');
+            // Members fall back to uncategorized; no skill file is involved.
             org.categories = org.categories.filter((x) => x.id !== id);
-            delete org.order[id];
             for (const [skill, member] of Object.entries(org.members))
                 if (member === id)
                     delete org.members[skill];
-            org.order[''] = [...existing, ...former];
         }
         else if (action === 'category-assign') {
             const names = body.names;
@@ -1548,45 +1545,6 @@ export function apply(ctx, config = {}) {
                 return fail(404, 'skill-unknown');
             for (const skill of new Set(names))
                 place(skill, id);
-        }
-        else if (action === 'category-move') {
-            const skill = body.name;
-            if (typeof skill !== 'string' ||
-                (body.category !== '' && typeof body.category !== 'string') ||
-                (body.target !== undefined &&
-                    body.target !== '' &&
-                    typeof body.target !== 'string'))
-                return fail(400, 'invalid-request');
-            const id = body.category === '' ? '' : categoryId(body.category);
-            if (id === undefined)
-                return fail(404, 'category-unknown');
-            if (!known.has(skill))
-                return fail(404, 'skill-unknown');
-            const position = body.position ?? 'before';
-            if (position !== 'before' && position !== 'after')
-                return fail(400, 'order-position');
-            const target = body.target;
-            if (typeof target === 'string' && target) {
-                if (!known.has(target))
-                    return fail(404, 'skill-unknown');
-                if ((org.members[target] ?? '') !== id)
-                    return fail(409, 'order-target');
-            }
-            const previous = org.members[skill] ?? '';
-            const from = ordered(previous).filter((x) => x !== skill);
-            const to = previous === id ? from : ordered(id).filter((x) => x !== skill);
-            let index = typeof target === 'string' && target ? to.indexOf(target) : -1;
-            if (index < 0)
-                index = to.length;
-            else if (position === 'after')
-                index++;
-            to.splice(index, 0, skill);
-            org.order[previous] = from;
-            org.order[id] = to;
-            if (id)
-                org.members[skill] = id;
-            else
-                delete org.members[skill];
         }
         else if (action === 'category-toggle') {
             const group = body.category;
@@ -1620,16 +1578,14 @@ export function apply(ctx, config = {}) {
                 delete org.notes[skill];
         }
         if (Object.keys(org.members).length > MEMBER_MAX ||
-            Object.keys(org.notes).length > NOTE_COUNT_MAX ||
-            Object.values(org.order).some((list) => list.length > MEMBER_MAX))
+            Object.keys(org.notes).length > NOTE_COUNT_MAX)
             return fail(409, 'organization-limit');
         // Drop empty entries so untouched sources never accumulate state.
         for (const [scopeKey, sources] of Object.entries(next.organization)) {
             for (const [key, value] of Object.entries(sources))
                 if (!value.categories.length &&
                     !Object.keys(value.members).length &&
-                    !Object.keys(value.notes).length &&
-                    !Object.values(value.order).some((list) => list.length))
+                    !Object.keys(value.notes).length)
                     delete sources[key];
             if (!Object.keys(sources).length)
                 delete next.organization[scopeKey];
@@ -1875,8 +1831,6 @@ export function apply(ctx, config = {}) {
                                             if (org) {
                                                 delete org.members[item.name];
                                                 delete org.notes[item.name];
-                                                for (const key of Object.keys(org.order))
-                                                    org.order[key] = org.order[key].filter((name) => name !== item.name);
                                             }
                                             const copies = current
                                                 ? next.projects[current.id]?.copies
@@ -1938,7 +1892,7 @@ export function apply(ctx, config = {}) {
                             if (body.action === 'catalog-detail')
                                 return Response.json(await catalogs.detail(body.skill, signal));
                             let result;
-                            if (body.action === 'catalog-install')
+                            if (body.action === 'catalog-install') {
                                 result = await catalogs.install({
                                     skill: body.skill,
                                     destination: body.destination ??
@@ -1947,6 +1901,8 @@ export function apply(ctx, config = {}) {
                                     confirm: body.confirm,
                                     reassociate: body.reassociate,
                                 }, cancelled, signal);
+                                await enableInstalled(result);
+                            }
                             else if (body.action === 'catalog-uninstall')
                                 result = await catalogs.uninstall(body.installId, body.project, cancelled);
                             else if (body.action === 'catalog-forget') {
@@ -1993,7 +1949,7 @@ export function apply(ctx, config = {}) {
                                 result = await repos.refreshAll(request.signal);
                             else if (body.action === 'repo-remove')
                                 result = await repos.remove(body.id);
-                            else if (body.action === 'repo-install')
+                            else if (body.action === 'repo-install') {
                                 result = await repos.install({
                                     id: body.id,
                                     path: body.path,
@@ -2002,6 +1958,8 @@ export function apply(ctx, config = {}) {
                                         (body.project === undefined ? 'user-dsh' : undefined),
                                     project: body.project,
                                 }, cancelled);
+                                await enableInstalled(result);
+                            }
                             else if (body.action === 'repo-forget')
                                 result = await repos.forget(body.installId, body.project);
                             else if (body.action === 'repo-update-preview' ||
@@ -2074,6 +2032,7 @@ export function apply(ctx, config = {}) {
                                     inputs: 'inputs' in found ? found.inputs : [],
                                 };
                                 if (result.imported.length) {
+                                    await clearStaleDisabled(resolve(destination), result.imported.map((item) => item.name), project?.id);
                                     revision++;
                                     for (const control of controls)
                                         control.invalidate();

@@ -1786,7 +1786,10 @@ export function createRepositories(options) {
                     throw error;
                 }
                 options.changed();
-                return { warnings: result.warnings };
+                return {
+                    warnings: result.warnings,
+                    installed: { name: skill.name, root, project: dest.project },
+                };
             });
         },
         /** Moves a tracked copy to the shared Trash; provenance follows the Trash entry. */

@@ -1,4 +1,4 @@
-// Ticket #131: render the owned Speed control, usage badge and display setting with the real components
+// render the owned Speed control, usage badge and display setting with the real components
 // (react-test-renderer) in English and Arabic. Host modules (primitives, react-dom) are provided as doubles through
 // the same lazy `require` the bundle uses. A missing host module is NOT covered as an isolation guarantee: it makes
 // the component's render throw, and containing that depends on the host slot boundary, which is only verifiable live.
@@ -870,7 +870,7 @@ test('usage badge ignores model reads that fail and unmount stops all polling', 
     await act(async () => page.unmount());
   }));
 
-// Ticket #132: the badge is provider-generic, so a Claude account joins it as soon as `status` lists one.
+// the badge is provider-generic, so a Claude account joins it as soon as `status` lists one.
 test('usage badge shows the current Claude model and lists Claude accounts next to Codex', () =>
   withWindow(async () => {
     installHost();

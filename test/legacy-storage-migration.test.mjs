@@ -1,4 +1,4 @@
-// Legacy-name storage migration (ticket #159): copy-verify-readFallback from the retired `majed` locations.
+// Legacy-name storage migration: copy-verify-readFallback from the retired `majed` locations.
 // Real temp-dir fixtures; the legacy tree is never modified or deleted.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

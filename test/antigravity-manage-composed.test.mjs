@@ -1,4 +1,4 @@
-// #135: actual rendered Manage -> owned RPC -> registered adapter. Synthetic accounts/HTTP only.
+// actual rendered Manage -> owned RPC -> registered adapter. Synthetic accounts/HTTP only.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp } from 'node:fs/promises';

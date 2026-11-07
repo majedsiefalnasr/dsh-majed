@@ -1,4 +1,4 @@
-// Ticket #159: the legacy font route stays served for one release; index.js must not drift from legacy-names.
+// the legacy font route stays served for one release; index.js must not drift from legacy-names.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';

@@ -1,4 +1,4 @@
-// Ticket #130 boundary proof: hung catalogs are bounded and cancellable, the context bound is the minimum across
+// boundary proof: hung catalogs are bounded and cancellable, the context bound is the minimum across
 // accounts, malformed schema is rejected before use, and upstream error text never reaches the browser.
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';

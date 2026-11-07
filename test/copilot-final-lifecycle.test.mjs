@@ -1,4 +1,4 @@
-// #134 final lifecycle regressions: synthetic HTTP only.
+// final lifecycle regressions: synthetic HTTP only.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { withAbortSignal } from '../dist/providers/common.js';

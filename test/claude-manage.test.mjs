@@ -1,4 +1,4 @@
-// Ticket #132: the Claude Manage dialog offers the prompt cache lifetime (follow config / 5 minutes / 1 hour) in English and
+// the Claude Manage dialog offers the prompt cache lifetime (follow config / 5 minutes / 1 hour) in English and
 // Arabic and sends only the chosen value. Real component under react-test-renderer with a fake RPC; no network.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

@@ -1,6 +1,6 @@
 /**
  * Claude subset of the reference SubscriptionsAuthController (login, claim, complete, cancel, logout). Ported from
- * reference v0.9.12 src/index.ts; see PROVENANCE.md (#132). A sibling of CodexAuthController so the Codex flow stays
+ * reference v0.9.12 src/index.ts; see PROVENANCE.md. A sibling of CodexAuthController so the Codex flow stays
  * unchanged.
  *
  * Login has two routes. The import route reads Claude Code's own login (the `claude` CLI's store) and binds the

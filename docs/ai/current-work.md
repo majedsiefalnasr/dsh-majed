@@ -1,6 +1,10 @@
 # Current work
 
-Current phase: **#158 Skill manager redesign, rc.19 consistency pass** (newest section first). Older sections are dated evidence; counts and line numbers in them are historical.
+Current phase: **#160 follow-ups (rc.20)**; previous: **#158 Skill manager redesign, rc.19 consistency pass** (newest section first). Older sections are dated evidence; counts and line numbers in them are historical.
+
+## #160 follow-ups (rc.20) — 2026-11-07
+
+Work contract (Owner-approved, m03566): D1 `dsh_waycraft_create_skill` moves to `defineTool` (approval gate and name unchanged; no legacy alias existed). D2 ticket-number narration comments stripped from `src/**`/tests (legal/provenance kept). D3 `category-move` and `organization.order` removed; old state files still load (`order` ignored and pruned), old clients get 400. D4 GAP-3 closed: a stale disabled flag at the same path survived disable, trash and reinstall; installs (create, import, repository, catalog) now clear it. D5 #156 attribution added to `src/PROVENANCE.md` and `THIRD_PARTY_NOTICES.md`. P1 skill rows are windowed (100 + "Show more"). P2 width rules are `@container` queries on `.waycraft-skills` with a `@supports not` media fallback. P3 `src/rpc-errors.ts`: stable `kind` next to the legacy `subscriptions/error` code. P4 `GET /api/waycraft-subscriptions.videoFile?name=` streams the MP4; the JSON `video` route stays as a deprecated alias for one release. P5 opt-in `npm run test:browser` (`test/browser/`); skips without Playwright/Chromium; set `WAYCRAFT_PLAYWRIGHT` (module path) and `WAYCRAFT_CHROMIUM` (executable) to run it. P6 `engines.dsh` NOT added (no peerDependencies, range semantics for prereleases unproven on the verified host; Owner decision). P7 antigravity/copilot settings read is table-driven (`OWN_CATALOG_PROVIDERS`). Scope: no commit, push, install, or DSH core/app change. Version `0.3.0-rc.20` after gates. Unproven: real host, paired remote, crash.
 
 ## #158 rc.19 consistency pass — 2026-11-07
 

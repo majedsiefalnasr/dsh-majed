@@ -580,8 +580,6 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
         'code.category-unknown': 'This category no longer exists',
         'code.category-limit': 'The limit of {limit} categories is reached',
         'code.skill-unknown': 'This skill is not available in this view',
-        'code.order-position': 'The ordering position is invalid',
-        'code.order-target': 'The ordering target is in another category',
         'code.note-too-long': 'The note is longer than {limit} characters',
         'code.placement-invalid': 'The entry placement is invalid',
       },
@@ -1116,8 +1114,6 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
         'code.category-unknown': 'لم يعد هذا التصنيف موجوداً',
         'code.category-limit': 'بلغت الحد الأقصى وهو {limit} تصنيفاً',
         'code.skill-unknown': 'هذه المهارة غير متاحة في هذا العرض',
-        'code.order-position': 'موضع الترتيب غير صالح',
-        'code.order-target': 'هدف الترتيب في تصنيف آخر',
         'code.note-too-long': 'الملاحظة أطول من {limit} حرفاً',
         'code.placement-invalid': 'موضع الدخول غير صالح',
       },
@@ -1230,8 +1226,12 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
       h('bdi', { dir: 'ltr' }, placeName(data, entry));
     // The .waycraft-skills-switch rules copy the host's own control (Settings > General "Bidirectional text"):
     // same geometry, tokens and states, with a real thumb child instead of a pseudo-element.
+    // Width rules follow the width of the Skill manager itself (settings column or panel), not the window.
+    // Browsers without container queries fall back to the viewport width.
+    const responsive = (condition: string, rules: string) =>
+      `@container (${condition}){${rules}}\n@supports not (container-type:inline-size){@media (${condition}){${rules}}}`;
     const SKILLS_STYLE = `
-.waycraft-skills{max-inline-size:720px;min-inline-size:0;display:flex;flex-direction:column;gap:12px;color:var(--dsw-alias-label-primary);font-size:14px;line-height:22px}
+.waycraft-skills{container-type:inline-size;inline-size:100%;max-inline-size:720px;min-inline-size:0;display:flex;flex-direction:column;gap:12px;color:var(--dsw-alias-label-primary);font-size:14px;line-height:22px}
 .waycraft-skills *{box-sizing:border-box;min-inline-size:0}
 .waycraft-skills bdi{unicode-bidi:isolate}
 .waycraft-skills-path{direction:ltr;unicode-bidi:isolate;overflow-wrap:anywhere;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}
@@ -1280,8 +1280,8 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
 .waycraft-skills-source-icon{inline-size:16px;block-size:16px;flex:none;color:var(--dsw-alias-label-secondary)}
 .waycraft-skills-source-path{flex:1 1 0;min-inline-size:0;margin-inline-start:auto;text-align:end;font-weight:400;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .waycraft-skills-count{flex:none;color:var(--dsw-alias-label-secondary);font-size:12px;font-weight:400;white-space:nowrap}
-@media (min-width:521px){.waycraft-skills-source-meta .waycraft-skills-path{display:none}}
-@media (max-width:520px){.waycraft-skills-source-path{display:none}}
+${responsive('min-width:521px', `.waycraft-skills-source-meta .waycraft-skills-path{display:none}`)}
+${responsive('max-width:520px', `.waycraft-skills-source-path{display:none}`)}
 .waycraft-skills-badge{white-space:nowrap;display:inline-flex;align-items:center;gap:4px;padding-inline:8px;border:0.5px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-xs,4px);color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px;font-weight:400}
 .waycraft-skills-status{display:inline-flex;align-items:center;gap:8px;color:var(--dsw-alias-label-secondary);font-size:12px;font-weight:400}
 .waycraft-skills-source-body{display:flex;flex-direction:column;gap:12px;padding:12px 16px}
@@ -1345,8 +1345,8 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
 .waycraft-skills-meta{margin:0;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;overflow-wrap:anywhere}
 .waycraft-skills .waycraft-skills-listrow .waycraft-skills-row-actions{flex-wrap:nowrap;gap:4px}
 .waycraft-skills .waycraft-skills-tabs button{min-block-size:32px;padding:0 16px;border-radius:999px}
-@media(max-width:640px){.waycraft-skills-filterrow>select{flex:1 1 100%}}
-@media(max-width:420px){.waycraft-skills-panel{padding:8px}.waycraft-skills-listrow{padding:12px 8px;column-gap:8px}}
+${responsive('max-width:640px', `.waycraft-skills-filterrow>select{flex:1 1 100%}`)}
+${responsive('max-width:420px', `.waycraft-skills-panel{padding:8px}.waycraft-skills-listrow{padding:12px 8px;column-gap:8px}`)}
 .waycraft-skills-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;align-items:start;padding:8px 0;border-block-start:0.5px solid var(--dsw-alias-border-l2)}
 .waycraft-skills-row-main{display:flex;flex-direction:column;gap:4px}
 .waycraft-skills-row-title{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
@@ -1455,7 +1455,7 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
 .waycraft-skills button.waycraft-skills-danger:hover:not(:disabled){border-color:var(--dsw-alias-state-error-primary)}
 .waycraft-skills-form button,.waycraft-skills-panel>button,.waycraft-skills-header button{min-block-size:36px;border-radius:var(--dsw-radius-md,12px)}
 @media (min-width:561px){.waycraft-skills-dialog-head,.waycraft-skills-dialog-footer{padding-inline:24px}.waycraft-skills-dialog-body{padding:24px 24px}.waycraft-skills-dialog-body .waycraft-skills-dialog-footer{margin:12px -24px -24px}}
-@media (max-width:520px){.waycraft-skills .waycraft-skills-row,.waycraft-skills .waycraft-skills-row[draggable=true]{grid-template-columns:minmax(0,1fr) auto}.waycraft-skills .waycraft-skills-row[draggable=true]{grid-template-columns:16px minmax(0,1fr) auto}.waycraft-skills-toolbar select,.waycraft-skills-toolbar input{flex:1 1 100%}}
+${responsive('max-width:520px', `.waycraft-skills .waycraft-skills-row,.waycraft-skills .waycraft-skills-row[draggable=true]{grid-template-columns:minmax(0,1fr) auto}.waycraft-skills .waycraft-skills-row[draggable=true]{grid-template-columns:16px minmax(0,1fr) auto}.waycraft-skills-toolbar select,.waycraft-skills-toolbar input{flex:1 1 100%}`)}
 @media (prefers-reduced-motion:reduce){.waycraft-skills *,.waycraft-skills *::before{transition:none!important;animation:none!important}}
 .waycraft-skills input[type=file]::file-selector-button{min-block-size:28px;margin-inline-end:8px;padding-inline:12px;border:0.5px solid var(--dsw-alias-border-l3,var(--dsw-alias-border-l2));border-radius:var(--dsw-radius-sm,8px);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:inherit;cursor:pointer}
 .waycraft-skills-row-actions button{min-block-size:28px}
@@ -1478,7 +1478,7 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
 .waycraft-skills .waycraft-skills-iconbar button.waycraft-skills-icon-btn:focus-visible{outline-offset:-2px}
 .waycraft-skills-toolbar .waycraft-skills-iconbar{margin-inline-start:auto}
 .waycraft-skills-source>summary .waycraft-skills-icon-btn,.waycraft-skills-source>summary .waycraft-skills-switch{flex:none}
-@media (max-width:520px){.waycraft-skills-source>summary{flex-wrap:wrap}.waycraft-skills-source-name{flex:1 1 auto;min-inline-size:4ch}.waycraft-skills-source>summary .waycraft-skills-switch{font-size:0}.waycraft-skills-source>summary .waycraft-skills-status{display:none}.waycraft-skills-source>summary>:first-child+*{white-space:nowrap}}
+${responsive('max-width:520px', `.waycraft-skills-source>summary{flex-wrap:wrap}.waycraft-skills-source-name{flex:1 1 auto;min-inline-size:4ch}.waycraft-skills-source>summary .waycraft-skills-switch{font-size:0}.waycraft-skills-source>summary .waycraft-skills-status{display:none}.waycraft-skills-source>summary>:first-child+*{white-space:nowrap}`)}
 .waycraft-skills-pop{position:fixed;inset:auto;z-index:1000;inline-size:auto;max-inline-size:calc(100vw - 16px);display:block}
 .waycraft-skills-overlay{position:fixed;inset:0;z-index:1000;inline-size:auto;max-inline-size:none;display:flex;align-items:center;justify-content:center;padding:16px;background:var(--dsw-alias-bg-base);background:color-mix(in srgb,var(--dsw-alias-bg-base) 60%,transparent);overflow:auto}
 .waycraft-skills-overlay .waycraft-skills-dialog{inline-size:min(var(--waycraft-skills-w,600px),100%);min-inline-size:0;max-block-size:calc(100vh - 32px);max-block-size:calc(100dvh - 32px);overflow:hidden;overflow-wrap:anywhere}
@@ -1487,8 +1487,8 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
 .waycraft-skills-diag,.waycraft-skills-catsec{overflow:hidden}
 .waycraft-skills-diag>summary,.waycraft-skills-catsec>summary{border-radius:inherit}
 .waycraft-skills button.waycraft-skills-link.waycraft-skills-danger,.waycraft-skills button.waycraft-skills-link.waycraft-skills-danger:hover:not(:disabled){color:var(--dsw-alias-state-error-primary)}
-@media (max-width:520px){.waycraft-skills-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (max-width:520px){.waycraft-skills .waycraft-skills-row.waycraft-skills-discover-row{grid-template-columns:minmax(0,1fr);align-items:start}.waycraft-skills .waycraft-skills-discover-row .waycraft-skills-row-actions{justify-content:flex-end}}
+${responsive('max-width:520px', `.waycraft-skills-stats{grid-template-columns:repeat(2,minmax(0,1fr))}`)}
+${responsive('max-width:520px', `.waycraft-skills .waycraft-skills-row.waycraft-skills-discover-row{grid-template-columns:minmax(0,1fr);align-items:start}.waycraft-skills .waycraft-skills-discover-row .waycraft-skills-row-actions{justify-content:flex-end}`)}
 .waycraft-skills-catempty{margin:0;padding-inline:32px 8px;padding-block-end:8px}
 .waycraft-skills-pathrow>button{white-space:nowrap;flex:none}
 .waycraft-skills-cathead{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;min-block-size:40px;padding-inline:8px;font-weight:600;font-size:13px}
@@ -1506,7 +1506,7 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
 .waycraft-skills-catsec>summary{display:flex;align-items:center;gap:8px;min-block-size:32px;cursor:pointer;font-weight:600;font-size:13px}
 .waycraft-skills-catsec>summary .waycraft-skills-source-name{flex:1 1 auto}
 .waycraft-skills-catsec>summary:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}
-@media (max-width:520px){.waycraft-skills-seg span:not(.waycraft-skills-badge){display:none}.waycraft-skills-toolbar .waycraft-skills-iconbar{margin-inline-start:0}}
+${responsive('max-width:520px', `.waycraft-skills-seg span:not(.waycraft-skills-badge){display:none}.waycraft-skills-toolbar .waycraft-skills-iconbar{margin-inline-start:0}`)}
 
 `;
     const diagnosticText = (item: any) => {
@@ -1561,6 +1561,8 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
             ? 'warning'
             : 'error';
     const DIAG_CAP = 8;
+    // Rows rendered per list before the quiet "Show more" link (keeps 300+ skill catalogs fast).
+    const ROW_CAP = 100;
     const SEVERITY_PATHS: Record<string, string> = {
       error: 'M8 2a6 6 0 1 0 0 12A6 6 0 0 0 8 2zM8 5v3.5M8 10.5v.01',
       warning: 'M8 2.5l6 10.5H2zM8 6.5v3M8 11.5v.01',
@@ -2966,6 +2968,7 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
         [noteDrafts, setNoteDrafts] = React.useState({}),
         [noteDialog, setNoteDialog] = React.useState(null),
         [orgOpen, setOrgOpen] = React.useState({}),
+        [rowsOpen, setRowsOpen] = React.useState({} as Record<string, boolean>),
         [importing, setImporting] = React.useState(false),
         [importPath, setImportPath] = React.useState(''),
         [importFiles, setImportFiles] = React.useState([]),
@@ -3411,7 +3414,6 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
       const orgOf = (sourceId: string) => ({
         categories: [] as any[],
         members: {} as Record<string, string>,
-        order: {} as Record<string, string[]>,
         notes: {} as Record<string, string>,
         ...(view?.organization?.[sourceId] ?? {}),
       });
@@ -3421,21 +3423,32 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
         filterCategories.some((c: any) => c.id === catFilter)
           ? catFilter
           : '';
-      const copies = (view?.copies ?? []).filter((copy: any) => {
-        const organization = orgOf(copy.source);
-        return (
-          (!source || copy.source === source) &&
-          (!query ||
-            `${copy.name} ${copy.description} ${copy.path} ${organization.notes[copy.name] ?? ''} ${t(copyStatus(copy))} ${sourceLabel((view?.sources ?? []).find((x: any) => x.id === copy.source) ?? { id: copy.source })}`
-              .toLowerCase()
-              .includes(query.toLowerCase())) &&
-          (!status || copyStatus(copy) === status) &&
-          (!activeCat ||
-            (activeCat === '__none'
-              ? !organization.members[copy.name]
-              : organization.members[copy.name] === activeCat))
-        );
-      });
+      // Derived once per input change, not per render: with hundreds of skills every keystroke in an
+      // unrelated field would otherwise re-filter the whole catalog.
+      const copies = React.useMemo(
+        () =>
+          (view?.copies ?? []).filter((copy: any) => {
+            const organization = orgOf(copy.source);
+            return (
+              (!source || copy.source === source) &&
+              (!query ||
+                `${copy.name} ${copy.description} ${copy.path} ${organization.notes[copy.name] ?? ''} ${t(copyStatus(copy))} ${sourceLabel((view?.sources ?? []).find((x: any) => x.id === copy.source) ?? { id: copy.source })}`
+                  .toLowerCase()
+                  .includes(query.toLowerCase())) &&
+              (!status || copyStatus(copy) === status) &&
+              (!activeCat ||
+                (activeCat === '__none'
+                  ? !organization.members[copy.name]
+                  : organization.members[copy.name] === activeCat))
+            );
+          }),
+        [view, query, source, status, activeCat, t],
+      );
+      const mineBySource = React.useMemo(() => {
+        const map: Record<string, any[]> = Object.create(null);
+        for (const copy of copies) (map[copy.source] ??= []).push(copy);
+        return map;
+      }, [copies]);
       const projects = data?.projects ?? [];
       const projectName = (id: string) =>
         projects.find((x: any) => x.id === id)?.name ?? id;
@@ -4346,13 +4359,45 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
           },
           icon(pathD),
         );
+      // Long lists render the first ROW_CAP rows plus a quiet link; filtering happens before the cut, so search
+      // still finds skills outside the window. The link keeps its place (Show all / Show fewer) so focus is not lost.
+      const windowed = (
+        key: string,
+        rows: any[],
+        render: (row: any) => any,
+      ) => {
+        if (rows.length <= ROW_CAP) return rows.map(render);
+        const all = !!rowsOpen[key];
+        return [
+          ...(all ? rows : rows.slice(0, ROW_CAP)).map(render),
+          h(
+            'div',
+            { key: `more:${key}`, className: 'waycraft-skills-diag-foot' },
+            h(
+              'button',
+              {
+                type: 'button',
+                className: 'waycraft-skills-link',
+                'data-waycraft-rows-toggle': key,
+                onClick: () => setRowsOpen({ ...rowsOpen, [key]: !all }),
+              },
+              all
+                ? t('showLess')
+                : t('showMoreCount').replace(
+                    '{count}',
+                    String(rows.length - ROW_CAP),
+                  ),
+            ),
+          ),
+        ];
+      };
       // Rows of one source; each category is a head row (siblings of the disclosure, never nested controls)
       // plus a collapsible list of its skills (collapsed unless filtering).
       const sourceRows = (x: any) => {
-        const mine = copies.filter((c: any) => c.source === x.id);
+        const mine = mineBySource[x.id] ?? [];
         const organization = orgOf(x.id);
         if (!organization.categories.length || data.corrupt)
-          return mine.map((copy: any) => skillRow(x, copy));
+          return windowed(x.id, mine, (copy: any) => skillRow(x, copy));
         return [
           ...[
             ...organization.categories,
@@ -4476,7 +4521,7 @@ function setupSkills(ctx: any, fail: (error: unknown) => void): void {
                         `${allRows.length} ${t(allRows.length === 1 ? 'statSkill' : 'statSkills')}`,
                       ),
                     ),
-                    rows.map((copy: any) => skillRow(x, copy)),
+                    windowed(editKey, rows, (copy: any) => skillRow(x, copy)),
                   ),
             );
           }),

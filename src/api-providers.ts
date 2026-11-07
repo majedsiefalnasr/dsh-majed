@@ -1,4 +1,4 @@
-// Native public-remotes contract adaptation; see PROVENANCE.md (#136).
+// Native public-remotes contract adaptation; see PROVENANCE.md.
 // Only ephemeral render snapshots/drafts live here. DSH remains the sole durable store.
 export function createApiProviders(
   React: any,

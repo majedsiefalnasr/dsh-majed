@@ -1,4 +1,4 @@
-// Final #130 review regressions (P2/P3). Each test pins one defect found by the independent review of 13e8db7.
+// review regressions (P2/P3). Each test pins one defect found by the independent review of 13e8db7.
 // Reference: V1ki/dsh-plugin-subscriptions v0.9.12 (b802311) src/index.ts + src/auth/rpc.ts; see src/PROVENANCE.md.
 // Fake HTTP only; AbortSignal.timeout is shortened inside the pool test so the bounded-time proof stays economical.
 import { test } from 'node:test';

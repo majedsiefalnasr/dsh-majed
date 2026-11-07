@@ -1,4 +1,4 @@
-// Ticket #132 remediation: registered-adapter presentation and pooling, binding survival, account-switch safety, disposal.
+// remediation: registered-adapter presentation and pooling, binding survival, account-switch safety, disposal.
 // Every credential, token and HTTP exchange below is a fixture. Nothing touches the real Keychain, ~/.claude or Anthropic.
 import { test, mock } from 'node:test';
 import assert from 'node:assert/strict';

@@ -1,4 +1,4 @@
-// #155 ClawHub / skills.sh discovery and installation through the registered host route.
+// ClawHub / skills.sh discovery and installation through the registered host route.
 // Everything is local: 127.0.0.1 stubs behind the host-only Config.catalogs seam. No test touches the real network.
 import assert from 'node:assert/strict';
 import {

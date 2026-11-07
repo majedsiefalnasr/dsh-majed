@@ -1521,7 +1521,7 @@ test('owned global registrations in src use the Waycraft namespace', async () =>
     assert.ok(ids.length, file);
     // Deliberately shared provider-native model IDs and the reference's speed-tier option ids are not owned
     // global registrations (ADR-0002); the tier ids are values sent to the `setSpeed` endpoint.
-    // #132: Claude's provider-native model IDs (`claude-*`) are shared the same way, and `oauth`/`keychain` are the values of the
+    // Claude's provider-native model IDs (`claude-*`) are shared the same way, and `oauth`/`keychain` are the values of the
     // Claude login `method` enum sent to the `login` endpoint, not a registration.
     for (const id of ids.filter(
       (id) =>
@@ -1563,7 +1563,7 @@ const MEDIA_SURFACES = [
   'dsh_waycraft_image_generate',
   'video_generate',
   'dsh_waycraft_video_generate',
-  // Deprecated toolview keys kept for one release so old transcripts still render (ticket #159).
+  // Deprecated toolview keys kept for one release so old transcripts still render.
   'dsh_majed_image_generate',
   'dsh_majed_video_generate',
 ]

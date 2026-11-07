@@ -1,4 +1,4 @@
-// #153 assembled registered EN/AR client against the registered host and real local fixtures.
+// assembled registered EN/AR client against the registered host and real local fixtures.
 import assert from 'node:assert/strict';
 import {
   mkdtemp,
@@ -473,7 +473,7 @@ for (const language of ['en', 'ar']) {
   });
 }
 
-// #154 update preview, digest-bound apply, overwrite consent, stale preview and rollback in the assembled client.
+// update preview, digest-bound apply, overwrite consent, stale preview and rollback in the assembled client.
 for (const language of ['en', 'ar']) {
   test(`registered ${language} repository UI previews and applies updates with consent, reports stale previews and rolls back`, async (t) => {
     const ui = await mount(t, language);

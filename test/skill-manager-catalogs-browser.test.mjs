@@ -1,4 +1,4 @@
-// #155 assembled registered EN/AR catalog UI against the registered host and local 127.0.0.1 stubs.
+// assembled registered EN/AR catalog UI against the registered host and local 127.0.0.1 stubs.
 import assert from 'node:assert/strict';
 import {
   mkdtemp,

@@ -1,4 +1,4 @@
-// Ticket #132: the Copilot Settings card renders in English and Arabic and drives the owned RPC with fake data only.
+// the Copilot Settings card renders in English and Arabic and drives the owned RPC with fake data only.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import ts from 'typescript';

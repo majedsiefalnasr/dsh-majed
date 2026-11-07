@@ -1,4 +1,4 @@
-// #134 assembled host seam. All traffic, identities and credentials are fixtures.
+// assembled host seam. All traffic, identities and credentials are fixtures.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp } from 'node:fs/promises';

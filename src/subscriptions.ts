@@ -1,7 +1,13 @@
 import { readFileSync } from 'node:fs';
+import { RpcFailure, rpcErrorKind } from './rpc-errors.js';
+import {
+  VIDEO_FILE_ROUTE,
+  openVideoFile,
+  readVideoFile,
+  streamVideoFile,
+} from './video-file.js';
 import { fileURLToPath } from 'node:url';
 import { LEGACY_RPC_PREFIX } from './legacy-names.js';
-import { legacyMediaDirectory } from './storage-migration.js';
 import { ZenAdapter } from './providers/zen.js';
 import { AntigravityAuthController } from './auth/antigravity-controller.js';
 import {
@@ -26,8 +32,6 @@ import {
 } from './providers/copilot.js';
 import type { CopilotSession } from './auth/store.js';
 /** Owned Codex component composition. Reference v0.9.12: see PROVENANCE.md. */
-import { lstat, open } from 'node:fs/promises';
-import { constants } from 'node:fs';
 import { join } from 'node:path';
 import type { Context } from '@deepseek-ai/cordis';
 import z from '@deepseek-ai/schemastery';
@@ -137,10 +141,7 @@ import {
   fetchGrokUsage,
 } from './providers/grok.js';
 import type { GrokSession } from './auth/store.js';
-import {
-  createVideoGenerateTool,
-  videosDirectory,
-} from './tools/video-generate.js';
+import { createVideoGenerateTool } from './tools/video-generate.js';
 import { createXSearchTool } from './tools/x-search.js';
 import { presentedVersion } from './providers/npm-cli-version.js';
 
@@ -438,6 +439,27 @@ export function apply(
           : provider === 'claude'
             ? claudeHandle
             : handle;
+  /** Providers whose settings read lists their own models next to the pool tiers (one implementation, data-driven). */
+  const OWN_CATALOG_PROVIDERS = {
+    antigravity: {
+      get adapter() {
+        return antigravityAdapter;
+      },
+      get tokens() {
+        return antigravityTokens;
+      },
+      handle: () => antigravityHandle,
+    },
+    copilot: {
+      get adapter() {
+        return copilotAdapter;
+      },
+      get tokens() {
+        return copilotTokens;
+      },
+      handle: () => copilotHandle,
+    },
+  } as const;
   // Composer Speed (reference src/index.ts speedBySession/selectedSpeed). Explicit choices are
   // per session and reset on restart. A subagent without an explicit choice uses its saved model default, and
   // every request still gates Fast on the model's discovered capability.
@@ -1390,14 +1412,20 @@ export function apply(
               const string = (key: string) => {
                 const value = payload[key];
                 if (typeof value !== 'string' || !value)
-                  throw new Error(`payload.${key} must be a non-empty string`);
+                  throw new RpcFailure(
+                    'invalid-request',
+                    `payload.${key} must be a non-empty string`,
+                  );
                 return value;
               };
               let result;
               const releases: (() => void)[] = [];
               try {
                 if (disposed)
-                  throw new Error('Subscriptions component is disabled');
+                  throw new RpcFailure(
+                    'unavailable',
+                    'Subscriptions component is disabled',
+                  );
                 // Claude is served by the endpoints in CLAUDE_ENDPOINTS; every other provider stays unavailable.
                 const provider =
                   endpoint === 'status'
@@ -1448,69 +1476,15 @@ export function apply(
                     break;
                   }
                   case 'video': {
-                    const file = string('name');
-                    if (!/^video-[a-zA-Z0-9_-]+\.mp4$/.test(file))
-                      throw new Error('Invalid video name');
-                    // Lazy media migration: a video generated before the rename is served from the
-                    // untouched legacy directory (never copied, never modified).
-                    let directory = videosDirectory();
-                    const legacyDirectory = legacyMediaDirectory(directory);
-                    if (
-                      legacyDirectory !== undefined &&
-                      !(await lstat(join(directory, file)).then(
-                        () => true,
-                        () => false,
-                      ))
-                    )
-                      directory = legacyDirectory;
-                    const directoryStat = await lstat(directory);
-                    if (
-                      !directoryStat.isDirectory() ||
-                      (process.getuid && directoryStat.uid !== process.getuid())
-                    )
-                      throw new Error('Invalid video directory');
-                    const handle = await open(
-                      join(directory, file),
-                      constants.O_RDONLY | constants.O_NOFOLLOW,
+                    // Deprecated: base64 inside JSON. The binary GET `video-file` route replaces it.
+                    const data = await readVideoFile(
+                      string('name'),
+                      request.signal,
                     );
-                    try {
-                      const stat = await handle.stat();
-                      if (
-                        !stat.isFile() ||
-                        (process.getuid && stat.uid !== process.getuid()) ||
-                        stat.size > 100 * 1024 * 1024
-                      )
-                        throw new Error('Invalid video file');
-                      // Read only the admitted size: a concurrently growing file cannot cause an unbounded allocation.
-                      const data = Buffer.alloc(stat.size);
-                      let offset = 0;
-                      while (offset < data.length) {
-                        request.signal.throwIfAborted();
-                        const { bytesRead } = await handle.read(
-                          data,
-                          offset,
-                          data.length - offset,
-                          offset,
-                        );
-                        if (!bytesRead)
-                          throw new Error('Video file changed during read');
-                        offset += bytesRead;
-                      }
-                      request.signal.throwIfAborted();
-                      if ((await handle.stat()).size !== stat.size)
-                        throw new Error('Video file changed during read');
-                      if (
-                        data.length < 8 ||
-                        data.toString('ascii', 4, 8) !== 'ftyp'
-                      )
-                        throw new Error('Invalid MP4 file');
-                      value = {
-                        mediaType: 'video/mp4',
-                        dataBase64: data.toString('base64'),
-                      };
-                    } finally {
-                      await handle.close();
-                    }
+                    value = {
+                      mediaType: 'video/mp4',
+                      dataBase64: data.toString('base64'),
+                    };
                     break;
                   }
                   case 'status': {
@@ -1715,23 +1689,27 @@ export function apply(
                     releases.push(budget.release);
                     const deadline = budget.signal;
                     await loadModelDefaults();
-                    if (provider === 'antigravity') {
+                    const own =
+                      provider === 'antigravity' || provider === 'copilot'
+                        ? OWN_CATALOG_PROVIDERS[provider]
+                        : undefined;
+                    if (own) {
                       if (force) {
-                        antigravityAdapter.clearAccountCatalog();
+                        own.adapter.clearAccountCatalog();
                         pool.invalidate();
-                        antigravityHandle?.replace(['antigravity']);
+                        own.handle()?.replace([provider]);
                       }
                       const accounts = await readAccountCatalogsFor(
-                        antigravityAdapter,
-                        antigravityTokens,
+                        own.adapter,
+                        own.tokens,
                         !force,
                         deadline,
-                        'antigravity',
+                        provider,
                       );
                       const listed = await withTimeout(
                         (signal) =>
-                          antigravityAdapter.listOwnModels(
-                            'antigravity',
+                          own.adapter.listOwnModels(
+                            provider,
                             undefined,
                             signal,
                             !force,
@@ -1740,7 +1718,7 @@ export function apply(
                         deadline,
                       );
                       const tiers = await withTimeout(
-                        () => pool.modelsForProvider('antigravity'),
+                        () => pool.modelsForProvider(provider),
                         DISCOVERY_TIMEOUT_MS,
                         deadline,
                       );
@@ -1759,8 +1737,8 @@ export function apply(
                         ].map(async (model) => {
                           const info = await withTimeout(
                             (signal) =>
-                              antigravityAdapter.resolveModel(
-                                'antigravity',
+                              own.adapter.resolveModel(
+                                provider,
                                 model.id,
                                 signal,
                               ),
@@ -1773,90 +1751,16 @@ export function apply(
                             efforts: tierIds.has(model.id)
                               ? []
                               : (info?.reasoning?.efforts ?? []),
-                            configured: defaultEffortOf(
-                              'antigravity',
-                              model.id,
-                            ),
+                            configured: defaultEffortOf(provider, model.id),
                           };
                         }),
                       );
                       value = {
-                        provider: 'antigravity',
-                        settings: preferences.get('antigravity'),
+                        provider,
+                        settings: preferences.get(provider),
                         accounts,
                         models,
-                        tools: PROVIDER_TOOLS.antigravity,
-                      };
-                      break;
-                    }
-                    if (provider === 'copilot') {
-                      if (force) {
-                        copilotAdapter.clearAccountCatalog();
-                        pool.invalidate();
-                        copilotHandle?.replace(['copilot']);
-                      }
-                      const accounts = await readAccountCatalogsFor(
-                        copilotAdapter,
-                        copilotTokens,
-                        !force,
-                        deadline,
-                        'copilot',
-                      );
-                      const listed = await withTimeout(
-                        (signal) =>
-                          copilotAdapter.listOwnModels(
-                            'copilot',
-                            undefined,
-                            signal,
-                            !force,
-                          ),
-                        DISCOVERY_TIMEOUT_MS,
-                        deadline,
-                      );
-                      const tiers = await withTimeout(
-                        () => pool.modelsForProvider('copilot'),
-                        DISCOVERY_TIMEOUT_MS,
-                        deadline,
-                      );
-                      const tierIds = new Set(
-                        (tiers ?? []).map((tier) => tier.id),
-                      );
-                      const models = await Promise.all(
-                        [
-                          ...(listed ?? []),
-                          ...(tiers ?? []).filter(
-                            (tier) =>
-                              !(listed ?? []).some(
-                                (model) => model.id === tier.id,
-                              ),
-                          ),
-                        ].map(async (model) => {
-                          const info = await withTimeout(
-                            (signal) =>
-                              copilotAdapter.resolveModel(
-                                'copilot',
-                                model.id,
-                                signal,
-                              ),
-                            DISCOVERY_TIMEOUT_MS,
-                            deadline,
-                          );
-                          return {
-                            ...model,
-                            contextWindow: info?.context?.contextWindow,
-                            efforts: tierIds.has(model.id)
-                              ? []
-                              : (info?.reasoning?.efforts ?? []),
-                            configured: defaultEffortOf('copilot', model.id),
-                          };
-                        }),
-                      );
-                      value = {
-                        provider: 'copilot',
-                        settings: preferences.get('copilot'),
-                        accounts,
-                        models,
-                        tools: PROVIDER_TOOLS.copilot,
+                        tools: PROVIDER_TOOLS[provider],
                       };
                       break;
                     }
@@ -2394,7 +2298,9 @@ export function apply(
                 result = {
                   ok: false,
                   error: {
+                    // `code` is the legacy constant clients may read; `kind` is the stable classification.
                     code: 'subscriptions/error',
+                    kind: rpcErrorKind(error),
                     message:
                       error instanceof OAuthEndpointError
                         ? browserSafeError(error, 'upstream')
@@ -2433,5 +2339,28 @@ export function apply(
         `dsh-waycraft: ${method} route`,
       );
     }
+    // Binary video: same owner-only gate as the JSON routes (the host answers 403 to
+    // anyone else), same name/ownership/size checks, streamed instead of base64-in-JSON.
+    ctx.effect(
+      () =>
+        connection.fetch.register({
+          path: `/api/${VIDEO_FILE_ROUTE}`,
+          methods: ['GET'],
+          requestBody: 'buffered',
+          async fetch(request: Request) {
+            const name = new URL(request.url).searchParams.get('name') ?? '';
+            try {
+              const { handle, size } = await openVideoFile(name);
+              return streamVideoFile(handle, size, request.signal);
+            } catch (error) {
+              const missing = (error as { code?: unknown })?.code === 'ENOENT';
+              return new Response(missing ? 'not found' : 'invalid video', {
+                status: missing ? 404 : 400,
+              });
+            }
+          },
+        }),
+      `dsh-waycraft: ${VIDEO_FILE_ROUTE} route`,
+    );
   });
 }

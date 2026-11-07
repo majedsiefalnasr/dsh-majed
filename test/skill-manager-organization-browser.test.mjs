@@ -386,7 +386,7 @@ for (const language of ['en', 'ar']) {
         .props.onChange({ target: { value: projectId } }),
     );
     await ui.act2(() => tools.button(ui.d.create).props.onClick());
-    // #158 rc.8: the destination is a Scope select plus a Location select preselected to the project.
+    // rc.8: the destination is a Scope select plus a Location select preselected to the project.
     const location = () => tools.field(ui.d.destination);
     assert.equal(location().props.value, `project-dsh:${projectId}`, 'create');
     assert.equal(tools.field(ui.d.destScope).props.value, 'project');
@@ -894,10 +894,7 @@ for (const language of ['en', 'ar'])
       'alpha',
       'beta',
     ]);
-    const order = (await ui.hostFetch({ action: 'list' })).organization.base
-      .order;
-    assert.deepEqual(order[work.id] ?? ['alpha', 'beta'], ['alpha', 'beta']);
-    // Order persists across a fresh mount (reload).
+    // Membership persists across a fresh mount (reload).
     await act(async () => view.unmount());
     const again = await ui.render(Section);
     assert.deepEqual(skillsIn(sectionOf(again, 'base', work.id)), [

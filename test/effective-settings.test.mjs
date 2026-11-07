@@ -1,4 +1,4 @@
-// Effective-settings proof (ticket #130 items 4 and 9): saved Manage settings change what the adapter
+// Effective-settings proof: saved Manage settings change what the adapter
 // advertises and sends. Fake HTTP only; the reference analogue is test/subagent-speed.spec.ts.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

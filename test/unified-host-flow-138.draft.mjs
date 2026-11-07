@@ -1,4 +1,4 @@
-// #138: registered UI -> actual host routes/controllers -> dummy HTTP/credential IO.
+// registered UI -> actual host routes/controllers -> dummy HTTP/credential IO.
 // No status revision is fabricated; the real controller must persist each admission.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

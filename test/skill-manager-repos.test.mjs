@@ -1,4 +1,4 @@
-// #153 repository subscriptions and tracked installation, through the registered host route.
+// repository subscriptions and tracked installation, through the registered host route.
 // Security posture asserted below (explicit, not implied):
 //  - bounded processing: archive bytes, expanded bytes, entry count, depth and wall-clock time;
 //  - no shell: git runs through argv spawn, proven with a recording fake git and metacharacter paths;
@@ -315,7 +315,8 @@ test('Git processing is time-bounded and a hung git process is killed', async (t
     `#!/bin/sh\necho $$ > '${record}/pid'\nexec sleep 30\n`,
   );
   await chmod(fake, 0o755);
-  const { root, add } = await fixture(t, { git: fake, timeoutMs: 400 });
+  // Budget leaves room for a loaded machine to start the shell before the deadline fires.
+  const { root, add } = await fixture(t, { git: fake, timeoutMs: 1500 });
   const folder = join(root, 'repo');
   await writeFiles(folder, { 'a/SKILL.md': skillDoc('a') });
   git(folder, 'init', '-q', '-b', 'main');

@@ -1,4 +1,4 @@
-// Every translated key the owned UI can request must exist with real copy in both shipped locales (ticket #130).
+// Every translated key the owned UI can request must exist with real copy in both shipped locales.
 // Regression: English held eight values equal to their key name and the tool checkboxes asked for missing keys.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -8,7 +8,7 @@ const read = (name) =>
   JSON.parse(
     readFileSync(new URL(`../locale/${name}.json`, import.meta.url), 'utf8'),
   ).subscriptions;
-// Ticket #131 adds the composer usage badge (`translate(...)`) and Speed control (`t(...)`) sources.
+// adds the composer usage badge (`translate(...)`) and Speed control (`t(...)`) sources.
 const sources = [
   ...['settings', 'usage-badge', 'speed'].flatMap((dir) =>
     readdirSync(new URL(`../src/${dir}/`, import.meta.url)).map(
@@ -49,7 +49,7 @@ test('the scan finds the keys the UI requests', () => {
     'resets',
   ])
     assert.ok(used.has(key), key);
-  // #131 surfaces: badge panel, display setting, Speed menu and /fast copy must be scanned too.
+  // surfaces: badge panel, display setting, Speed menu and /fast copy must be scanned too.
   for (const key of [
     'usageBadgeTitle',
     'usageBadgeDisplay',
@@ -60,7 +60,7 @@ test('the scan finds the keys the UI requests', () => {
     'usageBadgeMoreWindows',
   ])
     assert.ok(used.has(key), key);
-  // #132 Claude card and cache lifetime copy.
+  // Claude card and cache lifetime copy.
   for (const key of [
     'claudeProviderUnavailable',
     'addAccountOAuth',

@@ -1,4 +1,4 @@
-// #156 project-scoped repository and catalog installs through the registered host route.
+// project-scoped repository and catalog installs through the registered host route.
 // Local only: temp projects, a local git repository and a 127.0.0.1 catalog stub. No real network.
 import assert from 'node:assert/strict';
 import {

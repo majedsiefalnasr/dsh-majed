@@ -1,4 +1,4 @@
-// Assembled tool/session-creation policy proof (ticket #130, story 42). Fake DSH services only; no network.
+// Assembled tool/session-creation policy proof. Fake DSH services only; no network.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp } from 'node:fs/promises';

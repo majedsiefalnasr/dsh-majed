@@ -7,7 +7,7 @@ import {
   styles,
 } from './codex-card.js';
 /**
- * Claude Settings card (ticket #132). Scoped presentation port of the Claude part of V1ki v0.9.12 b802311
+ * Claude Settings card. Scoped presentation port of the Claude part of V1ki v0.9.12 b802311
  * SubscriptionsSection; see PROVENANCE.md. It only ever receives sanitized status from the owned RPC: account
  * labels, plan and expiry, never a token or credential-store path.
  */

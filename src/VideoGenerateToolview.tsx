@@ -17,7 +17,7 @@ import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { ConnectionHandle } from '@deepseek-ai/dsh-api-remotes/client';
 import type { ToolCallBlock } from '@deepseek-ai/dsh-client-ui-conversation/client';
-import { callSubscriptionsAuth } from './subscriptions-rpc.js';
+import { VIDEO_FILE_ROUTE } from './video-route.js';
 import { en } from './locales.js';
 import type { SubscriptionsKey } from './locales.js';
 
@@ -38,10 +38,10 @@ interface ToolCallOwnerProps {
 }
 
 /** Decoded video bytes as the node half's `video` endpoint answers them. */
-export interface VideoBytes {
-  mediaType: string;
-  dataBase64: string;
-}
+export type VideoBytes =
+  | { mediaType: string; dataBase64: string }
+  /** Same-origin URL of the binary `videoFile` route; the browser streams it. */
+  | { url: string };
 
 /** Injected dependencies of {@link VideoGenerateToolview} (slot `inject`). */
 export interface VideoGenerateToolviewInjected {
@@ -68,7 +68,10 @@ export type VideoGenerateToolviewProps = Partial<ToolCallOwnerProps> &
 export function createVideoLoader(
   rpc: ConnectionHandle['rpc'],
 ): (name: string) => Promise<VideoBytes> {
-  return (name) => callSubscriptionsAuth<VideoBytes>(rpc, 'video', { name });
+  void rpc;
+  return async (name) => ({
+    url: `/api/${VIDEO_FILE_ROUTE}?name=${encodeURIComponent(name)}`,
+  });
 }
 
 /**
@@ -231,6 +234,10 @@ export function VideoGenerateToolview(props: VideoGenerateToolviewProps) {
     loadVideo(fileName).then(
       (video) => {
         if (cancelled) return;
+        if ('url' in video) {
+          setLoad({ phase: 'ready', url: video.url });
+          return;
+        }
         // Uint8Array#slice detaches a plain ArrayBuffer view for BlobPart.
         objectUrl = URL.createObjectURL(
           new Blob([base64Bytes(video.dataBase64).slice()], {

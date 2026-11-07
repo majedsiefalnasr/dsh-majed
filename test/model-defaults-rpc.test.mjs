@@ -1,6 +1,6 @@
 // Adapted from V1ki/dsh-plugin-subscriptions v0.9.12 (b802311) test/model-defaults-rpc.spec.ts, MIT; see src/PROVENANCE.md.
 // Dispositions (owned endpoints differ from the reference by design):
-//  - `provider` is optional (default `codex`); `codex` and `claude` are accepted (#132) and anything else fails with
+//  - `provider` is optional (default `codex`); `codex` and `claude` are accepted and anything else fails with
 //    "payload.provider must be one of codex, claude" (the reference listed every provider).
 //  - `modelDefaults` returns the reference `ModelDefaultsCatalog[]` (`[{ provider, models: [{ id, name, efforts, configured? }] }]`)
 //    and honours a boolean `force` (final #130 review, test/final-130.test.mjs); the old stored-snapshot shape is gone.

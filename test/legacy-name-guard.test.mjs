@@ -1,4 +1,4 @@
-// Guard (ticket #159): the retired product name must not reappear in owned sources. The allow-list is deliberate
+// Guard: the retired product name must not reappear in owned sources. The allow-list is deliberate
 // and each entry is justified; everything else fails with file:line.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

@@ -1,6 +1,6 @@
 /**
  * Claude Code's own login, read (and, for imported accounts only, written back on refresh) from the same store the
- * `claude` CLI uses. Ported from reference v0.9.12 src/auth/claude-code-creds.ts; see PROVENANCE.md (#132).
+ * `claude` CLI uses. Ported from reference v0.9.12 src/auth/claude-code-creds.ts; see PROVENANCE.md.
  *
  * Every OS call goes through a {@link ClaudeCredsIo} so tests inject fakes. The production defaults touch the real
  * macOS Keychain and `~/.claude/.credentials.json`; they run only from an explicit user import and from the refresh

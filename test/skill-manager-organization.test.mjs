@@ -210,41 +210,18 @@ test('categories are created, renamed, assigned in bulk, ordered and deleted as 
     ).body.code,
     'category-unknown',
   );
+  // Reordering was removed: the retired action is an unknown action (clean 400).
   r = await h.post({
     action: 'category-move',
     name: 'gamma',
     category: work.id,
-    target: 'alpha',
-    position: 'before',
     ...S,
   });
-  assert.deepEqual(org(r.body).order[work.id], ['gamma', 'alpha', 'beta']);
-  r = await h.post({
-    action: 'category-move',
-    name: 'gamma',
-    category: work.id,
-    target: 'beta',
-    position: 'after',
-    ...S,
-  });
-  assert.deepEqual(org(r.body).order[work.id], ['alpha', 'beta', 'gamma']);
-  assert.equal(
-    (
-      await h.post({
-        action: 'category-move',
-        name: 'gamma',
-        category: work.id,
-        position: 'sideways',
-        ...S,
-      })
-    ).body.code,
-    'order-position',
-  );
-  // Existing uncategorized order is preserved; former members are appended deterministically.
+  assert.equal(r.status, 400);
   await h.post({ action: 'category-create', name: 'Empty', ...S });
   r = await h.post({ action: 'category-delete', category: work.id, ...S });
   assert.deepEqual(org(r.body).members, {});
-  assert.deepEqual(org(r.body).order[''], ['alpha', 'beta', 'gamma']);
+  assert.equal('order' in org(r.body), false);
   assert.equal(
     r.body.copies.filter((x) => x.source === 'base').length,
     3,
@@ -563,7 +540,6 @@ test('malformed organization state is locked, never partially trusted', async (t
   // Raw JSON text: an object literal would silently drop an own "__proto__" key.
   for (const organization of [
     `{"global":{"base":${entry('[]', '{"alpha":"zz"}', '{}', '{}')}}}`,
-    `{"global":{"base":${entry(`[${cat}]`, '{}', '{"__proto__":["x"]}', '{}')}}}`,
     `{"__proto__":{"base":${entry('[]', '{}', '{}', '{}')}}}`,
     '{"not-a-scope":{}}',
     `{"global":{"":${entry('[]', '{}', '{}', '{}')}}}`,
@@ -613,13 +589,11 @@ test('a mutation that would exceed the state size limit is rejected and leaves p
         ghost1: {
           categories: [],
           members: {},
-          order: {},
           notes: fill(1000, 'a'),
         },
         ghost2: {
           categories: [],
           members: {},
-          order: {},
           notes: fill(extra, 'b'),
         },
       },
@@ -743,4 +717,43 @@ test('placement persists settings, sidebar-only and both', async (t) => {
     (await fresh.post({ action: 'ping', include: 'placement' })).body.placement,
     'sidebar',
   );
+});
+
+test('state saved before reordering was removed still loads: organization.order is ignored and pruned on write', async (t) => {
+  const h = await host(t);
+  await mkdir(join(h.root, 'state'), { recursive: true });
+  const id = 'aaaaaaaaaaaaaaaa';
+  await writeFile(
+    h.statePath,
+    JSON.stringify({
+      sources: {},
+      copies: {},
+      customSources: [],
+      projects: {},
+      organization: {
+        global: {
+          base: {
+            categories: [{ id, name: 'Old' }],
+            members: { alpha: id },
+            order: { [id]: ['alpha', 'beta'], '': ['gamma'] },
+            notes: {},
+          },
+        },
+      },
+      placement: 'settings',
+    }),
+  );
+  const fresh = await host(t, h.statePath);
+  const listed = await fresh.post({ action: 'list' });
+  assert.notEqual(listed.body.corrupt, true);
+  assert.deepEqual(listed.body.organization.base.members, { alpha: id });
+  assert.equal('order' in listed.body.organization.base, false);
+  const r = await fresh.post({
+    action: 'category-create',
+    name: 'New',
+    source: 'base',
+  });
+  assert.equal(r.status, 200);
+  const saved = JSON.parse(await readFile(fresh.statePath, 'utf8'));
+  assert.equal('order' in saved.organization.global.base, false);
 });

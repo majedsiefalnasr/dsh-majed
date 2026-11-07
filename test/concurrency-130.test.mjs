@@ -1,4 +1,4 @@
-// Ticket #130 P2 concurrency proof: stale or concurrent writers must not erase each other's changes.
+// P2 concurrency proof: stale or concurrent writers must not erase each other's changes.
 // Real stores on a temp DSH_HOME, no network. Two "clients" load the same baseline and save concurrently.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

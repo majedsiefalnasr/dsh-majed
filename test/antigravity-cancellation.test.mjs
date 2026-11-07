@@ -1,4 +1,4 @@
-// #135 public provider seams; real Responses deliberately ignore transport abort.
+// public provider seams; real Responses deliberately ignore transport abort.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {

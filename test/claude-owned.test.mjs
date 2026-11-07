@@ -1,4 +1,4 @@
-// Ticket #132: assembled Claude component (host RPC, login by import or browser, credential store sync, chat, security).
+// assembled Claude component (host RPC, login by import or browser, credential store sync, chat, security).
 // Adapted from the Claude cases of V1ki v0.9.12 test/login.spec.ts (MIT) for the owned ClaudeAuthController and RPC;
 // every credential, token and HTTP exchange below is a fixture. Nothing touches the real Keychain, ~/.claude or Anthropic.
 import { test, mock } from 'node:test';

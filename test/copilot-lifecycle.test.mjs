@@ -1,4 +1,4 @@
-// #134 missing lifecycle/error boundaries. Synthetic HTTP and temporary owned store only.
+// missing lifecycle/error boundaries. Synthetic HTTP and temporary owned store only.
 import { test, before, after } from 'node:test';
 let keepAlive;
 before(() => {

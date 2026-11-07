@@ -14,6 +14,10 @@ live verification in the DSH desktop app (see checklist).
 - Source commit/push, installation/restart, npm publication, GitHub release and real-account/paid operations have separate explicit approval boundaries. Never overwrite an existing registry version; tag only the exact public release commit after approved integration. User completes login/2FA personally; do not request credentials in chat.
 - Record release status and remaining gates in current work before handoff. Installation, registry readback, source integration and desktop acceptance are distinct claims. Link the release summary from the changelog; keep release/docs rules linked from AGENTS.
 
+## Optional real-browser checks
+
+`npm run test:browser` runs `test/browser/*.browser.mjs` in real Chromium (switch size, drag-assign EN/AR, dialog focus trap/Escape/focus return, diagnostics disclosure). It is not part of `npm test` and skips with a message when Playwright or Chromium is not resolvable. Playwright is not a dependency: run `npm run build`, then set `WAYCRAFT_PLAYWRIGHT` to the Playwright module directory (or have `playwright` resolvable) and optionally `WAYCRAFT_CHROMIUM` to a Chromium executable.
+
 ## Checklist
 1. Working tree contains only intended changes: `git status`.
 2. `npm test` passes and `git diff --check` is clean.

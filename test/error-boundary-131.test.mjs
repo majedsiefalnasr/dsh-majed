@@ -1,4 +1,4 @@
-// Ticket #131 hardening: a render failure is contained by the owned boundary instead of relying on the host.
+// hardening: a render failure is contained by the owned boundary instead of relying on the host.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import ts from 'typescript';

@@ -1,4 +1,4 @@
-// Final #130 P2 security regressions: diagnostic sanitization of arbitrary exception text (http.ts safeDiagnostic).
+// P2 security regressions: diagnostic sanitization of arbitrary exception text (http.ts safeDiagnostic).
 // Independent review of d6d849a found unknown-secret forms, known-secret encodings, JSON tails and a quadratic cost.
 // Fake fetch only; no real network, accounts or proxy. Timing guards are deliberately loose (CI-noise tolerant).
 import { test } from 'node:test';

@@ -76,7 +76,7 @@ export function applySubscriptions(root: Context): void {
         );
         const t = ctx.locale.bind(NS);
         const CodexCard = createCodexCard(React, primitives, connection.rpc, t);
-        // A Claude card failure must not remove the Codex card or the rest of the section (#132 isolation).
+        // A Claude card failure must not remove the Codex card or the rest of the section.
         const CopilotCard = guarded(
           React,
           createCopilotCard(React, primitives, connection.rpc, t),

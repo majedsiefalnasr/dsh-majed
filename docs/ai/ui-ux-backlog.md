@@ -41,3 +41,5 @@ rc.17 note: switch = host control copy; Discover lists share one row component; 
 rc.18 note: diagnostics are collapsed regions inside the source cards; the absent tool folders notice is removed; Discover rows are plain like the skill rows.
 
 rc.19 note: consistency table in docs/ai/ui-consistency-158.md; Discover panels unified; accent icon buttons removed.
+
+rc.20 note (#160): long lists are windowed (100 rows + Show more), layout rules are container queries, drag/switch/dialog/diagnostics are covered by the opt-in real-browser suite (`npm run test:browser`); host webview still unproven.

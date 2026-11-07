@@ -1,4 +1,4 @@
-// Ticket #130 security matrices: real DSH HostConnectionService gate (no hand-written 401) and
+// security matrices: real DSH HostConnectionService gate (no hand-written 401) and
 // proxy-secret absence across every serialized RPC response. Loopback-only; no real network.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -397,6 +397,8 @@ test('invalid envelopes are rejected before any endpoint runs and are not busine
       body.result.error.message,
       /payload\.provider must be one of codex, claude/,
     );
+    // Stable kind next to the legacy code; old clients only read `code`/`message`.
+    assert.equal(body.result.error.kind, 'invalid-request');
   } finally {
     host.dispose();
   }
